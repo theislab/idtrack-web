@@ -1,0 +1,92 @@
+[
+  {
+    "kind": "convert",
+    "name": "convert_tp53",
+    "identifier": "TP53"
+  },
+  {
+    "kind": "convert",
+    "name": "convert_tp53_to_hgnc",
+    "identifier": "TP53",
+    "arguments": {
+      "final_database": "HGNC Symbol"
+    }
+  },
+  {
+    "kind": "convert",
+    "name": "convert_ins_gene_to_first",
+    "identifier": "ENSG00000254647",
+    "arguments": {
+      "to_release": 48
+    }
+  },
+  {
+    "kind": "names_of_best",
+    "name": "names_of_ins_gene",
+    "source": "convert_symbol_ins"
+  },
+  {
+    "kind": "names_of_best",
+    "name": "names_of_ins_gene_115",
+    "source": "convert_symbol_ins",
+    "query": {
+      "release": 115
+    }
+  },
+  {
+    "kind": "post",
+    "name": "batch_json",
+    "path": "/organisms/{organism}/convert/batch",
+    "query": {
+      "format": "json"
+    },
+    "body": {
+      "identifiers": ["INS", "TP53", "NOT_A_GENE", "ENSG00000254647", "pdx1"]
+    }
+  },
+  {
+    "kind": "post",
+    "name": "batch_tsv",
+    "path": "/organisms/{organism}/convert/batch",
+    "query": {
+      "format": "tsv"
+    },
+    "body": {
+      "identifiers": ["INS", "TP53", "NOT_A_GENE", "ENSG00000254647", "pdx1"]
+    }
+  },
+  {
+    "kind": "convert",
+    "name": "convert_split_no_target",
+    "identifier": "ENSG00000283388",
+    "arguments": {
+      "from_release": 85,
+      "to_release": 115,
+      "final_database": "HGNC Symbol"
+    }
+  },
+  {
+    "kind": "convert",
+    "name": "convert_other_release_rnr1",
+    "identifier": "RNR1"
+  },
+  {
+    "kind": "convert",
+    "name": "convert_retired_bridge",
+    "identifier": "ENSG00000199004",
+    "arguments": {
+      "from_release": 84
+    }
+  },
+  {
+    "kind": "post",
+    "name": "batch_json_copies",
+    "path": "/organisms/{organism}/convert/batch",
+    "query": {
+      "format": "json"
+    },
+    "body": {
+      "identifiers": ["INS", "INS-1", "TP53", "TP53.2", "TP53.2_1", "PDX1"]
+    }
+  }
+]

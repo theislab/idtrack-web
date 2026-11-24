@@ -1,0 +1,17 @@
+# The build context is the repository: only what the image needs.
+.git
+**/__pycache__
+**/*.pyc
+**/.mypy_cache
+**/.ruff_cache
+**/.pytest_cache
+**/.venv
+**/node_modules
+web/dist
+web/test-results
+web/playwright-report
+api/tests
+**/*.npz
+.env
+*.env
+deploy/secrets

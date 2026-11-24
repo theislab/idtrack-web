@@ -1,0 +1,119 @@
+{
+  "about": "The real human graph (Ensembl 48 to 115, GRCh37 and GRCh38): identifiers for the end-to-end flows, with a very large answer and genes on alternative loci.",
+  "organism": "homo_sapiens",
+  "symbol": {
+    "identifier": "TP53"
+  },
+  "long": {
+    "identifier": "ENSP00000378069.2",
+    "db": "RefSeq_mRNA"
+  },
+  "backward": {
+    "identifier": "ENSG00000292986.1",
+    "to": 48
+  },
+  "notFound": {
+    "identifier": "NOT_A_GENE"
+  },
+  "unknownVersion": {
+    "identifier": "ENSG00000141510.3"
+  },
+  "noTarget": {
+    "identifier": "ENST00000445666.1",
+    "db": "RefSeq_mRNA"
+  },
+  "noConversion": {
+    "identifier": "ENSG00000237495.3",
+    "to": 48
+  },
+  "batch": ["INS", "TP53", "NOT_A_GENE", "ENSG00000254647", "pdx1", "NM_000207", "BRCA2", "C17orf44"],
+  "name": "INS",
+  "alternativeLoci": {
+    "identifier": "TP53"
+  },
+  "large": {
+    "identifier": "ENST00000346315.2",
+    "db": "RefSeq_mRNA"
+  },
+  "cases": [
+    {
+      "name": "history-scored-handoff-self-loop",
+      "query": {
+        "identifier": "ENST00000225823.6",
+        "to": 48
+      }
+    },
+    {
+      "name": "history-unscored",
+      "query": {
+        "identifier": "ENSG00000187912.12",
+        "to": 82
+      }
+    },
+    {
+      "name": "replaced-places-apart",
+      "query": {
+        "identifier": "ENST00000582116.2",
+        "to": 48
+      }
+    },
+    {
+      "name": "split",
+      "query": {
+        "identifier": "AC117474.1",
+        "to": 48
+      }
+    },
+    {
+      "name": "merge",
+      "query": {
+        "identifier": "ENSG00000250239.1"
+      }
+    },
+    {
+      "name": "bridge-from-a-retired-gene",
+      "query": {
+        "identifier": "ENSG00000199004",
+        "from": 84
+      }
+    },
+    {
+      "name": "bridge-outside-reference",
+      "query": {
+        "identifier": "ENSG00000243291.1",
+        "to": 48
+      }
+    },
+    {
+      "name": "split-no-target",
+      "query": {
+        "identifier": "ENSG00000283388",
+        "from": 85,
+        "to": 115,
+        "db": "HGNC Symbol"
+      },
+      "status": "no_target"
+    },
+    {
+      "name": "other-release-reading",
+      "query": {
+        "identifier": "RNR1"
+      }
+    },
+    {
+      "name": "tie",
+      "query": {
+        "identifier": "MAT1",
+        "to": 48
+      },
+      "status": "tie"
+    },
+    {
+      "name": "final-database",
+      "query": {
+        "identifier": "ENST00000225823.6",
+        "db": "RefSeq_mRNA"
+      }
+    }
+  ]
+}

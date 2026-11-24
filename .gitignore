@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+*.egg-info/
+build/
+dist/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Frontend (web/)
+node_modules/
+web/dist/
+web/test-results/
+web/playwright-report/
+
+# Data: graph files are published to R2 or the node, never committed (api/tests/data holds the one small test graph)
+*.npz
+!api/tests/data/*.npz
+*.part-*
+
+# Local configuration and secrets
+.env
+*.env
+deploy/secrets/
+
+# Editors and systems
+.idea/
+.vscode/
+.DS_Store

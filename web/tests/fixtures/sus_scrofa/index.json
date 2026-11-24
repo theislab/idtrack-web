@@ -1,0 +1,1158 @@
+[
+ {
+  "name": "convert_annotation",
+  "method": "GET",
+  "path": "/organisms/sus_scrofa/convert",
+  "query": {
+   "identifier": "ENSSSCG00000001163.1",
+   "explain": "true",
+   "to_release": 86
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "convert_annotation.json"
+ },
+ {
+  "name": "convert_bridge_check_refused",
+  "method": "GET",
+  "path": "/organisms/sus_scrofa/convert",
+  "query": {
+   "identifier": "ENSSSCG00000062360.1",
+   "explain": "true",
+   "to_release": 56
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "convert_bridge_check_refused.json"
+ },
+ {
+  "name": "convert_bridge_check_taken",
+  "method": "GET",
+  "path": "/organisms/sus_scrofa/convert",
+  "query": {
+   "identifier": "ENSSSCP00000069370.1",
+   "explain": "true",
+   "to_release": 56
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "convert_bridge_check_taken.json"
+ },
+ {
+  "name": "convert_bridge_places_same_place",
+  "method": "GET",
+  "path": "/organisms/sus_scrofa/convert",
+  "query": {
+   "identifier": "ENSSSCP00000069370.1",
+   "explain": "true",
+   "to_release": 86
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "convert_bridge_places_same_place.json"
+ },
+ {
+  "name": "convert_bridge_rule_synonym",
+  "method": "GET",
+  "path": "/organisms/sus_scrofa/convert",
+  "query": {
+   "identifier": "F2Z5A4",
+   "explain": "true"
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "convert_bridge_rule_synonym.json"
+ },
+ {
+  "name": "convert_candidate_authority",
+  "method": "GET",
+  "path": "/organisms/sus_scrofa/convert",
+  "query": {
+   "identifier": "RNF7",
+   "explain": "true"
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "convert_candidate_authority.json"
+ },
+ {
+  "name": "convert_candidate_bridges",
+  "method": "GET",
+  "path": "/organisms/sus_scrofa/convert",
+  "query": {
+   "identifier": "ENSSSCG00000035078.1",
+   "explain": "true",
+   "to_release": 86
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "convert_candidate_bridges.json"
+ },
+ {
+  "name": "convert_candidate_score_1",
+  "method": "GET",
+  "path": "/organisms/sus_scrofa/convert",
+  "query": {
+   "identifier": "ENSSSCG00000008047.2",
+   "explain": "true",
+   "to_release": 56
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "convert_candidate_score_1.json"
+ },
+ {
+  "name": "convert_candidates_1",
+  "method": "GET",
+  "path": "/organisms/sus_scrofa/convert",
+  "query": {
+   "identifier": "Ssc.7209",
+   "explain": "true",
+   "to_release": 86
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "convert_candidates_1.json"
+ },
+ {
+  "name": "convert_candidates_5",
+  "method": "GET",
+  "path": "/organisms/sus_scrofa/convert",
+  "query": {
+   "identifier": "ENSSSCG00000019202.1",
+   "explain": "true",
+   "to_release": 86
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "convert_candidates_5.json"
+ },
+ {
+  "name": "convert_decided_by_annotation",
+  "method": "GET",
+  "path": "/organisms/sus_scrofa/convert",
+  "query": {
+   "identifier": "ENSSSCG00000033428.2",
+   "explain": "true"
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "convert_decided_by_annotation.json"
+ },
+ {
+  "name": "convert_decided_by_bridge_gap",
+  "method": "GET",
+  "path": "/organisms/sus_scrofa/convert",
+  "query": {
+   "identifier": "ENSSSCG00000013037.3",
+   "explain": "true"
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "convert_decided_by_bridge_gap.json"
+ },
+ {
+  "name": "convert_decided_by_display_name",
+  "method": "GET",
+  "path": "/organisms/sus_scrofa/convert",
+  "query": {
+   "identifier": "RNF223",
+   "explain": "true"
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "convert_decided_by_display_name.json"
+ },
+ {
+  "name": "convert_decided_by_own_version",
+  "method": "GET",
+  "path": "/organisms/sus_scrofa/convert",
+  "query": {
+   "identifier": "ENSSSCG00000019785.1",
+   "explain": "true",
+   "from_release": 56
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "convert_decided_by_own_version.json"
+ },
+ {
+  "name": "convert_decided_by_same_as_query",
+  "method": "GET",
+  "path": "/organisms/sus_scrofa/convert",
+  "query": {
+   "identifier": "NM_001244172",
+   "explain": "true",
+   "final_database": "RefSeq_mRNA"
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "convert_decided_by_same_as_query.json"
+ },
+ {
+  "name": "convert_decided_by_score",
+  "method": "GET",
+  "path": "/organisms/sus_scrofa/convert",
+  "query": {
+   "identifier": "ENSSSCT00000006589.2",
+   "explain": "true",
+   "to_release": 56
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "convert_decided_by_score.json"
+ },
+ {
+  "name": "convert_from_release_fallback",
+  "method": "GET",
+  "path": "/organisms/sus_scrofa/convert",
+  "query": {
+   "identifier": "ENSSSCT00000046947.2",
+   "explain": "true",
+   "from_release": 56
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "convert_from_release_fallback.json"
+ },
+ {
+  "name": "convert_handoff_long",
+  "method": "GET",
+  "path": "/organisms/sus_scrofa/convert",
+  "query": {
+   "identifier": "XM_003480771",
+   "explain": "true",
+   "to_release": 56
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "convert_handoff_long.json"
+ },
+ {
+  "name": "convert_kind_entry",
+  "method": "GET",
+  "path": "/organisms/sus_scrofa/convert",
+  "query": {
+   "identifier": "ENSSSCG00000047476",
+   "explain": "true"
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "convert_kind_entry.json"
+ },
+ {
+  "name": "convert_kind_final",
+  "method": "GET",
+  "path": "/organisms/sus_scrofa/convert",
+  "query": {
+   "identifier": "100626121",
+   "explain": "true",
+   "final_database": "HGNC Symbol"
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "convert_kind_final.json"
+ },
+ {
+  "name": "convert_kind_final_long",
+  "method": "GET",
+  "path": "/organisms/sus_scrofa/convert",
+  "query": {
+   "identifier": "OR2AU1P",
+   "explain": "true",
+   "final_database": "HGNC Symbol"
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "convert_kind_final_long.json"
+ },
+ {
+  "name": "convert_kind_identity",
+  "method": "GET",
+  "path": "/organisms/sus_scrofa/convert",
+  "query": {
+   "identifier": "ENSSSCG00000043686.1",
+   "explain": "true"
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "convert_kind_identity.json"
+ },
+ {
+  "name": "convert_kind_identity_long",
+  "method": "GET",
+  "path": "/organisms/sus_scrofa/convert",
+  "query": {
+   "identifier": "ENSSSCG00000023935.4",
+   "explain": "true",
+   "final_database": "RefSeq_mRNA"
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "convert_kind_identity_long.json"
+ },
+ {
+  "name": "convert_kind_self_loop",
+  "method": "GET",
+  "path": "/organisms/sus_scrofa/convert",
+  "query": {
+   "identifier": "N6AMT",
+   "explain": "true"
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "convert_kind_self_loop.json"
+ },
+ {
+  "name": "convert_kind_self_loop_long",
+  "method": "GET",
+  "path": "/organisms/sus_scrofa/convert",
+  "query": {
+   "identifier": "ENSSSCT00000007021.1",
+   "explain": "true"
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "convert_kind_self_loop_long.json"
+ },
+ {
+  "name": "convert_long_path_15",
+  "method": "GET",
+  "path": "/organisms/sus_scrofa/convert",
+  "query": {
+   "identifier": "ENSSSCT00000049537.1",
+   "explain": "true"
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "convert_long_path_15.json"
+ },
+ {
+  "name": "convert_match_case",
+  "method": "GET",
+  "path": "/organisms/sus_scrofa/convert",
+  "query": {
+   "identifier": "C1ORF150",
+   "explain": "true",
+   "to_release": 56
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "convert_match_case.json"
+ },
+ {
+  "name": "convert_match_exact",
+  "method": "GET",
+  "path": "/organisms/sus_scrofa/convert",
+  "query": {
+   "identifier": "ENSSSCP00000069370.1",
+   "explain": "true",
+   "from_release": 56
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "convert_match_exact.json"
+ },
+ {
+  "name": "convert_match_synonym_case",
+  "method": "GET",
+  "path": "/organisms/sus_scrofa/convert",
+  "query": {
+   "identifier": "P21",
+   "explain": "true",
+   "to_release": 86
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "convert_match_synonym_case.json"
+ },
+ {
+  "name": "convert_match_synonym_exact",
+  "method": "GET",
+  "path": "/organisms/sus_scrofa/convert",
+  "query": {
+   "identifier": "IDDM19",
+   "explain": "true",
+   "from_release": 56
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "convert_match_synonym_exact.json"
+ },
+ {
+  "name": "convert_match_version",
+  "method": "GET",
+  "path": "/organisms/sus_scrofa/convert",
+  "query": {
+   "identifier": "NP_001116572.1",
+   "explain": "true"
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "convert_match_version.json"
+ },
+ {
+  "name": "convert_merges_0",
+  "method": "GET",
+  "path": "/organisms/sus_scrofa/convert",
+  "query": {
+   "identifier": "ENSSSCG00000045119.1",
+   "explain": "true"
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "convert_merges_0.json"
+ },
+ {
+  "name": "convert_no_target_genes",
+  "method": "GET",
+  "path": "/organisms/sus_scrofa/convert",
+  "query": {
+   "identifier": "RNF223",
+   "explain": "true",
+   "final_database": "HGNC Symbol"
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "convert_no_target_genes.json"
+ },
+ {
+  "name": "convert_node_ensembl_gene",
+  "method": "GET",
+  "path": "/organisms/sus_scrofa/convert",
+  "query": {
+   "identifier": "ENSSSCP00000069370.1",
+   "explain": "true"
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "convert_node_ensembl_gene.json"
+ },
+ {
+  "name": "convert_node_ensembl_translation",
+  "method": "GET",
+  "path": "/organisms/sus_scrofa/convert",
+  "query": {
+   "identifier": "ENSSSCP00000074631.1",
+   "explain": "true"
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "convert_node_ensembl_translation.json"
+ },
+ {
+  "name": "convert_node_places_1",
+  "method": "GET",
+  "path": "/organisms/sus_scrofa/convert",
+  "query": {
+   "identifier": "ENSSSCG00000002495.1",
+   "explain": "true",
+   "to_release": 56
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "convert_node_places_1.json"
+ },
+ {
+  "name": "convert_other_reading_other_release",
+  "method": "GET",
+  "path": "/organisms/sus_scrofa/convert",
+  "query": {
+   "identifier": "SSC.28170",
+   "explain": "true"
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "convert_other_reading_other_release.json"
+ },
+ {
+  "name": "convert_reason_no_id_in_final_database",
+  "method": "GET",
+  "path": "/organisms/sus_scrofa/convert",
+  "query": {
+   "identifier": "ENSSSCG00000047476",
+   "explain": "true",
+   "final_database": "HGNC Symbol"
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "convert_reason_no_id_in_final_database.json"
+ },
+ {
+  "name": "convert_reason_no_path_to_target",
+  "method": "GET",
+  "path": "/organisms/sus_scrofa/convert",
+  "query": {
+   "identifier": "ENSSSCG00000047476",
+   "explain": "true",
+   "to_release": 56
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "convert_reason_no_path_to_target.json"
+ },
+ {
+  "name": "convert_reason_read_at_another_release",
+  "method": "GET",
+  "path": "/organisms/sus_scrofa/convert",
+  "query": {
+   "identifier": "ENSSSCP00000053215.1",
+   "explain": "true",
+   "from_release": 56
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "convert_reason_read_at_another_release.json"
+ },
+ {
+  "name": "convert_splits_0",
+  "method": "GET",
+  "path": "/organisms/sus_scrofa/convert",
+  "query": {
+   "identifier": "ENSSSCG00000038317.1",
+   "explain": "true",
+   "to_release": 86
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "convert_splits_0.json"
+ },
+ {
+  "name": "convert_step_places_other_assemblies",
+  "method": "GET",
+  "path": "/organisms/sus_scrofa/convert",
+  "query": {
+   "identifier": "ENSSSCG00000013236.3",
+   "explain": "true",
+   "to_release": 86
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "convert_step_places_other_assemblies.json"
+ },
+ {
+  "name": "convert_step_places_places_apart",
+  "method": "GET",
+  "path": "/organisms/sus_scrofa/convert",
+  "query": {
+   "identifier": "ENSSSCG00000001164.2",
+   "explain": "true",
+   "to_release": 56
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "convert_step_places_places_apart.json"
+ },
+ {
+  "name": "convert_step_reason_replaced",
+  "method": "GET",
+  "path": "/organisms/sus_scrofa/convert",
+  "query": {
+   "identifier": "ENSSSCG00000030551.1",
+   "explain": "true",
+   "to_release": 56
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "convert_step_reason_replaced.json"
+ },
+ {
+  "name": "convert_step_reason_replaced_long",
+  "method": "GET",
+  "path": "/organisms/sus_scrofa/convert",
+  "query": {
+   "identifier": "ENSSSCT00000027022.3",
+   "explain": "true",
+   "to_release": 56
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "convert_step_reason_replaced_long.json"
+ },
+ {
+  "name": "convert_step_reason_split_long",
+  "method": "GET",
+  "path": "/organisms/sus_scrofa/convert",
+  "query": {
+   "identifier": "ENSSSCT00000054667.2",
+   "explain": "true",
+   "to_release": 56
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "convert_step_reason_split_long.json"
+ },
+ {
+  "name": "convert_symbol_ins",
+  "method": "GET",
+  "path": "/organisms/sus_scrofa/convert",
+  "query": {
+   "identifier": "INS",
+   "explain": "true"
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "convert_symbol_ins.json"
+ },
+ {
+  "name": "convert_symbol_ins_to_56",
+  "method": "GET",
+  "path": "/organisms/sus_scrofa/convert",
+  "query": {
+   "identifier": "INS",
+   "explain": "true",
+   "to_release": 56
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "convert_symbol_ins_to_56.json"
+ },
+ {
+  "name": "convert_symbol_ins_to_hgnc",
+  "method": "GET",
+  "path": "/organisms/sus_scrofa/convert",
+  "query": {
+   "identifier": "INS",
+   "explain": "true",
+   "final_database": "HGNC Symbol"
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "convert_symbol_ins_to_hgnc.json"
+ },
+ {
+  "name": "convert_symbol_lowercase",
+  "method": "GET",
+  "path": "/organisms/sus_scrofa/convert",
+  "query": {
+   "identifier": "ins",
+   "explain": "true"
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "convert_symbol_lowercase.json"
+ },
+ {
+  "name": "convert_symbol_pdx1",
+  "method": "GET",
+  "path": "/organisms/sus_scrofa/convert",
+  "query": {
+   "identifier": "PDX1",
+   "explain": "true"
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "convert_symbol_pdx1.json"
+ },
+ {
+  "name": "convert_symbol_gcg_from_first",
+  "method": "GET",
+  "path": "/organisms/sus_scrofa/convert",
+  "query": {
+   "identifier": "GCG",
+   "explain": "true",
+   "from_release": 56
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "convert_symbol_gcg_from_first.json"
+ },
+ {
+  "name": "convert_not_found",
+  "method": "GET",
+  "path": "/organisms/sus_scrofa/convert",
+  "query": {
+   "identifier": "NOT_A_GENE",
+   "explain": "true"
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "convert_not_found.json"
+ },
+ {
+  "name": "convert_no_bridges",
+  "method": "GET",
+  "path": "/organisms/sus_scrofa/convert",
+  "query": {
+   "identifier": "INS",
+   "explain": "true",
+   "allow_bridges": "false"
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "convert_no_bridges.json"
+ },
+ {
+  "name": "convert_plain_ins",
+  "method": "GET",
+  "path": "/organisms/sus_scrofa/convert",
+  "query": {
+   "identifier": "INS"
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "convert_plain_ins.json"
+ },
+ {
+  "name": "error_unknown_release",
+  "method": "GET",
+  "path": "/organisms/sus_scrofa/convert",
+  "query": {
+   "identifier": "INS",
+   "to_release": 999
+  },
+  "body": null,
+  "status": 400,
+  "content_type": "application/json",
+  "file": "error_unknown_release.json"
+ },
+ {
+  "name": "error_unknown_database",
+  "method": "GET",
+  "path": "/organisms/sus_scrofa/convert",
+  "query": {
+   "identifier": "INS",
+   "final_database": "NoSuchDatabase"
+  },
+  "body": null,
+  "status": 400,
+  "content_type": "application/json",
+  "file": "error_unknown_database.json"
+ },
+ {
+  "name": "error_invalid_identifier",
+  "method": "GET",
+  "path": "/organisms/sus_scrofa/convert",
+  "query": {
+   "identifier": ""
+  },
+  "body": null,
+  "status": 400,
+  "content_type": "application/json",
+  "file": "error_invalid_identifier.json"
+ },
+ {
+  "name": "error_invalid_request",
+  "method": "GET",
+  "path": "/organisms/sus_scrofa/convert",
+  "query": {
+   "identifier": "INS",
+   "to_release": "abc"
+  },
+  "body": null,
+  "status": 400,
+  "content_type": "application/json",
+  "file": "error_invalid_request.json"
+ },
+ {
+  "name": "error_unknown_parameter",
+  "method": "GET",
+  "path": "/organisms/sus_scrofa/convert",
+  "query": {
+   "identifier": "INS",
+   "colour": "red"
+  },
+  "body": null,
+  "status": 400,
+  "content_type": "application/json",
+  "file": "error_unknown_parameter.json"
+ },
+ {
+  "name": "error_unknown_organism",
+  "method": "GET",
+  "path": "/organisms/unicorn/convert",
+  "query": {
+   "identifier": "INS"
+  },
+  "body": null,
+  "status": 404,
+  "content_type": "application/json",
+  "file": "error_unknown_organism.json"
+ },
+ {
+  "name": "genes_named_ins",
+  "method": "GET",
+  "path": "/organisms/sus_scrofa/genes-named",
+  "query": {
+   "name": "INS"
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "genes_named_ins.json"
+ },
+ {
+  "name": "genes_named_ins_fold",
+  "method": "GET",
+  "path": "/organisms/sus_scrofa/genes-named",
+  "query": {
+   "name": "ins",
+   "fold_case": "true"
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "genes_named_ins_fold.json"
+ },
+ {
+  "name": "genes_named_none",
+  "method": "GET",
+  "path": "/organisms/sus_scrofa/genes-named",
+  "query": {
+   "name": "NOT_A_GENE"
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "genes_named_none.json"
+ },
+ {
+  "name": "final_databases_first",
+  "method": "GET",
+  "path": "/organisms/sus_scrofa/final-databases",
+  "query": {
+   "to_release": 56
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "final_databases_first.json"
+ },
+ {
+  "name": "vocabulary",
+  "method": "GET",
+  "path": "/vocabulary",
+  "query": {},
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "vocabulary.json"
+ },
+ {
+  "name": "limits",
+  "method": "GET",
+  "path": "/limits",
+  "query": {},
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "limits.json"
+ },
+ {
+  "name": "convert_unknown_version",
+  "method": "GET",
+  "path": "/organisms/sus_scrofa/convert",
+  "query": {
+   "identifier": "ENSSSCG00000040723.3",
+   "explain": "true"
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "convert_unknown_version.json"
+ },
+ {
+  "name": "convert_version_newer",
+  "method": "GET",
+  "path": "/organisms/sus_scrofa/convert",
+  "query": {
+   "identifier": "ENSSSCG00000019726.99",
+   "explain": "true"
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "convert_version_newer.json"
+ },
+ {
+  "name": "convert_base_id_many",
+  "method": "GET",
+  "path": "/organisms/sus_scrofa/convert",
+  "query": {
+   "identifier": "ENSSSCG00000040723",
+   "explain": "true"
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "convert_base_id_many.json"
+ },
+ {
+  "name": "convert_refseq_peptide_long",
+  "method": "GET",
+  "path": "/organisms/sus_scrofa/convert",
+  "query": {
+   "identifier": "XP_003123285",
+   "explain": "true"
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "convert_refseq_peptide_long.json"
+ },
+ {
+  "name": "names_of_ins_gene",
+  "method": "GET",
+  "path": "/organisms/sus_scrofa/names-of",
+  "query": {
+   "gene": "ENSSSCG00000033740.1"
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "names_of_ins_gene.json"
+ },
+ {
+  "name": "names_of_ins_gene_115",
+  "method": "GET",
+  "path": "/organisms/sus_scrofa/names-of",
+  "query": {
+   "gene": "ENSSSCG00000033740.1",
+   "release": 115
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "names_of_ins_gene_115.json"
+ },
+ {
+  "name": "error_names_of_unknown_gene",
+  "method": "GET",
+  "path": "/organisms/sus_scrofa/names-of",
+  "query": {
+   "gene": "ENSSSCG99999999999.1"
+  },
+  "body": null,
+  "status": 400,
+  "content_type": "application/json",
+  "file": "error_names_of_unknown_gene.json"
+ },
+ {
+  "name": "batch_json",
+  "method": "POST",
+  "path": "/organisms/sus_scrofa/convert/batch",
+  "query": {
+   "format": "json"
+  },
+  "body": {
+   "identifiers": [
+    "INS",
+    "GCG",
+    "NOT_A_GENE",
+    "ENSSSCG00000040723.3",
+    "ENSSSCG00000040723",
+    "XP_003123285",
+    "ins",
+    "PDX1"
+   ]
+  },
+  "status": 200,
+  "content_type": "application/json",
+  "file": "batch_json.json"
+ },
+ {
+  "name": "batch_tsv",
+  "method": "POST",
+  "path": "/organisms/sus_scrofa/convert/batch",
+  "query": {
+   "format": "tsv"
+  },
+  "body": {
+   "identifiers": [
+    "INS",
+    "GCG",
+    "NOT_A_GENE",
+    "ENSSSCG00000040723.3",
+    "ENSSSCG00000040723",
+    "XP_003123285",
+    "ins",
+    "PDX1"
+   ]
+  },
+  "status": 200,
+  "content_type": "text/tab-separated-values; charset=utf-8",
+  "file": "batch_tsv.tsv"
+ },
+ {
+  "name": "batch_json_explain",
+  "method": "POST",
+  "path": "/organisms/sus_scrofa/convert/batch",
+  "query": {
+   "format": "json"
+  },
+  "body": {
+   "identifiers": [
+    "INS",
+    "XP_003123285"
+   ],
+   "explain": true,
+   "to_release": 80
+  },
+  "status": 200,
+  "content_type": "application/json",
+  "file": "batch_json_explain.json"
+ },
+ {
+  "name": "error_batch_empty",
+  "method": "POST",
+  "path": "/organisms/sus_scrofa/convert/batch",
+  "query": {
+   "format": "json"
+  },
+  "body": {
+   "identifiers": []
+  },
+  "status": 400,
+  "content_type": "application/json",
+  "file": "error_batch_empty.json"
+ },
+ {
+  "name": "error_batch_type",
+  "method": "POST",
+  "path": "/organisms/sus_scrofa/convert/batch",
+  "query": {
+   "format": "json"
+  },
+  "body": {
+   "identifiers": [
+    "INS"
+   ],
+   "to_release": "115"
+  },
+  "status": 400,
+  "content_type": "application/json",
+  "file": "error_batch_type.json"
+ },
+ {
+  "name": "convert_split_no_target",
+  "method": "GET",
+  "path": "/organisms/sus_scrofa/convert",
+  "query": {
+   "identifier": "ENSSSCG00000002115",
+   "explain": "true",
+   "from_release": 56,
+   "to_release": 75,
+   "final_database": "UniProtKB Gene Name"
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "convert_split_no_target.json"
+ },
+ {
+  "name": "batch_json_copies",
+  "method": "POST",
+  "path": "/organisms/sus_scrofa/convert/batch",
+  "query": {
+   "format": "json"
+  },
+  "body": {
+   "identifiers": [
+    "INS",
+    "INS-1",
+    "GCG",
+    "GCG.2",
+    "GCG.2_1",
+    "PDX1"
+   ]
+  },
+  "status": 200,
+  "content_type": "application/json",
+  "file": "batch_json_copies.json"
+ },
+ {
+  "name": "health",
+  "method": "GET",
+  "path": "/health",
+  "query": {},
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "health.json"
+ },
+ {
+  "name": "version",
+  "method": "GET",
+  "path": "/version",
+  "query": {},
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "version.json"
+ },
+ {
+  "name": "organism",
+  "method": "GET",
+  "path": "/organisms/sus_scrofa",
+  "query": {},
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "organism.json"
+ },
+ {
+  "name": "final_databases",
+  "method": "GET",
+  "path": "/organisms/sus_scrofa/final-databases",
+  "query": {},
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "final_databases.json"
+ }
+]

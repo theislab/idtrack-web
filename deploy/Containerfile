@@ -1,0 +1,69 @@
+# The image of idtrack-web: the api (gunicorn with uvicorn workers) serving the built frontend as static files.
+#
+#   podman build -f deploy/Containerfile -t idtrack-web:<tag> .          (from the repository's root)
+#
+# Stages: `web` builds the frontend into /web/dist; `api` installs the api and idtrack from the lock file into
+# /opt/venv; `runtime` holds the two and nothing else (no compiler, no uv, no source tree, no credential).
+# The graphs are not in the image: the server fetches and verifies them at start (SETUP.md, "Data").
+
+ARG PYTHON_IMAGE=docker.io/library/python:3.14.6-slim-trixie
+ARG NODE_IMAGE=docker.io/library/node:24.22.3-slim
+ARG UV_IMAGE=ghcr.io/astral-sh/uv:0.11.28
+
+# ---------------------------------------------------------------------------------------------------------------------
+# The frontend (web/): its packages exactly as web/package-lock.json, its types checked against the api's OpenAPI
+# document (the one thing the two share), then the production build into /web/dist.
+FROM ${NODE_IMAGE} AS web
+WORKDIR /web
+COPY web/package.json web/package-lock.json ./
+RUN npm ci --no-audit --no-fund
+COPY api/openapi.json /api/openapi.json
+COPY web/ ./
+RUN npm run types:check && npm run build
+
+# ---------------------------------------------------------------------------------------------------------------------
+FROM ${UV_IMAGE} AS uv
+
+FROM ${PYTHON_IMAGE} AS api
+# git: uv fetches idtrack from GitHub at the commit of api/pyproject.toml. (apt's download sandbox runs as root:
+# rootless builders with a single user mapping cannot switch to apt's own user; this stage is discarded anyway.)
+RUN apt-get -o APT::Sandbox::User=root update \
+    && apt-get -o APT::Sandbox::User=root install -y --no-install-recommends git ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+COPY --from=uv /uv /usr/local/bin/uv
+ENV UV_COMPILE_BYTECODE=1 \
+    UV_LINK_MODE=copy \
+    UV_PYTHON_DOWNLOADS=never \
+    UV_PROJECT_ENVIRONMENT=/opt/venv
+COPY . /src/
+WORKDIR /src/api
+RUN uv sync --locked --no-dev --no-editable \
+    && /opt/venv/bin/python -c "import idtrack, idtrack_web_api; print('idtrack', idtrack.__version__, 'api', idtrack_web_api.__version__)"
+
+# ---------------------------------------------------------------------------------------------------------------------
+FROM ${PYTHON_IMAGE} AS runtime
+# SINGLE_ID_BUILDER=true only for a rootless builder with a single user mapping, which cannot change a file's owner:
+# the cache folder is then writable by every user of the container (sticky) instead of owned by the server's user.
+ARG SINGLE_ID_BUILDER=false
+RUN useradd --system --uid 10001 --user-group --home-dir /srv/idtrack-web --no-create-home idtrack-web \
+    && mkdir -p /var/cache/idtrack-web /srv/idtrack-web \
+    && if [ "$SINGLE_ID_BUILDER" = "true" ]; then chmod 1777 /var/cache/idtrack-web; \
+       else chown idtrack-web:idtrack-web /var/cache/idtrack-web && chmod 0750 /var/cache/idtrack-web; fi
+COPY --from=api /opt/venv /opt/venv
+COPY --from=web /web/dist /srv/idtrack-web/web
+ENV PATH=/opt/venv/bin:$PATH \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    IDTRACK_WEB_HOST=0.0.0.0 \
+    IDTRACK_WEB_PORT=8000 \
+    IDTRACK_WEB_CACHE_DIR=/var/cache/idtrack-web \
+    IDTRACK_WEB_STATIC_DIR=/srv/idtrack-web/web
+USER idtrack-web
+WORKDIR /srv/idtrack-web
+EXPOSE 8000
+VOLUME ["/var/cache/idtrack-web"]
+# Healthy once the graphs are loaded and a worker answers (a start fetches and loads the graphs first).
+HEALTHCHECK --interval=30s --timeout=5s --start-period=300s --retries=3 \
+    CMD ["python", "-c", "import sys, urllib.request; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/api/v1/health', timeout=4).status == 200 else 1)"]
+ENTRYPOINT ["idtrack-web"]
+CMD ["serve"]

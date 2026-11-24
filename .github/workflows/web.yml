@@ -1,0 +1,83 @@
+# The frontend: its types against the api's OpenAPI document, lint, unit tests, the production build, and the
+# end-to-end tests in headless Chromium against the api serving the build and the tests' small pig graph.
+name: web
+
+on:
+  push:
+    branches: [main]
+    paths: ["web/**", "api/openapi.json", "api/**", ".github/workflows/web.yml"]
+  pull_request:
+    paths: ["web/**", "api/openapi.json", "api/**", ".github/workflows/web.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: web-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    working-directory: web
+
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: web/.nvmrc
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci --no-audit --no-fund
+      # src/api/schema.ts must be what api/openapi.json gives.
+      - run: npm run types:check
+      # src/generated/limitations.json must be idtrack's Current Limitations at the commit of api/uv.lock.
+      - run: npm run limitations:check
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+      - run: npm run size
+
+  e2e:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: web/.nvmrc
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - uses: astral-sh/setup-uv@v7
+        with:
+          version: "0.11.28"
+      - run: npm ci --no-audit --no-fund
+      - run: npm run build
+      - run: npx playwright install --with-deps chromium
+      - name: Serve the api with the build and the tests' small graph
+        working-directory: api
+        run: |
+          uv sync --locked --python 3.14
+          uv run --no-sync idtrack-web publish --graph tests/data/graph_sus_scrofa_cut.npz --directory "$RUNNER_TEMP/store"
+          IDTRACK_WEB_SOURCE=directory IDTRACK_WEB_DIRECTORY="$RUNNER_TEMP/store" IDTRACK_WEB_HOST=127.0.0.1 \
+            IDTRACK_WEB_PORT=8000 IDTRACK_WEB_RATE_PER_MINUTE=0 IDTRACK_WEB_STATIC_DIR="$GITHUB_WORKSPACE/web/dist" \
+            nohup uv run --no-sync idtrack-web serve > "$RUNNER_TEMP/server.log" 2>&1 &
+          for i in $(seq 1 120); do curl -sf http://127.0.0.1:8000/api/v1/health && exit 0; sleep 1; done
+          cat "$RUNNER_TEMP/server.log"; exit 1
+      - run: npm run e2e
+        env:
+          E2E_BASE_URL: http://127.0.0.1:8000
+          E2E_DATA: cut
+          E2E_SCREENSHOTS: ${{ github.workspace }}/web/test-results/screenshots
+      - if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: e2e-report
+          path: |
+            web/playwright-report
+            web/test-results
+          retention-days: 14

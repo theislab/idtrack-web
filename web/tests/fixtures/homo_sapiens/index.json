@@ -1,0 +1,1236 @@
+[
+ {
+  "name": "convert_alternative_locus_genes",
+  "method": "GET",
+  "path": "/organisms/homo_sapiens/convert",
+  "query": {
+   "identifier": "NHE-3",
+   "explain": "true"
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "convert_alternative_locus_genes.json"
+ },
+ {
+  "name": "convert_annotation",
+  "method": "GET",
+  "path": "/organisms/homo_sapiens/convert",
+  "query": {
+   "identifier": "LOC128966609",
+   "explain": "true",
+   "to_release": 48
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "convert_annotation.json"
+ },
+ {
+  "name": "convert_bridge_check_refused",
+  "method": "GET",
+  "path": "/organisms/homo_sapiens/convert",
+  "query": {
+   "identifier": "ENSP00000421999.1",
+   "explain": "true",
+   "final_database": "RefSeq_mRNA"
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "convert_bridge_check_refused.json"
+ },
+ {
+  "name": "convert_bridge_check_taken",
+  "method": "GET",
+  "path": "/organisms/homo_sapiens/convert",
+  "query": {
+   "identifier": "ENSG00000243291.1",
+   "explain": "true",
+   "to_release": 48
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "convert_bridge_check_taken.json"
+ },
+ {
+  "name": "convert_bridge_places_other_assemblies",
+  "method": "GET",
+  "path": "/organisms/homo_sapiens/convert",
+  "query": {
+   "identifier": "ENST00000619245.1",
+   "explain": "true",
+   "to_release": 48
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "convert_bridge_places_other_assemblies.json"
+ },
+ {
+  "name": "convert_bridge_places_outside_reference",
+  "method": "GET",
+  "path": "/organisms/homo_sapiens/convert",
+  "query": {
+   "identifier": "ENST00000385015.1",
+   "explain": "true",
+   "from_release": 48
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "convert_bridge_places_outside_reference.json"
+ },
+ {
+  "name": "convert_candidate_authority",
+  "method": "GET",
+  "path": "/organisms/homo_sapiens/convert",
+  "query": {
+   "identifier": "ZNF816A",
+   "explain": "true",
+   "to_release": 48
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "convert_candidate_authority.json"
+ },
+ {
+  "name": "convert_candidate_bridges",
+  "method": "GET",
+  "path": "/organisms/homo_sapiens/convert",
+  "query": {
+   "identifier": "ENSG00000218916.1",
+   "explain": "true"
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "convert_candidate_bridges.json"
+ },
+ {
+  "name": "convert_candidate_score_1",
+  "method": "GET",
+  "path": "/organisms/homo_sapiens/convert",
+  "query": {
+   "identifier": "ENSG00000228198.3",
+   "explain": "true",
+   "to_release": 82
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "convert_candidate_score_1.json"
+ },
+ {
+  "name": "convert_candidates_1",
+  "method": "GET",
+  "path": "/organisms/homo_sapiens/convert",
+  "query": {
+   "identifier": "AC117474.1",
+   "explain": "true",
+   "to_release": 48
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "convert_candidates_1.json"
+ },
+ {
+  "name": "convert_candidates_5",
+  "method": "GET",
+  "path": "/organisms/homo_sapiens/convert",
+  "query": {
+   "identifier": "U6.386",
+   "explain": "true",
+   "to_release": 48
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "convert_candidates_5.json"
+ },
+ {
+  "name": "convert_decided_by_bridge_gap",
+  "method": "GET",
+  "path": "/organisms/homo_sapiens/convert",
+  "query": {
+   "identifier": "ENSG00000199675",
+   "explain": "true",
+   "to_release": 82
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "convert_decided_by_bridge_gap.json"
+ },
+ {
+  "name": "convert_decided_by_display_name",
+  "method": "GET",
+  "path": "/organisms/homo_sapiens/convert",
+  "query": {
+   "identifier": "NPIPB8",
+   "explain": "true",
+   "to_release": 82
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "convert_decided_by_display_name.json"
+ },
+ {
+  "name": "convert_decided_by_entry_support",
+  "method": "GET",
+  "path": "/organisms/homo_sapiens/convert",
+  "query": {
+   "identifier": "MAT1",
+   "explain": "true",
+   "to_release": 82
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "convert_decided_by_entry_support.json"
+ },
+ {
+  "name": "convert_decided_by_own_version",
+  "method": "GET",
+  "path": "/organisms/homo_sapiens/convert",
+  "query": {
+   "identifier": "ENSG00000257155.2",
+   "explain": "true",
+   "to_release": 82
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "convert_decided_by_own_version.json"
+ },
+ {
+  "name": "convert_decided_by_same_as_query",
+  "method": "GET",
+  "path": "/organisms/homo_sapiens/convert",
+  "query": {
+   "identifier": "NM_001306140",
+   "explain": "true",
+   "final_database": "RefSeq_mRNA"
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "convert_decided_by_same_as_query.json"
+ },
+ {
+  "name": "convert_from_release_fallback",
+  "method": "GET",
+  "path": "/organisms/homo_sapiens/convert",
+  "query": {
+   "identifier": "ENST00000225823.6",
+   "explain": "true",
+   "from_release": 48
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "convert_from_release_fallback.json"
+ },
+ {
+  "name": "convert_handoff",
+  "method": "GET",
+  "path": "/organisms/homo_sapiens/convert",
+  "query": {
+   "identifier": "ENSG00000026036.10",
+   "explain": "true",
+   "to_release": 48
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "convert_handoff.json"
+ },
+ {
+  "name": "convert_handoff_long",
+  "method": "GET",
+  "path": "/organisms/homo_sapiens/convert",
+  "query": {
+   "identifier": "ENSG00000149187.9",
+   "explain": "true",
+   "final_database": "RefSeq_mRNA"
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "convert_handoff_long.json"
+ },
+ {
+  "name": "convert_kind_entry",
+  "method": "GET",
+  "path": "/organisms/homo_sapiens/convert",
+  "query": {
+   "identifier": "ENST00000225823.6",
+   "explain": "true",
+   "to_release": 82
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "convert_kind_entry.json"
+ },
+ {
+  "name": "convert_kind_entry_long",
+  "method": "GET",
+  "path": "/organisms/homo_sapiens/convert",
+  "query": {
+   "identifier": "NP_001395361",
+   "explain": "true",
+   "final_database": "RefSeq_mRNA"
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "convert_kind_entry_long.json"
+ },
+ {
+  "name": "convert_kind_final",
+  "method": "GET",
+  "path": "/organisms/homo_sapiens/convert",
+  "query": {
+   "identifier": "ENST00000477425.1",
+   "explain": "true",
+   "final_database": "HGNC Symbol"
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "convert_kind_final.json"
+ },
+ {
+  "name": "convert_kind_history",
+  "method": "GET",
+  "path": "/organisms/homo_sapiens/convert",
+  "query": {
+   "identifier": "ENSG00000215354.8",
+   "explain": "true",
+   "to_release": 82
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "convert_kind_history.json"
+ },
+ {
+  "name": "convert_kind_history_long",
+  "method": "GET",
+  "path": "/organisms/homo_sapiens/convert",
+  "query": {
+   "identifier": "XP_011515494",
+   "explain": "true",
+   "final_database": "RefSeq_mRNA"
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "convert_kind_history_long.json"
+ },
+ {
+  "name": "convert_kind_identity",
+  "method": "GET",
+  "path": "/organisms/homo_sapiens/convert",
+  "query": {
+   "identifier": "ENSG00000158985.6",
+   "explain": "true",
+   "to_release": 48
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "convert_kind_identity.json"
+ },
+ {
+  "name": "convert_kind_identity_long",
+  "method": "GET",
+  "path": "/organisms/homo_sapiens/convert",
+  "query": {
+   "identifier": "LRG_486t1.1",
+   "explain": "true",
+   "final_database": "RefSeq_mRNA"
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "convert_kind_identity_long.json"
+ },
+ {
+  "name": "convert_kind_self_loop",
+  "method": "GET",
+  "path": "/organisms/homo_sapiens/convert",
+  "query": {
+   "identifier": "ENSG00000200036.1",
+   "explain": "true",
+   "from_release": 48
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "convert_kind_self_loop.json"
+ },
+ {
+  "name": "convert_long_path_15",
+  "method": "GET",
+  "path": "/organisms/homo_sapiens/convert",
+  "query": {
+   "identifier": "ENSP00000378069.2",
+   "explain": "true",
+   "final_database": "HGNC Symbol"
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "convert_long_path_15.json"
+ },
+ {
+  "name": "convert_match_case",
+  "method": "GET",
+  "path": "/organisms/homo_sapiens/convert",
+  "query": {
+   "identifier": "HSA-MIR-3666",
+   "explain": "true",
+   "to_release": 82
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "convert_match_case.json"
+ },
+ {
+  "name": "convert_match_exact",
+  "method": "GET",
+  "path": "/organisms/homo_sapiens/convert",
+  "query": {
+   "identifier": "ENST00000225823.6",
+   "explain": "true"
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "convert_match_exact.json"
+ },
+ {
+  "name": "convert_match_lrg_exact",
+  "method": "GET",
+  "path": "/organisms/homo_sapiens/convert",
+  "query": {
+   "identifier": "LRG_1101t3.1",
+   "explain": "true"
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "convert_match_lrg_exact.json"
+ },
+ {
+  "name": "convert_match_synonym_case",
+  "method": "GET",
+  "path": "/organisms/homo_sapiens/convert",
+  "query": {
+   "identifier": "C1orf234",
+   "explain": "true"
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "convert_match_synonym_case.json"
+ },
+ {
+  "name": "convert_match_synonym_exact",
+  "method": "GET",
+  "path": "/organisms/homo_sapiens/convert",
+  "query": {
+   "identifier": "MGC131829",
+   "explain": "true",
+   "to_release": 82
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "convert_match_synonym_exact.json"
+ },
+ {
+  "name": "convert_match_version",
+  "method": "GET",
+  "path": "/organisms/homo_sapiens/convert",
+  "query": {
+   "identifier": "NR_003500.1",
+   "explain": "true",
+   "to_release": 82
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "convert_match_version.json"
+ },
+ {
+  "name": "convert_merges_0",
+  "method": "GET",
+  "path": "/organisms/homo_sapiens/convert",
+  "query": {
+   "identifier": "ENSG00000250239.1",
+   "explain": "true"
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "convert_merges_0.json"
+ },
+ {
+  "name": "convert_no_target_genes",
+  "method": "GET",
+  "path": "/organisms/homo_sapiens/convert",
+  "query": {
+   "identifier": "RP11-152N13.11.1",
+   "explain": "true",
+   "final_database": "HGNC Symbol"
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "convert_no_target_genes.json"
+ },
+ {
+  "name": "convert_node_base_ensembl_gene",
+  "method": "GET",
+  "path": "/organisms/homo_sapiens/convert",
+  "query": {
+   "identifier": "ENSG00000284060",
+   "explain": "true"
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "convert_node_base_ensembl_gene.json"
+ },
+ {
+  "name": "convert_node_ensembl_translation",
+  "method": "GET",
+  "path": "/organisms/homo_sapiens/convert",
+  "query": {
+   "identifier": "ENSP00000609517.1",
+   "explain": "true"
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "convert_node_ensembl_translation.json"
+ },
+ {
+  "name": "convert_node_external",
+  "method": "GET",
+  "path": "/organisms/homo_sapiens/convert",
+  "query": {
+   "identifier": "C9JQD4",
+   "explain": "true"
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "convert_node_external.json"
+ },
+ {
+  "name": "convert_node_ended",
+  "method": "GET",
+  "path": "/organisms/homo_sapiens/convert",
+  "query": {
+   "identifier": "ENST00000225823.6",
+   "explain": "true",
+   "to_release": 48
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "convert_node_ended.json"
+ },
+ {
+  "name": "convert_node_places_1",
+  "method": "GET",
+  "path": "/organisms/homo_sapiens/convert",
+  "query": {
+   "identifier": "ENSP00000264866.3",
+   "explain": "true",
+   "to_release": 48
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "convert_node_places_1.json"
+ },
+ {
+  "name": "convert_other_reading_other_release",
+  "method": "GET",
+  "path": "/organisms/homo_sapiens/convert",
+  "query": {
+   "identifier": "ZNF816A",
+   "explain": "true",
+   "to_release": 82
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "convert_other_reading_other_release.json"
+ },
+ {
+  "name": "convert_reason_no_id_in_final_database",
+  "method": "GET",
+  "path": "/organisms/homo_sapiens/convert",
+  "query": {
+   "identifier": "ENST00000385015.1",
+   "explain": "true",
+   "final_database": "RefSeq_mRNA"
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "convert_reason_no_id_in_final_database.json"
+ },
+ {
+  "name": "convert_reason_no_path_to_target",
+  "method": "GET",
+  "path": "/organisms/homo_sapiens/convert",
+  "query": {
+   "identifier": "ENSG00000243291.1",
+   "explain": "true"
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "convert_reason_no_path_to_target.json"
+ },
+ {
+  "name": "convert_reason_read_at_another_release",
+  "method": "GET",
+  "path": "/organisms/homo_sapiens/convert",
+  "query": {
+   "identifier": "ENSG00000243291.1",
+   "explain": "true",
+   "from_release": 48
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "convert_reason_read_at_another_release.json"
+ },
+ {
+  "name": "convert_splits_0_long",
+  "method": "GET",
+  "path": "/organisms/homo_sapiens/convert",
+  "query": {
+   "identifier": "XM_001125851",
+   "explain": "true",
+   "final_database": "RefSeq_mRNA"
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "convert_splits_0_long.json"
+ },
+ {
+  "name": "convert_status_tie",
+  "method": "GET",
+  "path": "/organisms/homo_sapiens/convert",
+  "query": {
+   "identifier": "MAT1",
+   "explain": "true",
+   "to_release": 48
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "convert_status_tie.json"
+ },
+ {
+  "name": "convert_step_places_other_assemblies",
+  "method": "GET",
+  "path": "/organisms/homo_sapiens/convert",
+  "query": {
+   "identifier": "AC174470.1",
+   "explain": "true",
+   "to_release": 48
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "convert_step_places_other_assemblies.json"
+ },
+ {
+  "name": "convert_step_places_outside_reference",
+  "method": "GET",
+  "path": "/organisms/homo_sapiens/convert",
+  "query": {
+   "identifier": "ENSG00000224168.8",
+   "explain": "true",
+   "to_release": 82
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "convert_step_places_outside_reference.json"
+ },
+ {
+  "name": "convert_step_places_places_apart",
+  "method": "GET",
+  "path": "/organisms/homo_sapiens/convert",
+  "query": {
+   "identifier": "RP5-1113E3.1",
+   "explain": "true",
+   "to_release": 48
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "convert_step_places_places_apart.json"
+ },
+ {
+  "name": "convert_step_reason_replaced",
+  "method": "GET",
+  "path": "/organisms/homo_sapiens/convert",
+  "query": {
+   "identifier": "ENST00000710820.1",
+   "explain": "true"
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "convert_step_reason_replaced.json"
+ },
+ {
+  "name": "convert_step_reason_replaced_long",
+  "method": "GET",
+  "path": "/organisms/homo_sapiens/convert",
+  "query": {
+   "identifier": "NP_001019637",
+   "explain": "true",
+   "from_release": 48
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "convert_step_reason_replaced_long.json"
+ },
+ {
+  "name": "convert_step_reason_split_long",
+  "method": "GET",
+  "path": "/organisms/homo_sapiens/convert",
+  "query": {
+   "identifier": "F8RHJ4",
+   "explain": "true",
+   "to_release": 48
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "convert_step_reason_split_long.json"
+ },
+ {
+  "name": "convert_step_reason_split_and_merge",
+  "method": "GET",
+  "path": "/organisms/homo_sapiens/convert",
+  "query": {
+   "identifier": "ENSG00000239819.2",
+   "explain": "true",
+   "to_release": 48
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "convert_step_reason_split_and_merge.json"
+ },
+ {
+  "name": "convert_weight_none",
+  "method": "GET",
+  "path": "/organisms/homo_sapiens/convert",
+  "query": {
+   "identifier": "ENSG00000187912.12",
+   "explain": "true",
+   "to_release": 82
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "convert_weight_none.json"
+ },
+ {
+  "name": "convert_symbol_ins",
+  "method": "GET",
+  "path": "/organisms/homo_sapiens/convert",
+  "query": {
+   "identifier": "INS",
+   "explain": "true"
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "convert_symbol_ins.json"
+ },
+ {
+  "name": "convert_symbol_ins_to_56",
+  "method": "GET",
+  "path": "/organisms/homo_sapiens/convert",
+  "query": {
+   "identifier": "INS",
+   "explain": "true",
+   "to_release": 56
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "convert_symbol_ins_to_56.json"
+ },
+ {
+  "name": "convert_symbol_ins_to_hgnc",
+  "method": "GET",
+  "path": "/organisms/homo_sapiens/convert",
+  "query": {
+   "identifier": "INS",
+   "explain": "true",
+   "final_database": "HGNC Symbol"
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "convert_symbol_ins_to_hgnc.json"
+ },
+ {
+  "name": "convert_symbol_lowercase",
+  "method": "GET",
+  "path": "/organisms/homo_sapiens/convert",
+  "query": {
+   "identifier": "ins",
+   "explain": "true"
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "convert_symbol_lowercase.json"
+ },
+ {
+  "name": "convert_symbol_pdx1",
+  "method": "GET",
+  "path": "/organisms/homo_sapiens/convert",
+  "query": {
+   "identifier": "PDX1",
+   "explain": "true"
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "convert_symbol_pdx1.json"
+ },
+ {
+  "name": "convert_symbol_gcg_from_first",
+  "method": "GET",
+  "path": "/organisms/homo_sapiens/convert",
+  "query": {
+   "identifier": "GCG",
+   "explain": "true",
+   "from_release": 56
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "convert_symbol_gcg_from_first.json"
+ },
+ {
+  "name": "convert_not_found",
+  "method": "GET",
+  "path": "/organisms/homo_sapiens/convert",
+  "query": {
+   "identifier": "NOT_A_GENE",
+   "explain": "true"
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "convert_not_found.json"
+ },
+ {
+  "name": "convert_no_bridges",
+  "method": "GET",
+  "path": "/organisms/homo_sapiens/convert",
+  "query": {
+   "identifier": "INS",
+   "explain": "true",
+   "allow_bridges": "false"
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "convert_no_bridges.json"
+ },
+ {
+  "name": "convert_plain_ins",
+  "method": "GET",
+  "path": "/organisms/homo_sapiens/convert",
+  "query": {
+   "identifier": "INS"
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "convert_plain_ins.json"
+ },
+ {
+  "name": "error_unknown_release",
+  "method": "GET",
+  "path": "/organisms/homo_sapiens/convert",
+  "query": {
+   "identifier": "INS",
+   "to_release": 999
+  },
+  "body": null,
+  "status": 400,
+  "content_type": "application/json",
+  "file": "error_unknown_release.json"
+ },
+ {
+  "name": "error_unknown_database",
+  "method": "GET",
+  "path": "/organisms/homo_sapiens/convert",
+  "query": {
+   "identifier": "INS",
+   "final_database": "NoSuchDatabase"
+  },
+  "body": null,
+  "status": 400,
+  "content_type": "application/json",
+  "file": "error_unknown_database.json"
+ },
+ {
+  "name": "error_invalid_identifier",
+  "method": "GET",
+  "path": "/organisms/homo_sapiens/convert",
+  "query": {
+   "identifier": ""
+  },
+  "body": null,
+  "status": 400,
+  "content_type": "application/json",
+  "file": "error_invalid_identifier.json"
+ },
+ {
+  "name": "error_invalid_request",
+  "method": "GET",
+  "path": "/organisms/homo_sapiens/convert",
+  "query": {
+   "identifier": "INS",
+   "to_release": "abc"
+  },
+  "body": null,
+  "status": 400,
+  "content_type": "application/json",
+  "file": "error_invalid_request.json"
+ },
+ {
+  "name": "error_unknown_parameter",
+  "method": "GET",
+  "path": "/organisms/homo_sapiens/convert",
+  "query": {
+   "identifier": "INS",
+   "colour": "red"
+  },
+  "body": null,
+  "status": 400,
+  "content_type": "application/json",
+  "file": "error_unknown_parameter.json"
+ },
+ {
+  "name": "error_unknown_organism",
+  "method": "GET",
+  "path": "/organisms/unicorn/convert",
+  "query": {
+   "identifier": "INS"
+  },
+  "body": null,
+  "status": 404,
+  "content_type": "application/json",
+  "file": "error_unknown_organism.json"
+ },
+ {
+  "name": "genes_named_ins",
+  "method": "GET",
+  "path": "/organisms/homo_sapiens/genes-named",
+  "query": {
+   "name": "INS"
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "genes_named_ins.json"
+ },
+ {
+  "name": "genes_named_ins_fold",
+  "method": "GET",
+  "path": "/organisms/homo_sapiens/genes-named",
+  "query": {
+   "name": "ins",
+   "fold_case": "true"
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "genes_named_ins_fold.json"
+ },
+ {
+  "name": "genes_named_none",
+  "method": "GET",
+  "path": "/organisms/homo_sapiens/genes-named",
+  "query": {
+   "name": "NOT_A_GENE"
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "genes_named_none.json"
+ },
+ {
+  "name": "final_databases_first",
+  "method": "GET",
+  "path": "/organisms/homo_sapiens/final-databases",
+  "query": {
+   "to_release": 56
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "final_databases_first.json"
+ },
+ {
+  "name": "vocabulary",
+  "method": "GET",
+  "path": "/vocabulary",
+  "query": {},
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "vocabulary.json"
+ },
+ {
+  "name": "limits",
+  "method": "GET",
+  "path": "/limits",
+  "query": {},
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "limits.json"
+ },
+ {
+  "name": "convert_tp53",
+  "method": "GET",
+  "path": "/organisms/homo_sapiens/convert",
+  "query": {
+   "identifier": "TP53",
+   "explain": "true"
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "convert_tp53.json"
+ },
+ {
+  "name": "convert_tp53_to_hgnc",
+  "method": "GET",
+  "path": "/organisms/homo_sapiens/convert",
+  "query": {
+   "identifier": "TP53",
+   "explain": "true",
+   "final_database": "HGNC Symbol"
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "convert_tp53_to_hgnc.json"
+ },
+ {
+  "name": "convert_ins_gene_to_first",
+  "method": "GET",
+  "path": "/organisms/homo_sapiens/convert",
+  "query": {
+   "identifier": "ENSG00000254647",
+   "explain": "true",
+   "to_release": 48
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "convert_ins_gene_to_first.json"
+ },
+ {
+  "name": "names_of_ins_gene",
+  "method": "GET",
+  "path": "/organisms/homo_sapiens/names-of",
+  "query": {
+   "gene": "ENSG00000254647.7"
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "names_of_ins_gene.json"
+ },
+ {
+  "name": "names_of_ins_gene_115",
+  "method": "GET",
+  "path": "/organisms/homo_sapiens/names-of",
+  "query": {
+   "gene": "ENSG00000254647.7",
+   "release": 115
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "names_of_ins_gene_115.json"
+ },
+ {
+  "name": "batch_json",
+  "method": "POST",
+  "path": "/organisms/homo_sapiens/convert/batch",
+  "query": {
+   "format": "json"
+  },
+  "body": {
+   "identifiers": [
+    "INS",
+    "TP53",
+    "NOT_A_GENE",
+    "ENSG00000254647",
+    "pdx1"
+   ]
+  },
+  "status": 200,
+  "content_type": "application/json",
+  "file": "batch_json.json"
+ },
+ {
+  "name": "batch_tsv",
+  "method": "POST",
+  "path": "/organisms/homo_sapiens/convert/batch",
+  "query": {
+   "format": "tsv"
+  },
+  "body": {
+   "identifiers": [
+    "INS",
+    "TP53",
+    "NOT_A_GENE",
+    "ENSG00000254647",
+    "pdx1"
+   ]
+  },
+  "status": 200,
+  "content_type": "text/tab-separated-values; charset=utf-8",
+  "file": "batch_tsv.tsv"
+ },
+ {
+  "name": "convert_split_no_target",
+  "method": "GET",
+  "path": "/organisms/homo_sapiens/convert",
+  "query": {
+   "identifier": "ENSG00000283388",
+   "explain": "true",
+   "from_release": 85,
+   "to_release": 115,
+   "final_database": "HGNC Symbol"
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "convert_split_no_target.json"
+ },
+ {
+  "name": "convert_other_release_rnr1",
+  "method": "GET",
+  "path": "/organisms/homo_sapiens/convert",
+  "query": {
+   "identifier": "RNR1",
+   "explain": "true"
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "convert_other_release_rnr1.json"
+ },
+ {
+  "name": "convert_retired_bridge",
+  "method": "GET",
+  "path": "/organisms/homo_sapiens/convert",
+  "query": {
+   "identifier": "ENSG00000199004",
+   "explain": "true",
+   "from_release": 84
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "convert_retired_bridge.json"
+ },
+ {
+  "name": "batch_json_copies",
+  "method": "POST",
+  "path": "/organisms/homo_sapiens/convert/batch",
+  "query": {
+   "format": "json"
+  },
+  "body": {
+   "identifiers": [
+    "INS",
+    "INS-1",
+    "TP53",
+    "TP53.2",
+    "TP53.2_1",
+    "PDX1"
+   ]
+  },
+  "status": 200,
+  "content_type": "application/json",
+  "file": "batch_json_copies.json"
+ },
+ {
+  "name": "health",
+  "method": "GET",
+  "path": "/health",
+  "query": {},
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "health.json"
+ },
+ {
+  "name": "version",
+  "method": "GET",
+  "path": "/version",
+  "query": {},
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "version.json"
+ },
+ {
+  "name": "organism",
+  "method": "GET",
+  "path": "/organisms/homo_sapiens",
+  "query": {},
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "organism.json"
+ },
+ {
+  "name": "final_databases",
+  "method": "GET",
+  "path": "/organisms/homo_sapiens/final-databases",
+  "query": {},
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "final_databases.json"
+ }
+]

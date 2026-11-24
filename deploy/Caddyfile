@@ -1,0 +1,30 @@
+# Caddy in front of idtrack-web: TLS (certificates from Let's Encrypt, renewed by Caddy), compression, security
+# headers, a bound on request bodies; everything else is the api's.
+{$IDTRACK_WEB_DOMAIN} {
+	encode zstd gzip
+
+	request_body {
+		max_size 2MB
+	}
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "no-referrer"
+		-Server
+	}
+
+	reverse_proxy api:8000 {
+		health_uri /api/v1/health
+		health_interval 30s
+		# A batch may take the api's whole request budget (IDTRACK_WEB_REQUEST_SECONDS, 20 s by default).
+		transport http {
+			read_timeout 90s
+		}
+	}
+
+	log {
+		output stdout
+		format console
+	}
+}

@@ -1,0 +1,1 @@
+{"batch_max":1000,"identifier_max_length":256,"body_max_bytes":1048576,"response_max_bytes":33554432,"request_seconds":20.0,"search_seconds":10.0,"search_states":200000,"rate_per_minute":0,"rate_burst":30,"queue_max":64}

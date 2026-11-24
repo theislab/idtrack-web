@@ -1,0 +1,111 @@
+{
+  "about": "The real pig graph (Ensembl 56 to 115): identifiers for the end-to-end flows.",
+  "organism": "sus_scrofa",
+  "symbol": {
+    "identifier": "INS"
+  },
+  "long": {
+    "identifier": "XP_003123285"
+  },
+  "backward": {
+    "identifier": "XM_001925116",
+    "to": 56
+  },
+  "notFound": {
+    "identifier": "NOT_A_GENE"
+  },
+  "unknownVersion": {
+    "identifier": "ENSSSCG00000040723.3"
+  },
+  "noTarget": {
+    "identifier": "445466",
+    "db": "HGNC Symbol"
+  },
+  "noConversion": {
+    "identifier": "NP_001137176",
+    "to": 56
+  },
+  "batch": ["INS", "GCG", "NOT_A_GENE", "ENSSSCG00000040723.3", "ENSSSCG00000040723", "XP_003123285", "ins", "PDX1"],
+  "name": "INS",
+  "cases": [
+    {
+      "name": "history-handoff",
+      "query": {
+        "identifier": "ENSSSCG00000008047.2",
+        "to": 56
+      }
+    },
+    {
+      "name": "replaced",
+      "query": {
+        "identifier": "ENSSSCG00000030551.1",
+        "to": 56
+      }
+    },
+    {
+      "name": "places-apart",
+      "query": {
+        "identifier": "ENSSSCG00000001164.2",
+        "to": 56
+      }
+    },
+    {
+      "name": "split",
+      "query": {
+        "identifier": "ENSSSCG00000038317.1",
+        "to": 86
+      }
+    },
+    {
+      "name": "merge",
+      "query": {
+        "identifier": "ENSSSCG00000045119.1"
+      }
+    },
+    {
+      "name": "bridges",
+      "query": {
+        "identifier": "ENSSSCP00000069370.1",
+        "to": 56
+      }
+    },
+    {
+      "name": "split-no-target",
+      "query": {
+        "identifier": "ENSSSCG00000002115",
+        "from": 56,
+        "to": 75,
+        "db": "UniProtKB Gene Name"
+      },
+      "status": "no_target"
+    },
+    {
+      "name": "other-release-reading",
+      "query": {
+        "identifier": "SMIM37",
+        "to": 56
+      }
+    },
+    {
+      "name": "tie",
+      "query": {
+        "identifier": "Ssc.7209",
+        "to": 86
+      },
+      "status": "tie"
+    },
+    {
+      "name": "decided-by-display-name",
+      "query": {
+        "identifier": "RNF223"
+      }
+    },
+    {
+      "name": "final-database",
+      "query": {
+        "identifier": "100626121",
+        "db": "HGNC Symbol"
+      }
+    }
+  ]
+}

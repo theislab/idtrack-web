@@ -1,0 +1,13 @@
+{
+  "about": "The api tests' small pig graph (api/tests/data/graph_sus_scrofa_cut.npz): identifiers for the end-to-end flows.",
+  "organism": "sus_scrofa",
+  "symbol": { "identifier": "HSPB1" },
+  "long": { "identifier": "Q304W3", "to": 86 },
+  "backward": { "identifier": "ENSSSCG00000053403", "to": 56 },
+  "notFound": { "identifier": "NOT_A_GENE" },
+  "unknownVersion": { "identifier": "ENSSSCG00000026565.9" },
+  "noTarget": { "identifier": "110259612", "db": "HGNC Symbol" },
+  "noConversion": { "identifier": "ENSSSCG00000046837" },
+  "batch": ["HSPB1", "NOT_A_GENE", "ENSSSCG00000026565.9", "XM_021094073", "110259612", "ENSSSCG00000053403"],
+  "name": "HSPB1"
+}

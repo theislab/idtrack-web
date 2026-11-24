@@ -1,0 +1,154 @@
+[
+  {
+    "kind": "convert",
+    "name": "convert_symbol_ins",
+    "identifier": "INS"
+  },
+  {
+    "kind": "convert",
+    "name": "convert_symbol_ins_to_56",
+    "identifier": "INS",
+    "arguments": {
+      "to_release": 56
+    }
+  },
+  {
+    "kind": "convert",
+    "name": "convert_symbol_ins_to_hgnc",
+    "identifier": "INS",
+    "arguments": {
+      "final_database": "HGNC Symbol"
+    }
+  },
+  {
+    "kind": "convert",
+    "name": "convert_symbol_lowercase",
+    "identifier": "ins"
+  },
+  {
+    "kind": "convert",
+    "name": "convert_symbol_pdx1",
+    "identifier": "PDX1"
+  },
+  {
+    "kind": "convert",
+    "name": "convert_symbol_gcg_from_first",
+    "identifier": "GCG",
+    "arguments": {
+      "from_release": 56
+    }
+  },
+  {
+    "kind": "convert",
+    "name": "convert_not_found",
+    "identifier": "NOT_A_GENE"
+  },
+  {
+    "kind": "convert",
+    "name": "convert_no_bridges",
+    "identifier": "INS",
+    "arguments": {
+      "allow_bridges": false
+    }
+  },
+  {
+    "kind": "convert_plain",
+    "name": "convert_plain_ins",
+    "identifier": "INS"
+  },
+  {
+    "kind": "get",
+    "name": "error_unknown_release",
+    "path": "/organisms/{organism}/convert",
+    "query": {
+      "identifier": "INS",
+      "to_release": 999
+    }
+  },
+  {
+    "kind": "get",
+    "name": "error_unknown_database",
+    "path": "/organisms/{organism}/convert",
+    "query": {
+      "identifier": "INS",
+      "final_database": "NoSuchDatabase"
+    }
+  },
+  {
+    "kind": "get",
+    "name": "error_invalid_identifier",
+    "path": "/organisms/{organism}/convert",
+    "query": {
+      "identifier": ""
+    }
+  },
+  {
+    "kind": "get",
+    "name": "error_invalid_request",
+    "path": "/organisms/{organism}/convert",
+    "query": {
+      "identifier": "INS",
+      "to_release": "abc"
+    }
+  },
+  {
+    "kind": "get",
+    "name": "error_unknown_parameter",
+    "path": "/organisms/{organism}/convert",
+    "query": {
+      "identifier": "INS",
+      "colour": "red"
+    }
+  },
+  {
+    "kind": "get",
+    "name": "error_unknown_organism",
+    "path": "/organisms/unicorn/convert",
+    "query": {
+      "identifier": "INS"
+    }
+  },
+  {
+    "kind": "get",
+    "name": "genes_named_ins",
+    "path": "/organisms/{organism}/genes-named",
+    "query": {
+      "name": "INS"
+    }
+  },
+  {
+    "kind": "get",
+    "name": "genes_named_ins_fold",
+    "path": "/organisms/{organism}/genes-named",
+    "query": {
+      "name": "ins",
+      "fold_case": "true"
+    }
+  },
+  {
+    "kind": "get",
+    "name": "genes_named_none",
+    "path": "/organisms/{organism}/genes-named",
+    "query": {
+      "name": "NOT_A_GENE"
+    }
+  },
+  {
+    "kind": "get",
+    "name": "final_databases_first",
+    "path": "/organisms/{organism}/final-databases",
+    "query": {
+      "to_release": 56
+    }
+  },
+  {
+    "kind": "get",
+    "name": "vocabulary",
+    "path": "/vocabulary"
+  },
+  {
+    "kind": "get",
+    "name": "limits",
+    "path": "/limits"
+  }
+]

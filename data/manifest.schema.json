@@ -1,0 +1,152 @@
+{
+  "$defs": {
+    "ManifestFile": {
+      "additionalProperties": false,
+      "description": "A published file: where it is and what its bytes are.",
+      "properties": {
+        "key": {
+          "description": "The key in the store: `idtrack/<format>/<organism>/<sha256>.npz`.",
+          "title": "Key",
+          "type": "string"
+        },
+        "sha256": {
+          "description": "The SHA-256 of the file's bytes (lowercase hex).",
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Sha256",
+          "type": "string"
+        },
+        "size": {
+          "description": "The size of the file in bytes.",
+          "exclusiveMinimum": 0,
+          "title": "Size",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "key",
+        "sha256",
+        "size"
+      ],
+      "title": "ManifestFile",
+      "type": "object"
+    },
+    "ManifestGraph": {
+      "additionalProperties": false,
+      "description": "One organism's graph in a manifest.",
+      "properties": {
+        "organism": {
+          "description": "The organism (Ensembl production name).",
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "title": "Organism",
+          "type": "string"
+        },
+        "snapshot_release": {
+          "description": "The last Ensembl release of the graph.",
+          "exclusiveMinimum": 0,
+          "title": "Snapshot Release",
+          "type": "integer"
+        },
+        "file": {
+          "$ref": "#/$defs/ManifestFile"
+        },
+        "content_digest": {
+          "description": "The graph's content digest (its build's).",
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Content Digest",
+          "type": "string"
+        },
+        "idtrack_version": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The idtrack version that built the graph.",
+          "title": "Idtrack Version"
+        },
+        "idtrack_commit": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The idtrack commit that built the graph, where known.",
+          "title": "Idtrack Commit"
+        },
+        "build_date": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "When the graph was built.",
+          "title": "Build Date"
+        }
+      },
+      "required": [
+        "organism",
+        "snapshot_release",
+        "file",
+        "content_digest",
+        "idtrack_version",
+        "idtrack_commit",
+        "build_date"
+      ],
+      "title": "ManifestGraph",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "A release of published graphs: what a server loads.",
+  "properties": {
+    "schema_version": {
+      "const": 1,
+      "description": "The version of this manifest's layout.",
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "format_version": {
+      "description": "The graph file format of every graph listed.",
+      "exclusiveMinimum": 0,
+      "title": "Format Version",
+      "type": "integer"
+    },
+    "published": {
+      "description": "When the manifest was written (UTC, ISO 8601).",
+      "title": "Published",
+      "type": "string"
+    },
+    "publisher": {
+      "description": "The idtrack-web-api and idtrack versions that wrote the manifest.",
+      "title": "Publisher",
+      "type": "string"
+    },
+    "graphs": {
+      "description": "One graph per organism.",
+      "items": {
+        "$ref": "#/$defs/ManifestGraph"
+      },
+      "minItems": 1,
+      "title": "Graphs",
+      "type": "array"
+    }
+  },
+  "required": [
+    "schema_version",
+    "format_version",
+    "published",
+    "publisher",
+    "graphs"
+  ],
+  "title": "Manifest",
+  "type": "object"
+}

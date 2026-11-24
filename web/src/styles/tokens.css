@@ -1,0 +1,97 @@
+/* The design tokens: one neutral ink scale, and colour only where it carries meaning (DESIGN.md).
+   The four step hues are checked by tests/palette.test.ts: every pair apart under protan and deutan vision
+   (OKLab ΔE ≥ 8), apart in full colour (ΔE ≥ 15), and at least 3:1 against the drawing's surface, in both themes. */
+
+:root {
+  color-scheme: light;
+
+  /* Ink and paper (light) */
+  --paper: #f7f7f4;
+  --surface: #ffffff;
+  --surface-sunk: #f0f0ec;
+  --band: #efefea;
+  --ink-1: #14171b;
+  --ink-2: #464c55;
+  --ink-3: #626873;
+  --line: #dcdcd6;
+  --line-strong: #b4b7bd;
+  --shadow: 0 1px 2px rgb(20 23 27 / 6%), 0 8px 24px rgb(20 23 27 / 6%);
+
+  /* Meaning: one hue per kind of step (light) */
+  --hue-history: #2f5fd0;
+  --hue-event: #c34a00;
+  --hue-external: #00805d;
+  --hue-handoff: #c0399a;
+
+  /* States of a result or a request: text colours with at least 4.5:1 on the paper and the surface */
+  --state-danger: #a8261b;
+  --state-danger-surface: #fbeeec;
+  --state-warn-surface: #fbf3e6;
+
+  /* Type */
+  --font-sans: "Source Sans 3 Variable", "Source Sans 3", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono Variable", "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-md: 1rem;
+  --text-lg: 1.1875rem;
+  --text-xl: 1.5rem;
+  --text-2xl: 2rem;
+
+  /* Space and shape */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+  --space-8: 64px;
+  --radius: 3px;
+  --content: 1240px;
+  --focus: 0 0 0 2px var(--surface), 0 0 0 4px var(--ink-1);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --paper: #0f1114;
+    --surface: #14161a;
+    --surface-sunk: #1a1d22;
+    --band: #1c1f24;
+    --ink-1: #eceef1;
+    --ink-2: #b9bec6;
+    --ink-3: #959ba5;
+    --line: #2b2f36;
+    --line-strong: #4a505a;
+    --shadow: 0 1px 2px rgb(0 0 0 / 40%), 0 8px 24px rgb(0 0 0 / 30%);
+    --hue-history: #5b8def;
+    --hue-event: #e0702a;
+    --hue-external: #1f9e78;
+    --hue-handoff: #d45cb8;
+    --state-danger: #ff8a7a;
+    --state-danger-surface: #2a1714;
+    --state-warn-surface: #2a2113;
+  }
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --paper: #0f1114;
+  --surface: #14161a;
+  --surface-sunk: #1a1d22;
+  --band: #1c1f24;
+  --ink-1: #eceef1;
+  --ink-2: #b9bec6;
+  --ink-3: #959ba5;
+  --line: #2b2f36;
+  --line-strong: #4a505a;
+  --shadow: 0 1px 2px rgb(0 0 0 / 40%), 0 8px 24px rgb(0 0 0 / 30%);
+  --hue-history: #5b8def;
+  --hue-event: #e0702a;
+  --hue-external: #1f9e78;
+  --hue-handoff: #d45cb8;
+  --state-danger: #ff8a7a;
+  --state-danger-surface: #2a1714;
+  --state-warn-surface: #2a2113;
+}

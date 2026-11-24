@@ -1,0 +1,144 @@
+[
+  {
+    "kind": "convert",
+    "name": "convert_unknown_version",
+    "identifier": "ENSSSCG00000040723.3"
+  },
+  {
+    "kind": "convert",
+    "name": "convert_version_newer",
+    "identifier": "ENSSSCG00000019726.99"
+  },
+  {
+    "kind": "convert",
+    "name": "convert_base_id_many",
+    "identifier": "ENSSSCG00000040723"
+  },
+  {
+    "kind": "convert",
+    "name": "convert_refseq_peptide_long",
+    "identifier": "XP_003123285"
+  },
+  {
+    "kind": "get",
+    "name": "names_of_ins_gene",
+    "path": "/organisms/{organism}/names-of",
+    "query": {
+      "gene": "ENSSSCG00000033740.1"
+    }
+  },
+  {
+    "kind": "get",
+    "name": "names_of_ins_gene_115",
+    "path": "/organisms/{organism}/names-of",
+    "query": {
+      "gene": "ENSSSCG00000033740.1",
+      "release": 115
+    }
+  },
+  {
+    "kind": "get",
+    "name": "error_names_of_unknown_gene",
+    "path": "/organisms/{organism}/names-of",
+    "query": {
+      "gene": "ENSSSCG99999999999.1"
+    }
+  },
+  {
+    "kind": "post",
+    "name": "batch_json",
+    "path": "/organisms/{organism}/convert/batch",
+    "query": {
+      "format": "json"
+    },
+    "body": {
+      "identifiers": [
+        "INS",
+        "GCG",
+        "NOT_A_GENE",
+        "ENSSSCG00000040723.3",
+        "ENSSSCG00000040723",
+        "XP_003123285",
+        "ins",
+        "PDX1"
+      ]
+    }
+  },
+  {
+    "kind": "post",
+    "name": "batch_tsv",
+    "path": "/organisms/{organism}/convert/batch",
+    "query": {
+      "format": "tsv"
+    },
+    "body": {
+      "identifiers": [
+        "INS",
+        "GCG",
+        "NOT_A_GENE",
+        "ENSSSCG00000040723.3",
+        "ENSSSCG00000040723",
+        "XP_003123285",
+        "ins",
+        "PDX1"
+      ]
+    }
+  },
+  {
+    "kind": "post",
+    "name": "batch_json_explain",
+    "path": "/organisms/{organism}/convert/batch",
+    "query": {
+      "format": "json"
+    },
+    "body": {
+      "identifiers": ["INS", "XP_003123285"],
+      "explain": true,
+      "to_release": 80
+    }
+  },
+  {
+    "kind": "post",
+    "name": "error_batch_empty",
+    "path": "/organisms/{organism}/convert/batch",
+    "query": {
+      "format": "json"
+    },
+    "body": {
+      "identifiers": []
+    }
+  },
+  {
+    "kind": "post",
+    "name": "error_batch_type",
+    "path": "/organisms/{organism}/convert/batch",
+    "query": {
+      "format": "json"
+    },
+    "body": {
+      "identifiers": ["INS"],
+      "to_release": "115"
+    }
+  },
+  {
+    "kind": "convert",
+    "name": "convert_split_no_target",
+    "identifier": "ENSSSCG00000002115",
+    "arguments": {
+      "from_release": 56,
+      "to_release": 75,
+      "final_database": "UniProtKB Gene Name"
+    }
+  },
+  {
+    "kind": "post",
+    "name": "batch_json_copies",
+    "path": "/organisms/{organism}/convert/batch",
+    "query": {
+      "format": "json"
+    },
+    "body": {
+      "identifiers": ["INS", "INS-1", "GCG", "GCG.2", "GCG.2_1", "PDX1"]
+    }
+  }
+]

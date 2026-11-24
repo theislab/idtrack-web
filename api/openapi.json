@@ -1,0 +1,3138 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "idtrack web api",
+    "summary": "Gene identifiers through Ensembl releases, assemblies and external databases.",
+    "description": "Converts gene identifiers between Ensembl releases and databases with idtrack. Every result is idtrack's own `to_dict()`, unchanged; every error is `{\"error\": {...}}` with a stable `code`.",
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/api/v1/health": {
+      "get": {
+        "tags": [
+          "server"
+        ],
+        "summary": "The server is up and holds its graphs",
+        "operationId": "health_api_v1_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request is not valid (see `error.code`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "A fault of the server (`internal_error`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/version": {
+      "get": {
+        "tags": [
+          "server"
+        ],
+        "summary": "The versions of the api, idtrack and every loaded graph",
+        "operationId": "version_api_v1_version_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VersionResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request is not valid (see `error.code`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such organism (`unknown_organism`) or endpoint.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests from this client (`rate_limited`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "A fault of the server (`internal_error`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/vocabulary": {
+      "get": {
+        "tags": [
+          "server"
+        ],
+        "summary": "What the codes of the answers mean: idtrack's own tables, the api's where idtrack has none",
+        "operationId": "vocabulary_endpoint_api_v1_vocabulary_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VocabularyResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request is not valid (see `error.code`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such organism (`unknown_organism`) or endpoint.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests from this client (`rate_limited`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "A fault of the server (`internal_error`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/limits": {
+      "get": {
+        "tags": [
+          "server"
+        ],
+        "summary": "The bounds this server enforces, as configured",
+        "operationId": "limits_endpoint_api_v1_limits_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LimitsResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request is not valid (see `error.code`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such organism (`unknown_organism`) or endpoint.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests from this client (`rate_limited`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "A fault of the server (`internal_error`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/organisms": {
+      "get": {
+        "tags": [
+          "organisms"
+        ],
+        "summary": "Every loaded organism and what its graph holds",
+        "operationId": "organisms_api_v1_organisms_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrganismsResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request is not valid (see `error.code`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such organism (`unknown_organism`) or endpoint.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests from this client (`rate_limited`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "A fault of the server (`internal_error`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/organisms/{organism}": {
+      "get": {
+        "tags": [
+          "organisms"
+        ],
+        "summary": "What one organism's graph holds: releases, assemblies, databases, its build",
+        "operationId": "organism_api_v1_organisms__organism__get",
+        "parameters": [
+          {
+            "name": "organism",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 100,
+              "description": "The organism: `sus_scrofa`, or a short name (`pig`).",
+              "title": "Organism"
+            },
+            "description": "The organism: `sus_scrofa`, or a short name (`pig`)."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GraphDescription"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request is not valid (see `error.code`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such organism (`unknown_organism`) or endpoint.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests from this client (`rate_limited`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "A fault of the server (`internal_error`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/organisms/{organism}/final-databases": {
+      "get": {
+        "tags": [
+          "organisms"
+        ],
+        "summary": "The databases a conversion to a release can end in",
+        "operationId": "final_databases_api_v1_organisms__organism__final_databases_get",
+        "parameters": [
+          {
+            "name": "organism",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 100,
+              "description": "The organism: `sus_scrofa`, or a short name (`pig`).",
+              "title": "Organism"
+            },
+            "description": "The organism: `sus_scrofa`, or a short name (`pig`)."
+          },
+          {
+            "name": "to_release",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "maximum": 100000,
+                  "minimum": 1
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The target release; omitted: the snapshot release.",
+              "title": "To Release"
+            },
+            "description": "The target release; omitted: the snapshot release."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FinalDatabasesResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request is not valid (see `error.code`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such organism (`unknown_organism`) or endpoint.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests from this client (`rate_limited`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "A fault of the server (`internal_error`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/organisms/{organism}/convert": {
+      "get": {
+        "tags": [
+          "conversion"
+        ],
+        "summary": "Convert one identifier: every candidate ranked, the best marked, optionally its path",
+        "operationId": "convert_api_v1_organisms__organism__convert_get",
+        "parameters": [
+          {
+            "name": "organism",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 100,
+              "description": "The organism: `sus_scrofa`, or a short name (`pig`).",
+              "title": "Organism"
+            },
+            "description": "The organism: `sus_scrofa`, or a short name (`pig`)."
+          },
+          {
+            "name": "identifier",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "An Ensembl id (with or without version), a symbol or another id.",
+              "title": "Identifier"
+            },
+            "description": "An Ensembl id (with or without version), a symbol or another id."
+          },
+          {
+            "name": "from_release",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "maximum": 100000,
+                  "minimum": 1
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The release it is read at; omitted: inferred.",
+              "title": "From Release"
+            },
+            "description": "The release it is read at; omitted: inferred."
+          },
+          {
+            "name": "to_release",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "maximum": 100000,
+                  "minimum": 1
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The target release; omitted: the snapshot release.",
+              "title": "To Release"
+            },
+            "description": "The target release; omitted: the snapshot release."
+          },
+          {
+            "name": "final_database",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The database of the targets; omitted: `ensembl_gene`.",
+              "title": "Final Database"
+            },
+            "description": "The database of the targets; omitted: `ensembl_gene`."
+          },
+          {
+            "name": "from_database",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The database the identifier is meant in.",
+              "title": "From Database"
+            },
+            "description": "The database the identifier is meant in."
+          },
+          {
+            "name": "explain",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Add the path of every candidate (`path`).",
+              "default": false,
+              "title": "Explain"
+            },
+            "description": "Add the path of every candidate (`path`)."
+          },
+          {
+            "name": "allow_bridges",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Allow bridges through ids two genes share when history ends.",
+              "default": true,
+              "title": "Allow Bridges"
+            },
+            "description": "Allow bridges through ids two genes share when history ends."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConversionResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request is not valid (see `error.code`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such organism (`unknown_organism`) or endpoint.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests from this client (`rate_limited`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "A fault of the server (`internal_error`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "408": {
+            "description": "Out of the request's time budget.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "A search over its budget, or an answer too large.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The server is busy (`server_busy`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/organisms/{organism}/convert/batch": {
+      "post": {
+        "tags": [
+          "conversion"
+        ],
+        "summary": "Convert a batch with the same arguments; results in input order, each with its own status",
+        "operationId": "convert_batch_api_v1_organisms__organism__convert_batch_post",
+        "parameters": [
+          {
+            "name": "organism",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 100,
+              "description": "The organism: `sus_scrofa`, or a short name (`pig`).",
+              "title": "Organism"
+            },
+            "description": "The organism: `sus_scrofa`, or a short name (`pig`)."
+          },
+          {
+            "name": "format",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "json",
+                "tsv"
+              ],
+              "type": "string",
+              "description": "`json` (default) or `tsv` (one row per candidate).",
+              "default": "json",
+              "title": "Format"
+            },
+            "description": "`json` (default) or `tsv` (one row per candidate)."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BatchRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "JSON (`format=json`) or a table with one row per candidate (`format=tsv`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BatchResponse"
+                }
+              },
+              "text/tab-separated-values": {
+                "schema": {
+                  "type": "string"
+                },
+                "example": "input_index\tquery_id\tstatus\treason\treasons\tgraph_id\tmatch\tknown_versions\tfrom_release\tfrom_release_inferred\tfrom_release_given\tfrom_release_fallback\tfrom_databases\tto_release\tfinal_database\tcandidate_count\ttie\tdecided_by\talternative_locus_genes\tno_target\tno_target_genes\tother_readings\terror_type\terror_message\terror_input_error\trank\tbest\tgene\ttarget\tentry_gene\tentry_databases\tauthority\tdisplay_name\tdisplay_rank\tentry_support\town_version\tfinal_confidence\tbridges\tbridge_gap\tscore\tunscored_steps\tsame_as_query\texternal_steps\thistory_steps\tannotation\n"
+              }
+            }
+          },
+          "400": {
+            "description": "The request is not valid (see `error.code`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such organism (`unknown_organism`) or endpoint.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests from this client (`rate_limited`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "A fault of the server (`internal_error`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "408": {
+            "description": "Out of the request's time budget.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "A search over its budget, or an answer too large.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The server is busy (`server_busy`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Too large a body or too many identifiers.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "A body that is not `application/json`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/organisms/{organism}/genes-named": {
+      "get": {
+        "tags": [
+          "names"
+        ],
+        "summary": "The genes a name of an external database names, per database and release",
+        "operationId": "genes_named_api_v1_organisms__organism__genes_named_get",
+        "parameters": [
+          {
+            "name": "organism",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 100,
+              "description": "The organism: `sus_scrofa`, or a short name (`pig`).",
+              "title": "Organism"
+            },
+            "description": "The organism: `sus_scrofa`, or a short name (`pig`)."
+          },
+          {
+            "name": "name",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The name as written (e.g. a symbol).",
+              "title": "Name"
+            },
+            "description": "The name as written (e.g. a symbol)."
+          },
+          {
+            "name": "fold_case",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Match without letter case.",
+              "default": false,
+              "title": "Fold Case"
+            },
+            "description": "Match without letter case."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NamesResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request is not valid (see `error.code`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such organism (`unknown_organism`) or endpoint.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests from this client (`rate_limited`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "A fault of the server (`internal_error`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "408": {
+            "description": "Out of the request's time budget.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "A search over its budget, or an answer too large.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The server is busy (`server_busy`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/organisms/{organism}/names-of": {
+      "get": {
+        "tags": [
+          "names"
+        ],
+        "summary": "The names external databases give a gene, per database and release",
+        "operationId": "names_of_api_v1_organisms__organism__names_of_get",
+        "parameters": [
+          {
+            "name": "organism",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 100,
+              "description": "The organism: `sus_scrofa`, or a short name (`pig`).",
+              "title": "Organism"
+            },
+            "description": "The organism: `sus_scrofa`, or a short name (`pig`)."
+          },
+          {
+            "name": "gene",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "An Ensembl gene id with version (e.g. `ENSSSCG00000063423.1`).",
+              "title": "Gene"
+            },
+            "description": "An Ensembl gene id with version (e.g. `ENSSSCG00000063423.1`)."
+          },
+          {
+            "name": "release",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "maximum": 100000,
+                  "minimum": 1
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Only names that hold at this release; omitted: all.",
+              "title": "Release"
+            },
+            "description": "Only names that hold at this release; omitted: all."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NamesResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request is not valid (see `error.code`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such organism (`unknown_organism`) or endpoint.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests from this client (`rate_limited`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "A fault of the server (`internal_error`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "408": {
+            "description": "Out of the request's time budget.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "A search over its budget, or an answer too large.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The server is busy (`server_busy`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "AssemblyDescription": {
+        "properties": {
+          "assembly": {
+            "type": "integer",
+            "title": "Assembly",
+            "description": "The assembly key of idtrack's organism table."
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name",
+            "description": "Ensembl's name of the assembly."
+          },
+          "releases": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Releases",
+            "description": "The releases at which the graph holds data of it."
+          },
+          "serves": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Serves",
+            "description": "The releases it serves (is the assembly whose annotation counts)."
+          },
+          "external_databases": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "External Databases",
+            "description": "The external databases of the graph on it."
+          },
+          "synonym_databases": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Synonym Databases",
+            "description": "Those of `external_databases` that record synonyms (read under the database's name: `from_database` covers them)."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "assembly",
+          "name",
+          "releases",
+          "serves",
+          "external_databases",
+          "synonym_databases"
+        ],
+        "title": "AssemblyDescription",
+        "description": "One genome assembly of a loaded graph."
+      },
+      "BatchRequest": {
+        "properties": {
+          "identifiers": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Identifiers",
+            "description": "The identifiers (a bounded number; see `413`)."
+          },
+          "from_release": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "From Release",
+            "description": "The release the identifiers are read at; `null`: inferred."
+          },
+          "to_release": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "To Release",
+            "description": "The target release; `null`: the graph's snapshot release."
+          },
+          "final_database": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Final Database",
+            "description": "The database of the targets; `null`: `ensembl_gene`."
+          },
+          "from_database": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "From Database",
+            "description": "The database the identifiers are meant in; `null`: any."
+          },
+          "explain": {
+            "type": "boolean",
+            "title": "Explain",
+            "description": "Add the path of every candidate.",
+            "default": false
+          },
+          "allow_bridges": {
+            "type": "boolean",
+            "title": "Allow Bridges",
+            "description": "Allow bridges through ids two genes share when history ends.",
+            "default": true
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "identifiers"
+        ],
+        "title": "BatchRequest",
+        "description": "A batch of identifiers converted with the same arguments."
+      },
+      "BatchResponse": {
+        "properties": {
+          "count": {
+            "type": "integer",
+            "title": "Count",
+            "description": "The number of results (the number of identifiers given)."
+          },
+          "results": {
+            "items": {
+              "$ref": "#/components/schemas/ConversionResult"
+            },
+            "type": "array",
+            "title": "Results",
+            "description": "One result per identifier, in input order."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "count",
+          "results"
+        ],
+        "title": "BatchResponse",
+        "description": "The results of a batch, one per identifier, in the order given."
+      },
+      "BridgeCheck": {
+        "properties": {
+          "source": {
+            "type": "string",
+            "title": "Source",
+            "description": "The gene the walk would leave."
+          },
+          "target": {
+            "type": "string",
+            "title": "Target",
+            "description": "The gene the walk would enter."
+          },
+          "places": {
+            "type": "string",
+            "title": "Places",
+            "description": "Where the two genes lie relative to each other: a key of `PLACE_RELATIONS` (the nodes of the path hold both places)."
+          },
+          "taken": {
+            "type": "boolean",
+            "title": "Taken",
+            "description": "The rules allow at least one of the ids in `through` as a bridge (whether a path then uses it depends on the releases and on the other candidates)."
+          },
+          "through": {
+            "items": {
+              "prefixItems": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "string"
+                }
+              ],
+              "type": "array",
+              "maxItems": 2,
+              "minItems": 2
+            },
+            "type": "array",
+            "title": "Through",
+            "description": "Every id the two genes carried in common, as `(node, rule)` with a key of `BRIDGE_RULES`; the node is an external id or a transcript."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "source",
+          "target",
+          "places",
+          "taken",
+          "through"
+        ],
+        "title": "BridgeCheck",
+        "description": "A bridge the search considered from one gene to another, and the rule that took or refused it.\n\nThe search considers bridges only where Ensembl's history leads to no gene at the target release, from every gene\nthe history reached, and only those it can place in time (the far side holds at a release between the near side's\nand the target release); every such pair of genes is listed once."
+      },
+      "BridgeRuleTerm": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Code",
+            "description": "The rule, as `BridgeCheck.through` carries it."
+          },
+          "meaning": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Meaning",
+            "description": "idtrack's text of the rule (`idtrack.results.BRIDGE_RULES`)."
+          },
+          "source": {
+            "type": "string",
+            "const": "idtrack",
+            "title": "Source",
+            "description": "Whose words `meaning` is (idtrack's)."
+          },
+          "taken": {
+            "type": "boolean",
+            "title": "Taken",
+            "description": "A bridge is taken under this rule (`idtrack.results.BRIDGE_RULES_TAKEN`)."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "code",
+          "meaning",
+          "source",
+          "taken"
+        ],
+        "title": "BridgeRuleTerm",
+        "description": "A rule that takes or refuses a bridge (`BridgeCheck.through`), with idtrack's text."
+      },
+      "Candidate": {
+        "properties": {
+          "gene": {
+            "type": "string",
+            "title": "Gene",
+            "description": "The Ensembl gene (`<id>.<version>`) at the target release through which the target was reached."
+          },
+          "target": {
+            "type": "string",
+            "title": "Target",
+            "description": "The id in the final database, as that database wrote it at the target release (the gene itself for `ensembl_gene`)."
+          },
+          "best": {
+            "type": "boolean",
+            "title": "Best",
+            "description": "Part of the best answer (several candidates are best in a tie)."
+          },
+          "entry_gene": {
+            "type": "string",
+            "title": "Entry Gene",
+            "description": "The gene the identifier was read as at the starting release, from which this gene was reached."
+          },
+          "entry_databases": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Entry Databases",
+            "description": "The databases that attach the identifier to the entry gene at the starting release (for an Ensembl id, the Ensembl relation that reads it: `base_ensembl_gene`, ...); a synonym's database by its own name."
+          },
+          "authority": {
+            "type": "boolean",
+            "title": "Authority",
+            "description": "A name authority gives the identifier to the entry gene as its symbol at the starting release: HGNC, MGI or VGNC (the symbol databases of the organism) or NCBI's official symbol (`NCBI gene (formerly Entrezgene)`), not as a synonym (decision 94: such a symbol is read before any synonym of another gene, `idtrack.graph.TheGraph.resolve_name`)."
+          },
+          "display_name": {
+            "type": "boolean",
+            "title": "Display Name",
+            "description": "The identifier is the display name of an entry gene at the starting release (`gene.display_xref_id`: Ensembl's own name of the gene there, whatever database it came from). Among the genes that carry a name at one release such a gene ranks first, before `entry_support` (`idtrack.engine.ranking`; `decided_by` is `\"display_name\"` where it decided). It holds for the string as typed (decision 102): where the string has letters of both cases, only a display name that its database spelt so; a string in one letter case carries no evidence of case and is read without it. Where the history merges several entry genes into `gene`, this and `display_rank` and `entry_support` are the best over all of them, whichever one `entry_gene` names (the path shown starts from one; decision 106)."
+          },
+          "display_rank": {
+            "type": "integer",
+            "title": "Display Rank",
+            "description": "How the identifier is the display name of an entry gene, as the ranking compares it: 0 the display name (for a string in one letter case in an organism whose symbols are written in mixed case, the display name of a name authority, read without letter case); 1 for such a string, the display name of another source; 2 not its display name (`display_name` is `False` only then)."
+          },
+          "entry_support": {
+            "type": "integer",
+            "title": "Entry Support",
+            "description": "The number of databases that attach the identifier to an entry gene at the starting release (1 for an Ensembl id). For an identifier of digits only, databases of other numbers (an NCBI gene id and a Havana number spelt alike) are not counted against each other: their genes tie (decision 86)."
+          },
+          "own_version": {
+            "type": "boolean",
+            "title": "Own Version",
+            "description": "The gene is the queried gene id's own version at the target release (an id that exists at the target release is its own answer)."
+          },
+          "final_confidence": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Final Confidence",
+            "description": "0: the target is attached to the gene at the target release; 1: attached to a transcript or translation that belonged to the gene at another release; `None`: no gene has an id in the requested database and the gene itself is the target."
+          },
+          "bridges": {
+            "type": "integer",
+            "title": "Bridges",
+            "description": "The bridges through external ids (or shared transcripts) on the path; 0 is Ensembl's history alone."
+          },
+          "bridge_gap": {
+            "type": "integer",
+            "title": "Bridge Gap",
+            "description": "The releases between leaving a gene and entering the next, summed over the bridges."
+          },
+          "score": {
+            "type": "number",
+            "title": "Score",
+            "description": "The product of Ensembl's mapping scores along the history of the path (1.0 without a scored event)."
+          },
+          "unscored_steps": {
+            "type": "integer",
+            "title": "Unscored Steps",
+            "description": "The history steps of the path between two different ids that Ensembl gave no score (it writes 0 where it measured nothing); a path with such a step ranks below every path whose scores are measured, before `score` compares them (decision 57)."
+          },
+          "same_as_query": {
+            "type": "boolean",
+            "title": "Same As Query",
+            "description": "The target is the identifier itself (or the gene id it was read as)."
+          },
+          "external_steps": {
+            "type": "integer",
+            "title": "External Steps",
+            "description": "Cross-reference edges on the path."
+          },
+          "history_steps": {
+            "type": "integer",
+            "title": "History Steps",
+            "description": "History edges on the path."
+          },
+          "annotation": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "integer"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Annotation",
+            "description": "`(-external ids, -transcripts, -translations)` of the gene at the target release, where the engine compared it (between successors of one entry gene that are equal in everything else); `None` where it did not."
+          },
+          "path": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Path",
+            "description": "With `explain`: the indices of `ExplainedPath.steps` from the identifier to `gene`, in order; empty otherwise."
+          },
+          "final_path": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Final Path",
+            "description": "With `explain`: the indices of the steps from `gene` to `target` (empty when the gene is the target)."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "gene",
+          "target",
+          "best",
+          "entry_gene",
+          "entry_databases",
+          "authority",
+          "display_name",
+          "display_rank",
+          "entry_support",
+          "own_version",
+          "final_confidence",
+          "bridges",
+          "bridge_gap",
+          "score",
+          "unscored_steps",
+          "same_as_query",
+          "external_steps",
+          "history_steps",
+          "annotation",
+          "path",
+          "final_path"
+        ],
+        "title": "Candidate",
+        "description": "One target of a conversion: a gene at the target release and its id in the requested database.\n\nThe fields after `best` are the ranking record of the candidate: what the engine compared."
+      },
+      "ConversionResult": {
+        "properties": {
+          "query_id": {
+            "type": "string",
+            "title": "Query Id",
+            "description": "The identifier as given."
+          },
+          "graph_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Graph Id",
+            "description": "The identifier of the graph the identifier was read as (`None`: not found). For an Ensembl transcript or translation id without version this is its version of the starting release. A synonym is written as it is (`match` says it is a synonym)."
+          },
+          "match": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Match",
+            "description": "How the identifier matched `graph_id`: a step of `MATCH_STEPS` after the prefixes of `MATCH_PREFIXES` that apply (`\"synonym:exact\"`, `\"unicode:case\"`); `None` when it is not in the graph."
+          },
+          "known_versions": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Known Versions",
+            "description": "For an Ensembl id, or a sequence accession, written with a version the graph does not hold: the versions that exist (the identifier is not answered with another version's gene)."
+          },
+          "from_release": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "From Release",
+            "description": "The release at which the identifier was read."
+          },
+          "from_release_inferred": {
+            "type": "boolean",
+            "title": "From Release Inferred",
+            "description": "The release was chosen by the engine, not given."
+          },
+          "from_release_given": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "From Release Given",
+            "description": "The release given."
+          },
+          "from_release_fallback": {
+            "type": "boolean",
+            "title": "From Release Fallback",
+            "description": "The release given was set aside because the graph does not hold the identifier there; it was read where the graph holds it."
+          },
+          "from_databases": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "From Databases",
+            "description": "For an external id, the databases through which it was read at that release (for a synonym: the databases that record it)."
+          },
+          "to_release": {
+            "type": "integer",
+            "title": "To Release",
+            "description": "The target release."
+          },
+          "final_database": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Final Database",
+            "description": "The database of the targets: the requested one, `ensembl_gene` when the genes reached have no id in it (`no_target`), `None` when nothing was found."
+          },
+          "candidates": {
+            "items": {
+              "$ref": "#/components/schemas/Candidate"
+            },
+            "type": "array",
+            "title": "Candidates",
+            "description": "Every target reached, ranked, the best first and marked."
+          },
+          "tie": {
+            "type": "boolean",
+            "title": "Tie",
+            "description": "The best answer is shared by several genes or targets equal in all evidence."
+          },
+          "decided_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decided By",
+            "description": "The criterion (`CRITERIA`) that put the best answer before the runner-up; `None` without a runner-up."
+          },
+          "alternative_locus_genes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Alternative Locus Genes",
+            "description": "Copies on alternative loci and patches, LRG records, and the Y copies of pseudoautosomal genes (beside their gene on X), that the identifier also leads to beside genes of the reference sequence; not candidates."
+          },
+          "no_target": {
+            "type": "boolean",
+            "title": "No Target",
+            "description": "Genes were reached, but none has an id in the requested database; the candidates are the genes."
+          },
+          "no_target_genes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "No Target Genes",
+            "description": "Genes reached without an id in the requested database while others have one; not candidates."
+          },
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "description": "One of `STATUSES`."
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason",
+            "description": "The first of `reasons`; `None` when none applies."
+          },
+          "reasons": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Reasons",
+            "description": "Every reason that applies, keys of `REASONS`, in this order: why the result has no target in the requested database (no candidates, or `no_target`: genes stand in for the missing id); `\"read_at_another_release\"` where the identifier was read at another release than the one given (`from_release_fallback`); `\"version_not_judged\"` where a version written after an accession was not judged (decision 101). Empty for a result with targets read as asked."
+          },
+          "other_readings": {
+            "items": {
+              "$ref": "#/components/schemas/OtherReading"
+            },
+            "type": "array",
+            "title": "Other Readings",
+            "description": "The other nodes the identifier was read as: those a rule of name resolution put after `graph_id`, with what they would answer, those read by the same step, whose candidates are part of a tie, and those the string has at other releases only, with those releases (`idtrack.graph.TheGraph.readings`)."
+          },
+          "error": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ErrorInfo"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "In a batch, the error that stopped this identifier's conversion."
+          },
+          "path": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ExplainedPath"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "With `explain`: the paths of the candidates (no step when there is no candidate) and the bridges the search considered; `None` without `explain`."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "query_id",
+          "graph_id",
+          "match",
+          "known_versions",
+          "from_release",
+          "from_release_inferred",
+          "from_release_given",
+          "from_release_fallback",
+          "from_databases",
+          "to_release",
+          "final_database",
+          "candidates",
+          "tie",
+          "decided_by",
+          "alternative_locus_genes",
+          "no_target",
+          "no_target_genes",
+          "status",
+          "reason",
+          "reasons",
+          "other_readings",
+          "error",
+          "path"
+        ],
+        "title": "ConversionResult",
+        "description": "One identifier converted to a target release and database (`idtrack.API.convert`)."
+      },
+      "CriterionField": {
+        "properties": {
+          "field": {
+            "type": "string",
+            "title": "Field",
+            "description": "The `Candidate` field."
+          },
+          "first": {
+            "type": "string",
+            "enum": [
+              "yes",
+              "lower",
+              "higher"
+            ],
+            "title": "First",
+            "description": "Which value ranks first: `yes` (true before false), `lower` or `higher` (a tuple compared part by part, from its first part)."
+          },
+          "parts": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parts",
+            "description": "For a field that is a tuple, the names of its parts, each the negated count (as idtrack's text of the field states); `null` otherwise."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "field",
+          "first",
+          "parts"
+        ],
+        "title": "CriterionField",
+        "description": "A `Candidate` field a criterion compares, and which of its values ranks first."
+      },
+      "CriterionTerm": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Code",
+            "description": "The criterion, as `ConversionResult.decided_by` names it."
+          },
+          "meaning": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Meaning",
+            "description": "idtrack's text of the `Candidate` field of the same name."
+          },
+          "source": {
+            "type": "string",
+            "const": "idtrack",
+            "title": "Source",
+            "description": "Whose words `meaning` is (idtrack's)."
+          },
+          "fields": {
+            "items": {
+              "$ref": "#/components/schemas/CriterionField"
+            },
+            "type": "array",
+            "title": "Fields",
+            "description": "The fields idtrack's ranking compares for this criterion, in order, the first that differs deciding (the api's reading of `idtrack.engine.ranking`, which gives no such table; tested against idtrack's criteria)."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "code",
+          "meaning",
+          "source",
+          "fields"
+        ],
+        "title": "CriterionTerm",
+        "description": "A criterion that ranks candidates: idtrack's text of its field, and the fields its ranking compares."
+      },
+      "ErrorBody": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Code",
+            "description": "A stable code of the kind of error (SETUP.md and README.md list them)."
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "description": "What went wrong and what to change, in words."
+          },
+          "argument": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Argument",
+            "description": "The argument the error is about, where one is."
+          },
+          "allowed": {
+            "anyOf": [
+              {
+                "items": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "integer"
+                    }
+                  ]
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Allowed",
+            "description": "The values the argument accepts, where they can be listed."
+          },
+          "details": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/ValidationDetail"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Details",
+            "description": "For `invalid_request`: every problem found."
+          },
+          "request_id": {
+            "type": "string",
+            "title": "Request Id",
+            "description": "The id of the request; quote it when reporting an internal error."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "code",
+          "message",
+          "argument",
+          "allowed",
+          "details",
+          "request_id"
+        ],
+        "title": "ErrorBody",
+        "description": "An error: a stable code, a message that says what to change, and the request's id."
+      },
+      "ErrorInfo": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "title": "Type",
+            "description": "The class of the error."
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "description": "Its message."
+          },
+          "input_error": {
+            "type": "boolean",
+            "title": "Input Error",
+            "description": "`True` when the error is the caller's (`idtrack.errors.InputError`), `False` for any other (an exceeded budget, an internal error)."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type",
+          "message",
+          "input_error"
+        ],
+        "title": "ErrorInfo",
+        "description": "An error that stopped the conversion of one identifier in a batch."
+      },
+      "ErrorResponse": {
+        "properties": {
+          "error": {
+            "$ref": "#/components/schemas/ErrorBody"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "title": "ErrorResponse",
+        "description": "The body of every response that is not a success."
+      },
+      "ErrorTerm": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Code",
+            "description": "The code, as `error.code` carries it."
+          },
+          "status": {
+            "type": "integer",
+            "title": "Status",
+            "description": "The HTTP status it is answered with."
+          },
+          "meaning": {
+            "type": "string",
+            "title": "Meaning",
+            "description": "When it is answered, and what to change."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "code",
+          "status",
+          "meaning"
+        ],
+        "title": "ErrorTerm",
+        "description": "An error code of the api, its status and when it is answered."
+      },
+      "ExplainedPath": {
+        "properties": {
+          "nodes": {
+            "items": {
+              "$ref": "#/components/schemas/PathNode"
+            },
+            "type": "array",
+            "title": "Nodes",
+            "description": "The nodes of every step and of every bridge considered, ordered by first use."
+          },
+          "steps": {
+            "items": {
+              "$ref": "#/components/schemas/PathStep"
+            },
+            "type": "array",
+            "title": "Steps",
+            "description": "The steps of every candidate's path, each once, ordered by first use."
+          },
+          "bridges": {
+            "items": {
+              "$ref": "#/components/schemas/BridgeCheck"
+            },
+            "type": "array",
+            "title": "Bridges",
+            "description": "Every bridge the search considered, taken or refused, with its rule (empty when Ensembl's history alone reached the target release); ordered by source and target."
+          },
+          "refused": {
+            "items": {
+              "$ref": "#/components/schemas/PathStep"
+            },
+            "type": "array",
+            "title": "Refused",
+            "description": "The history steps of Ensembl the search did not follow, in the direction of the walk, each with the rule that refused it as its `PathStep.reason` (a step between the mitochondrial genome and a nuclear sequence); ordered by source, target and key."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "nodes",
+          "steps",
+          "bridges",
+          "refused"
+        ],
+        "title": "ExplainedPath",
+        "description": "The paths of a conversion as one graph: every node and step once; candidates refer to steps by index."
+      },
+      "FinalDatabasesResponse": {
+        "properties": {
+          "organism": {
+            "type": "string",
+            "title": "Organism",
+            "description": "The organism."
+          },
+          "to_release": {
+            "type": "integer",
+            "title": "To Release",
+            "description": "The target release."
+          },
+          "final_databases": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Final Databases",
+            "description": "The values `final_database` accepts for this release."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "organism",
+          "to_release",
+          "final_databases"
+        ],
+        "title": "FinalDatabasesResponse",
+        "description": "The databases a conversion to a release can end in."
+      },
+      "GenePlace": {
+        "properties": {
+          "assembly": {
+            "type": "integer",
+            "title": "Assembly",
+            "description": "The assembly key of idtrack's organism table."
+          },
+          "region": {
+            "type": "string",
+            "title": "Region",
+            "description": "The sequence region as Ensembl names it (a chromosome, a scaffold, a patch)."
+          },
+          "start": {
+            "type": "integer",
+            "title": "Start",
+            "description": "The first base of the gene (1-based)."
+          },
+          "end": {
+            "type": "integer",
+            "title": "End",
+            "description": "The last base of the gene (inclusive)."
+          },
+          "strand": {
+            "type": "integer",
+            "title": "Strand",
+            "description": "`1` or `-1`."
+          },
+          "releases": {
+            "items": {
+              "prefixItems": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "integer"
+                }
+              ],
+              "type": "array",
+              "maxItems": 2,
+              "minItems": 2
+            },
+            "type": "array",
+            "title": "Releases",
+            "description": "The inclusive release ranges at which the gene lies there."
+          },
+          "reference": {
+            "type": "boolean",
+            "title": "Reference",
+            "description": "The region is part of the reference sequence (not a patch, a haplotype, an alternative locus or an LRG record)."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "assembly",
+          "region",
+          "start",
+          "end",
+          "strand",
+          "releases",
+          "reference"
+        ],
+        "title": "GenePlace",
+        "description": "Where a gene lies at some releases: an assembly, a sequence region, its first and last base, a strand."
+      },
+      "GraphDescription": {
+        "properties": {
+          "organism": {
+            "type": "string",
+            "title": "Organism",
+            "description": "The organism."
+          },
+          "primary_assembly": {
+            "type": "integer",
+            "title": "Primary Assembly",
+            "description": "The assembly of the graph's snapshot release."
+          },
+          "snapshot_release": {
+            "type": "integer",
+            "title": "Snapshot Release",
+            "description": "The last release of the graph."
+          },
+          "releases": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Releases",
+            "description": "Every release the graph covers."
+          },
+          "assemblies": {
+            "items": {
+              "$ref": "#/components/schemas/AssemblyDescription"
+            },
+            "type": "array",
+            "title": "Assemblies",
+            "description": "The assemblies, by the organism table's priority."
+          },
+          "serving_assembly": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "Serving Assembly",
+            "description": "Release (as a string, a JSON key) to the assembly that serves it."
+          },
+          "external_databases": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "External Databases",
+            "description": "The external databases of the graph (any assembly), as `idtrack.API.external_databases` names them."
+          },
+          "synonym_databases": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Synonym Databases",
+            "description": "Those of `external_databases` that record synonyms."
+          },
+          "final_databases": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Final Databases",
+            "description": "The databases a conversion to the snapshot release can end in."
+          },
+          "forms": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Forms",
+            "description": "The Ensembl forms of the graph (`gene`, `transcript`, `translation`)."
+          },
+          "format_version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Format Version",
+            "description": "The graph file's format version (`None` for a graph made in memory)."
+          },
+          "package_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Package Version",
+            "description": "The idtrack version that built the graph."
+          },
+          "package_commit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Package Commit",
+            "description": "The git commit of idtrack that built the graph, where it was known."
+          },
+          "content_digest": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Content Digest",
+            "description": "The digest of the graph's content."
+          },
+          "build_date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Build Date",
+            "description": "When the graph was built."
+          },
+          "counts": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "Counts",
+            "description": "Counts of the build (nodes, edges, ...), as the graph file records them."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "organism",
+          "primary_assembly",
+          "snapshot_release",
+          "releases",
+          "assemblies",
+          "serving_assembly",
+          "external_databases",
+          "synonym_databases",
+          "final_databases",
+          "forms",
+          "format_version",
+          "package_version",
+          "package_commit",
+          "content_digest",
+          "build_date",
+          "counts"
+        ],
+        "title": "GraphDescription",
+        "description": "What a loaded graph holds (`idtrack.API.describe`), read from the graph without the network."
+      },
+      "GraphFile": {
+        "properties": {
+          "key": {
+            "type": "string",
+            "title": "Key",
+            "description": "The key of the file in the store: `idtrack/<format>/<organism>/<sha256>.npz`."
+          },
+          "sha256": {
+            "type": "string",
+            "title": "Sha256",
+            "description": "The SHA-256 of the file's bytes, verified before loading."
+          },
+          "size": {
+            "type": "integer",
+            "title": "Size",
+            "description": "The size of the file in bytes."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "key",
+          "sha256",
+          "size"
+        ],
+        "title": "GraphFile",
+        "description": "A published file as the server verified it."
+      },
+      "GraphVersion": {
+        "properties": {
+          "organism": {
+            "type": "string",
+            "title": "Organism",
+            "description": "The organism."
+          },
+          "snapshot_release": {
+            "type": "integer",
+            "title": "Snapshot Release",
+            "description": "The last Ensembl release of the graph."
+          },
+          "file": {
+            "$ref": "#/components/schemas/GraphFile"
+          },
+          "format_version": {
+            "type": "integer",
+            "title": "Format Version",
+            "description": "The graph file's format version."
+          },
+          "content_digest": {
+            "type": "string",
+            "title": "Content Digest",
+            "description": "The digest of the graph's content, as its build recorded it."
+          },
+          "package_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Package Version",
+            "description": "The idtrack version that built the graph."
+          },
+          "package_commit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Package Commit",
+            "description": "The idtrack commit that built the graph, where known."
+          },
+          "build_date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Build Date",
+            "description": "When the graph was built."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "organism",
+          "snapshot_release",
+          "file",
+          "format_version",
+          "content_digest",
+          "package_version",
+          "package_commit",
+          "build_date"
+        ],
+        "title": "GraphVersion",
+        "description": "What a loaded graph is and what built it."
+      },
+      "HealthResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "const": "ok",
+            "title": "Status",
+            "description": "Always `ok` (a server that is not ready does not answer)."
+          },
+          "organisms": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Organisms",
+            "description": "The organisms whose graphs this server holds."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "status",
+          "organisms"
+        ],
+        "title": "HealthResponse",
+        "description": "The server is up and its graphs are loaded."
+      },
+      "LimitsResponse": {
+        "properties": {
+          "batch_max": {
+            "type": "integer",
+            "title": "Batch Max",
+            "description": "The most identifiers of one batch."
+          },
+          "identifier_max_length": {
+            "type": "integer",
+            "title": "Identifier Max Length",
+            "description": "The longest identifier or name, in characters."
+          },
+          "body_max_bytes": {
+            "type": "integer",
+            "title": "Body Max Bytes",
+            "description": "The largest request body, in bytes."
+          },
+          "response_max_bytes": {
+            "type": "integer",
+            "title": "Response Max Bytes",
+            "description": "The largest answer, in bytes; a larger one is refused, never cut."
+          },
+          "request_seconds": {
+            "type": "number",
+            "title": "Request Seconds",
+            "description": "The time budget of one request, in seconds."
+          },
+          "search_seconds": {
+            "type": "number",
+            "title": "Search Seconds",
+            "description": "The time budget of one identifier's search, in seconds."
+          },
+          "search_states": {
+            "type": "integer",
+            "title": "Search States",
+            "description": "The most search states one identifier's search may expand."
+          },
+          "rate_per_minute": {
+            "type": "integer",
+            "title": "Rate Per Minute",
+            "description": "Requests per minute per client (0: no limit)."
+          },
+          "rate_burst": {
+            "type": "integer",
+            "title": "Rate Burst",
+            "description": "Requests a client may make at once before the rate applies."
+          },
+          "queue_max": {
+            "type": "integer",
+            "title": "Queue Max",
+            "description": "Requests one worker holds, running or waiting, before answering `503`."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "batch_max",
+          "identifier_max_length",
+          "body_max_bytes",
+          "response_max_bytes",
+          "request_seconds",
+          "search_seconds",
+          "search_states",
+          "rate_per_minute",
+          "rate_burst",
+          "queue_max"
+        ],
+        "title": "LimitsResponse",
+        "description": "The bounds this server enforces, as configured (SETUP.md, \"Configuration\")."
+      },
+      "NameMatch": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "The name as the link of the gene writes it at these releases."
+          },
+          "gene": {
+            "type": "string",
+            "title": "Gene",
+            "description": "The Ensembl gene with version."
+          },
+          "database": {
+            "type": "string",
+            "title": "Database",
+            "description": "The database (for a synonym: the database that records it)."
+          },
+          "synonym": {
+            "type": "boolean",
+            "title": "Synonym",
+            "description": "The name is one of the database's synonyms of the gene, not its name."
+          },
+          "releases": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Releases",
+            "description": "The releases at which the database attaches the name to the gene on the assembly that serves each, and the gene lies on the reference sequence, ascending."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "name",
+          "gene",
+          "database",
+          "synonym",
+          "releases"
+        ],
+        "title": "NameMatch",
+        "description": "A name of an external database attached to an Ensembl gene, and the releases at which it is."
+      },
+      "NamesResponse": {
+        "properties": {
+          "matches": {
+            "items": {
+              "$ref": "#/components/schemas/NameMatch"
+            },
+            "type": "array",
+            "title": "Matches",
+            "description": "The matches, as idtrack orders them."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "matches"
+        ],
+        "title": "NamesResponse",
+        "description": "Names and the genes they name, per database and release."
+      },
+      "OrganismsResponse": {
+        "properties": {
+          "organisms": {
+            "items": {
+              "$ref": "#/components/schemas/GraphDescription"
+            },
+            "type": "array",
+            "title": "Organisms",
+            "description": "One description per loaded graph."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "organisms"
+        ],
+        "title": "OrganismsResponse",
+        "description": "Every loaded organism and what its graph holds."
+      },
+      "OtherReading": {
+        "properties": {
+          "graph_id": {
+            "type": "string",
+            "title": "Graph Id",
+            "description": "The node (as `ConversionResult.graph_id` names a node)."
+          },
+          "match": {
+            "type": "string",
+            "title": "Match",
+            "description": "How the identifier matched it (`MATCH_STEPS`, `MATCH_PREFIXES`)."
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason",
+            "description": "Why it is reported: a key of `READING_REASONS`."
+          },
+          "genes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Genes",
+            "description": "The genes of the best answer that a conversion of this reading gives (the same target release and arguments), ascending; empty when it gives none."
+          },
+          "releases": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Releases",
+            "description": "For a reading of reason `other_release`, the releases at which the string has this meaning, ascending; empty otherwise."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "graph_id",
+          "match",
+          "reason",
+          "genes",
+          "releases"
+        ],
+        "title": "OtherReading",
+        "description": "Another graph node an identifier was read as, beside `ConversionResult.graph_id`."
+      },
+      "PathNode": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "description": "The node's id within the explanation: the identifier (a synonym written as it is, without the graph's bookkeeping; `synonym:<text>` only should the same text name another node of the explanation)."
+          },
+          "kind": {
+            "type": "string",
+            "title": "Kind",
+            "description": "`ensembl_gene`, `base_ensembl_gene`, `ensembl_transcript`, `ensembl_translation`, `external` or `synonym` (an external id recorded as a synonym)."
+          },
+          "label": {
+            "type": "string",
+            "title": "Label",
+            "description": "The name to show for the node: the identifier."
+          },
+          "databases": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Databases",
+            "description": "For an external id, the databases that attach it to an Ensembl id at some release (for a synonym, the databases that record it); empty otherwise."
+          },
+          "active": {
+            "items": {
+              "prefixItems": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "anyOf": [
+                    {
+                      "type": "integer"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              ],
+              "type": "array",
+              "maxItems": 2,
+              "minItems": 2
+            },
+            "type": "array",
+            "title": "Active",
+            "description": "For an Ensembl gene with version, the inclusive release ranges in which it exists (`None`: still active at the last release of the graph); empty otherwise."
+          },
+          "assemblies": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Assemblies",
+            "description": "For an Ensembl gene with version, the assemblies that serve its active releases."
+          },
+          "non_reference": {
+            "items": {
+              "prefixItems": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "integer"
+                }
+              ],
+              "type": "array",
+              "maxItems": 2,
+              "minItems": 2
+            },
+            "type": "array",
+            "title": "Non Reference",
+            "description": "For an Ensembl gene, the release ranges in which it lies outside the reference sequence (an alternative locus, a patch, an LRG record)."
+          },
+          "places": {
+            "items": {
+              "$ref": "#/components/schemas/GenePlace"
+            },
+            "type": "array",
+            "title": "Places",
+            "description": "For an Ensembl gene with version, where it lies at its releases (on the assembly that serves each release); empty otherwise."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "kind",
+          "label",
+          "databases",
+          "active",
+          "assemblies",
+          "non_reference",
+          "places"
+        ],
+        "title": "PathNode",
+        "description": "A node of an explained path."
+      },
+      "PathStep": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "title": "Kind",
+            "description": "`identity` (the gene is its own answer), `entry` (from the identifier to the gene it stands for), `history` (an event of Ensembl's id history), `self_loop` (a scored re-mapping of a gene to itself), `bridge_near` and `bridge_far` (the two sides of a bridge through an id two genes carry), `final` (from the gene to its id in the final database)."
+          },
+          "source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source",
+            "description": "The node the step leaves (`None` for `identity`)."
+          },
+          "target": {
+            "type": "string",
+            "title": "Target",
+            "description": "The node the step enters."
+          },
+          "key": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Key",
+            "description": "The key of a history edge (Ensembl events between the same two ids); `None` otherwise."
+          },
+          "release": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Release",
+            "description": "The release at which a cross-reference step holds (`None` for a final step of confidence 1, which holds at another release)."
+          },
+          "old_release": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Old Release",
+            "description": "For a history step: the old side of Ensembl's event, the last release of the event's earlier id. Ensembl's events run forward in time, the walk may not: walking forward the earlier id is `source`, walking backward (to an earlier target release) it is `target`."
+          },
+          "new_release": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "New Release",
+            "description": "For a history step: the new side of the event, the first release of the event's later id (`target` walking forward, `source` walking backward)."
+          },
+          "weight": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Weight",
+            "description": "For a history step: Ensembl's mapping score (`None`: none given)."
+          },
+          "splits": {
+            "type": "integer",
+            "title": "Splits",
+            "description": "For a history step: the other ids that the event's earlier id passed to at `old_release` (a split), whatever the direction of the walk."
+          },
+          "merges": {
+            "type": "integer",
+            "title": "Merges",
+            "description": "For a history step: the other ids that passed to the event's later id at `new_release` (a merge), whatever the direction of the walk."
+          },
+          "databases": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Databases",
+            "description": "For a cross-reference step: the databases that link the two nodes at the release on the assembly that serves it (for a synonym: the databases that record it)."
+          },
+          "assembly": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assembly",
+            "description": "The assembly that serves `release` (or, for a history step, `new_release`, the event's new side)."
+          },
+          "old_assembly": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Old Assembly",
+            "description": "For a history step: the assembly that serves `old_release`, the event's old side (it differs from `assembly` where the event crosses from one assembly to the next); `None` otherwise."
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason",
+            "description": "Why the step was taken (or, for a step of `ExplainedPath.refused`, why it was not): a key of `STEP_REASONS`."
+          },
+          "places": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Places",
+            "description": "For a history step between two genes: where the event's later gene lies relative to the earlier one (a key of `PLACE_RELATIONS`; `places_apart`: Ensembl's history moves the gene to another place, which the walk follows); `None` for other steps."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "kind",
+          "source",
+          "target",
+          "key",
+          "release",
+          "old_release",
+          "new_release",
+          "weight",
+          "splits",
+          "merges",
+          "databases",
+          "assembly",
+          "old_assembly",
+          "reason",
+          "places"
+        ],
+        "title": "PathStep",
+        "description": "A step of an explained path."
+      },
+      "Term": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Code",
+            "description": "The code, as answers carry it."
+          },
+          "meaning": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Meaning",
+            "description": "What it means, in the defining table's words; `null` where that table gives no text."
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "idtrack",
+              "idtrack-web"
+            ],
+            "title": "Source",
+            "description": "Whose words `meaning` is: `idtrack` (its own table, `idtrack.results`), or `idtrack-web` (the api's own table, kept where idtrack gives no text, and tested against idtrack's set of codes)."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "code",
+          "meaning",
+          "source"
+        ],
+        "title": "Term",
+        "description": "A code of the api's answers and what it means, from the one place that defines it."
+      },
+      "ValidationDetail": {
+        "properties": {
+          "location": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location",
+            "description": "Where the problem is: `query`, `path` or `body`, then the field."
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "description": "What is wrong."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "location",
+          "message"
+        ],
+        "title": "ValidationDetail",
+        "description": "One problem of a request that does not have the shape the endpoint takes."
+      },
+      "VersionResponse": {
+        "properties": {
+          "api_version": {
+            "type": "string",
+            "title": "Api Version",
+            "description": "The version of this api."
+          },
+          "idtrack_version": {
+            "type": "string",
+            "title": "Idtrack Version",
+            "description": "The version of idtrack that answers."
+          },
+          "idtrack_commit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Idtrack Commit",
+            "description": "The idtrack commit that answers, where known."
+          },
+          "graph_format_version": {
+            "type": "integer",
+            "title": "Graph Format Version",
+            "description": "The graph file format this idtrack reads."
+          },
+          "manifest": {
+            "$ref": "#/components/schemas/GraphFile",
+            "description": "The manifest the graphs were read from."
+          },
+          "graphs": {
+            "items": {
+              "$ref": "#/components/schemas/GraphVersion"
+            },
+            "type": "array",
+            "title": "Graphs",
+            "description": "The loaded graphs."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "api_version",
+          "idtrack_version",
+          "idtrack_commit",
+          "graph_format_version",
+          "manifest",
+          "graphs"
+        ],
+        "title": "VersionResponse",
+        "description": "The versions of the server, of idtrack and of each loaded graph."
+      },
+      "VocabularyResponse": {
+        "properties": {
+          "statuses": {
+            "items": {
+              "$ref": "#/components/schemas/Term"
+            },
+            "type": "array",
+            "title": "Statuses",
+            "description": "The values of `ConversionResult.status`, in idtrack's order."
+          },
+          "reasons": {
+            "items": {
+              "$ref": "#/components/schemas/Term"
+            },
+            "type": "array",
+            "title": "Reasons",
+            "description": "The values of `ConversionResult.reasons` (idtrack's `REASONS`)."
+          },
+          "step_reasons": {
+            "items": {
+              "$ref": "#/components/schemas/Term"
+            },
+            "type": "array",
+            "title": "Step Reasons",
+            "description": "The values of `PathStep.reason` (idtrack's `STEP_REASONS`)."
+          },
+          "criteria": {
+            "items": {
+              "$ref": "#/components/schemas/CriterionTerm"
+            },
+            "type": "array",
+            "title": "Criteria",
+            "description": "The values of `ConversionResult.decided_by`, in the order in which they decide (idtrack's `CRITERIA`); each criterion is the `Candidate` field of the same name, and its meaning is that field's text."
+          },
+          "candidate_fields": {
+            "items": {
+              "$ref": "#/components/schemas/Term"
+            },
+            "type": "array",
+            "title": "Candidate Fields",
+            "description": "Every field of `Candidate`, in order, with idtrack's text of it (its ranking record)."
+          },
+          "match_steps": {
+            "items": {
+              "$ref": "#/components/schemas/Term"
+            },
+            "type": "array",
+            "title": "Match Steps",
+            "description": "The last part of `ConversionResult.match` and `OtherReading.match` (idtrack's `MATCH_STEPS`)."
+          },
+          "match_prefixes": {
+            "items": {
+              "$ref": "#/components/schemas/Term"
+            },
+            "type": "array",
+            "title": "Match Prefixes",
+            "description": "The parts of a match before its step, each followed by `:`, in this order (idtrack's `MATCH_PREFIXES`)."
+          },
+          "reading_reasons": {
+            "items": {
+              "$ref": "#/components/schemas/Term"
+            },
+            "type": "array",
+            "title": "Reading Reasons",
+            "description": "The values of `OtherReading.reason` (idtrack's `READING_REASONS`)."
+          },
+          "place_relations": {
+            "items": {
+              "$ref": "#/components/schemas/Term"
+            },
+            "type": "array",
+            "title": "Place Relations",
+            "description": "The values of `BridgeCheck.places` and `PathStep.places` (idtrack's `PLACE_RELATIONS`)."
+          },
+          "bridge_rules": {
+            "items": {
+              "$ref": "#/components/schemas/BridgeRuleTerm"
+            },
+            "type": "array",
+            "title": "Bridge Rules",
+            "description": "The rules of `BridgeCheck.through` (idtrack's `BRIDGE_RULES`)."
+          },
+          "errors": {
+            "items": {
+              "$ref": "#/components/schemas/ErrorTerm"
+            },
+            "type": "array",
+            "title": "Errors",
+            "description": "The api's error codes (`error.code`)."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "statuses",
+          "reasons",
+          "step_reasons",
+          "criteria",
+          "candidate_fields",
+          "match_steps",
+          "match_prefixes",
+          "reading_reasons",
+          "place_relations",
+          "bridge_rules",
+          "errors"
+        ],
+        "title": "VocabularyResponse",
+        "description": "What the codes of the answers mean: idtrack's own tables, and the api's tables where idtrack gives no text.\n\nEvery code is idtrack's (``idtrack.results``: ``STATUSES``, ``REASONS``, ``STEP_REASONS``, ``CRITERIA``,\n``MATCH_STEPS``, ``MATCH_PREFIXES``, ``READING_REASONS``, ``PLACE_RELATIONS``, ``BRIDGE_RULES``), with idtrack's\ntext wherever it gives one; a criterion's meaning is idtrack's text of the ``Candidate`` field it compares. Where\nidtrack gives codes without texts (``STATUSES``) the meaning is the api's (``source`` says so), and the fields a\ncriterion compares are the api's reading of idtrack's ranking; both are tested against idtrack's codes."
+      }
+    }
+  }
+}

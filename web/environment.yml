@@ -1,0 +1,9 @@
+# The Node toolchain of the frontend (web/): Node.js 24.22.3 LTS, the version of web/.nvmrc and of the image's web
+# stage (deploy/Containerfile, NODE_IMAGE). npm comes with it; every package is in web/package-lock.json (SETUP.md,
+# section 13.1).
+#   mamba env create -p <env folder> -f web/environment.yml && export PATH=<env folder>/bin:$PATH
+name: idtrack-web-node
+channels:
+  - conda-forge
+dependencies:
+  - nodejs=24.22.3

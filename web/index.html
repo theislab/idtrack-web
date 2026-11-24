@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="Convert gene identifiers through Ensembl releases, genome assemblies and external databases with idtrack, in the browser."
+    />
+    <meta name="color-scheme" content="light dark" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <title>idtrack</title>
+    <script>
+      // The theme chosen earlier, before the first paint (no flash of the other theme).
+      try {
+        var theme = localStorage.getItem("idtrack-theme");
+        if (theme === "light" || theme === "dark") document.documentElement.setAttribute("data-theme", theme);
+      } catch (e) {}
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <noscript>idtrack's web page needs JavaScript. The api works without it: /api/v1/docs.</noscript>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
