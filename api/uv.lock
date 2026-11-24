@@ -708,8 +708,8 @@ wheels = [
 
 [[package]]
 name = "idtrack"
-version = "0.1.0"
-source = { git = "https://github.com/theislab/idtrack.git?tag=v0.1.0#b5d4fb411c0363a6bbefadde4963832e5b1b132e" }
+version = "0.1.2"
+source = { git = "https://github.com/theislab/idtrack.git?tag=v0.1.2#7f71b2606a61b7e46b99361406ad403ae21eb5b9" }
 dependencies = [
     { name = "h5py" },
     { name = "networkx" },
@@ -724,7 +724,7 @@ dependencies = [
 
 [[package]]
 name = "idtrack-web-api"
-version = "0.1.0"
+version = "0.1.2"
 source = { editable = "." }
 dependencies = [
     { name = "anyio" },
@@ -756,7 +756,7 @@ requires-dist = [
     { name = "boto3", specifier = ">=1.40" },
     { name = "fastapi", specifier = ">=0.120" },
     { name = "gunicorn", specifier = ">=27" },
-    { name = "idtrack", git = "https://github.com/theislab/idtrack.git?tag=v0.1.0" },
+    { name = "idtrack", git = "https://github.com/theislab/idtrack.git?tag=v0.1.2" },
     { name = "pydantic", specifier = ">=2.12" },
     { name = "starlette", specifier = ">=0.48" },
     { name = "uvicorn", specifier = ">=0.38" },

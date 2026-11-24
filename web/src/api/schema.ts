@@ -383,12 +383,12 @@ export type components = {
       entry_databases: string[];
       /**
        * Authority
-       * @description A name authority gives the identifier to the entry gene as its symbol at the starting release: HGNC, MGI or VGNC (the symbol databases of the organism) or NCBI's official symbol (`NCBI gene (formerly Entrezgene)`), not as a synonym (decision 94: such a symbol is read before any synonym of another gene, `idtrack.graph.TheGraph.resolve_name`).
+       * @description A name authority gives the identifier to the entry gene as its symbol at the starting release: HGNC, MGI or VGNC (the symbol databases of the organism) or NCBI's official symbol (`NCBI gene (formerly Entrezgene)`), not as a synonym (such a symbol is read before any synonym of another gene, `idtrack.graph.TheGraph.resolve_name`).
        */
       authority: boolean;
       /**
        * Display Name
-       * @description The identifier is the display name of an entry gene at the starting release (`gene.display_xref_id`: Ensembl's own name of the gene there, whatever database it came from). Among the genes that carry a name at one release such a gene ranks first, before `entry_support` (`idtrack.engine.ranking`; `decided_by` is `"display_name"` where it decided). It holds for the string as typed (decision 102): where the string has letters of both cases, only a display name that its database spelt so; a string in one letter case carries no evidence of case and is read without it. Where the history merges several entry genes into `gene`, this and `display_rank` and `entry_support` are the best over all of them, whichever one `entry_gene` names (the path shown starts from one; decision 106).
+       * @description The identifier is the display name of an entry gene at the starting release (`gene.display_xref_id`: Ensembl's own name of the gene there, whatever database it came from). Among the genes that carry a name at one release such a gene ranks first, before `entry_support` (`idtrack.engine.ranking`; `decided_by` is `"display_name"` where it decided). It holds for the string as typed: where the string has letters of both cases, only a display name that its database spelt so; a string in one letter case carries no evidence of case and is read without it. Where the history merges several entry genes into `gene`, this and `display_rank` and `entry_support` are the best over all of them, whichever one `entry_gene` names (the path shown starts from one).
        */
       display_name: boolean;
       /**
@@ -398,7 +398,7 @@ export type components = {
       display_rank: number;
       /**
        * Entry Support
-       * @description The number of databases that attach the identifier to an entry gene at the starting release (1 for an Ensembl id). For an identifier of digits only, databases of other numbers (an NCBI gene id and a Havana number spelt alike) are not counted against each other: their genes tie (decision 86).
+       * @description The number of databases that attach the identifier to an entry gene at the starting release (1 for an Ensembl id). For an identifier of digits only, databases of other numbers (an NCBI gene id and a Havana number spelt alike) are not counted against each other: their genes tie.
        */
       entry_support: number;
       /**
@@ -428,7 +428,7 @@ export type components = {
       score: number;
       /**
        * Unscored Steps
-       * @description The history steps of the path between two different ids that Ensembl gave no score (it writes 0 where it measured nothing); a path with such a step ranks below every path whose scores are measured, before `score` compares them (decision 57).
+       * @description The history steps of the path between two different ids that Ensembl gave no score (it writes 0 where it measured nothing); a path with such a step ranks below every path whose scores are measured, before `score` compares them.
        */
       unscored_steps: number;
       /**
@@ -564,7 +564,7 @@ export type components = {
       reason: string | null;
       /**
        * Reasons
-       * @description Every reason that applies, keys of `REASONS`, in this order: why the result has no target in the requested database (no candidates, or `no_target`: genes stand in for the missing id); `"read_at_another_release"` where the identifier was read at another release than the one given (`from_release_fallback`); `"version_not_judged"` where a version written after an accession was not judged (decision 101). Empty for a result with targets read as asked.
+       * @description Every reason that applies, keys of `REASONS`, in this order: why the result has no target in the requested database (no candidates, or `no_target`: genes stand in for the missing id); `"read_at_another_release"` where the identifier was read at another release than the one given (`from_release_fallback`); `"version_not_judged"` where a version written after an accession was not judged (its database's versions count edits of the record and do not date it). Empty for a result with targets read as asked.
        */
       reasons: string[];
       /**

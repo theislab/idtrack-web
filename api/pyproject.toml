@@ -1,6 +1,6 @@
 [project]
 name = "idtrack-web-api"
-version = "0.1.0"
+version = "0.1.2"
 description = "The web api of idtrack: gene identifier conversion through Ensembl releases, served over HTTP."
 requires-python = ">=3.12"
 license = "BSD-3-Clause"
@@ -16,7 +16,7 @@ classifiers = [
 # idtrack is installed from its GitHub repository at one commit: that commit is set in one place, the sources
 # table of uv below (SETUP.md, "The idtrack commit").
 dependencies = [
-    "idtrack>=0.1.0",
+    "idtrack>=0.1.2",
     "fastapi>=0.120",
     "pydantic>=2.12",
     "starlette>=0.48",
@@ -54,9 +54,9 @@ required-version = ">=0.9"
 
 [tool.uv.sources]
 # THE IDTRACK COMMIT (one place): idtrack is taken from its GitHub repository at one commit, which uv.lock records.
-# To move to another idtrack: change `rev` to the full commit hash, run `uv lock`, run every test, regenerate
-# api/openapi.json and the frontend's types (SETUP.md, "The idtrack commit").
-idtrack = { git = "https://github.com/theislab/idtrack.git", tag = "v0.1.0" }
+# To move to another idtrack: change `tag` (or give `rev`, a full commit hash), run `uv lock`, run every test,
+# regenerate api/openapi.json and the frontend's types (SETUP.md, "The idtrack commit").
+idtrack = { git = "https://github.com/theislab/idtrack.git", tag = "v0.1.2" }
 
 [tool.ruff]
 line-length = 120

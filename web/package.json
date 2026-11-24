@@ -1,7 +1,7 @@
 {
   "name": "idtrack-web-frontend",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.1.2",
   "description": "The frontend of idtrack-web: convert gene identifiers through Ensembl releases in the browser.",
   "type": "module",
   "license": "BSD-3-Clause",

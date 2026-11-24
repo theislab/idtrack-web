@@ -4,7 +4,7 @@
     "title": "idtrack web api",
     "summary": "Gene identifiers through Ensembl releases, assemblies and external databases.",
     "description": "Converts gene identifiers between Ensembl releases and databases with idtrack. Every result is idtrack's own `to_dict()`, unchanged; every error is `{\"error\": {...}}` with a stable `code`.",
-    "version": "0.1.0"
+    "version": "0.1.2"
   },
   "paths": {
     "/api/v1/health": {
@@ -1400,12 +1400,12 @@
           "authority": {
             "type": "boolean",
             "title": "Authority",
-            "description": "A name authority gives the identifier to the entry gene as its symbol at the starting release: HGNC, MGI or VGNC (the symbol databases of the organism) or NCBI's official symbol (`NCBI gene (formerly Entrezgene)`), not as a synonym (decision 94: such a symbol is read before any synonym of another gene, `idtrack.graph.TheGraph.resolve_name`)."
+            "description": "A name authority gives the identifier to the entry gene as its symbol at the starting release: HGNC, MGI or VGNC (the symbol databases of the organism) or NCBI's official symbol (`NCBI gene (formerly Entrezgene)`), not as a synonym (such a symbol is read before any synonym of another gene, `idtrack.graph.TheGraph.resolve_name`)."
           },
           "display_name": {
             "type": "boolean",
             "title": "Display Name",
-            "description": "The identifier is the display name of an entry gene at the starting release (`gene.display_xref_id`: Ensembl's own name of the gene there, whatever database it came from). Among the genes that carry a name at one release such a gene ranks first, before `entry_support` (`idtrack.engine.ranking`; `decided_by` is `\"display_name\"` where it decided). It holds for the string as typed (decision 102): where the string has letters of both cases, only a display name that its database spelt so; a string in one letter case carries no evidence of case and is read without it. Where the history merges several entry genes into `gene`, this and `display_rank` and `entry_support` are the best over all of them, whichever one `entry_gene` names (the path shown starts from one; decision 106)."
+            "description": "The identifier is the display name of an entry gene at the starting release (`gene.display_xref_id`: Ensembl's own name of the gene there, whatever database it came from). Among the genes that carry a name at one release such a gene ranks first, before `entry_support` (`idtrack.engine.ranking`; `decided_by` is `\"display_name\"` where it decided). It holds for the string as typed: where the string has letters of both cases, only a display name that its database spelt so; a string in one letter case carries no evidence of case and is read without it. Where the history merges several entry genes into `gene`, this and `display_rank` and `entry_support` are the best over all of them, whichever one `entry_gene` names (the path shown starts from one)."
           },
           "display_rank": {
             "type": "integer",
@@ -1415,7 +1415,7 @@
           "entry_support": {
             "type": "integer",
             "title": "Entry Support",
-            "description": "The number of databases that attach the identifier to an entry gene at the starting release (1 for an Ensembl id). For an identifier of digits only, databases of other numbers (an NCBI gene id and a Havana number spelt alike) are not counted against each other: their genes tie (decision 86)."
+            "description": "The number of databases that attach the identifier to an entry gene at the starting release (1 for an Ensembl id). For an identifier of digits only, databases of other numbers (an NCBI gene id and a Havana number spelt alike) are not counted against each other: their genes tie."
           },
           "own_version": {
             "type": "boolean",
@@ -1452,7 +1452,7 @@
           "unscored_steps": {
             "type": "integer",
             "title": "Unscored Steps",
-            "description": "The history steps of the path between two different ids that Ensembl gave no score (it writes 0 where it measured nothing); a path with such a step ranks below every path whose scores are measured, before `score` compares them (decision 57)."
+            "description": "The history steps of the path between two different ids that Ensembl gave no score (it writes 0 where it measured nothing); a path with such a step ranks below every path whose scores are measured, before `score` compares them."
           },
           "same_as_query": {
             "type": "boolean",
@@ -1696,7 +1696,7 @@
             },
             "type": "array",
             "title": "Reasons",
-            "description": "Every reason that applies, keys of `REASONS`, in this order: why the result has no target in the requested database (no candidates, or `no_target`: genes stand in for the missing id); `\"read_at_another_release\"` where the identifier was read at another release than the one given (`from_release_fallback`); `\"version_not_judged\"` where a version written after an accession was not judged (decision 101). Empty for a result with targets read as asked."
+            "description": "Every reason that applies, keys of `REASONS`, in this order: why the result has no target in the requested database (no candidates, or `no_target`: genes stand in for the missing id); `\"read_at_another_release\"` where the identifier was read at another release than the one given (`from_release_fallback`); `\"version_not_judged\"` where a version written after an accession was not judged (its database's versions count edits of the record and do not date it). Empty for a result with targets read as asked."
           },
           "other_readings": {
             "items": {

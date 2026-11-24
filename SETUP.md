@@ -44,17 +44,18 @@ The api depends on idtrack at one release of its GitHub repository, set in **one
 
 ```toml
 [tool.uv.sources]
-idtrack = { git = "https://github.com/theislab/idtrack.git", tag = "v0.1.0" }
+idtrack = { git = "https://github.com/theislab/idtrack.git", tag = "v0.1.2" }
 ```
 
-The lock holds the commit the tag named when it was locked (`b5d4fb411c0363a6bbefadde4963832e5b1b132e` for `v0.1.0`), and `uv sync --locked` installs that commit, whatever the tag names later. To move the api to another idtrack release (or to a commit: `rev = "<full commit hash>"` in place of `tag`):
+The api carries idtrack's version: idtrack, this repository and idtrack's benchmark repository ([idtrack-reproducibility](https://github.com/theislab/idtrack-reproducibility)) carry one version number, and each release of idtrack tags all three `v<version>`; version 0.1.2 of the api and the frontend (`api/pyproject.toml`, `web/package.json`) pins idtrack's tag `v0.1.2`. The lock holds the commit the tag named when it was locked (`7f71b2606a61b7e46b99361406ad403ae21eb5b9` for `v0.1.2`), and `uv sync --locked` installs that commit, whatever the tag names later. To move the api to another idtrack release (or to a commit: `rev = "<full commit hash>"` in place of `tag`):
 
 ```console
 $ cd api
-$ # edit `tag` of the idtrack line of [tool.uv.sources]
+$ # edit `tag` of the idtrack line of [tool.uv.sources], and `version` here and in web/package.json for a release
 $ uv lock
-Resolved 99 packages in 4.47s
-Updated idtrack v0.1.0 (<old commit>) -> v0.1.0 (<commit>)
+Resolved 99 packages in 7.51s
+Updated idtrack v0.1.0 (b5d4fb41) -> v0.1.2 (7f71b260)
+Updated idtrack-web-api v0.1.0 -> v0.1.2
 $ uv sync --locked                                             # then section 5: every test must pass
 $ uv run --no-sync idtrack-web openapi --output openapi.json   # if idtrack's results changed
 $ cd ../web && npm run types                                    # the frontend's types from the new document (section 13.3)
@@ -74,13 +75,13 @@ $ uv sync --locked
 Using CPython 3.14.6                          (a Python 3.14 uv finds, or one it installs)
 Creating virtual environment at: <environment folder>
 ...
- + idtrack==0.1.0 (from git+https://github.com/theislab/idtrack.git@b5d4fb411c0363a6bbefadde4963832e5b1b132e)
- + idtrack-web-api==0.1.0 (from file://<repository>/api)
+ + idtrack==0.1.2 (from git+https://github.com/theislab/idtrack.git@7f71b2606a61b7e46b99361406ad403ae21eb5b9)
+ + idtrack-web-api==0.1.2 (from file://<repository>/api)
 ...
 $ uv run --no-sync idtrack-web --help
 usage: idtrack-web [-h] {serve,check-data,publish,openapi} ...
 $ uv run --no-sync python -c "import idtrack, idtrack_web_api; print('idtrack', idtrack.__version__, '| idtrack-web-api', idtrack_web_api.__version__)"
-idtrack 0.1.0 | idtrack-web-api 0.1.0
+idtrack 0.1.2 | idtrack-web-api 0.1.2
 ```
 
 From an empty environment folder and an empty uv cache this took 37 s (95 packages). `--locked` installs exactly `uv.lock` and fails if `pyproject.toml` and the lock disagree. Never install a package by hand: add it to `pyproject.toml` (`dependencies` for the server, `[dependency-groups] dev` for tests and tools) and run `uv lock`.
@@ -92,18 +93,18 @@ From `api/` (all with `uv run --no-sync`, or the environment's `bin/` on the `PA
 ```console
 $ uv run --no-sync pytest -q                        # 129 passed, 12 skipped, about a minute
 $ uv run --no-sync ruff format --check . ../scripts && uv run --no-sync ruff check . ../scripts
-29 files already formatted
+30 files already formatted
 All checks passed!
 $ uv run --no-sync mypy
-Success: no issues found in 28 source files
+Success: no issues found in 29 source files
 ```
 
 What the tests cover: every endpoint against its schema in `api/openapi.json` (and `api/openapi.json` equal to what the app generates and serves); every answer equal to idtrack's `to_dict()` for the same call, with every float compared bit for bit, a batch equal to one `API.convert_many` call over the whole batch (items that extend another item by a numbered suffix, which idtrack can answer as copies, among them); `/vocabulary` equal to idtrack's tables, and the api's own words of it tied to idtrack's sets of codes; every validation and error path with its status and code; the data layer (manifest, checksum refusal, the `check-data` and `serve` commands refusing a damaged file); R2 through a local S3-compatible server (moto, started by the tests on a free port; no credentials); concurrent requests in one process and against `idtrack-web serve` with two forked workers, and the rate limit shared by the workers. The tests use the small pig graph `api/tests/data/graph_sus_scrofa_cut.npz` (0.57 MB, built from idtrack's own cut Ensembl tables by `scripts/make_test_graph.py`; rebuild it when idtrack's graph format changes, from a checkout of the idtrack commit of section 3: `git clone https://github.com/theislab/idtrack.git <folder> && git -C <folder> checkout <commit>`, then `uv run --no-sync python -I ../scripts/make_test_graph.py <folder> tests/data/graph_sus_scrofa_cut.npz`, about 2 minutes).
 
-The 12 tests marked `real` use the real pig graph, from a folder that holds it as `sus_scrofa/<graph file>.npz` (a file or a link to it; other organisms' folders beside it are ignored). Without that file they are skipped, each with the reason. The graph is built by idtrack's command line, which idtrack has from version 0.1.1 (the api's environment holds idtrack 0.1.0, without it): in an environment of idtrack 0.1.1 installed as idtrack's SETUP.md, section 1, says, build it as its section 3 says (about 30 minutes with the downloads, about 40 MB). idtrack 0.1.1 writes graph format 6, the format this api reads (`/api/v1/version`, `graph_format_version`):
+The 12 tests marked `real` use the real pig graph, from a folder that holds it as `sus_scrofa/<graph file>.npz` (a file or a link to it; other organisms' folders beside it are ignored). Without that file they are skipped, each with the reason. The graph is built by idtrack's command line, which the api's environment holds (idtrack's SETUP.md, section 3, says more; about 30 minutes with the downloads, about 40 MB). idtrack 0.1.2 writes graph format 6, the format this api reads (`/api/v1/version`, `graph_format_version`):
 
 ```console
-$ IDTRACK_ENSEMBL_ACCESS=https idtrack build pig 115 --repository <idtrack repository>
+$ IDTRACK_ENSEMBL_ACCESS=https uv run --no-sync idtrack build pig 115 --repository <idtrack repository>
 ...
 <idtrack repository>/graph_sus_scrofa_assembly111_min56_max115.npz
 $ mkdir -p <graphs folder>/sus_scrofa && ln -s <idtrack repository>/graph_sus_scrofa_assembly111_min56_max115.npz <graphs folder>/sus_scrofa/
@@ -158,9 +159,9 @@ idtrack/<graph format>/manifests/<sha256>.json           every manifest ever pub
 idtrack/<graph format>/<organism>/<sha256>.npz           graph files, named by their content (never replaced)
 ```
 
-The manifest (`data/manifest.schema.json`; an example, the manifest of the five organisms' graphs in format 6 that idtrack 0.1.0 reads: `data/manifest.example.json`) lists per organism the file's key, SHA-256 and size, the snapshot release, the graph's content digest and the idtrack version and commit that built it. `<graph format>` is idtrack's graph file format (6 for idtrack 0.1.0; `/api/v1/version` reports it as `graph_format_version`): an idtrack that reads another format reads another manifest, so a format change never breaks running servers.
+The manifest (`data/manifest.schema.json`; an example, the manifest of the five organisms' graphs in format 6 that idtrack 0.1.2 reads, as `idtrack-web publish` wrote it: `data/manifest.example.json`) lists per organism the file's key, SHA-256 and size, the snapshot release, the graph's content digest and the idtrack version and commit that built it. `<graph format>` is idtrack's graph file format (6 for idtrack 0.1.0 to 0.1.2; `/api/v1/version` reports it as `graph_format_version`): an idtrack that reads another format reads another manifest, so a format change never breaks running servers.
 
-**Where graphs come from.** idtrack builds them (`idtrack.API.build`, from Ensembl's public data). The graphs of the five organisms of idtrack's organism table in graph format 6 (Ensembl releases up to 115, the graphs idtrack 0.1.0 was measured on) are: human 156 MB, mouse 101 MB, pig 40 MB, macaque (rhesus) 34 MB, cynomolgus 22 MB (0.35 GB in all).
+**Where graphs come from.** idtrack builds them (`idtrack.API.build`, from Ensembl's public data). The graphs of the five organisms of idtrack's organism table in graph format 6 (Ensembl releases up to 115, the graphs idtrack 0.1.0 to 0.1.2 is measured on: their conversions are the same in these versions) are: human 156 MB, mouse 101 MB, pig 40 MB, macaque (rhesus) 34 MB, cynomolgus 22 MB (0.35 GB in all).
 
 **Publish a release** (one graph per organism; each file is loaded with idtrack first, so a file that is not a graph of this idtrack's format is refused):
 
@@ -184,12 +185,12 @@ $ uv run --no-sync idtrack-web publish --graph <human.npz> --graph <pig.npz> ...
 ```console
 $ IDTRACK_WEB_SOURCE=directory IDTRACK_WEB_DIRECTORY=/tmp/idtrack-store uv run --no-sync idtrack-web check-data   # the store of section 8
 {
-  "manifest": {"key": "idtrack/6/manifest.json", "sha256": "c46507e3...", "size": 769},
+  "manifest": {"key": "idtrack/6/manifest.json", "sha256": "db16e188...", "size": 769},
   "graphs": {
     "sus_scrofa": {
       "file": {"key": "idtrack/6/sus_scrofa/8958696c....npz", "sha256": "8958696c...", "size": 569398},
       "path": ".../idtrack-store/idtrack/6/sus_scrofa/8958696c....npz",
-      "load_seconds": 0.097,
+      "load_seconds": 0.099,
       "releases": [56, 115]
     }
   }
@@ -234,7 +235,7 @@ $ uv run --no-sync python ../scripts/check_endpoints.py http://127.0.0.1:8000 su
 { ..., "requests": 2073, "compared_with_idtrack": 2466, "floats_compared_bit_for_bit": 3454, ..., "copies_answered": 20, ..., "failures": [] }
 ```
 
-Besides the answers, it sends 43 wrong requests (wrong types, sizes over the server's limits, unknown organisms, releases, databases, genes and parameters, strings idtrack refuses) and checks that each is refused with its code, a message and the argument, and it converts strings that idtrack reads after changing them (Unicode, punctuation, GENCODE's Y copies) and reports how they matched. With idtrack 0.1.0 and the five real graphs of format 6 (a store of links: `idtrack-web publish ... --directory <store> --link`), it gave 2,003 to 2,088 requests per organism, 2,466 answers compared with idtrack each (17 to 25 of them answered as copies in a batch), and no failure.
+Besides the answers, it sends 43 wrong requests (wrong types, sizes over the server's limits, unknown organisms, releases, databases, genes and parameters, strings idtrack refuses) and checks that each is refused with its code, a message and the argument, and it converts strings that idtrack reads after changing them (Unicode, punctuation, GENCODE's Y copies) and reports how they matched. With idtrack 0.1.2 and the five real graphs of format 6 (a store of links: `idtrack-web publish ... --directory <store> --link`) and `--sample 300`, it gave 2,002 to 2,087 requests per organism, 2,466 answers compared with idtrack each (17 to 25 of them answered as copies in a batch), and no failure.
 
 ## 9. Sizing
 
@@ -246,16 +247,16 @@ The master loads every graph once and forks the workers, which share its memory 
 2. **The image**, built where the repository is (or in CI) and copied to the node, or built on the node:
 
    ```console
-   $ deploy/build_image.sh 0.1.0 docker          # or podman
+   $ deploy/build_image.sh 0.1.2 docker          # or podman
    ...
-   Successfully tagged localhost/idtrack-web:0.1.0          (podman's words; Docker prints `naming to ...idtrack-web:0.1.0`)
+   Successfully tagged localhost/idtrack-web:0.1.2          (podman's words; Docker prints `naming to ...idtrack-web:0.1.2`)
    ```
    The image (368 MB) holds the api and its environment and the built frontend (section 13.8); no graph and no credential. Its default command is `idtrack-web serve`, as user `idtrack-web` (uid 10001), with a health check on `/api/v1/health`.
 3. **Configuration** on the node, never in git: `cp deploy/idtrack-web.env.example deploy/idtrack-web.env`, fill in the R2 read token (or `IDTRACK_WEB_SOURCE=directory` with the store mounted from `IDTRACK_WEB_STORE`), `chmod 600 deploy/idtrack-web.env`.
 4. **Start**:
 
    ```console
-   $ IDTRACK_WEB_IMAGE=idtrack-web:0.1.0 IDTRACK_WEB_DOMAIN=<domain> docker compose -f deploy/compose.yaml up -d
+   $ IDTRACK_WEB_IMAGE=idtrack-web:0.1.2 IDTRACK_WEB_DOMAIN=<domain> docker compose -f deploy/compose.yaml up -d
    $ docker compose -f deploy/compose.yaml ps        # api: healthy (after the graphs are loaded), caddy: running
    $ curl -s https://<domain>/api/v1/health
    {"status":"ok","organisms":["homo_sapiens","macaca_fascicularis","macaca_mulatta","mus_musculus","sus_scrofa"]}
@@ -351,16 +352,16 @@ wrote src/api/schema.ts from api/openapi.json
 
 A change of idtrack's results changes the document, then the types; `npm run typecheck` shows every place the frontend must follow, and the fixtures are recorded again (13.7).
 
-The About page lists the known limitations of idtrack in idtrack's own words: `web/src/generated/limitations.json`, generated from the section "Current Limitations" of idtrack's `docs/usage.rst` at the commit of `api/uv.lock` (each item's lead sentence, which idtrack writes in bold, with a link to the whole section at that commit), and never edited:
+The About page lists the known limitations of idtrack in idtrack's own words: `web/src/generated/limitations.json`, generated from the section "Limitations" of idtrack's `docs/limitations.rst` at the commit of `api/uv.lock` (one item per limitation, the section's subsections: the lead sentence that opens it, which idtrack writes in bold; with a link to the section at that commit, `#limitations`), and never edited:
 
 ```console
 $ npm run limitations:check      # CI runs it: the file must be what idtrack's page at the pinned commit gives
-src/generated/limitations.json matches idtrack b5d4fb411c03 (12 items)
+src/generated/limitations.json matches idtrack 7f71b2606a61 (22 items)
 $ npm run limitations            # after a change of the idtrack commit (section 3), then commit the file
-$ npm run limitations -- --from <checkout of the commit>/docs/usage.rst      # the same from a local copy, offline
+$ npm run limitations -- --from <checkout of the commit>/docs/limitations.rst      # the same from a local copy, offline
 ```
 
-Both read the page from `raw.githubusercontent.com` at the pinned commit (or the file given). A unit test fails while the file names another commit than `api/uv.lock`.
+Both read the page from `raw.githubusercontent.com` at the pinned commit (or the file given), and stop on a limitation that does not open with a lead sentence in bold, so the file holds one item per limitation of the page. A unit test fails while the file names another commit than `api/uv.lock`.
 
 ### 13.4 Checks and tests
 
@@ -422,10 +423,10 @@ $ IDTRACK_WEB_SOURCE=directory IDTRACK_WEB_DIRECTORY=/tmp/idtrack-store IDTRACK_
 $ cd ../web && E2E_BASE_URL=http://127.0.0.1:8000 E2E_DATA=cut npm run e2e
 ...
   12 skipped
-  112 passed (53.9s)
+  112 passed (1.1m)
 ```
 
-- `E2E_DATA` names the graph the server holds: `cut` (the api tests' small pig graph, as CI), `pig` (the real pig graph: publish it instead, section 7) or `human` (the real human graph, which needs a server with more memory, section 9; it adds a very large answer, 368 candidates, and genes on alternative loci). Each is `web/e2e/data/<name>.json`, the identifiers each flow uses (and its `cases`); a new graph needs its own file. Measured with idtrack 0.1.0 and the graphs of format 6: `cut` 112 passed, 12 skipped; `pig` 156 passed, 12 skipped; `human` 164 passed, 4 skipped.
+- `E2E_DATA` names the graph the server holds: `cut` (the api tests' small pig graph, as CI), `pig` (the real pig graph: publish it instead, section 7) or `human` (the real human graph, which needs a server with more memory, section 9; it adds a very large answer, 368 candidates, and genes on alternative loci). Each is `web/e2e/data/<name>.json`, the identifiers each flow uses (and its `cases`); a new graph needs its own file. Measured with idtrack 0.1.2 and the graphs of format 6: `cut` 112 passed, 12 skipped; `pig` 156 passed, 12 skipped; `human` 164 passed, 4 skipped.
 - `IDTRACK_WEB_RATE_PER_MINUTE=0`: the tests send several hundred requests from one address, which the default rate limit would refuse.
 - The skipped: the zoom test is the wide screens' and the timeline test the phones' (4); the two flows of `web/e2e/graph.spec.ts` run only where the graph's data names their identifiers (human).
 - Screenshots go to `web/test-results/screenshots/<flow>--<desktop|phone>-<light|dark>.png` (or `E2E_SCREENSHOTS`); a report to `web/playwright-report/` (`npx playwright show-report`). CI keeps both as the artefact `e2e-report`.

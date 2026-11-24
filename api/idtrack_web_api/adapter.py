@@ -154,11 +154,13 @@ def batch_groups(identifiers: list[str]) -> list[list[str]]:
     """Return the distinct identifiers of a batch in the groups that ``API.convert_many`` answers together.
 
     ``API.convert_many`` answers an item as itself, except an item that extends another item of the batch by a
-    numbered suffix (:py:data:`NUMBERED_SUFFIX`), which it may answer as that item's copy (decision 82 of idtrack:
-    ``INS-1`` beside ``INS``). Items tied so, directly or through a chain (``INS``, ``INS-1``, ``INS-1-1``), are one
-    group; every other item is a group of its own. Converting each group by one ``convert_many`` call gives every
-    item the answer that one call over the whole batch gives it (``tests/test_endpoints.py`` compares the two), and
-    lets the api check the request's time between groups.
+    numbered suffix (:py:data:`NUMBERED_SUFFIX`), which it may answer as that item's copy (idtrack's rule for names
+    that a single-cell tool made unique: an item that is another item of the batch with ``-1``, ``.1`` or ``_1``
+    appended, and is itself no exact name at the release it is read at, is answered as that item: ``INS-1`` beside
+    ``INS``). Items tied so, directly or through a chain (``INS``, ``INS-1``, ``INS-1-1``), are one group; every
+    other item is a group of its own. Converting each group by one ``convert_many`` call gives every item the answer
+    that one call over the whole batch gives it (``tests/test_endpoints.py`` compares the two), and lets the api check
+    the request's time between groups.
 
     Args:
         identifiers: The batch, as given.

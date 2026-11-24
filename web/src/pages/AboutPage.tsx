@@ -174,7 +174,7 @@ export function AboutPage() {
           </ul>
           <p>
             Each with how often it matters and what to do instead:{" "}
-            <a href={limitations.source}>Current Limitations in idtrack&apos;s documentation</a>.
+            <a href={limitations.source}>Limitations in idtrack&apos;s documentation</a>.
           </p>
         </section>
 

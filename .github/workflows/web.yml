@@ -34,7 +34,7 @@ jobs:
       - run: npm ci --no-audit --no-fund
       # src/api/schema.ts must be what api/openapi.json gives.
       - run: npm run types:check
-      # src/generated/limitations.json must be idtrack's Current Limitations at the commit of api/uv.lock.
+      # src/generated/limitations.json must be idtrack's Limitations (docs/limitations.rst) at api/uv.lock's commit.
       - run: npm run limitations:check
       - run: npm run lint
       - run: npm run typecheck
