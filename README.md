@@ -1,8 +1,10 @@
 # idtrack-web
 
+[![api](https://github.com/theislab/idtrack-web/actions/workflows/api.yml/badge.svg?branch=main)](https://github.com/theislab/idtrack-web/actions/workflows/api.yml) [![web](https://github.com/theislab/idtrack-web/actions/workflows/web.yml/badge.svg?branch=main)](https://github.com/theislab/idtrack-web/actions/workflows/web.yml) [![version](https://img.shields.io/github/v/tag/theislab/idtrack-web?label=version&sort=semver)](https://github.com/theislab/idtrack-web/tags) [![idtrack on PyPI](https://img.shields.io/pypi/v/idtrack.svg?label=idtrack)](https://pypi.org/project/idtrack/) [![idtrack's documentation](https://img.shields.io/readthedocs/idtrack/stable.svg?label=idtrack%20docs)](https://idtrack.readthedocs.io/en/stable/) [![license](https://img.shields.io/github/license/theislab/idtrack-web)](LICENSE)
+
 The web application of [idtrack](https://github.com/theislab/idtrack): convert gene identifiers through Ensembl releases, genome assemblies and external databases from a browser or over HTTP, without installing idtrack or building its graphs.
 
-idtrack is the library and holds no web code; this project depends on it as a package. Setting the project up, configuring, testing, running and deploying it: [SETUP.md](SETUP.md).
+idtrack is the library and holds no web code; this project depends on it as a package and carries its version: idtrack, this repository and idtrack's benchmarks ([idtrack-reproducibility](https://github.com/theislab/idtrack-reproducibility)) have one version number, each release tags all three `v<version>`, and the api of a version is locked to idtrack's tag of that version. What idtrack does, how it answers and what it does not do: its [documentation](https://idtrack.readthedocs.io/en/stable/). Setting the project up, configuring, testing, running and deploying it: [SETUP.md](SETUP.md).
 
 ## Layout
 
