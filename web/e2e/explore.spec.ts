@@ -259,10 +259,11 @@ test("Method: the terms of each stage folded behind one line, and a way back to 
   await page.goto("/method");
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("How idtrack answers, and how often it is right");
   const glossaries = page.locator(".method-glossary > details");
-  await expect(glossaries).toHaveCount(5);
+  // Read, walk, bridge and answer fold their lists of terms; rank's ladder of criteria is its figure.
+  await expect(glossaries).toHaveCount(4);
   for (const g of await glossaries.all()) {
     await expect(g).not.toHaveAttribute("open", "");
-    await expect(g.locator("summary")).toContainText("The terms of this stage:");
+    await expect(g.locator(":scope > summary")).toContainText("The terms of this stage:");
   }
   await expect(page.getByRole("link", { name: /^Contents/ })).toHaveCount(0);
   await page.locator("#known-limitations").scrollIntoViewIfNeeded();

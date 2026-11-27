@@ -456,19 +456,26 @@ const STAGES: [string, string, string, string][] = [
 ];
 
 /** The way back to the page's contents, once they are scrolled past: a long page is never thirty swipes from its
- *  index. */
+ *  index. Read from the scroll position on each frame that scrolls (an observer of intersections is told nothing when
+ *  a jump carries the contents from below the window to above it). */
 function useAway<E extends Element>() {
   const ref = useRef<E>(null);
   const [away, setAway] = useState(false);
   useEffect(() => {
-    const element = ref.current;
-    if (!element || typeof IntersectionObserver === "undefined") return;
-    const observer = new IntersectionObserver(([entry]) => {
-      if (entry) setAway(!entry.isIntersecting && entry.boundingClientRect.top < 0);
-    });
-    observer.observe(element);
+    let frame = 0;
+    const read = () => {
+      frame = 0;
+      const element = ref.current;
+      if (element) setAway(element.getBoundingClientRect().bottom < 0);
+    };
+    const onScroll = () => {
+      if (!frame) frame = window.requestAnimationFrame(read);
+    };
+    read();
+    window.addEventListener("scroll", onScroll, { passive: true });
     return () => {
-      observer.disconnect();
+      window.removeEventListener("scroll", onScroll);
+      if (frame) window.cancelAnimationFrame(frame);
     };
   }, []);
   return { ref, away };
