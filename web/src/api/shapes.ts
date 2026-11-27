@@ -14,7 +14,25 @@ export const SCHEMAS: Record<string, Shape> = {
       synonym_databases: { a: "string" },
     },
   },
-  BatchResponse: { o: { count: "integer", results: { a: { r: "ConversionResult" } } } },
+  BatchArguments: {
+    o: {
+      from_release: { u: ["integer", "null"] },
+      to_release: { u: ["integer", "null"] },
+      final_database: { u: ["string", "null"] },
+      from_database: { u: ["string", "null"] },
+      explain: "boolean",
+      allow_bridges: "boolean",
+      read_copies: "boolean",
+    },
+  },
+  BatchResponse: {
+    o: {
+      organism: "string",
+      arguments: { r: "BatchArguments" },
+      count: "integer",
+      results: { a: { r: "ConversionResult" } },
+    },
+  },
   BridgeCheck: {
     o: {
       source: "string",
@@ -114,8 +132,22 @@ export const SCHEMAS: Record<string, Shape> = {
       symbol_databases: { a: "string" },
     },
   },
+  EachDatabaseArguments: {
+    o: {
+      identifier: "string",
+      from_release: { u: ["integer", "null"] },
+      to_release: { u: ["integer", "null"] },
+      from_database: { u: ["string", "null"] },
+      allow_bridges: "boolean",
+    },
+  },
   EachDatabaseResponse: {
-    o: { organism: "string", to_release: "integer", conversions: { a: { r: "DatabaseConversion" } } },
+    o: {
+      organism: "string",
+      arguments: { r: "EachDatabaseArguments" },
+      to_release: "integer",
+      conversions: { a: { r: "DatabaseConversion" } },
+    },
   },
   ErrorBody: {
     o: {
@@ -154,6 +186,7 @@ export const SCHEMAS: Record<string, Shape> = {
       reference: "boolean",
     },
   },
+  GenesNamedArguments: { o: { name: "string", fold_case: "boolean", release: { u: ["integer", "null"] } } },
   GraphDescription: {
     o: {
       organism: "string",
@@ -246,6 +279,7 @@ export const SCHEMAS: Record<string, Shape> = {
       body_max_bytes: "integer",
       response_max_bytes: "integer",
       request_seconds: "number",
+      queue_seconds: "number",
       search_seconds: "number",
       search_states: "integer",
       rate_per_minute: "integer",
@@ -260,6 +294,7 @@ export const SCHEMAS: Record<string, Shape> = {
     },
     opt: {
       allowances_enforced: "boolean",
+      allowance_fields: { a: "string" },
       rate_concurrent_searches: "integer",
       send_seconds: "number",
       send_min_bytes_per_second: "integer",
@@ -279,11 +314,25 @@ export const SCHEMAS: Record<string, Shape> = {
   NameMatch: {
     o: { name: "string", gene: "string", database: "string", synonym: "boolean", releases: { a: "integer" } },
   },
-  NamesResponse: { o: { matches: { a: { r: "NameMatch" } } } },
+  NamesOfArguments: { o: { gene: "string", release: { u: ["integer", "null"] } } },
+  NamesResponse: {
+    o: {
+      organism: "string",
+      arguments: { u: [{ r: "GenesNamedArguments" }, { r: "NamesOfArguments" }] },
+      matches: { a: { r: "NameMatch" } },
+    },
+  },
   OrganismNames: { o: { organism: "string", aliases: { a: "string" } } },
   OrganismsResponse: {
     o: { organisms: { a: { r: "GraphDescription" } } },
     opt: { names: { a: { r: "OrganismNames" } } },
+  },
+  Origin: {
+    o: {
+      database: { u: ["string", "null"] },
+      assembly: { u: ["integer", "null"] },
+      release: { u: ["integer", "null"] },
+    },
   },
   OtherReading: {
     o: { graph_id: "string", match: "string", reason: "string", genes: { a: "string" }, releases: { a: "integer" } },
@@ -390,7 +439,15 @@ export const SCHEMAS: Record<string, Shape> = {
       not_found: "integer",
     },
   },
-  SourceInferenceResponse: { o: { organism: "string", inference: { r: "SourceInference" } } },
+  SourceInferenceResponse: {
+    o: {
+      organism: "string",
+      mode: "string",
+      best: { u: [{ r: "Origin" }, "null"] },
+      from_release: { u: ["integer", "null"] },
+      inference: { r: "SourceInference" },
+    },
+  },
   StatusResponse: {
     o: {
       sampled_at: "string",

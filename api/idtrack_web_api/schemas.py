@@ -417,18 +417,59 @@ class DatabasesResponse(BaseModel):
     )
 
 
-class BatchResponse(BaseModel):
-    """The results of a batch, one per identifier, in the order given."""
+class BatchArguments(BaseModel):
+    """The arguments of a batch as the api read them (`null`: not given, the default applies)."""
 
     model_config = _STRICT
+    from_release: int | None = Field(..., description="`from_release` of the body.")
+    to_release: int | None = Field(
+        ..., description="`to_release` of the body (each result's `to_release` is the one used)."
+    )
+    final_database: str | None = Field(..., description="`final_database` of the body.")
+    from_database: str | None = Field(..., description="`from_database` of the body.")
+    explain: bool = Field(..., description="`explain` of the body.")
+    allow_bridges: bool = Field(..., description="`allow_bridges` of the body.")
+    read_copies: bool = Field(..., description="`read_copies` of the body.")
+
+
+class BatchResponse(BaseModel):
+    """The results of a batch, one per identifier, in the order given, with the organism and the arguments read."""
+
+    model_config = _STRICT
+    organism: str = Field(..., description="The organism whose graph answered.")
+    arguments: BatchArguments = Field(..., description="The arguments of the batch, as read (its identifiers aside).")
     count: int = Field(..., description="The number of results (the number of identifiers given).")
     results: list[ConversionResultModel] = Field(..., description="One result per identifier, in input order.")  # type: ignore[valid-type]
 
 
-class NamesResponse(BaseModel):
-    """Names and the genes they name, per database and release."""
+class GenesNamedArguments(BaseModel):
+    """The arguments of `genes-named` as the api read them."""
 
     model_config = _STRICT
+    name: str = Field(..., description="The name, as sent.")
+    fold_case: bool = Field(..., description="Whether letter case was ignored.")
+    release: int | None = Field(..., description="The release the matches hold at; `null`: every match.")
+
+
+class NamesOfArguments(BaseModel):
+    """The arguments of `names-of` as the api read them."""
+
+    model_config = _STRICT
+    gene: str = Field(..., description="The gene, as sent.")
+    release: int | None = Field(..., description="The release the names hold at; `null`: every release.")
+
+
+class NamesResponse(BaseModel):
+    """Names and the genes they name, per database and release, with the organism and the arguments read."""
+
+    model_config = _STRICT
+    organism: str = Field(..., description="The organism whose graph answered.")
+    arguments: GenesNamedArguments | NamesOfArguments = Field(
+        ...,
+        description=(
+            "The arguments as read: `name`, `fold_case`, `release` (genes-named); `gene`, `release` (names-of)."
+        ),
+    )
     matches: list[NameMatchModel] = Field(..., description="The matches, as idtrack orders them.")  # type: ignore[valid-type]
 
 
@@ -575,7 +616,21 @@ class LimitsResponse(BaseModel):
     response_max_bytes: int = Field(
         ..., description="The largest answer, in bytes; a larger one is refused, never cut."
     )
-    request_seconds: float = Field(..., description="The time budget of one request, in seconds.")
+    request_seconds: float = Field(
+        ...,
+        description=(
+            "The time budget of one request's search, in seconds, from when its search begins (a batch: all its "
+            "identifiers); a batch out of it is refused `503 request_budget_exceeded`, with the count it converted."
+        ),
+    )
+    queue_seconds: float = Field(
+        ...,
+        description=(
+            "The longest a search waits for a worker free of searches, in seconds: a search still waiting then is "
+            "answered `503 server_busy` without being searched, and one whose wait, estimated from the searches "
+            "waiting before it and the recent searches' mean time, would pass it is answered so at once."
+        ),
+    )
     search_seconds: float = Field(..., description="The time budget of one identifier's search, in seconds.")
     search_states: int = Field(..., description="The most search states one identifier's search may expand.")
     rate_per_minute: int = Field(
@@ -625,9 +680,16 @@ class LimitsResponse(BaseModel):
     allowances_enforced: bool = Field(
         default=False,
         description=(
-            "Whether the per-client allowances apply on this server (`rate_per_minute` above 0). When `false`, "
-            "`rate_burst`, `read_share`, `rate_search_seconds`, `rate_search_burst_seconds` and "
-            "`rate_concurrent_searches` are configured but not applied, and no answer is `429`."
+            "Whether the per-client allowances apply on this server (`rate_per_minute` above 0). When `false`, the "
+            "bounds `allowance_fields` names are configured but not applied, and no answer is `429`; every other "
+            "bound applies on every server."
+        ),
+    )
+    allowance_fields: list[str] = Field(
+        default_factory=list,
+        description=(
+            "The fields of this answer that are per-client allowances (applied only where `allowances_enforced` is "
+            "`true`), in this answer's order; every other field is a bound of the server as a whole, always applied."
         ),
     )
     rate_concurrent_searches: int = Field(
@@ -828,23 +890,23 @@ class RequestsLoad(BaseModel):
     searches_waiting: int = Field(
         ...,
         description=(
-            "Searches waiting to run: for a worker free of searches (`searches_queued`, while every worker is in one) "
-            "and for a worker's own search thread."
+            "Searches a worker holds that wait for its own search thread (behind the search it runs). The three counts "
+            "of waiting requests (this, `searches_queued` and `connections_waiting`) never hold the same request "
+            "twice: their sum is every request waiting."
         ),
     )
     connections_waiting: int | None = Field(
         ...,
         description=(
-            "Requests waiting for a worker: connections in the kernel's listen queue that no worker has taken yet, and "
-            "searches a busy worker took and handed on to the first worker free of searches (`searches_queued`); "
-            "`null`: not read, as when the app runs without the server."
+            "Connections in the kernel's listen queue that no worker has taken yet (the kernel's count); `null`: not "
+            "read, as when the app runs without the server."
         ),
     )
     searches_queued: int | None = Field(
         default=None,
         description=(
-            "Of `connections_waiting`: searches waiting in the queue the workers share for a worker free of searches "
-            "(every worker is in one); `null` when the app runs without the server."
+            "Searches waiting in the queue the workers share for a worker free of searches (every worker is in one); "
+            "`null` when the app runs without the server."
         ),
     )
     sending_bytes: int | None = Field(
@@ -1205,17 +1267,50 @@ class SourceInferenceRequest(BaseModel):
     )
 
 
+class Origin(BaseModel):
+    """An origin of a list, its parts named (those the mode has no part for are `null`)."""
+
+    model_config = _STRICT
+    database: str | None = Field(..., description="The database (mode `complete`).")
+    assembly: int | None = Field(
+        ...,
+        description=(
+            "The genome assembly, by its key in idtrack's organism table (modes `assembly_release`, `assembly`, "
+            "`complete`)."
+        ),
+    )
+    release: int | None = Field(
+        ..., description="The Ensembl release (modes `assembly_release`, `release`, `complete`)."
+    )
+
+
 class SourceInferenceResponse(BaseModel):
-    """Where a list of identifiers comes from: idtrack's ``API.source_inference``, with the organism."""
+    """Where a list of identifiers comes from: idtrack's ``API.source_inference``, with the best origin named."""
 
     model_config = _STRICT
     organism: str = Field(..., description="The organism.")
+    mode: str = Field(..., description="The mode asked (`source_modes` of `GET /vocabulary`).")
+    best: Origin | None = Field(
+        ...,
+        description=(
+            "The band's first origin (the best), its parts named; `null` when the band is empty. The same origin is "
+            "`inference.band[0]`, written as idtrack writes an origin of the mode."
+        ),
+    )
+    from_release: int | None = Field(
+        ...,
+        description=(
+            "The release of the best origin: the release to send as `from_release` when the list is converted, so each "
+            "identifier is read as it was then; `null` in mode `assembly` (an origin without a release) or with no "
+            "band."
+        ),
+    )
     inference: SourceInferenceModel = Field(  # type: ignore[valid-type]
         ...,
         description=(
-            "idtrack's `SourceInference.to_dict()`: the band of origins the list cannot tell apart from the best "
-            "(read the best release from the band's first origin and send it as `from_release`), the margin and every "
-            "origin's count."
+            "idtrack's `SourceInference.to_dict()`: the band of origins the list cannot tell apart from the best, best "
+            "first, the margin and every origin's count; an origin is written by the mode (`[assembly, release]`, a "
+            "release, an assembly, or `[database, assembly, release]`)."
         ),
     )
 
@@ -1234,11 +1329,23 @@ class DatabaseConversion(BaseModel):
     )
 
 
+class EachDatabaseArguments(BaseModel):
+    """The arguments of `convert/each-database` as the api read them (`null`: not given, the default applies)."""
+
+    model_config = _STRICT
+    identifier: str = Field(..., description="The identifier, as sent.")
+    from_release: int | None = Field(..., description="`from_release` of the query.")
+    to_release: int | None = Field(..., description="`to_release` of the query (the one used: `to_release` above).")
+    from_database: str | None = Field(..., description="`from_database` of the query.")
+    allow_bridges: bool = Field(..., description="`allow_bridges` of the query.")
+
+
 class EachDatabaseResponse(BaseModel):
     """One identifier converted into every database a conversion to the target release can end in."""
 
     model_config = _STRICT
     organism: str = Field(..., description="The organism.")
+    arguments: EachDatabaseArguments = Field(..., description="The arguments, as read.")
     to_release: int = Field(..., description="The target release.")
     conversions: list[DatabaseConversion] = Field(
         ...,
@@ -1252,6 +1359,7 @@ class EachDatabaseResponse(BaseModel):
 __all__ = [
     "DATABASE_MAX_LENGTH",
     "FROM_RELEASE_RULE",
+    "BatchArguments",
     "BatchRequest",
     "BatchResponse",
     "BridgeRuleTerm",
@@ -1262,11 +1370,13 @@ __all__ = [
     "DatabaseConversion",
     "DatabaseReleases",
     "DatabasesResponse",
+    "EachDatabaseArguments",
     "EachDatabaseResponse",
     "ErrorBody",
     "ErrorResponse",
     "ErrorTerm",
     "FinalDatabasesResponse",
+    "GenesNamedArguments",
     "GraphDescriptionModel",
     "GraphFile",
     "GraphLoad",
@@ -1281,9 +1391,11 @@ __all__ = [
     "LimitsResponse",
     "MemoryLoad",
     "NameMatchModel",
+    "NamesOfArguments",
     "NamesResponse",
     "OrganismNames",
     "OrganismsResponse",
+    "Origin",
     "ProcessLoad",
     "RequestsLoad",
     "ShowcaseCase",

@@ -41,7 +41,10 @@ CODES: dict[str, tuple[int, str]] = {
         400,
         "An identifier the call needs to exist in the graph does not (the gene of names-of).",
     ),
-    "missing_value": (400, "An identifier is empty or a spelling of a missing value (idtrack's refusal)."),
+    "missing_value": (
+        400,
+        "An identifier is empty or a spelling of a missing value (idtrack's refusal), or a name to look up is empty.",
+    ),
     "invalid_argument": (400, "An argument whose value is not accepted (an empty or over-long database name)."),
     "invalid_input": (400, "Another input idtrack refuses (idtrack's message says which)."),
     "unknown_organism": (404, "An organism this server does not hold (`allowed` lists those it holds)."),
@@ -60,7 +63,10 @@ CODES: dict[str, tuple[int, str]] = {
     "payload_too_large": (413, "The request body is larger than the server accepts."),
     "too_many_identifiers": (413, "A batch with more identifiers than the server accepts (`batch_max` of /limits)."),
     "uri_too_long": (414, "The request's path and query are longer than the server accepts."),
-    "unsupported_media_type": (415, "A request body that is not `application/json`."),
+    "unsupported_media_type": (
+        415,
+        "A request body that is not `application/json` in UTF-8, or that is sent compressed (`Content-Encoding`).",
+    ),
     "search_budget_exceeded": (
         422,
         "One identifier's search needed more than its budget (states or seconds); the same request fails again.",
@@ -79,13 +85,17 @@ CODES: dict[str, tuple[int, str]] = {
     "internal_error": (500, "A fault of the server; quote the request id when reporting it."),
     "server_busy": (
         503,
-        "The server has more waiting work than it accepts; retry after the `Retry-After` header's seconds.",
+        (
+            "The server has more waiting work than it accepts: its queue of searches is full, the search would wait "
+            "(or waited) longer for a worker than `queue_seconds` of /limits, or the server is stopping; the request "
+            "was not searched. Retry after the `Retry-After` header's seconds, unchanged."
+        ),
     ),
     "request_budget_exceeded": (
         503,
         (
-            "The request needed more time than its budget (`request_seconds` of /limits), waiting for the server or "
-            "searching; retry after `Retry-After` seconds, with fewer identifiers if it searched."
+            "The request's search needed more time than its budget (`request_seconds` of /limits, counted from when "
+            "its search began); send fewer identifiers per request (a batch's message says how many it converted)."
         ),
     ),
 }
@@ -115,7 +125,7 @@ TITLES: dict[str, str] = {
     "rate_limited": "Too many requests from this address for now.",
     "internal_error": "A fault of the server.",
     "server_busy": "The server is busy.",
-    "request_budget_exceeded": "The request needed more time than a request may take.",
+    "request_budget_exceeded": "The search needed more time than one request may take.",
 }
 
 #: The allowances a ``429 rate_limited`` names (``allowance`` of the error): which of a client's allowances it used up.

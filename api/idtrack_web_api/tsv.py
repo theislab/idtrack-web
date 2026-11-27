@@ -90,6 +90,36 @@ COLUMN_TEXTS: dict[str, str] = {
 }
 
 
+#: The result columns that carry an item's error (empty unless its status is ``error``).
+ERROR_COLUMNS: tuple[str, ...] = ("error_code", "error_type", "error_message", "error_input_error")
+
+
+def column_group(name: str) -> str:
+    """Return which part of a result a column is of: ``result``, ``error`` (of the result) or ``candidate``.
+
+    Args:
+        name: A column of :py:data:`COLUMNS`.
+
+    Returns:
+        str: The group.
+    """
+    if name in ERROR_COLUMNS:
+        return "error"
+    return "result" if name in RESULT_COLUMNS else "candidate"
+
+
+def column_text(name: str) -> str:
+    """Return what a column holds: its text in :py:data:`COLUMN_TEXTS`, else the field of the result or candidate.
+
+    Args:
+        name: A column of :py:data:`COLUMNS`.
+
+    Returns:
+        str: The text.
+    """
+    return COLUMN_TEXTS.get(name, f"`{name}` of the {'candidate' if name in CANDIDATE_COLUMNS else 'result'}.")
+
+
 class TableError(ValueError):
     """A value that a tab-separated cell cannot hold exactly."""
 

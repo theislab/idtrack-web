@@ -402,10 +402,58 @@ export type components = {
       synonym_databases: string[];
     };
     /**
+     * BatchArguments
+     * @description The arguments of a batch as the api read them (`null`: not given, the default applies).
+     */
+    BatchArguments: {
+      /**
+       * From Release
+       * @description `from_release` of the body.
+       */
+      from_release: number | null;
+      /**
+       * To Release
+       * @description `to_release` of the body (each result's `to_release` is the one used).
+       */
+      to_release: number | null;
+      /**
+       * Final Database
+       * @description `final_database` of the body.
+       */
+      final_database: string | null;
+      /**
+       * From Database
+       * @description `from_database` of the body.
+       */
+      from_database: string | null;
+      /**
+       * Explain
+       * @description `explain` of the body.
+       */
+      explain: boolean;
+      /**
+       * Allow Bridges
+       * @description `allow_bridges` of the body.
+       */
+      allow_bridges: boolean;
+      /**
+       * Read Copies
+       * @description `read_copies` of the body.
+       */
+      read_copies: boolean;
+    };
+    /**
      * BatchResponse
-     * @description The results of a batch, one per identifier, in the order given.
+     * @description The results of a batch, one per identifier, in the order given, with the organism and the arguments read.
      */
     BatchResponse: {
+      /**
+       * Organism
+       * @description The organism whose graph answered.
+       */
+      organism: string;
+      /** @description The arguments of the batch, as read (its identifiers aside). */
+      arguments: components["schemas"]["BatchArguments"];
       /**
        * Count
        * @description The number of results (the number of identifiers given).
@@ -943,6 +991,37 @@ export type components = {
       symbol_databases: string[];
     };
     /**
+     * EachDatabaseArguments
+     * @description The arguments of `convert/each-database` as the api read them (`null`: not given, the default applies).
+     */
+    EachDatabaseArguments: {
+      /**
+       * Identifier
+       * @description The identifier, as sent.
+       */
+      identifier: string;
+      /**
+       * From Release
+       * @description `from_release` of the query.
+       */
+      from_release: number | null;
+      /**
+       * To Release
+       * @description `to_release` of the query (the one used: `to_release` above).
+       */
+      to_release: number | null;
+      /**
+       * From Database
+       * @description `from_database` of the query.
+       */
+      from_database: string | null;
+      /**
+       * Allow Bridges
+       * @description `allow_bridges` of the query.
+       */
+      allow_bridges: boolean;
+    };
+    /**
      * EachDatabaseResponse
      * @description One identifier converted into every database a conversion to the target release can end in.
      */
@@ -952,6 +1031,8 @@ export type components = {
        * @description The organism.
        */
       organism: string;
+      /** @description The arguments, as read. */
+      arguments: components["schemas"]["EachDatabaseArguments"];
       /**
        * To Release
        * @description The target release.
@@ -1202,6 +1283,27 @@ export type components = {
        * @description The region is part of the reference sequence (not a patch, a haplotype, an alternative locus or an LRG record).
        */
       reference: boolean;
+    };
+    /**
+     * GenesNamedArguments
+     * @description The arguments of `genes-named` as the api read them.
+     */
+    GenesNamedArguments: {
+      /**
+       * Name
+       * @description The name, as sent.
+       */
+      name: string;
+      /**
+       * Fold Case
+       * @description Whether letter case was ignored.
+       */
+      fold_case: boolean;
+      /**
+       * Release
+       * @description The release the matches hold at; `null`: every match.
+       */
+      release: number | null;
     };
     /**
      * GraphDescription
@@ -1648,9 +1750,14 @@ export type components = {
       response_max_bytes: number;
       /**
        * Request Seconds
-       * @description The time budget of one request, in seconds.
+       * @description The time budget of one request's search, in seconds, from when its search begins (a batch: all its identifiers); a batch out of it is refused `503 request_budget_exceeded`, with the count it converted.
        */
       request_seconds: number;
+      /**
+       * Queue Seconds
+       * @description The longest a search waits for a worker free of searches, in seconds: a search still waiting then is answered `503 server_busy` without being searched, and one whose wait, estimated from the searches waiting before it and the recent searches' mean time, would pass it is answered so at once.
+       */
+      queue_seconds: number;
       /**
        * Search Seconds
        * @description The time budget of one identifier's search, in seconds.
@@ -1708,10 +1815,15 @@ export type components = {
       answer_cache_bytes: number;
       /**
        * Allowances Enforced
-       * @description Whether the per-client allowances apply on this server (`rate_per_minute` above 0). When `false`, `rate_burst`, `read_share`, `rate_search_seconds`, `rate_search_burst_seconds` and `rate_concurrent_searches` are configured but not applied, and no answer is `429`.
+       * @description Whether the per-client allowances apply on this server (`rate_per_minute` above 0). When `false`, the bounds `allowance_fields` names are configured but not applied, and no answer is `429`; every other bound applies on every server.
        * @default false
        */
       allowances_enforced: boolean;
+      /**
+       * Allowance Fields
+       * @description The fields of this answer that are per-client allowances (applied only where `allowances_enforced` is `true`), in this answer's order; every other field is a bound of the server as a whole, always applied.
+       */
+      allowance_fields?: string[];
       /**
        * Rate Concurrent Searches
        * @description Searching requests a client may have in progress at once, from their admission until their answer is sent; more are answered `429` (`allowance` `concurrent_searches`) at once; `0`: not limited.
@@ -1805,10 +1917,36 @@ export type components = {
       releases: number[];
     };
     /**
+     * NamesOfArguments
+     * @description The arguments of `names-of` as the api read them.
+     */
+    NamesOfArguments: {
+      /**
+       * Gene
+       * @description The gene, as sent.
+       */
+      gene: string;
+      /**
+       * Release
+       * @description The release the names hold at; `null`: every release.
+       */
+      release: number | null;
+    };
+    /**
      * NamesResponse
-     * @description Names and the genes they name, per database and release.
+     * @description Names and the genes they name, per database and release, with the organism and the arguments read.
      */
     NamesResponse: {
+      /**
+       * Organism
+       * @description The organism whose graph answered.
+       */
+      organism: string;
+      /**
+       * Arguments
+       * @description The arguments as read: `name`, `fold_case`, `release` (genes-named); `gene`, `release` (names-of).
+       */
+      arguments: components["schemas"]["GenesNamedArguments"] | components["schemas"]["NamesOfArguments"];
       /**
        * Matches
        * @description The matches, as idtrack orders them.
@@ -1846,6 +1984,27 @@ export type components = {
        * @description The names the path `{organism}` takes for each loaded organism, in the order of `organisms`.
        */
       names?: components["schemas"]["OrganismNames"][];
+    };
+    /**
+     * Origin
+     * @description An origin of a list, its parts named (those the mode has no part for are `null`).
+     */
+    Origin: {
+      /**
+       * Database
+       * @description The database (mode `complete`).
+       */
+      database: string | null;
+      /**
+       * Assembly
+       * @description The genome assembly, by its key in idtrack's organism table (modes `assembly_release`, `assembly`, `complete`).
+       */
+      assembly: number | null;
+      /**
+       * Release
+       * @description The Ensembl release (modes `assembly_release`, `release`, `complete`).
+       */
+      release: number | null;
     };
     /**
      * OtherReading
@@ -2088,17 +2247,17 @@ export type components = {
       searches_running: number;
       /**
        * Searches Waiting
-       * @description Searches waiting to run: for a worker free of searches (`searches_queued`, while every worker is in one) and for a worker's own search thread.
+       * @description Searches a worker holds that wait for its own search thread (behind the search it runs). The three counts of waiting requests (this, `searches_queued` and `connections_waiting`) never hold the same request twice: their sum is every request waiting.
        */
       searches_waiting: number;
       /**
        * Connections Waiting
-       * @description Requests waiting for a worker: connections in the kernel's listen queue that no worker has taken yet, and searches a busy worker took and handed on to the first worker free of searches (`searches_queued`); `null`: not read, as when the app runs without the server.
+       * @description Connections in the kernel's listen queue that no worker has taken yet (the kernel's count); `null`: not read, as when the app runs without the server.
        */
       connections_waiting: number | null;
       /**
        * Searches Queued
-       * @description Of `connections_waiting`: searches waiting in the queue the workers share for a worker free of searches (every worker is in one); `null` when the app runs without the server.
+       * @description Searches waiting in the queue the workers share for a worker free of searches (every worker is in one); `null` when the app runs without the server.
        */
       searches_queued?: number | null;
       /**
@@ -2279,7 +2438,7 @@ export type components = {
     };
     /**
      * SourceInferenceResponse
-     * @description Where a list of identifiers comes from: idtrack's ``API.source_inference``, with the organism.
+     * @description Where a list of identifiers comes from: idtrack's ``API.source_inference``, with the best origin named.
      */
     SourceInferenceResponse: {
       /**
@@ -2287,7 +2446,19 @@ export type components = {
        * @description The organism.
        */
       organism: string;
-      /** @description idtrack's `SourceInference.to_dict()`: the band of origins the list cannot tell apart from the best (read the best release from the band's first origin and send it as `from_release`), the margin and every origin's count. */
+      /**
+       * Mode
+       * @description The mode asked (`source_modes` of `GET /vocabulary`).
+       */
+      mode: string;
+      /** @description The band's first origin (the best), its parts named; `null` when the band is empty. The same origin is `inference.band[0]`, written as idtrack writes an origin of the mode. */
+      best: components["schemas"]["Origin"] | null;
+      /**
+       * From Release
+       * @description The release of the best origin: the release to send as `from_release` when the list is converted, so each identifier is read as it was then; `null` in mode `assembly` (an origin without a release) or with no band.
+       */
+      from_release: number | null;
+      /** @description idtrack's `SourceInference.to_dict()`: the band of origins the list cannot tell apart from the best, best first, the margin and every origin's count; an origin is written by the mode (`[assembly, release]`, a release, an assembly, or `[database, assembly, release]`). */
       inference: components["schemas"]["SourceInference"];
     };
     /**
@@ -2696,7 +2867,7 @@ export type components = {
   };
   responses: {
     /** @description `unknown_parameter`, the request names a parameter the endpoint does not take, or names one twice. (What each means and whether to retry: `errors` of `GET /api/v1/vocabulary`.) */
-    Refusal400: {
+    Refusal400_index: {
       headers: {
         "X-Request-ID": components["headers"]["X-Request-ID"];
         "Server-Timing": components["headers"]["Server-Timing"];
@@ -2709,7 +2880,7 @@ export type components = {
       };
     };
     /** @description `method_not_allowed`, this address does not take this kind of request. (What each means and whether to retry: `errors` of `GET /api/v1/vocabulary`.) */
-    Refusal405: {
+    Refusal405_index: {
       headers: {
         "X-Request-ID": components["headers"]["X-Request-ID"];
         "Server-Timing": components["headers"]["Server-Timing"];
@@ -2722,7 +2893,7 @@ export type components = {
       };
     };
     /** @description `uri_too_long`, the address is longer than the server accepts. (What each means and whether to retry: `errors` of `GET /api/v1/vocabulary`.) */
-    Refusal414: {
+    Refusal414_index: {
       headers: {
         "X-Request-ID": components["headers"]["X-Request-ID"];
         "Server-Timing": components["headers"]["Server-Timing"];
@@ -2749,7 +2920,7 @@ export type components = {
       };
     };
     /** @description `internal_error`, a fault of the server. (What each means and whether to retry: `errors` of `GET /api/v1/vocabulary`.) */
-    Refusal500: {
+    Refusal500_index: {
       headers: {
         "X-Request-ID": components["headers"]["X-Request-ID"];
         "Server-Timing": components["headers"]["Server-Timing"];
@@ -2762,7 +2933,7 @@ export type components = {
       };
     };
     /** @description `unknown_parameter`, the request names a parameter the endpoint does not take, or names one twice. (What each means and whether to retry: `errors` of `GET /api/v1/vocabulary`.) */
-    Refusal400_2: {
+    Refusal400_health: {
       headers: {
         "X-Request-ID": components["headers"]["X-Request-ID"];
         "Server-Timing": components["headers"]["Server-Timing"];
@@ -2773,7 +2944,7 @@ export type components = {
       };
     };
     /** @description `method_not_allowed`, this address does not take this kind of request. (What each means and whether to retry: `errors` of `GET /api/v1/vocabulary`.) */
-    Refusal405_2: {
+    Refusal405_health: {
       headers: {
         "X-Request-ID": components["headers"]["X-Request-ID"];
         "Server-Timing": components["headers"]["Server-Timing"];
@@ -2784,7 +2955,7 @@ export type components = {
       };
     };
     /** @description `uri_too_long`, the address is longer than the server accepts. (What each means and whether to retry: `errors` of `GET /api/v1/vocabulary`.) */
-    Refusal414_2: {
+    Refusal414_health: {
       headers: {
         "X-Request-ID": components["headers"]["X-Request-ID"];
         "Server-Timing": components["headers"]["Server-Timing"];
@@ -2795,7 +2966,7 @@ export type components = {
       };
     };
     /** @description `internal_error`, a fault of the server. (What each means and whether to retry: `errors` of `GET /api/v1/vocabulary`.) */
-    Refusal500_2: {
+    Refusal500_health: {
       headers: {
         "X-Request-ID": components["headers"]["X-Request-ID"];
         "Server-Timing": components["headers"]["Server-Timing"];
@@ -2819,7 +2990,7 @@ export type components = {
       };
     };
     /** @description `unknown_parameter`, the request names a parameter the endpoint does not take, or names one twice; `invalid_request`, the request is not in the form the endpoint takes; `unknown_release`, a release this graph does not cover. (What each means and whether to retry: `errors` of `GET /api/v1/vocabulary`.) */
-    Refusal400_3: {
+    Refusal400_final_databases: {
       headers: {
         "X-Request-ID": components["headers"]["X-Request-ID"];
         "Server-Timing": components["headers"]["Server-Timing"];
@@ -2832,7 +3003,7 @@ export type components = {
       };
     };
     /** @description `unknown_parameter`, the request names a parameter the endpoint does not take, or names one twice; `invalid_request`, the request is not in the form the endpoint takes; `invalid_identifier`, an identifier is too long, or holds characters an identifier cannot hold; `unknown_release`, a release this graph does not cover; `unknown_database`, a database this graph does not hold at that release; `invalid_argument`, a value this endpoint does not accept; `missing_value`, an identifier is empty, or stands for a missing value. (What each means and whether to retry: `errors` of `GET /api/v1/vocabulary`.) */
-    Refusal400_4: {
+    Refusal400_convert: {
       headers: {
         "X-Request-ID": components["headers"]["X-Request-ID"];
         "Server-Timing": components["headers"]["Server-Timing"];
@@ -2858,7 +3029,7 @@ export type components = {
       };
     };
     /** @description `response_too_large`, the answer is larger than the server sends; `search_budget_exceeded`, one identifier's search needed more than its budget. (What each means and whether to retry: `errors` of `GET /api/v1/vocabulary`.) */
-    Refusal422: {
+    Refusal422_convert: {
       headers: {
         "X-Request-ID": components["headers"]["X-Request-ID"];
         "Server-Timing": components["headers"]["Server-Timing"];
@@ -2870,7 +3041,7 @@ export type components = {
         "application/json": components["schemas"]["ErrorResponse"];
       };
     };
-    /** @description `server_busy`, the server is busy; `request_budget_exceeded`, the request needed more time than a request may take. (What each means and whether to retry: `errors` of `GET /api/v1/vocabulary`.) */
+    /** @description `server_busy`, the server is busy; `request_budget_exceeded`, the search needed more time than one request may take. (What each means and whether to retry: `errors` of `GET /api/v1/vocabulary`.) */
     Refusal503: {
       headers: {
         "X-Request-ID": components["headers"]["X-Request-ID"];
@@ -2885,7 +3056,7 @@ export type components = {
       };
     };
     /** @description `unknown_parameter`, the request names a parameter the endpoint does not take, or names one twice; `invalid_request`, the request is not in the form the endpoint takes; `invalid_identifier`, an identifier is too long, or holds characters an identifier cannot hold; `unknown_release`, a release this graph does not cover; `unknown_database`, a database this graph does not hold at that release; `invalid_argument`, a value this endpoint does not accept. (What each means and whether to retry: `errors` of `GET /api/v1/vocabulary`.) */
-    Refusal400_5: {
+    Refusal400_convert_batch: {
       headers: {
         "X-Request-ID": components["headers"]["X-Request-ID"];
         "Server-Timing": components["headers"]["Server-Timing"];
@@ -2924,7 +3095,7 @@ export type components = {
       };
     };
     /** @description `response_too_large`, the answer is larger than the server sends. (What each means and whether to retry: `errors` of `GET /api/v1/vocabulary`.) */
-    Refusal422_2: {
+    Refusal422_convert_batch: {
       headers: {
         "X-Request-ID": components["headers"]["X-Request-ID"];
         "Server-Timing": components["headers"]["Server-Timing"];
@@ -2937,7 +3108,7 @@ export type components = {
       };
     };
     /** @description `unknown_parameter`, the request names a parameter the endpoint does not take, or names one twice; `invalid_request`, the request is not in the form the endpoint takes; `invalid_identifier`, an identifier is too long, or holds characters an identifier cannot hold; `unknown_identifier`, an identifier this graph does not hold. (What each means and whether to retry: `errors` of `GET /api/v1/vocabulary`.) */
-    Refusal400_6: {
+    Refusal400_source_inference: {
       headers: {
         "X-Request-ID": components["headers"]["X-Request-ID"];
         "Server-Timing": components["headers"]["Server-Timing"];
@@ -2949,8 +3120,8 @@ export type components = {
         "application/json": components["schemas"]["ErrorResponse"];
       };
     };
-    /** @description `unknown_parameter`, the request names a parameter the endpoint does not take, or names one twice; `invalid_request`, the request is not in the form the endpoint takes; `invalid_identifier`, an identifier is too long, or holds characters an identifier cannot hold; `unknown_release`, a release this graph does not cover. (What each means and whether to retry: `errors` of `GET /api/v1/vocabulary`.) */
-    Refusal400_7: {
+    /** @description `unknown_parameter`, the request names a parameter the endpoint does not take, or names one twice; `invalid_request`, the request is not in the form the endpoint takes; `invalid_identifier`, an identifier is too long, or holds characters an identifier cannot hold; `unknown_release`, a release this graph does not cover; `missing_value`, an identifier is empty, or stands for a missing value. (What each means and whether to retry: `errors` of `GET /api/v1/vocabulary`.) */
+    Refusal400_genes_named: {
       headers: {
         "X-Request-ID": components["headers"]["X-Request-ID"];
         "Server-Timing": components["headers"]["Server-Timing"];
@@ -2963,7 +3134,7 @@ export type components = {
       };
     };
     /** @description `unknown_parameter`, the request names a parameter the endpoint does not take, or names one twice; `invalid_request`, the request is not in the form the endpoint takes; `invalid_identifier`, an identifier is too long, or holds characters an identifier cannot hold; `unknown_release`, a release this graph does not cover; `unknown_identifier`, an identifier this graph does not hold; `invalid_argument`, a value this endpoint does not accept. (What each means and whether to retry: `errors` of `GET /api/v1/vocabulary`.) */
-    Refusal400_8: {
+    Refusal400_names_of: {
       headers: {
         "X-Request-ID": components["headers"]["X-Request-ID"];
         "Server-Timing": components["headers"]["Server-Timing"];
@@ -2990,7 +3161,7 @@ export type components = {
     /** @description The client's standing in the allowances this request drew on, `"searches";r=29;t=1`: `r` what is left (whole units: requests, or seconds of search), `t` the seconds until it is full again. */
     RateLimit: string;
     /**
-     * @description The server's own time on the request, in milliseconds: `app` the whole time from the moment a worker took the connection until the answer started (it contains the rest), and for a request that searched `queue` (waiting for a worker free of searches and for its search thread), `search` (the search itself) and `write` (writing and compressing its answer); `cache;desc="hit"` (sent again from memory) or `cache;desc="revalidated"` (a `304`).
+     * @description The server's own time on the request, in milliseconds, as metrics `name;dur=` (`x-metrics` gives the meaning of each): `app`: the server's whole time on the request, from the moment a worker took its connection until its answer started; it contains `queue`, `search` and `write`; `queue`: for a request that searched: the time it waited for a worker free of searches and for that worker's search thread; `search`: for a request that searched: the search's own time; `write`: for a request that searched: the time spent writing its answer and compressing it; `cache`: sent as `cache;desc="hit"` for an answer sent again from the server's memory without a search, and `cache;desc="revalidated"` for a `304` to an `If-None-Match` that names the answer's `ETag`.
      * @example app;dur=12.402, queue;dur=0.081, search;dur=11.734, write;dur=0.204
      */
     "Server-Timing": string;
@@ -3151,11 +3322,11 @@ export interface operations {
           "application/json": components["schemas"]["IndexResponse"];
         };
       };
-      400: components["responses"]["Refusal400"];
-      405: components["responses"]["Refusal405"];
-      414: components["responses"]["Refusal414"];
+      400: components["responses"]["Refusal400_index"];
+      405: components["responses"]["Refusal405_index"];
+      414: components["responses"]["Refusal414_index"];
       429: components["responses"]["Refusal429"];
-      500: components["responses"]["Refusal500"];
+      500: components["responses"]["Refusal500_index"];
     };
   };
   health: {
@@ -3190,10 +3361,10 @@ export interface operations {
           "application/json": components["schemas"]["HealthResponse"];
         };
       };
-      400: components["responses"]["Refusal400_2"];
-      405: components["responses"]["Refusal405_2"];
-      414: components["responses"]["Refusal414_2"];
-      500: components["responses"]["Refusal500_2"];
+      400: components["responses"]["Refusal400_health"];
+      405: components["responses"]["Refusal405_health"];
+      414: components["responses"]["Refusal414_health"];
+      500: components["responses"]["Refusal500_health"];
     };
   };
   status: {
@@ -3345,11 +3516,11 @@ export interface operations {
           "application/json": components["schemas"]["StatusResponse"];
         };
       };
-      400: components["responses"]["Refusal400"];
-      405: components["responses"]["Refusal405"];
-      414: components["responses"]["Refusal414"];
+      400: components["responses"]["Refusal400_index"];
+      405: components["responses"]["Refusal405_index"];
+      414: components["responses"]["Refusal414_index"];
       429: components["responses"]["Refusal429"];
-      500: components["responses"]["Refusal500"];
+      500: components["responses"]["Refusal500_index"];
     };
   };
   version: {
@@ -3467,11 +3638,11 @@ export interface operations {
           "application/json": components["schemas"]["VersionResponse"];
         };
       };
-      400: components["responses"]["Refusal400"];
-      405: components["responses"]["Refusal405"];
-      414: components["responses"]["Refusal414"];
+      400: components["responses"]["Refusal400_index"];
+      405: components["responses"]["Refusal405_index"];
+      414: components["responses"]["Refusal414_index"];
       429: components["responses"]["Refusal429"];
-      500: components["responses"]["Refusal500"];
+      500: components["responses"]["Refusal500_index"];
     };
   };
   vocabulary: {
@@ -3692,11 +3863,11 @@ export interface operations {
           "application/json": components["schemas"]["VocabularyResponse"];
         };
       };
-      400: components["responses"]["Refusal400"];
-      405: components["responses"]["Refusal405"];
-      414: components["responses"]["Refusal414"];
+      400: components["responses"]["Refusal400_index"];
+      405: components["responses"]["Refusal405_index"];
+      414: components["responses"]["Refusal414_index"];
       429: components["responses"]["Refusal429"];
-      500: components["responses"]["Refusal500"];
+      500: components["responses"]["Refusal500_index"];
     };
   };
   limits: {
@@ -3727,6 +3898,7 @@ export interface operations {
            *       "body_max_bytes": 1048576,
            *       "response_max_bytes": 33554432,
            *       "request_seconds": 20,
+           *       "queue_seconds": 10,
            *       "search_seconds": 10,
            *       "search_states": 200000,
            *       "rate_per_minute": 0,
@@ -3739,6 +3911,14 @@ export interface operations {
            *       "body_seconds": 30,
            *       "answer_cache_bytes": 67108864,
            *       "allowances_enforced": false,
+           *       "allowance_fields": [
+           *         "rate_per_minute",
+           *         "rate_burst",
+           *         "read_share",
+           *         "rate_search_seconds",
+           *         "rate_search_burst_seconds",
+           *         "rate_concurrent_searches"
+           *       ],
            *       "rate_concurrent_searches": 2,
            *       "send_seconds": 30,
            *       "send_min_bytes_per_second": 65536,
@@ -3748,11 +3928,11 @@ export interface operations {
           "application/json": components["schemas"]["LimitsResponse"];
         };
       };
-      400: components["responses"]["Refusal400"];
-      405: components["responses"]["Refusal405"];
-      414: components["responses"]["Refusal414"];
+      400: components["responses"]["Refusal400_index"];
+      405: components["responses"]["Refusal405_index"];
+      414: components["responses"]["Refusal414_index"];
       429: components["responses"]["Refusal429"];
-      500: components["responses"]["Refusal500"];
+      500: components["responses"]["Refusal500_index"];
     };
   };
   list_organisms: {
@@ -4338,11 +4518,11 @@ export interface operations {
           "application/json": components["schemas"]["OrganismsResponse"];
         };
       };
-      400: components["responses"]["Refusal400"];
-      405: components["responses"]["Refusal405"];
-      414: components["responses"]["Refusal414"];
+      400: components["responses"]["Refusal400_index"];
+      405: components["responses"]["Refusal405_index"];
+      414: components["responses"]["Refusal414_index"];
       429: components["responses"]["Refusal429"];
-      500: components["responses"]["Refusal500"];
+      500: components["responses"]["Refusal500_index"];
     };
   };
   describe_organism: {
@@ -4924,12 +5104,12 @@ export interface operations {
           "application/json": components["schemas"]["GraphDescription"];
         };
       };
-      400: components["responses"]["Refusal400"];
+      400: components["responses"]["Refusal400_index"];
       404: components["responses"]["Refusal404"];
-      405: components["responses"]["Refusal405"];
-      414: components["responses"]["Refusal414"];
+      405: components["responses"]["Refusal405_index"];
+      414: components["responses"]["Refusal414_index"];
       429: components["responses"]["Refusal429"];
-      500: components["responses"]["Refusal500"];
+      500: components["responses"]["Refusal500_index"];
     };
   };
   final_databases: {
@@ -5005,12 +5185,12 @@ export interface operations {
           "application/json": components["schemas"]["FinalDatabasesResponse"];
         };
       };
-      400: components["responses"]["Refusal400_3"];
+      400: components["responses"]["Refusal400_final_databases"];
       404: components["responses"]["Refusal404"];
-      405: components["responses"]["Refusal405"];
-      414: components["responses"]["Refusal414"];
+      405: components["responses"]["Refusal405_index"];
+      414: components["responses"]["Refusal414_index"];
       429: components["responses"]["Refusal429"];
-      500: components["responses"]["Refusal500"];
+      500: components["responses"]["Refusal500_index"];
     };
   };
   databases_by_release: {
@@ -5537,12 +5717,12 @@ export interface operations {
           "application/json": components["schemas"]["DatabasesResponse"];
         };
       };
-      400: components["responses"]["Refusal400"];
+      400: components["responses"]["Refusal400_index"];
       404: components["responses"]["Refusal404"];
-      405: components["responses"]["Refusal405"];
-      414: components["responses"]["Refusal414"];
+      405: components["responses"]["Refusal405_index"];
+      414: components["responses"]["Refusal414_index"];
       429: components["responses"]["Refusal429"];
-      500: components["responses"]["Refusal500"];
+      500: components["responses"]["Refusal500_index"];
     };
   };
   showcase: {
@@ -7459,12 +7639,12 @@ export interface operations {
           "application/json": components["schemas"]["ShowcaseResponse"];
         };
       };
-      400: components["responses"]["Refusal400"];
+      400: components["responses"]["Refusal400_index"];
       404: components["responses"]["Refusal404"];
-      405: components["responses"]["Refusal405"];
-      414: components["responses"]["Refusal414"];
+      405: components["responses"]["Refusal405_index"];
+      414: components["responses"]["Refusal414_index"];
       429: components["responses"]["Refusal429"];
-      500: components["responses"]["Refusal500"];
+      500: components["responses"]["Refusal500_index"];
     };
   };
   history: {
@@ -7984,12 +8164,12 @@ export interface operations {
           "application/json": components["schemas"]["HistoryResponse"];
         };
       };
-      400: components["responses"]["Refusal400"];
+      400: components["responses"]["Refusal400_index"];
       404: components["responses"]["Refusal404"];
-      405: components["responses"]["Refusal405"];
-      414: components["responses"]["Refusal414"];
+      405: components["responses"]["Refusal405_index"];
+      414: components["responses"]["Refusal414_index"];
       429: components["responses"]["Refusal429"];
-      500: components["responses"]["Refusal500"];
+      500: components["responses"]["Refusal500_index"];
     };
   };
   convert: {
@@ -8103,14 +8283,14 @@ export interface operations {
           "application/json": components["schemas"]["ConversionResult"];
         };
       };
-      400: components["responses"]["Refusal400_4"];
+      400: components["responses"]["Refusal400_convert"];
       404: components["responses"]["Refusal404"];
-      405: components["responses"]["Refusal405"];
+      405: components["responses"]["Refusal405_index"];
       408: components["responses"]["Refusal408"];
-      414: components["responses"]["Refusal414"];
-      422: components["responses"]["Refusal422"];
+      414: components["responses"]["Refusal414_index"];
+      422: components["responses"]["Refusal422_convert"];
       429: components["responses"]["Refusal429"];
-      500: components["responses"]["Refusal500"];
+      500: components["responses"]["Refusal500_index"];
       503: components["responses"]["Refusal503"];
     };
   };
@@ -8163,6 +8343,13 @@ export interface operations {
           /**
            * @example {
            *       "organism": "homo_sapiens",
+           *       "arguments": {
+           *         "identifier": "TP53",
+           *         "from_release": null,
+           *         "to_release": 115,
+           *         "from_database": null,
+           *         "allow_bridges": true
+           *       },
            *       "to_release": 115,
            *       "conversions": [
            *         {
@@ -8953,14 +9140,14 @@ export interface operations {
           "application/json": components["schemas"]["EachDatabaseResponse"];
         };
       };
-      400: components["responses"]["Refusal400_4"];
+      400: components["responses"]["Refusal400_convert"];
       404: components["responses"]["Refusal404"];
-      405: components["responses"]["Refusal405"];
+      405: components["responses"]["Refusal405_index"];
       408: components["responses"]["Refusal408"];
-      414: components["responses"]["Refusal414"];
-      422: components["responses"]["Refusal422"];
+      414: components["responses"]["Refusal414_index"];
+      422: components["responses"]["Refusal422_convert"];
       429: components["responses"]["Refusal429"];
-      500: components["responses"]["Refusal500"];
+      500: components["responses"]["Refusal500_index"];
       503: components["responses"]["Refusal503"];
     };
   };
@@ -8969,6 +9156,8 @@ export interface operations {
       query?: {
         /** @description `json` (default) or `tsv`: a table with one row per candidate, one for a result without candidates (its columns: the description of the `200` answer's `text/tab-separated-values`). */
         format?: "json" | "tsv";
+        /** @description With `format=tsv`: write one line before the header, beginning with `#`, that names the api's and idtrack's versions, the organism, the graph's content digest, the arguments and the request's id, so a saved table stays tied to what produced it (a reader of the table skips it as a comment). Not taken with `format=json`, whose answer and headers carry the same. Written true or false. */
+        provenance?: boolean;
       };
       header?: never;
       path: {
@@ -9004,13 +9193,23 @@ export interface operations {
           RateLimit: components["headers"]["RateLimit"];
           "Idtrack-Version": components["headers"]["Idtrack-Version"];
           "Idtrack-Graph-Digest": components["headers"]["Idtrack-Graph-Digest"];
-          /** @description With `format=tsv`: `attachment; filename="idtrack_<organism>.tsv"` (a file to save). */
+          /** @description With `format=tsv`: `attachment; filename="idtrack_<organism>_<to_release>_<the first 12 characters of the graph's digest>.tsv"` (a file to save, named after what produced it). */
           "Content-Disposition"?: string;
           [name: string]: unknown;
         };
         content: {
           /**
            * @example {
+           *       "organism": "homo_sapiens",
+           *       "arguments": {
+           *         "from_release": null,
+           *         "to_release": null,
+           *         "final_database": null,
+           *         "from_database": null,
+           *         "explain": false,
+           *         "allow_bridges": true,
+           *         "read_copies": true
+           *       },
            *       "count": 3,
            *       "results": [
            *         {
@@ -9165,16 +9364,16 @@ export interface operations {
           "text/tab-separated-values": string;
         };
       };
-      400: components["responses"]["Refusal400_5"];
+      400: components["responses"]["Refusal400_convert_batch"];
       404: components["responses"]["Refusal404"];
-      405: components["responses"]["Refusal405"];
+      405: components["responses"]["Refusal405_index"];
       408: components["responses"]["Refusal408"];
       413: components["responses"]["Refusal413"];
-      414: components["responses"]["Refusal414"];
+      414: components["responses"]["Refusal414_index"];
       415: components["responses"]["Refusal415"];
-      422: components["responses"]["Refusal422_2"];
+      422: components["responses"]["Refusal422_convert_batch"];
       429: components["responses"]["Refusal429"];
-      500: components["responses"]["Refusal500"];
+      500: components["responses"]["Refusal500_index"];
       503: components["responses"]["Refusal503"];
     };
   };
@@ -9226,6 +9425,13 @@ export interface operations {
           /**
            * @example {
            *       "organism": "homo_sapiens",
+           *       "mode": "release",
+           *       "best": {
+           *         "database": null,
+           *         "assembly": null,
+           *         "release": 50
+           *       },
+           *       "from_release": 50,
            *       "inference": {
            *         "mode": "release",
            *         "band": [
@@ -9578,16 +9784,16 @@ export interface operations {
           "application/json": components["schemas"]["SourceInferenceResponse"];
         };
       };
-      400: components["responses"]["Refusal400_6"];
+      400: components["responses"]["Refusal400_source_inference"];
       404: components["responses"]["Refusal404"];
-      405: components["responses"]["Refusal405"];
+      405: components["responses"]["Refusal405_index"];
       408: components["responses"]["Refusal408"];
       413: components["responses"]["Refusal413"];
-      414: components["responses"]["Refusal414"];
+      414: components["responses"]["Refusal414_index"];
       415: components["responses"]["Refusal415"];
-      422: components["responses"]["Refusal422_2"];
+      422: components["responses"]["Refusal422_convert_batch"];
       429: components["responses"]["Refusal429"];
-      500: components["responses"]["Refusal500"];
+      500: components["responses"]["Refusal500_index"];
       503: components["responses"]["Refusal503"];
     };
   };
@@ -9632,6 +9838,12 @@ export interface operations {
         content: {
           /**
            * @example {
+           *       "organism": "homo_sapiens",
+           *       "arguments": {
+           *         "name": "NOV",
+           *         "fold_case": false,
+           *         "release": null
+           *       },
            *       "matches": [
            *         {
            *           "name": "NOV",
@@ -10382,14 +10594,14 @@ export interface operations {
           "application/json": components["schemas"]["NamesResponse"];
         };
       };
-      400: components["responses"]["Refusal400_7"];
+      400: components["responses"]["Refusal400_genes_named"];
       404: components["responses"]["Refusal404"];
-      405: components["responses"]["Refusal405"];
+      405: components["responses"]["Refusal405_index"];
       408: components["responses"]["Refusal408"];
-      414: components["responses"]["Refusal414"];
-      422: components["responses"]["Refusal422_2"];
+      414: components["responses"]["Refusal414_index"];
+      422: components["responses"]["Refusal422_convert_batch"];
       429: components["responses"]["Refusal429"];
-      500: components["responses"]["Refusal500"];
+      500: components["responses"]["Refusal500_index"];
       503: components["responses"]["Refusal503"];
     };
   };
@@ -10435,6 +10647,11 @@ export interface operations {
         content: {
           /**
            * @example {
+           *       "organism": "homo_sapiens",
+           *       "arguments": {
+           *         "gene": "ENSG00000141510.20",
+           *         "release": 115
+           *       },
            *       "matches": [
            *         {
            *           "name": "7157",
@@ -10496,14 +10713,14 @@ export interface operations {
           "application/json": components["schemas"]["NamesResponse"];
         };
       };
-      400: components["responses"]["Refusal400_8"];
+      400: components["responses"]["Refusal400_names_of"];
       404: components["responses"]["Refusal404"];
-      405: components["responses"]["Refusal405"];
+      405: components["responses"]["Refusal405_index"];
       408: components["responses"]["Refusal408"];
-      414: components["responses"]["Refusal414"];
-      422: components["responses"]["Refusal422_2"];
+      414: components["responses"]["Refusal414_index"];
+      422: components["responses"]["Refusal422_convert_batch"];
       429: components["responses"]["Refusal429"];
-      500: components["responses"]["Refusal500"];
+      500: components["responses"]["Refusal500_index"];
       503: components["responses"]["Refusal503"];
     };
   };

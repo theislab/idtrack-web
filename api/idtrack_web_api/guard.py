@@ -53,7 +53,7 @@ from typing import TYPE_CHECKING, Any
 import anyio
 
 from idtrack_web_api.errors import ApiError, error_json
-from idtrack_web_api.limits import RateLimiter, client_key
+from idtrack_web_api.limits import READ_SHARE, Admission, RateLimiter, client_key
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterable
@@ -173,11 +173,12 @@ def _matches(wanted: str, etag: str) -> bool:
 
 @dataclass(frozen=True)
 class Kept:
-    """An answer kept to be sent again: its status, its headers of content and its body."""
+    """An answer kept to be sent again: its status, its headers of content, its body and, once made, its gzip."""
 
     status: int
     headers: tuple[tuple[bytes, bytes], ...]
     body: bytes
+    gzipped: bytes | None = None
 
 
 class AnswerCache:
@@ -192,15 +193,18 @@ class AnswerCache:
         self.max_bytes = max_bytes
         self.entry_max = max_bytes // 8
         self.size = 0
-        self.hits = 0
         self._entries: OrderedDict[str, Kept] = OrderedDict()
+
+    @staticmethod
+    def _bytes(kept: Kept) -> int:
+        return len(kept.body) + len(kept.gzipped or b"")
 
     def get(self, etag: str, *, count: bool = True) -> Kept | None:
         """Return the answer kept under *etag*, if any.
 
         Args:
             etag: The tag.
-            count: Count it as used (a hit), as when it is sent.
+            count: Count it as used, as when it is sent (the least recently used is dropped first).
 
         Returns:
             Kept | None: The answer.
@@ -208,23 +212,23 @@ class AnswerCache:
         found = self._entries.get(etag)
         if found is not None and count:
             self._entries.move_to_end(etag)
-            self.hits += 1
         return found
 
     def put(self, etag: str, kept: Kept) -> None:
-        """Keep an answer (if it fits).
+        """Keep an answer (if it fits), or its compressed bytes beside an answer kept already.
 
         Args:
             etag: The tag.
             kept: The answer.
         """
-        if len(kept.body) > self.entry_max or etag in self._entries:
+        before = self._entries.get(etag)
+        if self._bytes(kept) > self.entry_max or (before is not None and before.gzipped is not None):
             return
         self._entries[etag] = kept
-        self.size += len(kept.body)
+        self.size += self._bytes(kept) - (0 if before is None else self._bytes(before))
         while self.size > self.max_bytes and self._entries:
             _, dropped = self._entries.popitem(last=False)
-            self.size -= len(dropped.body)
+            self.size -= self._bytes(dropped)
 
 
 class NotTakenError(Exception):
@@ -361,7 +365,7 @@ class Guard:
             return []
         burst, rate = limiter.burst, limiter.rate
         policies = [f'"searches";q={int(burst)};w={round(burst / rate)}']
-        policies.append(f'"reads";q={int(burst * 10)};w={round(burst / rate)}')
+        policies.append(f'"reads";q={int(burst * READ_SHARE)};w={round(burst / rate)}')
         if limiter.work_enabled:
             policies.append(
                 f'"search_seconds";q={int(limiter.work_burst)};w={round(limiter.work_burst / limiter.work_rate)}'
@@ -413,10 +417,10 @@ class Guard:
             if last:
                 return
 
-    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:  # noqa: PLR0911, PLR0912, PLR0915
+    async def __call__(self, scope: Scope, receive: Receive, sending: Send) -> None:  # noqa: PLR0911, PLR0912, PLR0915
         """Serve one request (see the module's text)."""
         if scope["type"] != "http":
-            await self.app(scope, receive, send)
+            await self.app(scope, receive, sending)
             return
         connection = CONNECTION.get()
         request_id = _request_id(scope)
@@ -440,7 +444,13 @@ class Guard:
         buffered: dict[str, Any] = {"start": None, "body": []}
         limits: list[tuple[bytes, bytes]] = []
         clock: dict[str, Any] = {"started": 0.0, "sent": 0, "size": 0}
-        entered = False
+        own: Admission | None = None  # a search admitted here (not when its connection was routed)
+        sent = {"start": False}
+
+        async def send(message: Message) -> None:
+            if message["type"] == "http.response.start":
+                sent["start"] = True
+            await sending(message)
 
         def charge_work() -> None:
             """Charge the client the search time worked and not yet charged.
@@ -481,12 +491,34 @@ class Guard:
                 headers.append((b"content-length", str(len(body)).encode()))
             return headers
 
-        async def finish(start: Message, body: bytes) -> None:
-            """Send a buffered answer of the api: its tag, compressed where accepted, its length, in pieces."""
+        def give_back() -> None:
+            """Give the client its search's token back: refused for the server's capacity, not for the client's."""
+            if searching and (own is not None or (connection is not None and connection.admitted is not None)):
+                self.limiter.give_back(client, "search")
+
+        async def compressed(body: bytes) -> bytes:
+            """Compress an answer: a large one beside the event loop, its time part of a search's writing."""
+            if len(body) < COMPRESS_ASIDE_BYTES:
+                return _gzip(body)
+            began = time.monotonic()
+            packed = await anyio.to_thread.run_sync(_gzip, body)
+            if searching:
+                timing = state.setdefault("timing", {})
+                timing["write"] = timing.get("write", 0.0) + time.monotonic() - began
+            return packed
+
+        async def finish(start: Message, body: bytes, gzipped: bytes | None = None) -> None:
+            """Send a buffered answer of the api: its tag, compressed where accepted, its length, in pieces.
+
+            An answer kept to be sent again keeps its compressed bytes too (made once). Compressing a large answer of a
+            search is part of writing it (``write`` of ``Server-Timing``, charged as its search time); any other answer
+            is compressed within ``app``.
+            """
             headers = list(start.get("headers", []))
             kind = next((v for k, v in headers if k == b"content-type"), b"")
+            kept: Kept | None = None
             if start["status"] == 200 and etag is not None:
-                captured["kept"] = Kept(200, tuple(h for h in headers if h[0] in _KEPT_HEADERS), body)
+                kept = Kept(200, tuple(h for h in headers if h[0] in _KEPT_HEADERS), body, gzipped)
             coded = False
             if (
                 accepts_gzip
@@ -494,16 +526,17 @@ class Guard:
                 and kind.startswith(_COMPRESSED_TYPES)
                 and not any(k == b"content-encoding" for k, _ in headers)
             ):
-                if len(body) >= COMPRESS_ASIDE_BYTES:
-                    began = time.monotonic()
-                    body = await anyio.to_thread.run_sync(_gzip, body)
-                    timing = state.setdefault("timing", {})
-                    timing["write"] = timing.get("write", 0.0) + time.monotonic() - began
-                else:
-                    body = _gzip(body)
+                body = gzipped if gzipped is not None else await compressed(body)
+                if kept is not None and kept.gzipped is None:
+                    kept = Kept(kept.status, kept.headers, kept.body, body)
                 headers += [(b"content-encoding", b"gzip")]
                 coded = True
+            if kept is not None:
+                captured["kept"] = kept
+            if searching and state.pop("capacity", False):  # the app refused it for the server's capacity
+                give_back()
             if start["status"] < 400 and body and self.sending + len(body) > self.settings.sending_max_bytes:
+                give_back()
                 await refuse(
                     ApiError(
                         "server_busy",
@@ -596,7 +629,9 @@ class Guard:
                 )
                 return
             if api and len(path) > 1 and path.endswith("/"):
-                await self._redirect(scope, send, request_id, state, path.rstrip("/") or "/")
+                if await self._limited(client, refuse):
+                    return
+                await self._redirect(scope, send, request_id, state)
                 status["code"] = 308
                 return
             if connection is not None and connection.refusal is not None:  # decided when the connection was routed
@@ -643,22 +678,27 @@ class Guard:
                         return
                     limits[:] = self.rate_headers(client, "read")
                     await finish(
-                        {"type": "http.response.start", "status": 200, "headers": list(kept.headers)}, kept.body
+                        {"type": "http.response.start", "status": 200, "headers": list(kept.headers)},
+                        kept.body,
+                        kept.gzipped,
                     )
+                    if captured.get("kept") is not kept and captured.get("kept") is not None:
+                        self.cache.put(etag, captured["kept"])  # its compressed bytes, made for this client
                     return
             if api and path != HEALTH_PATH:
                 kind = "search" if searching else "read"
                 if searching and connection is not None and connection.admitted is not None:
                     pass  # admitted by its client's allowances when its connection was routed
                 elif searching:
-                    refusal = self.admit_search(client)
-                    if refusal is not None:
-                        await refuse(refusal)
+                    decided = self.admit_search(client)
+                    if isinstance(decided, ApiError):
+                        await refuse(decided)
                         return
-                    entered = True
+                    own = decided
                 elif await self._limited(client, refuse):
                     return
                 if searching and self.sending > self.settings.sending_max_bytes:
+                    self.limiter.give_back(client, "search")  # admitted above or when routed; refused for capacity
                     await refuse(
                         ApiError(
                             "server_busy",
@@ -672,6 +712,8 @@ class Guard:
             replayed = await self._bounded_body(scope, receive, refuse)
             if replayed is None:
                 return
+            if searching and connection is not None:
+                connection.request_arrived()  # its search counts in this worker from now on
             await self.app(scope, replayed, send_marked)
             kept = captured.get("kept")
             if kept is not None and etag is not None:
@@ -686,20 +728,15 @@ class Guard:
                 connection.abort()
         except Exception:
             log.exception("Internal error in request %s (%s %s)", request_id, scope.get("method"), printable(path))
-            if status["code"] == 0:
-                await refuse(
-                    ApiError(
-                        "internal_error",
-                        f"The server failed to answer this request; quote the request id {request_id} when "
-                        "reporting it.",
-                    )
-                )
+            await self._fault(refuse, request_id, started=sent["start"], connection=connection)
+            if not sent["start"]:
+                status["code"] = 500
         finally:
             seconds = time.monotonic() - state["arrived"]
             if counted:
                 self.monitor.request_ended(seconds, status["code"])
-            if entered:
-                self.limiter.leave_search(client)
+            if own is not None:
+                self.limiter.leave_search(own.place)
             if connection is not None:
                 connection.release_admission()
             charge_work()
@@ -713,7 +750,34 @@ class Guard:
                 "" if given is None or given == request_id else f" (client's id refused: {printable(given[:80])})",
             )  # fmt: skip
 
-    def admit_search(self, client: str) -> ApiError | None:
+    async def _fault(
+        self, refuse: Callable[[ApiError], Any], request_id: str, *, started: bool, connection: Any
+    ) -> None:
+        """Answer a fault: ``500 internal_error`` if no answer has started, else close the connection (nothing raises).
+
+        Args:
+            refuse: What sends a refusal.
+            request_id: The request's id.
+            started: Whether the answer's head was sent.
+            connection: The connection (``None`` without the process model).
+        """
+        if not started:
+            try:
+                await refuse(
+                    ApiError(
+                        "internal_error",
+                        f"The server failed to answer this request; quote the request id {request_id} when reporting "
+                        "it.",
+                    )
+                )
+            except Exception:  # noqa: BLE001 - the connection is closed instead; the fault is logged already
+                log.warning("Request %s: its refusal could not be sent either; its connection is closed.", request_id)
+            else:
+                return
+        if connection is not None:
+            connection.abort()
+
+    def admit_search(self, client: str) -> ApiError | Admission:
         """Admit a searching request by its client's allowances.
 
         Its allowances: a token of its searches, a balance of search time, and a place among its searches in progress
@@ -724,15 +788,16 @@ class Guard:
             client: The client's key.
 
         Returns:
-            ApiError | None: The refusal (``429 rate_limited``, naming the allowance), or ``None`` when admitted.
+            ApiError | Admission: The refusal (``429 rate_limited``, naming the allowance), or the admission (its place
+            to give back when the request ends).
         """
         wait = self.limiter.take(client, "search")
         if wait is not None:
             again = RateLimiter.retry_after(wait)
             return ApiError(
                 "rate_limited",
-                f"More than {self.settings.rate_per_minute} searching requests per minute from this client; retry in "
-                f"{again} s.",
+                f"This client's allowance of searching requests is used up (it holds {self.settings.rate_burst} at "
+                f"most and fills again at {self.settings.rate_per_minute} per minute); retry in {again} s.",
                 headers={"Retry-After": again},
                 allowance="searches",
             )
@@ -741,20 +806,26 @@ class Guard:
             again = RateLimiter.retry_after(wait)
             return ApiError(
                 "rate_limited",
-                f"This client's searches used more than {self.settings.rate_search_seconds:g} s of search per minute; "
-                f"retry in {again} s.",
+                "This client's balance of search time is used up (it holds "
+                f"{self.settings.rate_search_burst_seconds:g} s at most and fills again at "
+                f"{self.settings.rate_search_seconds:g} s per minute); retry in {again} s.",
                 headers={"Retry-After": again},
                 allowance="search_seconds",
             )
-        if not self.limiter.enter_search(client):
+        place = self.limiter.enter_search(client)
+        if place is None:
+            self.limiter.give_back(client, "search")
+            # A search in progress ends, on average, within the recent searches' mean time.
+            again = RateLimiter.retry_after(self.monitor.mean_search_seconds())
             return ApiError(
                 "rate_limited",
-                f"This client already has {self.limiter.concurrent} searching requests in progress, as many as it may; "
-                "send the next when one has been answered.",
-                headers={"Retry-After": "1"},
+                f"This client already has {self.limiter.concurrent} searching requests in progress, as many as it may "
+                f"(`rate_concurrent_searches`); send the next when one has been answered (searches take about "
+                f"{again} s now).",
+                headers={"Retry-After": again},
                 allowance="concurrent_searches",
             )
-        return None
+        return Admission(client, place)
 
     async def _limited(self, client: str, refuse: Any) -> bool:
         """Take the client's token of a read; answer 429 and return whether it was refused."""
@@ -764,8 +835,9 @@ class Guard:
             await refuse(
                 ApiError(
                     "rate_limited",
-                    f"More than {self.settings.rate_per_minute * 10} requests that read per minute from this client; "
-                    f"retry in {again} s.",
+                    f"This client's allowance of requests that read is used up (it holds "
+                    f"{self.settings.rate_burst * READ_SHARE} at most and fills again at "
+                    f"{self.settings.rate_per_minute * READ_SHARE} per minute); retry in {again} s.",
                     headers={"Retry-After": again},
                     allowance="reads",
                 )
@@ -782,10 +854,16 @@ class Guard:
             (b"content-length", b"0"),
         ]
 
-    async def _redirect(self, scope: Scope, send: Send, request_id: str, state: dict[str, Any], to: str) -> None:
-        """Answer a path of the api that ends in ``/``: ``308`` to the same path without it (method and body kept)."""
+    async def _redirect(self, scope: Scope, send: Send, request_id: str, state: dict[str, Any]) -> None:
+        """Answer a path of the api that ends in ``/``: ``308`` to the same path without it (method and body kept).
+
+        The address is the path as the client wrote it (its percent-encoding kept: an encoded ``?`` or line break stays
+        encoded), without its final slashes.
+        """
         query = scope.get("query_string", b"")
-        location = (scope.get("root_path", "") + to).encode("utf-8") + (b"?" + query if query else b"")
+        raw = scope.get("raw_path") or scope["path"].encode("utf-8")
+        to = raw.rstrip(b"/") or b"/"
+        location = scope.get("root_path", "").encode("utf-8") + to + (b"?" + query if query else b"")
         headers = [(b"location", location), (b"cache-control", b"no-store"), *self._cors(scope)]
         headers += self._final_headers(request_id, state)
         await send({"type": "http.response.start", "status": 308, "headers": headers})

@@ -158,23 +158,20 @@ def _remaining(deadline: float) -> float:
     return deadline - time.monotonic()
 
 
-def waited_out(settings: Settings) -> ApiError:
-    """Return the refusal of a request that waited its whole time budget before its search began.
+def waited_out(settings: Settings, waited: float) -> ApiError:
+    """Return the refusal of a search that waited longer for a worker than a search may (it is not searched).
 
     Args:
-        settings: The budgets.
+        settings: The bounds (``queue_seconds``).
+        waited: The seconds it waited.
 
     Returns:
-        ApiError: ``request_budget_exceeded``.
+        ApiError: ``server_busy``: the server's load, not the request, is the cause.
     """
-    return _busy(settings)
-
-
-def _busy(settings: Settings) -> ApiError:
     return ApiError(
-        "request_budget_exceeded",
-        f"The request waited its whole time budget ({settings.request_seconds:g} s) for the server before its search "
-        "began; retry later.",
+        "server_busy",
+        f"The search waited {waited:.1f} s for a worker, more than the {settings.queue_seconds:g} s a search may wait "
+        "(`queue_seconds`), and was not searched: the server is busy; retry in a few seconds.",
         headers={"Retry-After": "5"},
     )
 
@@ -194,8 +191,8 @@ def out_of_time(settings: Settings, converted: int, total: int, *, explain: bool
     return ApiError(
         "request_budget_exceeded",
         f"{converted} of the {total} distinct identifiers were converted within the request's time budget "
-        f"({settings.request_seconds:g} s); send fewer identifiers per request"
-        + (" (or ask without `explain`)." if explain else "."),
+        f"({settings.request_seconds:g} s of search, counted from when its search began); send fewer identifiers per "
+        "request" + (" (or ask without `explain`)." if explain else "."),
         headers={"Retry-After": "5"},
     )
 
@@ -218,10 +215,7 @@ def convert_one(
     Raises:
         ApiError: For an input idtrack refuses, a search over its budget, or a request out of time.
     """
-    remaining = _remaining(deadline)
-    if remaining <= 0:
-        raise _busy(settings)
-    budget = min(settings.search_seconds, remaining)
+    budget = min(settings.search_seconds, max(0.0, _remaining(deadline)))
     try:
         return graph.graph.convert(identifier, arguments, budget)
     except InputRefusedError as problem:
@@ -231,8 +225,8 @@ def convert_one(
             msg = "request_budget_exceeded"
             raise ApiError(
                 msg,
-                f"The request ran out of its time budget ({settings.request_seconds:g} s, most of it spent waiting for "
-                "the server) during the search; retry later.",
+                f"The request's time budget ({settings.request_seconds:g} s of search) ran out during this search, "
+                "after the searches before it in the same request; ask for fewer at once.",
                 headers={"Retry-After": "5"},
             ) from None
         msg = "search_budget_exceeded"
@@ -289,7 +283,7 @@ def convert_batch(
             raise ApiError(msg, "The client closed its connection during the batch; the rest was not searched.")
         remaining = _remaining(deadline)
         if remaining <= 0:
-            raise out_of_time(settings, len(done), total, explain=arguments.explain) if done else _busy(settings)
+            raise out_of_time(settings, len(done), total, explain=arguments.explain)
         budget = min(settings.search_seconds, remaining)
         try:
             results = graph.graph.convert_many(group, arguments, budget)
@@ -423,6 +417,33 @@ def source_inference(graph: LoadedGraph, identifiers: list[str], mode: str) -> d
         return graph.graph.source_inference(identifiers, mode)
     except InputRefusedError as problem:
         raise answered(problem) from None
+
+
+#: The parts of an origin of each mode of ``API.source_inference``, in the order idtrack writes them (its text of
+#: ``SourceInference``: an origin is ``[database, assembly, release]``, ``release``, ``assembly`` or
+#: ``[assembly, release]`` by the mode).
+ORIGIN_PARTS: dict[str, tuple[str, ...]] = {
+    "assembly_release": ("assembly", "release"),
+    "release": ("release",),
+    "assembly": ("assembly",),
+    "complete": ("database", "assembly", "release"),
+}
+
+
+def named_origin(origin: Any, mode: str) -> dict[str, Any]:
+    """Return an origin of idtrack's source inference with its parts named (``null`` for the parts the mode lacks).
+
+    Args:
+        origin: An origin as idtrack writes it for the mode (a list, or one value).
+        mode: The mode.
+
+    Returns:
+        dict[str, Any]: ``database``, ``assembly`` and ``release``.
+    """
+    parts = ORIGIN_PARTS[mode]
+    values = list(origin) if isinstance(origin, (list, tuple)) else [origin]
+    named = dict(zip(parts, values, strict=True))
+    return {part: named.get(part) for part in ("database", "assembly", "release")}
 
 
 def convert_each_database(

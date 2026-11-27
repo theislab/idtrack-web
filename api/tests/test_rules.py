@@ -5,6 +5,7 @@ the tables a client reads (databases, TSV columns), and the endpoints that answe
 from __future__ import annotations
 
 import json
+import logging
 import random
 import re
 from typing import TYPE_CHECKING, Any
@@ -153,6 +154,72 @@ def test_a_trailing_slash_is_redirected(client: TestClient) -> None:
     assert client.post(f"{BATCH}/", json={"identifiers": [GENE]}).status_code == 200  # 308 keeps method and body
 
 
+def test_a_trailing_slash_keeps_the_paths_encoding(client: TestClient, caplog: pytest.LogCaptureFixture) -> None:
+    """The redirect's address is the path as sent, its percent-encoding kept: a line break, a NUL or an encoded `?`
+    stays encoded (never a header that cannot be written, never a query made from a path); nothing raises."""
+    with caplog.at_level(logging.WARNING, logger="idtrack_web_api"):
+        for sent, location in (
+            ("/api/x%0a/", "/api/x%0a"),
+            (f"{P}/a%00b/", f"{P}/a%00b"),
+            (f"{P}/x%0d%0aX-Evil:%201/", f"{P}/x%0d%0aX-Evil:%201"),
+            (f"{P}/organisms%3Fa=b/", f"{P}/organisms%3Fa=b"),
+        ):
+            response = client.get(sent, follow_redirects=False)
+            assert response.status_code == 308, sent
+            assert response.headers["location"] == location
+    assert not [r for r in caplog.records if r.levelno >= logging.WARNING], caplog.text
+
+
+def test_no_validation_message_speaks_the_validators_words(client: TestClient) -> None:
+    """Every refusal of a request's shape is in the api's own words: no validator's prefix or type names."""
+    answers = [
+        client.get(CONVERT, params={"identifier": GENE, "to_release": "115.0"}),
+        client.get(CONVERT, params={"identifier": GENE, "explain": "yes"}),
+        client.post(BATCH, json={"identifiers": []}),
+        client.post(BATCH, json={"identifiers": [GENE], "to_release": "115"}),
+        client.post(BATCH, json={"identifiers": [GENE], "explain": "yes"}),
+        client.post(f"{BATCH}?format=csv", json={"identifiers": [GENE]}),
+        client.post(f"{P}/organisms/pig/source-inference", json={"identifiers": [GENE], "mode": "genes"}),
+        client.post(BATCH, json={"identifiers": [GENE, 7]}),
+    ]
+    for response in answers:
+        message = error_of(response)["message"]
+        for words in ("Value error", "after validation", "Input should", "valid integer", "Field required"):
+            assert words not in message, message
+    assert "`to_release` in the body must be a whole number" in error_of(answers[3])["message"]
+    assert "`identifiers` in the body must hold at least 1 item, not 0" in error_of(answers[2])["message"]
+    assert '`format` in the query must be `json` or `tsv`, not "csv"' in error_of(answers[5])["message"]
+    assert (
+        "item 1 (from 0) of `identifiers` in the body must be a string, not a number" in error_of(answers[7])["message"]
+    )
+
+
+def test_a_compressed_body_is_refused_by_its_encoding(client: TestClient) -> None:
+    import gzip
+    import json as json_module
+
+    body = gzip.compress(json_module.dumps({"identifiers": [GENE]}).encode())
+    response = client.post(
+        BATCH, content=body, headers={"content-type": "application/json", "content-encoding": "gzip"}
+    )
+    error = error_of(response)
+    assert response.status_code == 415 and error["code"] == "unsupported_media_type"
+    assert "Content-Encoding: gzip" in error["message"] and "uncompressed" in error["message"]
+
+
+def test_a_saved_table_names_what_made_it(client: TestClient) -> None:
+    response = client.post(f"{BATCH}?format=tsv&provenance=true", json={"identifiers": [GENE], "to_release": 100})
+    first, header = response.text.splitlines()[:2]
+    assert first.startswith("# idtrack-web ") and "organism sus_scrofa" in first and "to_release 100" in first
+    assert f"request {response.headers['x-request-id']}" in first
+    assert response.headers["idtrack-graph-digest"] in first
+    assert header.startswith("input_index\t")
+    assert response.headers["content-disposition"].startswith('attachment; filename="idtrack_sus_scrofa_100_')
+    assert not client.post(f"{BATCH}?format=tsv", json={"identifiers": [GENE]}).text.startswith("#")
+    refused = error_of(client.post(f"{BATCH}?provenance=true", json={"identifiers": [GENE]}))
+    assert (refused["code"], refused["argument"]) == ("invalid_argument", "provenance")
+
+
 def test_no_endpoint_points_to_the_index(client: TestClient) -> None:
     for path in ("/api", "/api/v2", f"{P}/nothing", f"{P}/organisms/pig/convertt"):
         error = error_of(client.get(path))
@@ -205,17 +272,47 @@ def test_allowances_are_stated_in_headers_and_refusals(make_client: Callable[...
 
 
 def test_a_client_has_few_searches_in_progress() -> None:
-    from idtrack_web_api.limits import CONCURRENT_EXPIRY_SECONDS, RateLimiter
+    import os
+
+    from idtrack_web_api.limits import NO_PLACE, RateLimiter
 
     limiter = RateLimiter(60, 30, concurrent_searches=2)
-    assert limiter.enter_search("a", now=10.0) and limiter.enter_search("a", now=10.0)
-    assert not limiter.enter_search("a", now=11.0)
-    assert limiter.enter_search("b", now=11.0)
-    limiter.leave_search("a", now=12.0)
-    assert limiter.enter_search("a", now=12.0)
-    # A count no request has changed for long is forgotten (a killed worker cannot end its searches).
-    assert limiter.enter_search("a", now=12.0 + CONCURRENT_EXPIRY_SECONDS + 1)
-    assert RateLimiter(0, 30, concurrent_searches=2).enter_search("a")  # allowances off
+    first, second = limiter.enter_search("a"), limiter.enter_search("a")
+    assert first is not None and second is not None and first != second
+    assert limiter.enter_search("a") is None  # a third at once is refused, and nothing is taken
+    other = limiter.enter_search("b")
+    assert other is not None
+    limiter.leave_search(first)
+    assert limiter.in_progress("a") == 1
+    again = limiter.enter_search("a")
+    assert again is not None
+    # A place given back twice frees nothing the second time, though its row now holds another search.
+    limiter.leave_search(first)
+    assert limiter.in_progress("a") == 2
+    # A worker that ends without giving its places back (killed in a search): the master gives them back, and its
+    # clients may search at once (no count is left to expire).
+    assert limiter.release_holder(os.getpid()) == 3
+    assert limiter.in_progress("a") == limiter.in_progress("b") == 0
+    assert limiter.enter_search("a") is not None
+    assert RateLimiter(0, 30, concurrent_searches=2).enter_search("a") == NO_PLACE  # allowances off
+
+
+def test_a_place_follows_its_search_to_the_worker_that_takes_it() -> None:
+    import os
+
+    from idtrack_web_api.limits import RateLimiter
+
+    limiter = RateLimiter(60, 30, concurrent_searches=2)
+    place = limiter.enter_search("a")
+    assert place is not None
+    child = os.fork()
+    if child == 0:  # the worker that takes the search from the queue holds its place, then is killed
+        limiter.hold(place)
+        os._exit(0)
+    os.waitpid(child, 0)
+    assert limiter.release_holder(os.getpid()) == 0  # the place is no longer this process's
+    assert limiter.release_holder(child) == 1
+    assert limiter.in_progress("a") == 0
 
 
 def test_a_clients_request_id_is_kept(client: TestClient) -> None:
@@ -274,11 +371,11 @@ def test_the_table_has_its_documented_columns(client: TestClient, openapi: dict[
     header = response.text.splitlines()[0].split("\t")
     content = openapi["paths"][BATCH.replace("pig", "{organism}")]["post"]["responses"]["200"]["content"]
     documented = content["text/tab-separated-values"]
-    assert header == list(tsv.COLUMNS) == documented["x-columns"]
+    assert header == list(tsv.COLUMNS) == [c["name"] for c in documented["x-columns"]]
     assert all(f"`{c}`" in documented["schema"]["description"] for c in tsv.COLUMNS)
     last = response.text.splitlines()[-1].split("\t")
     assert last[tsv.COLUMNS.index("error_code")] == "missing_value"
-    assert response.headers["content-disposition"] == 'attachment; filename="idtrack_sus_scrofa.tsv"'
+    assert response.headers["content-disposition"].startswith('attachment; filename="idtrack_sus_scrofa_115_')
 
 
 # ------------------------------------------------------------------------------------------------------------------
@@ -385,8 +482,8 @@ def test_a_source_map_is_json(make_client: Callable[..., TestClient], tmp_path: 
 
 
 def test_a_search_that_waited_out_its_budget_is_not_run(make_client: Callable[..., TestClient]) -> None:
-    """Every searching endpoint refuses a request whose time budget passed before its search began."""
-    client = make_client(rate_per_minute=0, request_seconds=1e-9, search_seconds=1e-9)
+    """Every searching endpoint refuses, unsearched, a request that waited longer for a worker than a search may."""
+    client = make_client(rate_per_minute=0, queue_seconds=1e-9)
     for response in (
         client.get(f"{P}/organisms/pig/genes-named", params={"name": "INS"}),
         client.get(f"{P}/organisms/pig/names-of", params={"gene": GENE}),
@@ -394,7 +491,7 @@ def test_a_search_that_waited_out_its_budget_is_not_run(make_client: Callable[..
         client.get(CONVERT, params={"identifier": GENE}),
     ):
         error = error_of(response)
-        assert error["code"] == "request_budget_exceeded" and error["retry_after"] == 5
+        assert error["code"] == "server_busy" and error["retry_after"] == 5
 
 
 def test_the_page_of_an_organism_not_held_is_404(make_client: Callable[..., TestClient], tmp_path: Path) -> None:

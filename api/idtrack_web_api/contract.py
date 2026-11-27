@@ -102,7 +102,7 @@ ENDPOINT_ERRORS: dict[str, tuple[str, ...]] = {
     ),
     "convert_batch": (*_SEARCH, *_BODY, "unknown_release", "unknown_database", "invalid_argument"),
     "source_inference": (*_SEARCH, *_BODY, "unknown_identifier"),
-    "genes_named": (*_SEARCH, "unknown_release"),
+    "genes_named": (*_SEARCH, "unknown_release", "missing_value"),
     "names_of": (*_SEARCH, "unknown_release", "unknown_identifier", "invalid_argument"),
 }
 
@@ -118,6 +118,26 @@ _IDTRACK_INPUT = (
 
 #: The codes a batch item's ``error.code`` can carry (:py:func:`idtrack_web_api.adapter.item_error_code`).
 ITEM_ERROR_CODES = (*_IDTRACK_INPUT, "unknown_organism", "search_budget_exceeded", "internal_error")
+
+#: The metrics of ``Server-Timing`` (:py:func:`idtrack_web_api.guard.server_timing` writes them) and what each
+#: measures: the one text of them, which the OpenAPI document carries as ``x-metrics`` of the header (the page's
+#: meanings are generated from it).
+TIMING_METRICS: dict[str, str] = {
+    "app": (
+        "The server's whole time on the request, from the moment a worker took its connection until its answer "
+        "started; it contains `queue`, `search` and `write`."
+    ),
+    "queue": (
+        "For a request that searched: the time it waited for a worker free of searches and for that worker's search "
+        "thread."
+    ),
+    "search": "For a request that searched: the search's own time.",
+    "write": "For a request that searched: the time spent writing its answer and compressing it.",
+    "cache": (
+        'Sent as `cache;desc="hit"` for an answer sent again from the server\'s memory without a search, and '
+        '`cache;desc="revalidated"` for a `304` to an `If-None-Match` that names the answer\'s `ETag`.'
+    ),
+}
 
 _CACHED_HEADERS = ("ETag", "Cache-Control")
 #: The headers of an answer of one graph (an endpoint under ``/organisms/{organism}``).
@@ -159,14 +179,14 @@ HEADERS: dict[str, dict[str, Any]] = {
     },
     "Server-Timing": {
         "description": (
-            "The server's own time on the request, in milliseconds: `app` the whole time from the moment a worker "
-            "took the connection until the answer started (it contains the rest), and for a request that searched "
-            "`queue` (waiting for a worker free of searches and for its search thread), `search` (the search itself) "
-            'and `write` (writing and compressing its answer); `cache;desc="hit"` (sent again from memory) or '
-            '`cache;desc="revalidated"` (a `304`).'
+            "The server's own time on the request, in milliseconds, as metrics `name;dur=` (`x-metrics` gives the "
+            "meaning of each): "
+            + "; ".join(f"`{name}`: {text[0].lower()}{text[1:].rstrip('.')}" for name, text in TIMING_METRICS.items())
+            + "."
         ),
         "schema": {"type": "string"},
         "example": "app;dur=12.402, queue;dur=0.081, search;dur=11.734, write;dur=0.204",
+        "x-metrics": TIMING_METRICS,
     },
     "Retry-After": {
         "description": "Whole seconds to wait before sending the request again.",
@@ -321,23 +341,27 @@ def tsv_content() -> dict[str, Any]:
     """Return the ``text/tab-separated-values`` content of a batch's answer: its columns, how each is written.
 
     Returns:
-        dict[str, Any]: The media type object (the columns also as ``x-columns``).
+        dict[str, Any]: The media type object; ``x-columns`` lists the columns in order, each with its group
+        (``result``, ``error`` or ``candidate``) and what it holds.
     """
     from idtrack_web_api import tsv
 
-    rows = []
-    for name in tsv.COLUMNS:
-        part = "result" if name in tsv.RESULT_COLUMNS else "candidate"
-        rows.append(f"| `{name}` | {tsv.COLUMN_TEXTS.get(name, f'`{name}` of the {part}')} |")
+    columns = [
+        {"name": name, "group": tsv.column_group(name), "description": tsv.column_text(name)} for name in tsv.COLUMNS
+    ]
+    rows = [f"| `{c['name']}` | {c['group']} | {c['description']} |" for c in columns]
     text = (
         "A table of tab-separated values, UTF-8, each line ending in a line feed: the first line names the columns, "
         "then one row per candidate of each result in input order (a result without candidates: one row, its "
-        "candidate columns empty). A result's columns repeat on each of its rows. Values as JSON writes them: an "
-        "empty cell for `null`, `true` and `false`, numbers as written in the JSON answer (nothing rounded), a "
-        "list's items joined by `;`. The explained path (`path`, `final_path`) is not in the table: ask for JSON. "
-        "The columns, in order:\n\n| Column | What it holds |\n| --- | --- |\n" + "\n".join(rows)
+        "candidate columns empty). A result's columns repeat on each of its rows. Each value as the JSON answer "
+        "writes it: `null` as an empty cell; `true` and `false` as those words; a number as written in the JSON "
+        "answer (nothing rounded); a list's items joined by `;`. The explained path (`path`, `final_path`) is not in "
+        "the table: ask for JSON. With `provenance=true`, one line before the header begins with `#` and names the "
+        "graph and the request (`Content-Disposition` names the file after the organism, the target release and "
+        "the graph's digest). The columns, in order (also as `x-columns`):\n\n"
+        "| Column | Of | What it holds |\n| --- | --- | --- |\n" + "\n".join(rows)
     )
-    return {"schema": {"type": "string", "description": text}, "x-columns": list(tsv.COLUMNS)}
+    return {"schema": {"type": "string", "description": text}, "x-columns": columns}
 
 
 _RATE_HEADERS = ("RateLimit-Policy", "RateLimit")
@@ -415,7 +439,13 @@ def complete(document: dict[str, Any]) -> dict[str, Any]:  # noqa: PLR0912, PLR0
         for method, operation in operations.items():
             op = operation.get("operationId")
             for parameter in operation.get("parameters", []):
-                _json_schema_bounds(parameter.get("schema", {}))
+                schema = parameter.get("schema", {})
+                _json_schema_bounds(schema)
+                # FastAPI writes a parameter's text twice (the parameter's and its schema's) and a title from its name:
+                # the document keeps the parameter's text once.
+                if schema.get("description") == parameter.get("description"):
+                    schema.pop("description", None)
+                schema.pop("title", None)
             for status, response in operation.get("responses", {}).items():
                 if status == "422" and "content" in response:
                     schema = response["content"].get("application/json", {}).get("schema", {})
@@ -471,24 +501,34 @@ def complete(document: dict[str, Any]) -> dict[str, Any]:  # noqa: PLR0912, PLR0
 def _share_refusals(document: dict[str, Any]) -> None:
     """Write each refusal response once, in ``components/responses``, and refer to it from every operation that has it.
 
-    An operation's refusals of one status are the same object wherever their codes are the same (``RateLimited``,
-    ``UriTooLong``, ...), so the document holds each once; its name is the status's and, where operations differ in
-    their codes of that status, a number in the order the document first meets each.
+    An operation's refusals of one status are the same object wherever their codes are the same, so the document holds
+    each once, named after what it holds: ``Refusal<status>`` where every operation that answers the status answers it
+    with the same codes (``Refusal414``), else ``Refusal<status>_<operationId>`` after the first operation, in the
+    document's order, that answers it with those codes (``Refusal400_convert``, which ``convert_each_database`` shares).
     """
     shared: dict[str, Any] = document.setdefault("components", {}).setdefault("responses", {})
-    names: dict[str, str] = {}
+    found: dict[tuple[str, str], list[str]] = {}  # (status, response) -> the operations that answer it
+    for operations in document.get("paths", {}).values():
+        for operation in operations.values():
+            for status, response in operation.get("responses", {}).items():
+                if status != "200" and "$ref" not in response:
+                    key = (status, json.dumps(response, sort_keys=True))
+                    found.setdefault(key, []).append(operation["operationId"])
+    kinds: dict[str, int] = {}
+    for status, _ in found:
+        kinds[status] = kinds.get(status, 0) + 1
+    names = {
+        key: f"Refusal{key[0]}" if kinds[key[0]] == 1 else f"Refusal{key[0]}_{operations[0]}"
+        for key, operations in found.items()
+    }
     for operations in document.get("paths", {}).values():
         for operation in operations.values():
             for status, response in operation.get("responses", {}).items():
                 if status == "200" or "$ref" in response:
                     continue
-                key = json.dumps(response, sort_keys=True)
-                if key not in names:
-                    base = f"Refusal{status}"
-                    taken = sum(1 for n in names.values() if n == base or n.startswith(base + "_"))
-                    names[key] = base if not taken else f"{base}_{taken + 1}"
-                    shared[names[key]] = response
-                operation["responses"][status] = {"$ref": f"#/components/responses/{names[key]}"}
+                name = names[(status, json.dumps(response, sort_keys=True))]
+                shared[name] = response
+                operation["responses"][status] = {"$ref": f"#/components/responses/{name}"}
 
 
 def index(document: dict[str, Any], *, page: bool) -> dict[str, Any]:
@@ -529,6 +569,7 @@ __all__ = [
     "ENDPOINT_ERRORS",
     "HEADERS",
     "ITEM_ERROR_CODES",
+    "TIMING_METRICS",
     "complete",
     "enum_tables",
     "index",

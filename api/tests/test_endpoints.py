@@ -139,6 +139,7 @@ def test_limits_are_the_settings(make_client: Callable[..., TestClient], check_r
         "body_max_bytes",
         "response_max_bytes",
         "request_seconds",
+        "queue_seconds",
         "search_seconds",
         "search_states",
         "rate_per_minute",
@@ -151,12 +152,24 @@ def test_limits_are_the_settings(make_client: Callable[..., TestClient], check_r
         "body_seconds",
         "answer_cache_bytes",
         "allowances_enforced",
+        "allowance_fields",
         "rate_concurrent_searches",
         "send_seconds",
         "send_min_bytes_per_second",
         "sending_max_bytes",
     }
     assert data["allowances_enforced"] is False  # rate_per_minute 0 turns every allowance off
+    # The allowances are named by the api (the page marks them as not applied here), each a field of this answer; the
+    # bounds of the server as a whole (the send's deadlines, the queue, the sizes) are not among them.
+    assert data["allowance_fields"] == [
+        "rate_per_minute",
+        "rate_burst",
+        "read_share",
+        "rate_search_seconds",
+        "rate_search_burst_seconds",
+        "rate_concurrent_searches",
+    ]
+    assert set(data["allowance_fields"]) <= set(data)
     too_many = client.post(f"{P}/organisms/pig/convert/batch", json={"identifiers": ["A"] * 8})
     assert too_many.status_code == 413
     assert "at most 7" in too_many.json()["error"]["message"]
@@ -283,7 +296,19 @@ def test_batch_equals_idtrack(client: TestClient, check_response: Callable[..., 
         reference = [r.to_dict() for r in cut_idtrack.convert_many(identifiers, **arguments)]
         assert data["count"] == len(identifiers)
         same_json(json.dumps(data["results"]).encode(), reference)
-        same_json(response.content, {"count": len(identifiers), "results": reference})
+        read = {
+            "from_release": None,
+            "to_release": None,
+            "final_database": None,
+            "from_database": None,
+            "explain": False,
+            "allow_bridges": True,
+            "read_copies": True,
+        } | arguments
+        same_json(
+            response.content,
+            {"organism": "sus_scrofa", "arguments": read, "count": len(identifiers), "results": reference},
+        )
 
 
 def test_batch_with_copies_equals_idtrack(
@@ -316,7 +341,9 @@ def test_batch_tsv(client: TestClient, check_response: Callable[..., Any], cut_i
     )
     assert response.status_code == 200
     assert response.headers["content-type"] == "text/tab-separated-values; charset=utf-8"
-    assert response.headers["content-disposition"] == 'attachment; filename="idtrack_sus_scrofa.tsv"'
+    # The file is named after what made it: the organism, the target release and the graph's digest.
+    digest = str(cut_idtrack.describe().content_digest)
+    assert response.headers["content-disposition"] == f'attachment; filename="idtrack_sus_scrofa_115_{digest[:12]}.tsv"'
     check_response(response, f"{P}/organisms/{{organism}}/convert/batch", "post")
     rows = list(csv.reader(io.StringIO(response.text), delimiter="\t", quoting=csv.QUOTE_NONE))
     assert tuple(rows[0]) == tsv.COLUMNS
@@ -361,7 +388,11 @@ def test_names(client: TestClient, check_response: Callable[..., Any], cut_idtra
             data = check_response(
                 client.get(f"{P}/organisms/pig/names-of", params=params), f"{P}/organisms/{{organism}}/names-of"
             )
-            assert data == {"matches": [m.to_dict() for m in cut_idtrack.names_of(gene, release)]}
+            assert data == {
+                "organism": "sus_scrofa",
+                "arguments": {"gene": gene, "release": release},
+                "matches": [m.to_dict() for m in cut_idtrack.names_of(gene, release)],
+            }
             seen_names += [m["name"] for m in data["matches"]]
     assert seen_names
     for name in sorted(set(seen_names))[:30]:
@@ -370,7 +401,11 @@ def test_names(client: TestClient, check_response: Callable[..., Any], cut_idtra
                 f"{P}/organisms/pig/genes-named", params={"name": name.lower(), "fold_case": str(fold_case).lower()}
             )
             data = check_response(response, f"{P}/organisms/{{organism}}/genes-named")
-            assert data == {"matches": [m.to_dict() for m in cut_idtrack.genes_named(name.lower(), fold_case)]}
+            assert data == {
+                "organism": "sus_scrofa",
+                "arguments": {"name": name.lower(), "fold_case": fold_case, "release": None},
+                "matches": [m.to_dict() for m in cut_idtrack.genes_named(name.lower(), fold_case)],
+            }
 
 
 def test_the_documentation_address_follows_the_setting(make_client: Callable[..., TestClient]) -> None:

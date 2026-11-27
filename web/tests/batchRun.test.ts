@@ -29,7 +29,8 @@ const body = (identifiers: string[]): Required<BatchRequest> => ({
 });
 
 function answerOf(results: ConversionResult[]): Answer<BatchResponse> {
-  const data = { count: results.length, results };
+  const { identifiers: _identifiers, ...args } = body([]);
+  const data = { organism: "sus_scrofa", arguments: args, count: results.length, results };
   return { data, raw: JSON.stringify(data), requestId: "r1", serverTiming: "app;dur=1.5" };
 }
 

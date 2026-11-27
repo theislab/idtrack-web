@@ -90,8 +90,28 @@ def test_malformed_bodies_are_4xx(
     assert not [r for r in caplog.records if r.levelno >= logging.ERROR]
 
 
-def test_many_unknown_body_keys_are_refused_cheaply(client: TestClient) -> None:
-    def refused(keys: int) -> float:
+def test_many_unknown_body_keys_are_refused_cheaply(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    # The work is counted, not timed (a time depends on what else the machine runs): every key of the body is read once
+    # by the parser's hook, the refusal is made once, and it lists 20 keys and counts the rest.
+    from idtrack_web_api import app as app_module
+
+    read: list[int] = []
+    made: list[int] = []
+    hook, refusal = app_module._no_duplicates, app_module.invalid_request_error  # noqa: SLF001 - its hook, counted
+
+    def counted_hook(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+        read.append(len(pairs))
+        return hook(pairs)
+
+    def counted_refusal(problems: list[dict[str, Any]], *rest: str) -> Any:
+        made.append(len(problems))
+        return refusal(problems, *rest)
+
+    monkeypatch.setattr(app_module, "_no_duplicates", counted_hook)
+    monkeypatch.setattr(app_module, "invalid_request_error", counted_refusal)
+    for keys in (20_000, 60_000):
+        read.clear()
+        made.clear()
         body = {"identifiers": ["A"], **{f"k{i}": 1 for i in range(keys)}}
         response = client.post(BATCH, json=body)
         assert code_of(response) == "invalid_request"
@@ -99,13 +119,8 @@ def test_many_unknown_body_keys_are_refused_cheaply(client: TestClient) -> None:
         assert len(error["details"]) == 20
         assert f"and {keys - 20} more" in error["message"]
         assert len(response.content) < 6000
-        return app_ms(response)
-
-    small, large = refused(20_000), refused(60_000)
-    # Linear in the keys (three times the keys, about three times the time; a quadratic count would be about nine
-    # times), and bounded outright, whatever else the machine runs.
-    assert large < 6 * max(small, 10.0)
-    assert large < 5000
+        assert read == [keys + 1]  # one object, each of its keys once
+        assert made == [keys]  # one refusal, of every unknown key
 
 
 def test_one_release_rule_in_query_and_body(client: TestClient) -> None:

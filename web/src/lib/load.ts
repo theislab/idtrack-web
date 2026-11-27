@@ -47,10 +47,11 @@ export const STATE_WORDS: Record<LoadState, string> = {
   waiting: "Reading",
 };
 
-/** Work that waits for a worker: searches queued for a search thread and connections in the listen queue (the
- *  kernel's count, `null` where it was not read). */
+/** Work that waits: the api's three disjoint counts (connections in the kernel's listen queue, searches in the queue
+ *  the workers share, searches waiting for a worker's own search thread), each `null` where it was not read. */
 export function workWaiting(status: StatusResponse): number {
-  return status.requests.searches_waiting + (status.requests.connections_waiting ?? 0);
+  const { searches_waiting, searches_queued, connections_waiting } = status.requests;
+  return searches_waiting + (searches_queued ?? 0) + (connections_waiting ?? 0);
 }
 
 /** The share of the memory limit the server's processes hold (their PSS summed), or `null` where either is unknown. */

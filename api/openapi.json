@@ -172,19 +172,19 @@
             }
           },
           "400": {
-            "$ref": "#/components/responses/Refusal400"
+            "$ref": "#/components/responses/Refusal400_index"
           },
           "405": {
-            "$ref": "#/components/responses/Refusal405"
+            "$ref": "#/components/responses/Refusal405_index"
           },
           "414": {
-            "$ref": "#/components/responses/Refusal414"
+            "$ref": "#/components/responses/Refusal414_index"
           },
           "429": {
             "$ref": "#/components/responses/Refusal429"
           },
           "500": {
-            "$ref": "#/components/responses/Refusal500"
+            "$ref": "#/components/responses/Refusal500_index"
           }
         }
       }
@@ -228,16 +228,16 @@
             }
           },
           "400": {
-            "$ref": "#/components/responses/Refusal400_2"
+            "$ref": "#/components/responses/Refusal400_health"
           },
           "405": {
-            "$ref": "#/components/responses/Refusal405_2"
+            "$ref": "#/components/responses/Refusal405_health"
           },
           "414": {
-            "$ref": "#/components/responses/Refusal414_2"
+            "$ref": "#/components/responses/Refusal414_health"
           },
           "500": {
-            "$ref": "#/components/responses/Refusal500_2"
+            "$ref": "#/components/responses/Refusal500_health"
           }
         }
       }
@@ -402,19 +402,19 @@
             }
           },
           "400": {
-            "$ref": "#/components/responses/Refusal400"
+            "$ref": "#/components/responses/Refusal400_index"
           },
           "405": {
-            "$ref": "#/components/responses/Refusal405"
+            "$ref": "#/components/responses/Refusal405_index"
           },
           "414": {
-            "$ref": "#/components/responses/Refusal414"
+            "$ref": "#/components/responses/Refusal414_index"
           },
           "429": {
             "$ref": "#/components/responses/Refusal429"
           },
           "500": {
-            "$ref": "#/components/responses/Refusal500"
+            "$ref": "#/components/responses/Refusal500_index"
           }
         }
       }
@@ -549,19 +549,19 @@
             }
           },
           "400": {
-            "$ref": "#/components/responses/Refusal400"
+            "$ref": "#/components/responses/Refusal400_index"
           },
           "405": {
-            "$ref": "#/components/responses/Refusal405"
+            "$ref": "#/components/responses/Refusal405_index"
           },
           "414": {
-            "$ref": "#/components/responses/Refusal414"
+            "$ref": "#/components/responses/Refusal414_index"
           },
           "429": {
             "$ref": "#/components/responses/Refusal429"
           },
           "500": {
-            "$ref": "#/components/responses/Refusal500"
+            "$ref": "#/components/responses/Refusal500_index"
           }
         }
       }
@@ -799,19 +799,19 @@
             }
           },
           "400": {
-            "$ref": "#/components/responses/Refusal400"
+            "$ref": "#/components/responses/Refusal400_index"
           },
           "405": {
-            "$ref": "#/components/responses/Refusal405"
+            "$ref": "#/components/responses/Refusal405_index"
           },
           "414": {
-            "$ref": "#/components/responses/Refusal414"
+            "$ref": "#/components/responses/Refusal414_index"
           },
           "429": {
             "$ref": "#/components/responses/Refusal429"
           },
           "500": {
-            "$ref": "#/components/responses/Refusal500"
+            "$ref": "#/components/responses/Refusal500_index"
           }
         }
       }
@@ -838,6 +838,7 @@
                   "body_max_bytes": 1048576,
                   "response_max_bytes": 33554432,
                   "request_seconds": 20.0,
+                  "queue_seconds": 10.0,
                   "search_seconds": 10.0,
                   "search_states": 200000,
                   "rate_per_minute": 0,
@@ -850,6 +851,14 @@
                   "body_seconds": 30.0,
                   "answer_cache_bytes": 67108864,
                   "allowances_enforced": false,
+                  "allowance_fields": [
+                    "rate_per_minute",
+                    "rate_burst",
+                    "read_share",
+                    "rate_search_seconds",
+                    "rate_search_burst_seconds",
+                    "rate_concurrent_searches"
+                  ],
                   "rate_concurrent_searches": 2,
                   "send_seconds": 30.0,
                   "send_min_bytes_per_second": 65536,
@@ -880,19 +889,19 @@
             }
           },
           "400": {
-            "$ref": "#/components/responses/Refusal400"
+            "$ref": "#/components/responses/Refusal400_index"
           },
           "405": {
-            "$ref": "#/components/responses/Refusal405"
+            "$ref": "#/components/responses/Refusal405_index"
           },
           "414": {
-            "$ref": "#/components/responses/Refusal414"
+            "$ref": "#/components/responses/Refusal414_index"
           },
           "429": {
             "$ref": "#/components/responses/Refusal429"
           },
           "500": {
-            "$ref": "#/components/responses/Refusal500"
+            "$ref": "#/components/responses/Refusal500_index"
           }
         }
       }
@@ -1495,19 +1504,19 @@
             }
           },
           "400": {
-            "$ref": "#/components/responses/Refusal400"
+            "$ref": "#/components/responses/Refusal400_index"
           },
           "405": {
-            "$ref": "#/components/responses/Refusal405"
+            "$ref": "#/components/responses/Refusal405_index"
           },
           "414": {
-            "$ref": "#/components/responses/Refusal414"
+            "$ref": "#/components/responses/Refusal414_index"
           },
           "429": {
             "$ref": "#/components/responses/Refusal429"
           },
           "500": {
-            "$ref": "#/components/responses/Refusal500"
+            "$ref": "#/components/responses/Refusal500_index"
           }
         }
       }
@@ -1527,9 +1536,7 @@
             "required": true,
             "schema": {
               "type": "string",
-              "maxLength": 100,
-              "description": "The organism: its Ensembl production name (`homo_sapiens`), with spaces or in any letter case (`Homo sapiens`), or a short name idtrack declares (`human`, `pig`); the names a server holds: `names` of `GET /organisms`.",
-              "title": "Organism"
+              "maxLength": 100
             },
             "description": "The organism: its Ensembl production name (`homo_sapiens`), with spaces or in any letter case (`Homo sapiens`), or a short name idtrack declares (`human`, `pig`); the names a server holds: `names` of `GET /organisms`.",
             "example": "homo_sapiens"
@@ -2119,22 +2126,22 @@
             }
           },
           "400": {
-            "$ref": "#/components/responses/Refusal400"
+            "$ref": "#/components/responses/Refusal400_index"
           },
           "404": {
             "$ref": "#/components/responses/Refusal404"
           },
           "405": {
-            "$ref": "#/components/responses/Refusal405"
+            "$ref": "#/components/responses/Refusal405_index"
           },
           "414": {
-            "$ref": "#/components/responses/Refusal414"
+            "$ref": "#/components/responses/Refusal414_index"
           },
           "429": {
             "$ref": "#/components/responses/Refusal429"
           },
           "500": {
-            "$ref": "#/components/responses/Refusal500"
+            "$ref": "#/components/responses/Refusal500_index"
           }
         }
       }
@@ -2154,9 +2161,7 @@
             "required": true,
             "schema": {
               "type": "string",
-              "maxLength": 100,
-              "description": "The organism: its Ensembl production name (`homo_sapiens`), with spaces or in any letter case (`Homo sapiens`), or a short name idtrack declares (`human`, `pig`); the names a server holds: `names` of `GET /organisms`.",
-              "title": "Organism"
+              "maxLength": 100
             },
             "description": "The organism: its Ensembl production name (`homo_sapiens`), with spaces or in any letter case (`Homo sapiens`), or a short name idtrack declares (`human`, `pig`); the names a server holds: `names` of `GET /organisms`.",
             "example": "homo_sapiens"
@@ -2175,9 +2180,7 @@
                 {
                   "type": "null"
                 }
-              ],
-              "description": "The target release; omitted: the snapshot release. An Ensembl release, a whole number from 0 to 999999999 (anything else is `400 invalid_request`); whether the graph covers it is idtrack's to answer (`400 unknown_release`, with the graph's releases in `allowed`: `GET /organisms/{organism}` lists them as `releases`).",
-              "title": "To Release"
+              ]
             },
             "description": "The target release; omitted: the snapshot release. An Ensembl release, a whole number from 0 to 999999999 (anything else is `400 invalid_request`); whether the graph covers it is idtrack's to answer (`400 unknown_release`, with the graph's releases in `allowed`: `GET /organisms/{organism}` lists them as `releases`).",
             "example": 100
@@ -2255,22 +2258,22 @@
             }
           },
           "400": {
-            "$ref": "#/components/responses/Refusal400_3"
+            "$ref": "#/components/responses/Refusal400_final_databases"
           },
           "404": {
             "$ref": "#/components/responses/Refusal404"
           },
           "405": {
-            "$ref": "#/components/responses/Refusal405"
+            "$ref": "#/components/responses/Refusal405_index"
           },
           "414": {
-            "$ref": "#/components/responses/Refusal414"
+            "$ref": "#/components/responses/Refusal414_index"
           },
           "429": {
             "$ref": "#/components/responses/Refusal429"
           },
           "500": {
-            "$ref": "#/components/responses/Refusal500"
+            "$ref": "#/components/responses/Refusal500_index"
           }
         }
       }
@@ -2290,9 +2293,7 @@
             "required": true,
             "schema": {
               "type": "string",
-              "maxLength": 100,
-              "description": "The organism: its Ensembl production name (`homo_sapiens`), with spaces or in any letter case (`Homo sapiens`), or a short name idtrack declares (`human`, `pig`); the names a server holds: `names` of `GET /organisms`.",
-              "title": "Organism"
+              "maxLength": 100
             },
             "description": "The organism: its Ensembl production name (`homo_sapiens`), with spaces or in any letter case (`Homo sapiens`), or a short name idtrack declares (`human`, `pig`); the names a server holds: `names` of `GET /organisms`.",
             "example": "homo_sapiens"
@@ -2827,22 +2828,22 @@
             }
           },
           "400": {
-            "$ref": "#/components/responses/Refusal400"
+            "$ref": "#/components/responses/Refusal400_index"
           },
           "404": {
             "$ref": "#/components/responses/Refusal404"
           },
           "405": {
-            "$ref": "#/components/responses/Refusal405"
+            "$ref": "#/components/responses/Refusal405_index"
           },
           "414": {
-            "$ref": "#/components/responses/Refusal414"
+            "$ref": "#/components/responses/Refusal414_index"
           },
           "429": {
             "$ref": "#/components/responses/Refusal429"
           },
           "500": {
-            "$ref": "#/components/responses/Refusal500"
+            "$ref": "#/components/responses/Refusal500_index"
           }
         }
       }
@@ -2862,9 +2863,7 @@
             "required": true,
             "schema": {
               "type": "string",
-              "maxLength": 100,
-              "description": "The organism: its Ensembl production name (`homo_sapiens`), with spaces or in any letter case (`Homo sapiens`), or a short name idtrack declares (`human`, `pig`); the names a server holds: `names` of `GET /organisms`.",
-              "title": "Organism"
+              "maxLength": 100
             },
             "description": "The organism: its Ensembl production name (`homo_sapiens`), with spaces or in any letter case (`Homo sapiens`), or a short name idtrack declares (`human`, `pig`); the names a server holds: `names` of `GET /organisms`.",
             "example": "homo_sapiens"
@@ -4789,22 +4788,22 @@
             }
           },
           "400": {
-            "$ref": "#/components/responses/Refusal400"
+            "$ref": "#/components/responses/Refusal400_index"
           },
           "404": {
             "$ref": "#/components/responses/Refusal404"
           },
           "405": {
-            "$ref": "#/components/responses/Refusal405"
+            "$ref": "#/components/responses/Refusal405_index"
           },
           "414": {
-            "$ref": "#/components/responses/Refusal414"
+            "$ref": "#/components/responses/Refusal414_index"
           },
           "429": {
             "$ref": "#/components/responses/Refusal429"
           },
           "500": {
-            "$ref": "#/components/responses/Refusal500"
+            "$ref": "#/components/responses/Refusal500_index"
           }
         }
       }
@@ -4824,9 +4823,7 @@
             "required": true,
             "schema": {
               "type": "string",
-              "maxLength": 100,
-              "description": "The organism: its Ensembl production name (`homo_sapiens`), with spaces or in any letter case (`Homo sapiens`), or a short name idtrack declares (`human`, `pig`); the names a server holds: `names` of `GET /organisms`.",
-              "title": "Organism"
+              "maxLength": 100
             },
             "description": "The organism: its Ensembl production name (`homo_sapiens`), with spaces or in any letter case (`Homo sapiens`), or a short name idtrack declares (`human`, `pig`); the names a server holds: `names` of `GET /organisms`.",
             "example": "homo_sapiens"
@@ -5354,22 +5351,22 @@
             }
           },
           "400": {
-            "$ref": "#/components/responses/Refusal400"
+            "$ref": "#/components/responses/Refusal400_index"
           },
           "404": {
             "$ref": "#/components/responses/Refusal404"
           },
           "405": {
-            "$ref": "#/components/responses/Refusal405"
+            "$ref": "#/components/responses/Refusal405_index"
           },
           "414": {
-            "$ref": "#/components/responses/Refusal414"
+            "$ref": "#/components/responses/Refusal414_index"
           },
           "429": {
             "$ref": "#/components/responses/Refusal429"
           },
           "500": {
-            "$ref": "#/components/responses/Refusal500"
+            "$ref": "#/components/responses/Refusal500_index"
           }
         }
       }
@@ -5389,9 +5386,7 @@
             "required": true,
             "schema": {
               "type": "string",
-              "maxLength": 100,
-              "description": "The organism: its Ensembl production name (`homo_sapiens`), with spaces or in any letter case (`Homo sapiens`), or a short name idtrack declares (`human`, `pig`); the names a server holds: `names` of `GET /organisms`.",
-              "title": "Organism"
+              "maxLength": 100
             },
             "description": "The organism: its Ensembl production name (`homo_sapiens`), with spaces or in any letter case (`Homo sapiens`), or a short name idtrack declares (`human`, `pig`); the names a server holds: `names` of `GET /organisms`.",
             "example": "homo_sapiens"
@@ -5401,9 +5396,7 @@
             "in": "query",
             "required": true,
             "schema": {
-              "type": "string",
-              "description": "An Ensembl id (with or without version), a symbol or another id of a database the graph holds (`external_databases` of `GET /organisms/{organism}`). White space at its ends is no part of it.",
-              "title": "Identifier"
+              "type": "string"
             },
             "description": "An Ensembl id (with or without version), a symbol or another id of a database the graph holds (`external_databases` of `GET /organisms/{organism}`). White space at its ends is no part of it.",
             "example": "ENSG00000141510"
@@ -5422,9 +5415,7 @@
                 {
                   "type": "null"
                 }
-              ],
-              "description": "The release it is read at; omitted: inferred. Without it, an identifier is read at the target release if it exists there, and otherwise at the latest release at which it exists (idtrack's rule, the same for Ensembl ids, symbols and other databases' ids); the result says which release was used (`from_release`) and whether it was chosen (`from_release_inferred`). So a symbol sent without `from_release` is read as what it names at the target release, not as what it named years ago: give the release of the list's source to read it as it was then (`POST .../source-inference` finds it for a list). An Ensembl release, a whole number from 0 to 999999999 (anything else is `400 invalid_request`); whether the graph covers it is idtrack's to answer (`400 unknown_release`, with the graph's releases in `allowed`: `GET /organisms/{organism}` lists them as `releases`).",
-              "title": "From Release"
+              ]
             },
             "description": "The release it is read at; omitted: inferred. Without it, an identifier is read at the target release if it exists there, and otherwise at the latest release at which it exists (idtrack's rule, the same for Ensembl ids, symbols and other databases' ids); the result says which release was used (`from_release`) and whether it was chosen (`from_release_inferred`). So a symbol sent without `from_release` is read as what it names at the target release, not as what it named years ago: give the release of the list's source to read it as it was then (`POST .../source-inference` finds it for a list). An Ensembl release, a whole number from 0 to 999999999 (anything else is `400 invalid_request`); whether the graph covers it is idtrack's to answer (`400 unknown_release`, with the graph's releases in `allowed`: `GET /organisms/{organism}` lists them as `releases`).",
             "example": 100
@@ -5443,9 +5434,7 @@
                 {
                   "type": "null"
                 }
-              ],
-              "description": "The target release; omitted: the snapshot release. An Ensembl release, a whole number from 0 to 999999999 (anything else is `400 invalid_request`); whether the graph covers it is idtrack's to answer (`400 unknown_release`, with the graph's releases in `allowed`: `GET /organisms/{organism}` lists them as `releases`).",
-              "title": "To Release"
+              ]
             },
             "description": "The target release; omitted: the snapshot release. An Ensembl release, a whole number from 0 to 999999999 (anything else is `400 invalid_request`); whether the graph covers it is idtrack's to answer (`400 unknown_release`, with the graph's releases in `allowed`: `GET /organisms/{organism}` lists them as `releases`)."
           },
@@ -5462,10 +5451,8 @@
                   "type": "null"
                 }
               ],
-              "description": "The database of the targets; omitted: `ensembl_gene`. The values a release takes: `GET /organisms/{organism}/final-databases?to_release=`; what each holds: `kind` of `GET /organisms/{organism}/databases` (NCBI's gene numbers are `EntrezGene`, its symbols `NCBI gene (formerly Entrezgene)`).",
               "minLength": 1,
-              "maxLength": 200,
-              "title": "Final Database"
+              "maxLength": 200
             },
             "description": "The database of the targets; omitted: `ensembl_gene`. The values a release takes: `GET /organisms/{organism}/final-databases?to_release=`; what each holds: `kind` of `GET /organisms/{organism}/databases` (NCBI's gene numbers are `EntrezGene`, its symbols `NCBI gene (formerly Entrezgene)`).",
             "example": "HGNC Symbol"
@@ -5483,10 +5470,8 @@
                   "type": "null"
                 }
               ],
-              "description": "The database the identifier is meant in; omitted: any. The values: `external_databases` of `GET /organisms/{organism}` (a database's synonyms are read under its name).",
               "minLength": 1,
-              "maxLength": 200,
-              "title": "From Database"
+              "maxLength": 200
             },
             "description": "The database the identifier is meant in; omitted: any. The values: `external_databases` of `GET /organisms/{organism}` (a database's synonyms are read under its name)."
           },
@@ -5496,9 +5481,7 @@
             "required": false,
             "schema": {
               "type": "boolean",
-              "description": "Add the path of every candidate (`path`); it makes answers much larger. Written true or false.",
-              "default": false,
-              "title": "Explain"
+              "default": false
             },
             "description": "Add the path of every candidate (`path`); it makes answers much larger. Written true or false."
           },
@@ -5508,9 +5491,7 @@
             "required": false,
             "schema": {
               "type": "boolean",
-              "description": "Allow bridges through ids two genes share when history ends. Written true or false.",
-              "default": true,
-              "title": "Allow Bridges"
+              "default": true
             },
             "description": "Allow bridges through ids two genes share when history ends. Written true or false."
           }
@@ -5607,28 +5588,28 @@
             }
           },
           "400": {
-            "$ref": "#/components/responses/Refusal400_4"
+            "$ref": "#/components/responses/Refusal400_convert"
           },
           "404": {
             "$ref": "#/components/responses/Refusal404"
           },
           "405": {
-            "$ref": "#/components/responses/Refusal405"
+            "$ref": "#/components/responses/Refusal405_index"
           },
           "408": {
             "$ref": "#/components/responses/Refusal408"
           },
           "414": {
-            "$ref": "#/components/responses/Refusal414"
+            "$ref": "#/components/responses/Refusal414_index"
           },
           "422": {
-            "$ref": "#/components/responses/Refusal422"
+            "$ref": "#/components/responses/Refusal422_convert"
           },
           "429": {
             "$ref": "#/components/responses/Refusal429"
           },
           "500": {
-            "$ref": "#/components/responses/Refusal500"
+            "$ref": "#/components/responses/Refusal500_index"
           },
           "503": {
             "$ref": "#/components/responses/Refusal503"
@@ -5651,9 +5632,7 @@
             "required": true,
             "schema": {
               "type": "string",
-              "maxLength": 100,
-              "description": "The organism: its Ensembl production name (`homo_sapiens`), with spaces or in any letter case (`Homo sapiens`), or a short name idtrack declares (`human`, `pig`); the names a server holds: `names` of `GET /organisms`.",
-              "title": "Organism"
+              "maxLength": 100
             },
             "description": "The organism: its Ensembl production name (`homo_sapiens`), with spaces or in any letter case (`Homo sapiens`), or a short name idtrack declares (`human`, `pig`); the names a server holds: `names` of `GET /organisms`.",
             "example": "homo_sapiens"
@@ -5663,9 +5642,7 @@
             "in": "query",
             "required": true,
             "schema": {
-              "type": "string",
-              "description": "An Ensembl id (with or without version), a symbol or another id of a database the graph holds (`external_databases` of `GET /organisms/{organism}`). White space at its ends is no part of it.",
-              "title": "Identifier"
+              "type": "string"
             },
             "description": "An Ensembl id (with or without version), a symbol or another id of a database the graph holds (`external_databases` of `GET /organisms/{organism}`). White space at its ends is no part of it.",
             "example": "TP53"
@@ -5684,9 +5661,7 @@
                 {
                   "type": "null"
                 }
-              ],
-              "description": "The release it is read at; omitted: inferred. Without it, an identifier is read at the target release if it exists there, and otherwise at the latest release at which it exists (idtrack's rule, the same for Ensembl ids, symbols and other databases' ids); the result says which release was used (`from_release`) and whether it was chosen (`from_release_inferred`). So a symbol sent without `from_release` is read as what it names at the target release, not as what it named years ago: give the release of the list's source to read it as it was then (`POST .../source-inference` finds it for a list). An Ensembl release, a whole number from 0 to 999999999 (anything else is `400 invalid_request`); whether the graph covers it is idtrack's to answer (`400 unknown_release`, with the graph's releases in `allowed`: `GET /organisms/{organism}` lists them as `releases`).",
-              "title": "From Release"
+              ]
             },
             "description": "The release it is read at; omitted: inferred. Without it, an identifier is read at the target release if it exists there, and otherwise at the latest release at which it exists (idtrack's rule, the same for Ensembl ids, symbols and other databases' ids); the result says which release was used (`from_release`) and whether it was chosen (`from_release_inferred`). So a symbol sent without `from_release` is read as what it names at the target release, not as what it named years ago: give the release of the list's source to read it as it was then (`POST .../source-inference` finds it for a list). An Ensembl release, a whole number from 0 to 999999999 (anything else is `400 invalid_request`); whether the graph covers it is idtrack's to answer (`400 unknown_release`, with the graph's releases in `allowed`: `GET /organisms/{organism}` lists them as `releases`)."
           },
@@ -5704,9 +5679,7 @@
                 {
                   "type": "null"
                 }
-              ],
-              "description": "The target release; omitted: the snapshot release. An Ensembl release, a whole number from 0 to 999999999 (anything else is `400 invalid_request`); whether the graph covers it is idtrack's to answer (`400 unknown_release`, with the graph's releases in `allowed`: `GET /organisms/{organism}` lists them as `releases`).",
-              "title": "To Release"
+              ]
             },
             "description": "The target release; omitted: the snapshot release. An Ensembl release, a whole number from 0 to 999999999 (anything else is `400 invalid_request`); whether the graph covers it is idtrack's to answer (`400 unknown_release`, with the graph's releases in `allowed`: `GET /organisms/{organism}` lists them as `releases`).",
             "example": 115
@@ -5724,10 +5697,8 @@
                   "type": "null"
                 }
               ],
-              "description": "The database the identifier is meant in; omitted: any. The values: `external_databases` of `GET /organisms/{organism}` (a database's synonyms are read under its name).",
               "minLength": 1,
-              "maxLength": 200,
-              "title": "From Database"
+              "maxLength": 200
             },
             "description": "The database the identifier is meant in; omitted: any. The values: `external_databases` of `GET /organisms/{organism}` (a database's synonyms are read under its name)."
           },
@@ -5737,9 +5708,7 @@
             "required": false,
             "schema": {
               "type": "boolean",
-              "description": "Allow bridges through ids two genes share when history ends. Written true or false.",
-              "default": true,
-              "title": "Allow Bridges"
+              "default": true
             },
             "description": "Allow bridges through ids two genes share when history ends. Written true or false."
           }
@@ -5754,6 +5723,13 @@
                 },
                 "example": {
                   "organism": "homo_sapiens",
+                  "arguments": {
+                    "identifier": "TP53",
+                    "from_release": null,
+                    "to_release": 115,
+                    "from_database": null,
+                    "allow_bridges": true
+                  },
                   "to_release": 115,
                   "conversions": [
                     {
@@ -6571,28 +6547,28 @@
             }
           },
           "400": {
-            "$ref": "#/components/responses/Refusal400_4"
+            "$ref": "#/components/responses/Refusal400_convert"
           },
           "404": {
             "$ref": "#/components/responses/Refusal404"
           },
           "405": {
-            "$ref": "#/components/responses/Refusal405"
+            "$ref": "#/components/responses/Refusal405_index"
           },
           "408": {
             "$ref": "#/components/responses/Refusal408"
           },
           "414": {
-            "$ref": "#/components/responses/Refusal414"
+            "$ref": "#/components/responses/Refusal414_index"
           },
           "422": {
-            "$ref": "#/components/responses/Refusal422"
+            "$ref": "#/components/responses/Refusal422_convert"
           },
           "429": {
             "$ref": "#/components/responses/Refusal429"
           },
           "500": {
-            "$ref": "#/components/responses/Refusal500"
+            "$ref": "#/components/responses/Refusal500_index"
           },
           "503": {
             "$ref": "#/components/responses/Refusal503"
@@ -6615,9 +6591,7 @@
             "required": true,
             "schema": {
               "type": "string",
-              "maxLength": 100,
-              "description": "The organism: its Ensembl production name (`homo_sapiens`), with spaces or in any letter case (`Homo sapiens`), or a short name idtrack declares (`human`, `pig`); the names a server holds: `names` of `GET /organisms`.",
-              "title": "Organism"
+              "maxLength": 100
             },
             "description": "The organism: its Ensembl production name (`homo_sapiens`), with spaces or in any letter case (`Homo sapiens`), or a short name idtrack declares (`human`, `pig`); the names a server holds: `names` of `GET /organisms`.",
             "example": "homo_sapiens"
@@ -6632,11 +6606,19 @@
                 "tsv"
               ],
               "type": "string",
-              "description": "`json` (default) or `tsv`: a table with one row per candidate, one for a result without candidates (its columns: the description of the `200` answer's `text/tab-separated-values`).",
-              "default": "json",
-              "title": "Format"
+              "default": "json"
             },
             "description": "`json` (default) or `tsv`: a table with one row per candidate, one for a result without candidates (its columns: the description of the `200` answer's `text/tab-separated-values`)."
+          },
+          {
+            "name": "provenance",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false
+            },
+            "description": "With `format=tsv`: write one line before the header, beginning with `#`, that names the api's and idtrack's versions, the organism, the graph's content digest, the arguments and the request's id, so a saved table stays tied to what produced it (a reader of the table skips it as a comment). Not taken with `format=json`, whose answer and headers carry the same. Written true or false."
           }
         ],
         "responses": {
@@ -6648,6 +6630,16 @@
                   "$ref": "#/components/schemas/BatchResponse"
                 },
                 "example": {
+                  "organism": "homo_sapiens",
+                  "arguments": {
+                    "from_release": null,
+                    "to_release": null,
+                    "final_database": null,
+                    "from_database": null,
+                    "explain": false,
+                    "allow_bridges": true,
+                    "read_copies": true
+                  },
                   "count": 3,
                   "results": [
                     {
@@ -6796,55 +6788,239 @@
               "text/tab-separated-values": {
                 "schema": {
                   "type": "string",
-                  "description": "A table of tab-separated values, UTF-8, each line ending in a line feed: the first line names the columns, then one row per candidate of each result in input order (a result without candidates: one row, its candidate columns empty). A result's columns repeat on each of its rows. Values as JSON writes them: an empty cell for `null`, `true` and `false`, numbers as written in the JSON answer (nothing rounded), a list's items joined by `;`. The explained path (`path`, `final_path`) is not in the table: ask for JSON. The columns, in order:\n\n| Column | What it holds |\n| --- | --- |\n| `input_index` | The item's place in the batch, from 0 (the result's place in `results`). |\n| `query_id` | `query_id`: the identifier as sent (escaped: a backslash before `\\`, `t`, `n`, `r`). |\n| `status` | `status` of the result |\n| `reason` | `reason` of the result |\n| `reasons` | `reasons` of the result |\n| `graph_id` | `graph_id` of the result |\n| `match` | `match` of the result |\n| `known_versions` | `known_versions` of the result |\n| `from_release` | `from_release` of the result |\n| `from_release_inferred` | `from_release_inferred` of the result |\n| `from_release_given` | `from_release_given` of the result |\n| `from_release_fallback` | `from_release_fallback` of the result |\n| `from_databases` | `from_databases` of the result |\n| `to_release` | `to_release` of the result |\n| `final_database` | `final_database` of the result |\n| `candidate_count` | The number of the result's candidates (its rows; 0 on the one row of a result without any). |\n| `tie` | `tie` of the result |\n| `decided_by` | `decided_by` of the result |\n| `alternative_locus_genes` | `alternative_locus_genes` of the result |\n| `no_target` | `no_target` of the result |\n| `no_target_genes` | `no_target_genes` of the result |\n| `other_readings` | `other_readings` as compact JSON (empty for none). |\n| `error_code` | The api's code of the item's error (`error.code`; `errors` of `GET /api/v1/vocabulary`). |\n| `error_type` | `error.type`: the class of idtrack's error. |\n| `error_message` | `error.message` (escaped as `query_id`). |\n| `error_input_error` | `error.input_error`. |\n| `rank` | The candidate's place in `candidates`, from 1 (empty on the row of a result without candidates). |\n| `best` | `best` of the candidate |\n| `gene` | `gene` of the candidate |\n| `target` | `target` of the candidate |\n| `entry_gene` | `entry_gene` of the candidate |\n| `entry_databases` | `entry_databases` of the candidate |\n| `authority` | `authority` of the candidate |\n| `display_name` | `display_name` of the candidate |\n| `display_rank` | `display_rank` of the candidate |\n| `entry_support` | `entry_support` of the candidate |\n| `own_version` | `own_version` of the candidate |\n| `final_confidence` | `final_confidence` of the candidate |\n| `bridges` | `bridges` of the candidate |\n| `bridge_gap` | `bridge_gap` of the candidate |\n| `score` | `score` of the candidate |\n| `unscored_steps` | `unscored_steps` of the candidate |\n| `same_as_query` | `same_as_query` of the candidate |\n| `external_steps` | `external_steps` of the candidate |\n| `history_steps` | `history_steps` of the candidate |\n| `annotation` | `annotation` of the candidate |"
+                  "description": "A table of tab-separated values, UTF-8, each line ending in a line feed: the first line names the columns, then one row per candidate of each result in input order (a result without candidates: one row, its candidate columns empty). A result's columns repeat on each of its rows. Each value as the JSON answer writes it: `null` as an empty cell; `true` and `false` as those words; a number as written in the JSON answer (nothing rounded); a list's items joined by `;`. The explained path (`path`, `final_path`) is not in the table: ask for JSON. With `provenance=true`, one line before the header begins with `#` and names the graph and the request (`Content-Disposition` names the file after the organism, the target release and the graph's digest). The columns, in order (also as `x-columns`):\n\n| Column | Of | What it holds |\n| --- | --- | --- |\n| `input_index` | result | The item's place in the batch, from 0 (the result's place in `results`). |\n| `query_id` | result | `query_id`: the identifier as sent (escaped: a backslash before `\\`, `t`, `n`, `r`). |\n| `status` | result | `status` of the result. |\n| `reason` | result | `reason` of the result. |\n| `reasons` | result | `reasons` of the result. |\n| `graph_id` | result | `graph_id` of the result. |\n| `match` | result | `match` of the result. |\n| `known_versions` | result | `known_versions` of the result. |\n| `from_release` | result | `from_release` of the result. |\n| `from_release_inferred` | result | `from_release_inferred` of the result. |\n| `from_release_given` | result | `from_release_given` of the result. |\n| `from_release_fallback` | result | `from_release_fallback` of the result. |\n| `from_databases` | result | `from_databases` of the result. |\n| `to_release` | result | `to_release` of the result. |\n| `final_database` | result | `final_database` of the result. |\n| `candidate_count` | result | The number of the result's candidates (its rows; 0 on the one row of a result without any). |\n| `tie` | result | `tie` of the result. |\n| `decided_by` | result | `decided_by` of the result. |\n| `alternative_locus_genes` | result | `alternative_locus_genes` of the result. |\n| `no_target` | result | `no_target` of the result. |\n| `no_target_genes` | result | `no_target_genes` of the result. |\n| `other_readings` | result | `other_readings` as compact JSON (empty for none). |\n| `error_code` | error | The api's code of the item's error (`error.code`; `errors` of `GET /api/v1/vocabulary`). |\n| `error_type` | error | `error.type`: the class of idtrack's error. |\n| `error_message` | error | `error.message` (escaped as `query_id`). |\n| `error_input_error` | error | `error.input_error`. |\n| `rank` | candidate | The candidate's place in `candidates`, from 1 (empty on the row of a result without candidates). |\n| `best` | candidate | `best` of the candidate. |\n| `gene` | candidate | `gene` of the candidate. |\n| `target` | candidate | `target` of the candidate. |\n| `entry_gene` | candidate | `entry_gene` of the candidate. |\n| `entry_databases` | candidate | `entry_databases` of the candidate. |\n| `authority` | candidate | `authority` of the candidate. |\n| `display_name` | candidate | `display_name` of the candidate. |\n| `display_rank` | candidate | `display_rank` of the candidate. |\n| `entry_support` | candidate | `entry_support` of the candidate. |\n| `own_version` | candidate | `own_version` of the candidate. |\n| `final_confidence` | candidate | `final_confidence` of the candidate. |\n| `bridges` | candidate | `bridges` of the candidate. |\n| `bridge_gap` | candidate | `bridge_gap` of the candidate. |\n| `score` | candidate | `score` of the candidate. |\n| `unscored_steps` | candidate | `unscored_steps` of the candidate. |\n| `same_as_query` | candidate | `same_as_query` of the candidate. |\n| `external_steps` | candidate | `external_steps` of the candidate. |\n| `history_steps` | candidate | `history_steps` of the candidate. |\n| `annotation` | candidate | `annotation` of the candidate. |"
                 },
                 "x-columns": [
-                  "input_index",
-                  "query_id",
-                  "status",
-                  "reason",
-                  "reasons",
-                  "graph_id",
-                  "match",
-                  "known_versions",
-                  "from_release",
-                  "from_release_inferred",
-                  "from_release_given",
-                  "from_release_fallback",
-                  "from_databases",
-                  "to_release",
-                  "final_database",
-                  "candidate_count",
-                  "tie",
-                  "decided_by",
-                  "alternative_locus_genes",
-                  "no_target",
-                  "no_target_genes",
-                  "other_readings",
-                  "error_code",
-                  "error_type",
-                  "error_message",
-                  "error_input_error",
-                  "rank",
-                  "best",
-                  "gene",
-                  "target",
-                  "entry_gene",
-                  "entry_databases",
-                  "authority",
-                  "display_name",
-                  "display_rank",
-                  "entry_support",
-                  "own_version",
-                  "final_confidence",
-                  "bridges",
-                  "bridge_gap",
-                  "score",
-                  "unscored_steps",
-                  "same_as_query",
-                  "external_steps",
-                  "history_steps",
-                  "annotation"
+                  {
+                    "name": "input_index",
+                    "group": "result",
+                    "description": "The item's place in the batch, from 0 (the result's place in `results`)."
+                  },
+                  {
+                    "name": "query_id",
+                    "group": "result",
+                    "description": "`query_id`: the identifier as sent (escaped: a backslash before `\\`, `t`, `n`, `r`)."
+                  },
+                  {
+                    "name": "status",
+                    "group": "result",
+                    "description": "`status` of the result."
+                  },
+                  {
+                    "name": "reason",
+                    "group": "result",
+                    "description": "`reason` of the result."
+                  },
+                  {
+                    "name": "reasons",
+                    "group": "result",
+                    "description": "`reasons` of the result."
+                  },
+                  {
+                    "name": "graph_id",
+                    "group": "result",
+                    "description": "`graph_id` of the result."
+                  },
+                  {
+                    "name": "match",
+                    "group": "result",
+                    "description": "`match` of the result."
+                  },
+                  {
+                    "name": "known_versions",
+                    "group": "result",
+                    "description": "`known_versions` of the result."
+                  },
+                  {
+                    "name": "from_release",
+                    "group": "result",
+                    "description": "`from_release` of the result."
+                  },
+                  {
+                    "name": "from_release_inferred",
+                    "group": "result",
+                    "description": "`from_release_inferred` of the result."
+                  },
+                  {
+                    "name": "from_release_given",
+                    "group": "result",
+                    "description": "`from_release_given` of the result."
+                  },
+                  {
+                    "name": "from_release_fallback",
+                    "group": "result",
+                    "description": "`from_release_fallback` of the result."
+                  },
+                  {
+                    "name": "from_databases",
+                    "group": "result",
+                    "description": "`from_databases` of the result."
+                  },
+                  {
+                    "name": "to_release",
+                    "group": "result",
+                    "description": "`to_release` of the result."
+                  },
+                  {
+                    "name": "final_database",
+                    "group": "result",
+                    "description": "`final_database` of the result."
+                  },
+                  {
+                    "name": "candidate_count",
+                    "group": "result",
+                    "description": "The number of the result's candidates (its rows; 0 on the one row of a result without any)."
+                  },
+                  {
+                    "name": "tie",
+                    "group": "result",
+                    "description": "`tie` of the result."
+                  },
+                  {
+                    "name": "decided_by",
+                    "group": "result",
+                    "description": "`decided_by` of the result."
+                  },
+                  {
+                    "name": "alternative_locus_genes",
+                    "group": "result",
+                    "description": "`alternative_locus_genes` of the result."
+                  },
+                  {
+                    "name": "no_target",
+                    "group": "result",
+                    "description": "`no_target` of the result."
+                  },
+                  {
+                    "name": "no_target_genes",
+                    "group": "result",
+                    "description": "`no_target_genes` of the result."
+                  },
+                  {
+                    "name": "other_readings",
+                    "group": "result",
+                    "description": "`other_readings` as compact JSON (empty for none)."
+                  },
+                  {
+                    "name": "error_code",
+                    "group": "error",
+                    "description": "The api's code of the item's error (`error.code`; `errors` of `GET /api/v1/vocabulary`)."
+                  },
+                  {
+                    "name": "error_type",
+                    "group": "error",
+                    "description": "`error.type`: the class of idtrack's error."
+                  },
+                  {
+                    "name": "error_message",
+                    "group": "error",
+                    "description": "`error.message` (escaped as `query_id`)."
+                  },
+                  {
+                    "name": "error_input_error",
+                    "group": "error",
+                    "description": "`error.input_error`."
+                  },
+                  {
+                    "name": "rank",
+                    "group": "candidate",
+                    "description": "The candidate's place in `candidates`, from 1 (empty on the row of a result without candidates)."
+                  },
+                  {
+                    "name": "best",
+                    "group": "candidate",
+                    "description": "`best` of the candidate."
+                  },
+                  {
+                    "name": "gene",
+                    "group": "candidate",
+                    "description": "`gene` of the candidate."
+                  },
+                  {
+                    "name": "target",
+                    "group": "candidate",
+                    "description": "`target` of the candidate."
+                  },
+                  {
+                    "name": "entry_gene",
+                    "group": "candidate",
+                    "description": "`entry_gene` of the candidate."
+                  },
+                  {
+                    "name": "entry_databases",
+                    "group": "candidate",
+                    "description": "`entry_databases` of the candidate."
+                  },
+                  {
+                    "name": "authority",
+                    "group": "candidate",
+                    "description": "`authority` of the candidate."
+                  },
+                  {
+                    "name": "display_name",
+                    "group": "candidate",
+                    "description": "`display_name` of the candidate."
+                  },
+                  {
+                    "name": "display_rank",
+                    "group": "candidate",
+                    "description": "`display_rank` of the candidate."
+                  },
+                  {
+                    "name": "entry_support",
+                    "group": "candidate",
+                    "description": "`entry_support` of the candidate."
+                  },
+                  {
+                    "name": "own_version",
+                    "group": "candidate",
+                    "description": "`own_version` of the candidate."
+                  },
+                  {
+                    "name": "final_confidence",
+                    "group": "candidate",
+                    "description": "`final_confidence` of the candidate."
+                  },
+                  {
+                    "name": "bridges",
+                    "group": "candidate",
+                    "description": "`bridges` of the candidate."
+                  },
+                  {
+                    "name": "bridge_gap",
+                    "group": "candidate",
+                    "description": "`bridge_gap` of the candidate."
+                  },
+                  {
+                    "name": "score",
+                    "group": "candidate",
+                    "description": "`score` of the candidate."
+                  },
+                  {
+                    "name": "unscored_steps",
+                    "group": "candidate",
+                    "description": "`unscored_steps` of the candidate."
+                  },
+                  {
+                    "name": "same_as_query",
+                    "group": "candidate",
+                    "description": "`same_as_query` of the candidate."
+                  },
+                  {
+                    "name": "external_steps",
+                    "group": "candidate",
+                    "description": "`external_steps` of the candidate."
+                  },
+                  {
+                    "name": "history_steps",
+                    "group": "candidate",
+                    "description": "`history_steps` of the candidate."
+                  },
+                  {
+                    "name": "annotation",
+                    "group": "candidate",
+                    "description": "`annotation` of the candidate."
+                  }
                 ],
                 "example": "input_index\tquery_id\tstatus\treason\treasons\tgraph_id\tmatch\tknown_versions\tfrom_release\tfrom_release_inferred\tfrom_release_given\tfrom_release_fallback\tfrom_databases\tto_release\tfinal_database\tcandidate_count\ttie\tdecided_by\talternative_locus_genes\tno_target\tno_target_genes\tother_readings\terror_code\terror_type\terror_message\terror_input_error\trank\tbest\tgene\ttarget\tentry_gene\tentry_databases\tauthority\tdisplay_name\tdisplay_rank\tentry_support\town_version\tfinal_confidence\tbridges\tbridge_gap\tscore\tunscored_steps\tsame_as_query\texternal_steps\thistory_steps\tannotation\n0\tTP53\tconverted\t\t\tTP53\texact\t\t115\ttrue\t\tfalse\tHGNC Symbol;NCBI gene (formerly Entrezgene);UniProtKB Gene Name\t115\tensembl_gene\t1\tfalse\t\tLRG_321.1\tfalse\t\t\t\t\t\t\t1\ttrue\tENSG00000141510.20\tENSG00000141510.20\tENSG00000141510.20\tHGNC Symbol;NCBI gene (formerly Entrezgene);UniProtKB Gene Name\ttrue\ttrue\t0\t3\tfalse\t0\t0\t0\t1.0\t0\tfalse\t1\t0\t\n1\tENSG00000139618\tconverted\t\t\tENSG00000139618\texact\t\t115\ttrue\t\tfalse\tbase_ensembl_gene\t115\tensembl_gene\t1\tfalse\t\t\tfalse\t\t\t\t\t\t\t1\ttrue\tENSG00000139618.19\tENSG00000139618.19\tENSG00000139618.19\tbase_ensembl_gene\tfalse\tfalse\t2\t1\ttrue\t0\t0\t0\t1.0\t0\ttrue\t1\t0\t\n2\tNOT_A_GENE\tnot_found\tnot_in_graph\tnot_in_graph\t\t\t\t\ttrue\t\tfalse\t\t115\t\t0\tfalse\t\t\tfalse\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\n",
                 "x-recorded": "a real answer of a server holding the five graphs of Ensembl 115 (human, mouse, pig, rhesus, cynomolgus)"
@@ -6870,7 +7046,7 @@
                 "$ref": "#/components/headers/Idtrack-Graph-Digest"
               },
               "Content-Disposition": {
-                "description": "With `format=tsv`: `attachment; filename=\"idtrack_<organism>.tsv\"` (a file to save).",
+                "description": "With `format=tsv`: `attachment; filename=\"idtrack_<organism>_<to_release>_<the first 12 characters of the graph's digest>.tsv\"` (a file to save, named after what produced it).",
                 "schema": {
                   "type": "string"
                 }
@@ -6878,13 +7054,13 @@
             }
           },
           "400": {
-            "$ref": "#/components/responses/Refusal400_5"
+            "$ref": "#/components/responses/Refusal400_convert_batch"
           },
           "404": {
             "$ref": "#/components/responses/Refusal404"
           },
           "405": {
-            "$ref": "#/components/responses/Refusal405"
+            "$ref": "#/components/responses/Refusal405_index"
           },
           "408": {
             "$ref": "#/components/responses/Refusal408"
@@ -6893,19 +7069,19 @@
             "$ref": "#/components/responses/Refusal413"
           },
           "414": {
-            "$ref": "#/components/responses/Refusal414"
+            "$ref": "#/components/responses/Refusal414_index"
           },
           "415": {
             "$ref": "#/components/responses/Refusal415"
           },
           "422": {
-            "$ref": "#/components/responses/Refusal422_2"
+            "$ref": "#/components/responses/Refusal422_convert_batch"
           },
           "429": {
             "$ref": "#/components/responses/Refusal429"
           },
           "500": {
-            "$ref": "#/components/responses/Refusal500"
+            "$ref": "#/components/responses/Refusal500_index"
           },
           "503": {
             "$ref": "#/components/responses/Refusal503"
@@ -6945,9 +7121,7 @@
             "required": true,
             "schema": {
               "type": "string",
-              "maxLength": 100,
-              "description": "The organism: its Ensembl production name (`homo_sapiens`), with spaces or in any letter case (`Homo sapiens`), or a short name idtrack declares (`human`, `pig`); the names a server holds: `names` of `GET /organisms`.",
-              "title": "Organism"
+              "maxLength": 100
             },
             "description": "The organism: its Ensembl production name (`homo_sapiens`), with spaces or in any letter case (`Homo sapiens`), or a short name idtrack declares (`human`, `pig`); the names a server holds: `names` of `GET /organisms`.",
             "example": "homo_sapiens"
@@ -6963,6 +7137,13 @@
                 },
                 "example": {
                   "organism": "homo_sapiens",
+                  "mode": "release",
+                  "best": {
+                    "database": null,
+                    "assembly": null,
+                    "release": 50
+                  },
+                  "from_release": 50,
                   "inference": {
                     "mode": "release",
                     "band": [
@@ -7336,13 +7517,13 @@
             }
           },
           "400": {
-            "$ref": "#/components/responses/Refusal400_6"
+            "$ref": "#/components/responses/Refusal400_source_inference"
           },
           "404": {
             "$ref": "#/components/responses/Refusal404"
           },
           "405": {
-            "$ref": "#/components/responses/Refusal405"
+            "$ref": "#/components/responses/Refusal405_index"
           },
           "408": {
             "$ref": "#/components/responses/Refusal408"
@@ -7351,19 +7532,19 @@
             "$ref": "#/components/responses/Refusal413"
           },
           "414": {
-            "$ref": "#/components/responses/Refusal414"
+            "$ref": "#/components/responses/Refusal414_index"
           },
           "415": {
             "$ref": "#/components/responses/Refusal415"
           },
           "422": {
-            "$ref": "#/components/responses/Refusal422_2"
+            "$ref": "#/components/responses/Refusal422_convert_batch"
           },
           "429": {
             "$ref": "#/components/responses/Refusal429"
           },
           "500": {
-            "$ref": "#/components/responses/Refusal500"
+            "$ref": "#/components/responses/Refusal500_index"
           },
           "503": {
             "$ref": "#/components/responses/Refusal503"
@@ -7408,9 +7589,7 @@
             "required": true,
             "schema": {
               "type": "string",
-              "maxLength": 100,
-              "description": "The organism: its Ensembl production name (`homo_sapiens`), with spaces or in any letter case (`Homo sapiens`), or a short name idtrack declares (`human`, `pig`); the names a server holds: `names` of `GET /organisms`.",
-              "title": "Organism"
+              "maxLength": 100
             },
             "description": "The organism: its Ensembl production name (`homo_sapiens`), with spaces or in any letter case (`Homo sapiens`), or a short name idtrack declares (`human`, `pig`); the names a server holds: `names` of `GET /organisms`.",
             "example": "homo_sapiens"
@@ -7420,9 +7599,7 @@
             "in": "query",
             "required": true,
             "schema": {
-              "type": "string",
-              "description": "The name as written (e.g. a symbol); white space at its ends is no part of it.",
-              "title": "Name"
+              "type": "string"
             },
             "description": "The name as written (e.g. a symbol); white space at its ends is no part of it.",
             "example": "NOV"
@@ -7433,9 +7610,7 @@
             "required": false,
             "schema": {
               "type": "boolean",
-              "description": "Match without letter case. Written true or false.",
-              "default": false,
-              "title": "Fold Case"
+              "default": false
             },
             "description": "Match without letter case. Written true or false."
           },
@@ -7453,9 +7628,7 @@
                 {
                   "type": "null"
                 }
-              ],
-              "description": "Only the matches that hold at this release (whose `releases` hold it); omitted: every match. An Ensembl release, a whole number from 0 to 999999999 (anything else is `400 invalid_request`); whether the graph covers it is idtrack's to answer (`400 unknown_release`, with the graph's releases in `allowed`: `GET /organisms/{organism}` lists them as `releases`).",
-              "title": "Release"
+              ]
             },
             "description": "Only the matches that hold at this release (whose `releases` hold it); omitted: every match. An Ensembl release, a whole number from 0 to 999999999 (anything else is `400 invalid_request`); whether the graph covers it is idtrack's to answer (`400 unknown_release`, with the graph's releases in `allowed`: `GET /organisms/{organism}` lists them as `releases`)."
           }
@@ -7469,6 +7642,12 @@
                   "$ref": "#/components/schemas/NamesResponse"
                 },
                 "example": {
+                  "organism": "homo_sapiens",
+                  "arguments": {
+                    "name": "NOV",
+                    "fold_case": false,
+                    "release": null
+                  },
                   "matches": [
                     {
                       "name": "NOV",
@@ -8246,28 +8425,28 @@
             }
           },
           "400": {
-            "$ref": "#/components/responses/Refusal400_7"
+            "$ref": "#/components/responses/Refusal400_genes_named"
           },
           "404": {
             "$ref": "#/components/responses/Refusal404"
           },
           "405": {
-            "$ref": "#/components/responses/Refusal405"
+            "$ref": "#/components/responses/Refusal405_index"
           },
           "408": {
             "$ref": "#/components/responses/Refusal408"
           },
           "414": {
-            "$ref": "#/components/responses/Refusal414"
+            "$ref": "#/components/responses/Refusal414_index"
           },
           "422": {
-            "$ref": "#/components/responses/Refusal422_2"
+            "$ref": "#/components/responses/Refusal422_convert_batch"
           },
           "429": {
             "$ref": "#/components/responses/Refusal429"
           },
           "500": {
-            "$ref": "#/components/responses/Refusal500"
+            "$ref": "#/components/responses/Refusal500_index"
           },
           "503": {
             "$ref": "#/components/responses/Refusal503"
@@ -8290,9 +8469,7 @@
             "required": true,
             "schema": {
               "type": "string",
-              "maxLength": 100,
-              "description": "The organism: its Ensembl production name (`homo_sapiens`), with spaces or in any letter case (`Homo sapiens`), or a short name idtrack declares (`human`, `pig`); the names a server holds: `names` of `GET /organisms`.",
-              "title": "Organism"
+              "maxLength": 100
             },
             "description": "The organism: its Ensembl production name (`homo_sapiens`), with spaces or in any letter case (`Homo sapiens`), or a short name idtrack declares (`human`, `pig`); the names a server holds: `names` of `GET /organisms`.",
             "example": "homo_sapiens"
@@ -8302,9 +8479,7 @@
             "in": "query",
             "required": true,
             "schema": {
-              "type": "string",
-              "description": "An Ensembl gene id with version (e.g. `ENSG00000141510.20`); the versions of an id: `known_versions` or the candidates of `GET .../convert`.",
-              "title": "Gene"
+              "type": "string"
             },
             "description": "An Ensembl gene id with version (e.g. `ENSG00000141510.20`); the versions of an id: `known_versions` or the candidates of `GET .../convert`.",
             "example": "ENSG00000141510.20"
@@ -8323,9 +8498,7 @@
                 {
                   "type": "null"
                 }
-              ],
-              "description": "Only names that hold at this release; omitted: every release, each match listing its `releases`. An Ensembl release, a whole number from 0 to 999999999 (anything else is `400 invalid_request`); whether the graph covers it is idtrack's to answer (`400 unknown_release`, with the graph's releases in `allowed`: `GET /organisms/{organism}` lists them as `releases`).",
-              "title": "Release"
+              ]
             },
             "description": "Only names that hold at this release; omitted: every release, each match listing its `releases`. An Ensembl release, a whole number from 0 to 999999999 (anything else is `400 invalid_request`); whether the graph covers it is idtrack's to answer (`400 unknown_release`, with the graph's releases in `allowed`: `GET /organisms/{organism}` lists them as `releases`).",
             "example": 115
@@ -8340,6 +8513,11 @@
                   "$ref": "#/components/schemas/NamesResponse"
                 },
                 "example": {
+                  "organism": "homo_sapiens",
+                  "arguments": {
+                    "gene": "ENSG00000141510.20",
+                    "release": 115
+                  },
                   "matches": [
                     {
                       "name": "7157",
@@ -8428,28 +8606,28 @@
             }
           },
           "400": {
-            "$ref": "#/components/responses/Refusal400_8"
+            "$ref": "#/components/responses/Refusal400_names_of"
           },
           "404": {
             "$ref": "#/components/responses/Refusal404"
           },
           "405": {
-            "$ref": "#/components/responses/Refusal405"
+            "$ref": "#/components/responses/Refusal405_index"
           },
           "408": {
             "$ref": "#/components/responses/Refusal408"
           },
           "414": {
-            "$ref": "#/components/responses/Refusal414"
+            "$ref": "#/components/responses/Refusal414_index"
           },
           "422": {
-            "$ref": "#/components/responses/Refusal422_2"
+            "$ref": "#/components/responses/Refusal422_convert_batch"
           },
           "429": {
             "$ref": "#/components/responses/Refusal429"
           },
           "500": {
-            "$ref": "#/components/responses/Refusal500"
+            "$ref": "#/components/responses/Refusal500_index"
           },
           "503": {
             "$ref": "#/components/responses/Refusal503"
@@ -8525,8 +8703,97 @@
         "title": "AssemblyDescription",
         "description": "One genome assembly of a loaded graph."
       },
+      "BatchArguments": {
+        "properties": {
+          "from_release": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "From Release",
+            "description": "`from_release` of the body."
+          },
+          "to_release": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "To Release",
+            "description": "`to_release` of the body (each result's `to_release` is the one used)."
+          },
+          "final_database": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Final Database",
+            "description": "`final_database` of the body."
+          },
+          "from_database": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "From Database",
+            "description": "`from_database` of the body."
+          },
+          "explain": {
+            "type": "boolean",
+            "title": "Explain",
+            "description": "`explain` of the body."
+          },
+          "allow_bridges": {
+            "type": "boolean",
+            "title": "Allow Bridges",
+            "description": "`allow_bridges` of the body."
+          },
+          "read_copies": {
+            "type": "boolean",
+            "title": "Read Copies",
+            "description": "`read_copies` of the body."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "from_release",
+          "to_release",
+          "final_database",
+          "from_database",
+          "explain",
+          "allow_bridges",
+          "read_copies"
+        ],
+        "title": "BatchArguments",
+        "description": "The arguments of a batch as the api read them (`null`: not given, the default applies)."
+      },
       "BatchResponse": {
         "properties": {
+          "organism": {
+            "type": "string",
+            "title": "Organism",
+            "description": "The organism whose graph answered."
+          },
+          "arguments": {
+            "$ref": "#/components/schemas/BatchArguments",
+            "description": "The arguments of the batch, as read (its identifiers aside)."
+          },
           "count": {
             "type": "integer",
             "title": "Count",
@@ -8544,11 +8811,13 @@
         "additionalProperties": false,
         "type": "object",
         "required": [
+          "organism",
+          "arguments",
           "count",
           "results"
         ],
         "title": "BatchResponse",
-        "description": "The results of a batch, one per identifier, in the order given."
+        "description": "The results of a batch, one per identifier, in the order given, with the organism and the arguments read."
       },
       "BridgeCheck": {
         "properties": {
@@ -9513,12 +9782,77 @@
         "title": "DatabasesResponse",
         "description": "What a conversion to each release of a graph can end in: a release-by-database matrix, and per assembly."
       },
+      "EachDatabaseArguments": {
+        "properties": {
+          "identifier": {
+            "type": "string",
+            "title": "Identifier",
+            "description": "The identifier, as sent."
+          },
+          "from_release": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "From Release",
+            "description": "`from_release` of the query."
+          },
+          "to_release": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "To Release",
+            "description": "`to_release` of the query (the one used: `to_release` above)."
+          },
+          "from_database": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "From Database",
+            "description": "`from_database` of the query."
+          },
+          "allow_bridges": {
+            "type": "boolean",
+            "title": "Allow Bridges",
+            "description": "`allow_bridges` of the query."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "identifier",
+          "from_release",
+          "to_release",
+          "from_database",
+          "allow_bridges"
+        ],
+        "title": "EachDatabaseArguments",
+        "description": "The arguments of `convert/each-database` as the api read them (`null`: not given, the default applies)."
+      },
       "EachDatabaseResponse": {
         "properties": {
           "organism": {
             "type": "string",
             "title": "Organism",
             "description": "The organism."
+          },
+          "arguments": {
+            "$ref": "#/components/schemas/EachDatabaseArguments",
+            "description": "The arguments, as read."
           },
           "to_release": {
             "type": "integer",
@@ -9538,6 +9872,7 @@
         "type": "object",
         "required": [
           "organism",
+          "arguments",
           "to_release",
           "conversions"
         ],
@@ -9582,7 +9917,7 @@
               "A release the graph does not cover (`allowed` lists the graph's releases).",
               "A database the graph does not hold at that release (`allowed` lists those it holds).",
               "An identifier the call needs to exist in the graph does not (the gene of names-of).",
-              "An identifier is empty or a spelling of a missing value (idtrack's refusal).",
+              "An identifier is empty or a spelling of a missing value (idtrack's refusal), or a name to look up is empty.",
               "An argument whose value is not accepted (an empty or over-long database name).",
               "Another input idtrack refuses (idtrack's message says which).",
               "An organism this server does not hold (`allowed` lists those it holds).",
@@ -9592,13 +9927,13 @@
               "The request body is larger than the server accepts.",
               "A batch with more identifiers than the server accepts (`batch_max` of /limits).",
               "The request's path and query are longer than the server accepts.",
-              "A request body that is not `application/json`.",
+              "A request body that is not `application/json` in UTF-8, or that is sent compressed (`Content-Encoding`).",
               "One identifier's search needed more than its budget (states or seconds); the same request fails again.",
               "The answer is larger than the server sends (`response_max_bytes` of /limits); it is refused, never cut.",
               "This client sent more requests, or used more search time, than its allowance; wait the `Retry-After` header's seconds.",
               "A fault of the server; quote the request id when reporting it.",
-              "The server has more waiting work than it accepts; retry after the `Retry-After` header's seconds.",
-              "The request needed more time than its budget (`request_seconds` of /limits), waiting for the server or searching; retry after `Retry-After` seconds, with fewer identifiers if it searched."
+              "The server has more waiting work than it accepts: its queue of searches is full, the search would wait (or waited) longer for a worker than `queue_seconds` of /limits, or the server is stopping; the request was not searched. Retry after the `Retry-After` header's seconds, unchanged.",
+              "The request's search needed more time than its budget (`request_seconds` of /limits, counted from when its search began); send fewer identifiers per request (a batch's message says how many it converted)."
             ]
           },
           "message": {
@@ -9740,7 +10075,7 @@
               "A release the graph does not cover (`allowed` lists the graph's releases).",
               "A database the graph does not hold at that release (`allowed` lists those it holds).",
               "An identifier the call needs to exist in the graph does not (the gene of names-of).",
-              "An identifier is empty or a spelling of a missing value (idtrack's refusal).",
+              "An identifier is empty or a spelling of a missing value (idtrack's refusal), or a name to look up is empty.",
               "An argument whose value is not accepted (an empty or over-long database name).",
               "Another input idtrack refuses (idtrack's message says which).",
               "An organism this server does not hold (`allowed` lists those it holds).",
@@ -9963,6 +10298,41 @@
         ],
         "title": "GenePlace",
         "description": "Where a gene lies at some releases: an assembly, a sequence region, its first and last base, a strand."
+      },
+      "GenesNamedArguments": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "The name, as sent."
+          },
+          "fold_case": {
+            "type": "boolean",
+            "title": "Fold Case",
+            "description": "Whether letter case was ignored."
+          },
+          "release": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Release",
+            "description": "The release the matches hold at; `null`: every match."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "name",
+          "fold_case",
+          "release"
+        ],
+        "title": "GenesNamedArguments",
+        "description": "The arguments of `genes-named` as the api read them."
       },
       "GraphDescription": {
         "properties": {
@@ -10671,7 +11041,12 @@
           "request_seconds": {
             "type": "number",
             "title": "Request Seconds",
-            "description": "The time budget of one request, in seconds."
+            "description": "The time budget of one request's search, in seconds, from when its search begins (a batch: all its identifiers); a batch out of it is refused `503 request_budget_exceeded`, with the count it converted."
+          },
+          "queue_seconds": {
+            "type": "number",
+            "title": "Queue Seconds",
+            "description": "The longest a search waits for a worker free of searches, in seconds: a search still waiting then is answered `503 server_busy` without being searched, and one whose wait, estimated from the searches waiting before it and the recent searches' mean time, would pass it is answered so at once."
           },
           "search_seconds": {
             "type": "number",
@@ -10731,8 +11106,16 @@
           "allowances_enforced": {
             "type": "boolean",
             "title": "Allowances Enforced",
-            "description": "Whether the per-client allowances apply on this server (`rate_per_minute` above 0). When `false`, `rate_burst`, `read_share`, `rate_search_seconds`, `rate_search_burst_seconds` and `rate_concurrent_searches` are configured but not applied, and no answer is `429`.",
+            "description": "Whether the per-client allowances apply on this server (`rate_per_minute` above 0). When `false`, the bounds `allowance_fields` names are configured but not applied, and no answer is `429`; every other bound applies on every server.",
             "default": false
+          },
+          "allowance_fields": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Allowance Fields",
+            "description": "The fields of this answer that are per-client allowances (applied only where `allowances_enforced` is `true`), in this answer's order; every other field is a bound of the server as a whole, always applied."
           },
           "rate_concurrent_searches": {
             "type": "integer",
@@ -10767,6 +11150,7 @@
           "body_max_bytes",
           "response_max_bytes",
           "request_seconds",
+          "queue_seconds",
           "search_seconds",
           "search_states",
           "rate_per_minute",
@@ -10917,8 +11301,54 @@
         "title": "NameMatch",
         "description": "A name of an external database attached to an Ensembl gene, and the releases at which it is."
       },
+      "NamesOfArguments": {
+        "properties": {
+          "gene": {
+            "type": "string",
+            "title": "Gene",
+            "description": "The gene, as sent."
+          },
+          "release": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Release",
+            "description": "The release the names hold at; `null`: every release."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "gene",
+          "release"
+        ],
+        "title": "NamesOfArguments",
+        "description": "The arguments of `names-of` as the api read them."
+      },
       "NamesResponse": {
         "properties": {
+          "organism": {
+            "type": "string",
+            "title": "Organism",
+            "description": "The organism whose graph answered."
+          },
+          "arguments": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/GenesNamedArguments"
+              },
+              {
+                "$ref": "#/components/schemas/NamesOfArguments"
+              }
+            ],
+            "title": "Arguments",
+            "description": "The arguments as read: `name`, `fold_case`, `release` (genes-named); `gene`, `release` (names-of)."
+          },
           "matches": {
             "items": {
               "$ref": "#/components/schemas/NameMatch"
@@ -10931,10 +11361,12 @@
         "additionalProperties": false,
         "type": "object",
         "required": [
+          "organism",
+          "arguments",
           "matches"
         ],
         "title": "NamesResponse",
-        "description": "Names and the genes they name, per database and release."
+        "description": "Names and the genes they name, per database and release, with the organism and the arguments read."
       },
       "OrganismNames": {
         "properties": {
@@ -10987,6 +11419,55 @@
         ],
         "title": "OrganismsResponse",
         "description": "Every loaded organism and what its graph holds."
+      },
+      "Origin": {
+        "properties": {
+          "database": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Database",
+            "description": "The database (mode `complete`)."
+          },
+          "assembly": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assembly",
+            "description": "The genome assembly, by its key in idtrack's organism table (modes `assembly_release`, `assembly`, `complete`)."
+          },
+          "release": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Release",
+            "description": "The Ensembl release (modes `assembly_release`, `release`, `complete`)."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "database",
+          "assembly",
+          "release"
+        ],
+        "title": "Origin",
+        "description": "An origin of a list, its parts named (those the mode has no part for are `null`)."
       },
       "OtherReading": {
         "properties": {
@@ -11502,7 +11983,7 @@
           "searches_waiting": {
             "type": "integer",
             "title": "Searches Waiting",
-            "description": "Searches waiting to run: for a worker free of searches (`searches_queued`, while every worker is in one) and for a worker's own search thread."
+            "description": "Searches a worker holds that wait for its own search thread (behind the search it runs). The three counts of waiting requests (this, `searches_queued` and `connections_waiting`) never hold the same request twice: their sum is every request waiting."
           },
           "connections_waiting": {
             "anyOf": [
@@ -11514,7 +11995,7 @@
               }
             ],
             "title": "Connections Waiting",
-            "description": "Requests waiting for a worker: connections in the kernel's listen queue that no worker has taken yet, and searches a busy worker took and handed on to the first worker free of searches (`searches_queued`); `null`: not read, as when the app runs without the server."
+            "description": "Connections in the kernel's listen queue that no worker has taken yet (the kernel's count); `null`: not read, as when the app runs without the server."
           },
           "searches_queued": {
             "anyOf": [
@@ -11526,7 +12007,7 @@
               }
             ],
             "title": "Searches Queued",
-            "description": "Of `connections_waiting`: searches waiting in the queue the workers share for a worker free of searches (every worker is in one); `null` when the app runs without the server."
+            "description": "Searches waiting in the queue the workers share for a worker free of searches (every worker is in one); `null` when the app runs without the server."
           },
           "sending_bytes": {
             "anyOf": [
@@ -11880,19 +12361,50 @@
             "title": "Organism",
             "description": "The organism."
           },
+          "mode": {
+            "type": "string",
+            "title": "Mode",
+            "description": "The mode asked (`source_modes` of `GET /vocabulary`)."
+          },
+          "best": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Origin"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The band's first origin (the best), its parts named; `null` when the band is empty. The same origin is `inference.band[0]`, written as idtrack writes an origin of the mode."
+          },
+          "from_release": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "From Release",
+            "description": "The release of the best origin: the release to send as `from_release` when the list is converted, so each identifier is read as it was then; `null` in mode `assembly` (an origin without a release) or with no band."
+          },
           "inference": {
             "$ref": "#/components/schemas/SourceInference",
-            "description": "idtrack's `SourceInference.to_dict()`: the band of origins the list cannot tell apart from the best (read the best release from the band's first origin and send it as `from_release`), the margin and every origin's count."
+            "description": "idtrack's `SourceInference.to_dict()`: the band of origins the list cannot tell apart from the best, best first, the margin and every origin's count; an origin is written by the mode (`[assembly, release]`, a release, an assembly, or `[database, assembly, release]`)."
           }
         },
         "additionalProperties": false,
         "type": "object",
         "required": [
           "organism",
+          "mode",
+          "best",
+          "from_release",
           "inference"
         ],
         "title": "SourceInferenceResponse",
-        "description": "Where a list of identifiers comes from: idtrack's ``API.source_inference``, with the organism."
+        "description": "Where a list of identifiers comes from: idtrack's ``API.source_inference``, with the best origin named."
       },
       "StatusResponse": {
         "properties": {
@@ -12623,11 +13135,18 @@
         }
       },
       "Server-Timing": {
-        "description": "The server's own time on the request, in milliseconds: `app` the whole time from the moment a worker took the connection until the answer started (it contains the rest), and for a request that searched `queue` (waiting for a worker free of searches and for its search thread), `search` (the search itself) and `write` (writing and compressing its answer); `cache;desc=\"hit\"` (sent again from memory) or `cache;desc=\"revalidated\"` (a `304`).",
+        "description": "The server's own time on the request, in milliseconds, as metrics `name;dur=` (`x-metrics` gives the meaning of each): `app`: the server's whole time on the request, from the moment a worker took its connection until its answer started; it contains `queue`, `search` and `write`; `queue`: for a request that searched: the time it waited for a worker free of searches and for that worker's search thread; `search`: for a request that searched: the search's own time; `write`: for a request that searched: the time spent writing its answer and compressing it; `cache`: sent as `cache;desc=\"hit\"` for an answer sent again from the server's memory without a search, and `cache;desc=\"revalidated\"` for a `304` to an `If-None-Match` that names the answer's `ETag`.",
         "schema": {
           "type": "string"
         },
-        "example": "app;dur=12.402, queue;dur=0.081, search;dur=11.734, write;dur=0.204"
+        "example": "app;dur=12.402, queue;dur=0.081, search;dur=11.734, write;dur=0.204",
+        "x-metrics": {
+          "app": "The server's whole time on the request, from the moment a worker took its connection until its answer started; it contains `queue`, `search` and `write`.",
+          "queue": "For a request that searched: the time it waited for a worker free of searches and for that worker's search thread.",
+          "search": "For a request that searched: the search's own time.",
+          "write": "For a request that searched: the time spent writing its answer and compressing it.",
+          "cache": "Sent as `cache;desc=\"hit\"` for an answer sent again from the server's memory without a search, and `cache;desc=\"revalidated\"` for a `304` to an `If-None-Match` that names the answer's `ETag`."
+        }
       },
       "Retry-After": {
         "description": "Whole seconds to wait before sending the request again.",
@@ -13103,7 +13622,7 @@
       }
     },
     "responses": {
-      "Refusal400": {
+      "Refusal400_index": {
         "description": "`unknown_parameter`, the request names a parameter the endpoint does not take, or names one twice. (What each means and whether to retry: `errors` of `GET /api/v1/vocabulary`.)",
         "content": {
           "application/json": {
@@ -13136,7 +13655,7 @@
         ],
         "x-retryable": []
       },
-      "Refusal405": {
+      "Refusal405_index": {
         "description": "`method_not_allowed`, this address does not take this kind of request. (What each means and whether to retry: `errors` of `GET /api/v1/vocabulary`.)",
         "content": {
           "application/json": {
@@ -13169,7 +13688,7 @@
         ],
         "x-retryable": []
       },
-      "Refusal414": {
+      "Refusal414_index": {
         "description": "`uri_too_long`, the address is longer than the server accepts. (What each means and whether to retry: `errors` of `GET /api/v1/vocabulary`.)",
         "content": {
           "application/json": {
@@ -13240,7 +13759,7 @@
           "rate_limited"
         ]
       },
-      "Refusal500": {
+      "Refusal500_index": {
         "description": "`internal_error`, a fault of the server. (What each means and whether to retry: `errors` of `GET /api/v1/vocabulary`.)",
         "content": {
           "application/json": {
@@ -13275,7 +13794,7 @@
           "internal_error"
         ]
       },
-      "Refusal400_2": {
+      "Refusal400_health": {
         "description": "`unknown_parameter`, the request names a parameter the endpoint does not take, or names one twice. (What each means and whether to retry: `errors` of `GET /api/v1/vocabulary`.)",
         "content": {
           "application/json": {
@@ -13302,7 +13821,7 @@
         ],
         "x-retryable": []
       },
-      "Refusal405_2": {
+      "Refusal405_health": {
         "description": "`method_not_allowed`, this address does not take this kind of request. (What each means and whether to retry: `errors` of `GET /api/v1/vocabulary`.)",
         "content": {
           "application/json": {
@@ -13329,7 +13848,7 @@
         ],
         "x-retryable": []
       },
-      "Refusal414_2": {
+      "Refusal414_health": {
         "description": "`uri_too_long`, the address is longer than the server accepts. (What each means and whether to retry: `errors` of `GET /api/v1/vocabulary`.)",
         "content": {
           "application/json": {
@@ -13356,7 +13875,7 @@
         ],
         "x-retryable": []
       },
-      "Refusal500_2": {
+      "Refusal500_health": {
         "description": "`internal_error`, a fault of the server. (What each means and whether to retry: `errors` of `GET /api/v1/vocabulary`.)",
         "content": {
           "application/json": {
@@ -13418,7 +13937,7 @@
         ],
         "x-retryable": []
       },
-      "Refusal400_3": {
+      "Refusal400_final_databases": {
         "description": "`unknown_parameter`, the request names a parameter the endpoint does not take, or names one twice; `invalid_request`, the request is not in the form the endpoint takes; `unknown_release`, a release this graph does not cover. (What each means and whether to retry: `errors` of `GET /api/v1/vocabulary`.)",
         "content": {
           "application/json": {
@@ -13459,7 +13978,7 @@
         ],
         "x-retryable": []
       },
-      "Refusal400_4": {
+      "Refusal400_convert": {
         "description": "`unknown_parameter`, the request names a parameter the endpoint does not take, or names one twice; `invalid_request`, the request is not in the form the endpoint takes; `invalid_identifier`, an identifier is too long, or holds characters an identifier cannot hold; `unknown_release`, a release this graph does not cover; `unknown_database`, a database this graph does not hold at that release; `invalid_argument`, a value this endpoint does not accept; `missing_value`, an identifier is empty, or stands for a missing value. (What each means and whether to retry: `errors` of `GET /api/v1/vocabulary`.)",
         "content": {
           "application/json": {
@@ -13551,7 +14070,7 @@
           "request_timeout"
         ]
       },
-      "Refusal422": {
+      "Refusal422_convert": {
         "description": "`response_too_large`, the answer is larger than the server sends; `search_budget_exceeded`, one identifier's search needed more than its budget. (What each means and whether to retry: `errors` of `GET /api/v1/vocabulary`.)",
         "content": {
           "application/json": {
@@ -13589,7 +14108,7 @@
         "x-retryable": []
       },
       "Refusal503": {
-        "description": "`server_busy`, the server is busy; `request_budget_exceeded`, the request needed more time than a request may take. (What each means and whether to retry: `errors` of `GET /api/v1/vocabulary`.)",
+        "description": "`server_busy`, the server is busy; `request_budget_exceeded`, the search needed more time than one request may take. (What each means and whether to retry: `errors` of `GET /api/v1/vocabulary`.)",
         "content": {
           "application/json": {
             "schema": {
@@ -13631,7 +14150,7 @@
           "request_budget_exceeded"
         ]
       },
-      "Refusal400_5": {
+      "Refusal400_convert_batch": {
         "description": "`unknown_parameter`, the request names a parameter the endpoint does not take, or names one twice; `invalid_request`, the request is not in the form the endpoint takes; `invalid_identifier`, an identifier is too long, or holds characters an identifier cannot hold; `unknown_release`, a release this graph does not cover; `unknown_database`, a database this graph does not hold at that release; `invalid_argument`, a value this endpoint does not accept. (What each means and whether to retry: `errors` of `GET /api/v1/vocabulary`.)",
         "content": {
           "application/json": {
@@ -13754,7 +14273,7 @@
         ],
         "x-retryable": []
       },
-      "Refusal422_2": {
+      "Refusal422_convert_batch": {
         "description": "`response_too_large`, the answer is larger than the server sends. (What each means and whether to retry: `errors` of `GET /api/v1/vocabulary`.)",
         "content": {
           "application/json": {
@@ -13787,7 +14306,7 @@
         ],
         "x-retryable": []
       },
-      "Refusal400_6": {
+      "Refusal400_source_inference": {
         "description": "`unknown_parameter`, the request names a parameter the endpoint does not take, or names one twice; `invalid_request`, the request is not in the form the endpoint takes; `invalid_identifier`, an identifier is too long, or holds characters an identifier cannot hold; `unknown_identifier`, an identifier this graph does not hold. (What each means and whether to retry: `errors` of `GET /api/v1/vocabulary`.)",
         "content": {
           "application/json": {
@@ -13832,8 +14351,8 @@
         ],
         "x-retryable": []
       },
-      "Refusal400_7": {
-        "description": "`unknown_parameter`, the request names a parameter the endpoint does not take, or names one twice; `invalid_request`, the request is not in the form the endpoint takes; `invalid_identifier`, an identifier is too long, or holds characters an identifier cannot hold; `unknown_release`, a release this graph does not cover. (What each means and whether to retry: `errors` of `GET /api/v1/vocabulary`.)",
+      "Refusal400_genes_named": {
+        "description": "`unknown_parameter`, the request names a parameter the endpoint does not take, or names one twice; `invalid_request`, the request is not in the form the endpoint takes; `invalid_identifier`, an identifier is too long, or holds characters an identifier cannot hold; `unknown_release`, a release this graph does not cover; `missing_value`, an identifier is empty, or stands for a missing value. (What each means and whether to retry: `errors` of `GET /api/v1/vocabulary`.)",
         "content": {
           "application/json": {
             "schema": {
@@ -13851,6 +14370,9 @@
               },
               "unknown_release": {
                 "$ref": "#/components/examples/unknown_release"
+              },
+              "missing_value": {
+                "$ref": "#/components/examples/missing_value"
               }
             }
           }
@@ -13873,11 +14395,12 @@
           "unknown_parameter",
           "invalid_request",
           "invalid_identifier",
-          "unknown_release"
+          "unknown_release",
+          "missing_value"
         ],
         "x-retryable": []
       },
-      "Refusal400_8": {
+      "Refusal400_names_of": {
         "description": "`unknown_parameter`, the request names a parameter the endpoint does not take, or names one twice; `invalid_request`, the request is not in the form the endpoint takes; `invalid_identifier`, an identifier is too long, or holds characters an identifier cannot hold; `unknown_release`, a release this graph does not cover; `unknown_identifier`, an identifier this graph does not hold; `invalid_argument`, a value this endpoint does not accept. (What each means and whether to retry: `errors` of `GET /api/v1/vocabulary`.)",
         "content": {
           "application/json": {

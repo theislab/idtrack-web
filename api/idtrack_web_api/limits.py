@@ -17,7 +17,10 @@ a whole, not per worker:
   identifiers counts as the seconds it took;
 - **searches at once**: a client has at most ``concurrent_searches`` searching requests in progress at a time (from
   their admission until their answer is sent), so that a burst cannot occupy every worker before any of its time is
-  charged, nor hold more than that many answers that its client is slow to take.
+  charged, nor hold more than that many answers that its client is slow to take. Each such search holds a *place*: a
+  row of a shared ledger that names the process holding it (the worker that admitted the search, then the worker that
+  took it from the queue of searches), so that the places of a worker that is killed in a search are given back when
+  the master learns of its end (:py:meth:`RateLimiter.release_holder`): a worker's death never locks its clients out.
 
 ``rate_per_minute`` of 0 turns every per-client allowance off. Clients are hashed (with a key drawn at start) into a
 fixed table of buckets; two clients that share a bucket share its tokens, which with the default 65,536 buckets is rare
@@ -36,6 +39,7 @@ import math
 import multiprocessing
 import os
 import time
+from dataclasses import dataclass
 from typing import Any, Literal
 
 import anyio
@@ -47,14 +51,37 @@ UNREADABLE_CLIENT = "unreadable"
 
 Kind = Literal["search", "read"]
 
-#: A client's count of searches in progress is forgotten when it has not changed for this long (it then counts as none):
-#: a worker that was killed cannot end the searches it held, and every search ends well within this time.
-CONCURRENT_EXPIRY_SECONDS = 900.0
+#: The rows of the ledger of places (searches in progress at once, over every client): far more than the searches a
+#: server holds at once (its workers' searches, the queue of searches, the answers being sent); when every row is in
+#: use, a search is admitted without a place (it is then not counted among its client's searches in progress).
+PLACES = 4096
 
 # Per bucket of the table: the searches' tokens and when they were counted, the reads' tokens and when, the balance of
-# search seconds and when, the searches in progress and when that count changed (a time of 0: never used).
+# search seconds and when, the searches in progress (and a field unused) (a time of 0: never used).
 _FIELDS = 8
 _SEARCH, _READ, _WORK, _RUNNING = 0, 2, 4, 6
+# Per row of the ledger of places: the pid of the process that holds it (0: free), the bucket it counts in, and its
+# generation (raised each time the row is taken, so that a place given back twice frees nothing the second time).
+_PLACE_FIELDS = 3
+_HOLDER, _BUCKET, _GENERATION = 0, 1, 2
+
+#: A place among a client's searches in progress: its row of the ledger and the row's generation when it was taken.
+Place = tuple[int, int]
+#: The place of a search admitted without one (the allowances off, or every row in use): giving it back does nothing.
+NO_PLACE: Place = (-1, 0)
+
+
+@dataclass(frozen=True)
+class Admission:
+    """A search admitted by its client's allowances: the client, and its place among the client's searches.
+
+    Attributes:
+        client: The client's key (:py:func:`client_key`).
+        place: The place it holds (:py:meth:`RateLimiter.enter_search`).
+    """
+
+    client: str
+    place: Place = NO_PLACE
 
 
 def client_key(host: str | None) -> str:
@@ -90,6 +117,7 @@ class RateLimiter:
         search_seconds_burst: float = 0.0,
         slots: int = 65_536,
         concurrent_searches: int = 0,
+        places: int = PLACES,
     ) -> None:
         """Make the shared table.
 
@@ -100,6 +128,7 @@ class RateLimiter:
             search_seconds_burst: The most seconds of search a client's balance holds.
             slots: The number of buckets.
             concurrent_searches: The most searching requests a client may have in progress (0: not limited).
+            places: The rows of the ledger of places.
         """
         self.rate = per_minute / 60.0
         self.burst = float(burst)
@@ -112,6 +141,9 @@ class RateLimiter:
         context = multiprocessing.get_context("fork")
         self._table: Any = context.RawArray("d", _FIELDS * slots) if self.enabled else None
         self._lock: Any = context.Lock() if self.enabled else None
+        self._ledger: Any = context.RawArray("d", _PLACE_FIELDS * places) if self.concurrent else None
+        self.places = places if self.concurrent else 0
+        self._next = 0  # where this process looks for a free row first
         self._key = os.urandom(16)
 
     def _slot(self, client: str) -> int:
@@ -242,42 +274,112 @@ class RateLimiter:
         balance = self.work_burst if then == 0.0 else min(self.work_burst, balance + (at - then) * self.work_rate)
         return balance, (self.work_burst - balance) / self.work_rate
 
-    def enter_search(self, client: str, now: float | None = None) -> bool:
-        """Count a searching request of a client as in progress, if it may have one more.
+    def enter_search(self, client: str) -> Place | None:
+        """Take a place among a client's searching requests in progress, if it may have one more.
+
+        The place is held by this process (:py:meth:`hold` passes it to another), and given back by
+        :py:meth:`leave_search`, or by :py:meth:`release_holder` when its holder ends without giving it back.
 
         Args:
             client: The client's key.
-            now: The time (for tests).
 
         Returns:
-            bool: ``False`` when the client already has ``concurrent_searches`` in progress (nothing is counted).
+            Place | None: The place (:py:data:`NO_PLACE` where none is counted); ``None`` when the client already has
+            ``concurrent_searches`` in progress (nothing is taken).
         """
         if not self.concurrent:
-            return True
-        at = time.monotonic() if now is None else now
-        i = self._slot(client) + _RUNNING
+            return NO_PLACE
+        bucket = self._slot(client) + _RUNNING
         with self._lock:
-            running, then = self._table[i], self._table[i + 1]
-            if then == 0.0 or at - then > CONCURRENT_EXPIRY_SECONDS:
-                running = 0.0
-            if running >= self.concurrent:
-                return False
-            self._table[i], self._table[i + 1] = running + 1.0, at
-        return True
+            if self._table[bucket] >= self.concurrent:
+                return None
+            for step in range(self.places):
+                row = (self._next + step) % self.places
+                at = row * _PLACE_FIELDS
+                if self._ledger[at + _HOLDER] == 0.0:
+                    generation = self._ledger[at + _GENERATION] + 1.0
+                    self._ledger[at + _HOLDER] = float(os.getpid())
+                    self._ledger[at + _BUCKET] = float(bucket)
+                    self._ledger[at + _GENERATION] = generation
+                    self._table[bucket] += 1.0
+                    self._next = (row + 1) % self.places
+                    return row, int(generation)
+        return NO_PLACE
 
-    def leave_search(self, client: str, now: float | None = None) -> None:
-        """End a searching request counted by :py:meth:`enter_search`.
+    def _held(self, place: Place) -> int | None:
+        """Return the ledger's offset of a place that is still the one taken (``None``: given back, or no place)."""
+        row, generation = place
+        if not self.concurrent or not 0 <= row < self.places:
+            return None
+        at = row * _PLACE_FIELDS
+        if self._ledger[at + _HOLDER] == 0.0 or int(self._ledger[at + _GENERATION]) != generation:
+            return None
+        return at
+
+    def hold(self, place: Place) -> None:
+        """Make this process the holder of a place (a search taken from the queue that another worker admitted).
 
         Args:
-            client: The client's key.
-            now: The time (for tests).
+            place: The place.
         """
         if not self.concurrent:
             return
-        at = time.monotonic() if now is None else now
-        i = self._slot(client) + _RUNNING
         with self._lock:
-            self._table[i], self._table[i + 1] = max(0.0, self._table[i] - 1.0), at
+            at = self._held(place)
+            if at is not None:
+                self._ledger[at + _HOLDER] = float(os.getpid())
+
+    def _free(self, at: int) -> None:
+        """Give a row of the ledger back and its count to its client's (called with the lock held)."""
+        bucket = int(self._ledger[at + _BUCKET])
+        self._ledger[at + _HOLDER] = 0.0
+        self._table[bucket] = max(0.0, self._table[bucket] - 1.0)
+
+    def leave_search(self, place: Place) -> None:
+        """Give back a place taken by :py:meth:`enter_search` (once; a place given back already is left alone).
+
+        Args:
+            place: The place.
+        """
+        if not self.concurrent:
+            return
+        with self._lock:
+            at = self._held(place)
+            if at is not None:
+                self._free(at)
+
+    def release_holder(self, pid: int) -> int:
+        """Give back every place a process holds (called in the master when a worker ends: ``child_exit``).
+
+        Args:
+            pid: The process that ended.
+
+        Returns:
+            int: The places given back.
+        """
+        if not self.concurrent:
+            return 0
+        freed = 0
+        with self._lock:
+            for row in range(self.places):
+                at = row * _PLACE_FIELDS
+                if int(self._ledger[at + _HOLDER]) == pid:
+                    self._free(at)
+                    freed += 1
+        return freed
+
+    def in_progress(self, client: str) -> int:
+        """Return the searching requests a client has in progress (its places).
+
+        Args:
+            client: The client's key.
+
+        Returns:
+            int: The count (0 where it is not limited).
+        """
+        if not self.concurrent:
+            return 0
+        return int(self._table[self._slot(client) + _RUNNING])
 
     @staticmethod
     def retry_after(seconds: float) -> str:

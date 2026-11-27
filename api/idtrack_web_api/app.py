@@ -140,7 +140,7 @@ def _release_text(value: Any) -> Any:
     """Read a release of the query: digits only (``115``; not ``115.0``, `` 115`` or ``+115``)."""
     if isinstance(value, str):
         if not _DIGITS.fullmatch(value):
-            msg = "must be a whole number from 0 to 999999999, written in digits only"
+            msg = f"must be a whole number from 0 to 999999999, written in digits only, not {json.dumps(value)[:80]}"
             raise ValueError(msg)
         return int(value)
     return value
@@ -150,7 +150,7 @@ def _boolean_text(value: Any) -> Any:
     """Read a boolean of the query: ``true`` or ``false`` only (as JSON writes them)."""
     if isinstance(value, str):
         if value not in {"true", "false"}:
-            msg = "must be `true` or `false`"
+            msg = f"must be `true` or `false`, not {json.dumps(value)[:80]}"
             raise ValueError(msg)
         return value == "true"
     return value
@@ -185,6 +185,83 @@ def _location(raw: tuple[Any, ...] | list[Any]) -> list[str | int]:
     return [p if isinstance(p, int) and not isinstance(p, bool) else str(p) for p in raw]
 
 
+def _json_type(value: Any) -> str:
+    """Return the JSON type of a value as words (a query's value is text)."""
+    return _JSON_TYPES.get(type(value).__name__, "that")
+
+
+def _plural(count: Any, one: str) -> str:
+    return f"{count} {one}" + ("" if count == 1 else "s")
+
+
+#: The api's words for each kind of validation problem (pydantic's ``type``): a function of the problem's context, of
+#: what was sent (``sent``: "not a string", or the query's text) and of the validator's own text without its prefix.
+_PROBLEM_WORDS: dict[str, Callable[[dict[str, Any], str, str], str]] = {
+    "value_error": lambda _ctx, _sent, text: text,
+    "int_type": lambda _ctx, sent, _text: f"must be a whole number written as a JSON number (such as 115), {sent}",
+    "int_parsing": lambda _ctx, sent, _text: f"must be a whole number written as a JSON number (such as 115), {sent}",
+    "int_from_float": lambda _ctx, sent, _text: (
+        f"must be a whole number written as a JSON number (such as 115), {sent}"
+    ),
+    "bool_type": lambda _ctx, sent, _text: f"must be `true` or `false`, {sent}",
+    "bool_parsing": lambda _ctx, sent, _text: f"must be `true` or `false`, {sent}",
+    "string_type": lambda _ctx, sent, _text: f"must be a string, {sent}",
+    "list_type": lambda _ctx, sent, _text: f"must be an array, {sent}",
+    "missing": lambda _ctx, _sent, _text: "is required",
+    "too_short": lambda ctx, _sent, _text: (
+        f"must hold at least {_plural(ctx.get('min_length'), 'item')}, not {ctx.get('actual_length')}"
+    ),
+    "too_long": lambda ctx, _sent, _text: (
+        f"must hold at most {_plural(ctx.get('max_length'), 'item')}, not {ctx.get('actual_length')}"
+    ),
+    "string_too_short": lambda ctx, _sent, _text: f"must have at least {_plural(ctx.get('min_length'), 'character')}",
+    "string_too_long": lambda ctx, _sent, _text: f"must have at most {_plural(ctx.get('max_length'), 'character')}",
+    "literal_error": lambda ctx, sent, _text: f"must be {str(ctx.get('expected', '')).replace(chr(39), '`')}, {sent}",
+    "enum": lambda ctx, sent, _text: f"must be {str(ctx.get('expected', '')).replace(chr(39), '`')}, {sent}",
+    "greater_than_equal": lambda ctx, _sent, _text: f"must be at least {ctx.get('ge')}",
+    "less_than_equal": lambda ctx, _sent, _text: f"must be at most {ctx.get('le')}",
+}
+
+
+def problem_text(error: dict[str, Any]) -> str:
+    """Return a validation problem in the api's own words: what the value must be, and what was sent instead.
+
+    The validator's own wording (its type names, ``Value error,``, ``after validation``) never reaches a message: each
+    kind of problem is written by :py:data:`_PROBLEM_WORDS`, and a problem of another kind keeps the validator's text
+    without those words.
+
+    Args:
+        error: One problem as pydantic reports it (``type``, ``loc``, ``msg``, ``input``, ``ctx``).
+
+    Returns:
+        str: The problem, without the name of the value (the caller writes where it is).
+    """
+    given = error.get("input")
+    in_query = (error.get("loc") or ("",))[0] in {"query", "path"}
+    sent = f"not {json.dumps(given, ensure_ascii=False)[:80]}" if in_query else f"not {_json_type(given)}"
+    text = str(error.get("msg", "")).removeprefix("Value error, ").replace(" after validation", "")
+    words = _PROBLEM_WORDS.get(str(error.get("type", "")))
+    return text if words is None else words(error.get("ctx") or {}, sent, text)
+
+
+def _problems(errors: list[Any], prefix: tuple[str, ...] = ()) -> list[dict[str, Any]]:
+    """Return the validator's problems as the api lists them: where each is, and the problem in the api's words."""
+    return [{"location": [*prefix, *_location(e.get("loc", ()))], "message": problem_text(e)} for e in errors]
+
+
+def _where(location: list[Any]) -> str:
+    """Return where a problem is, in words.
+
+    For example ```to_release` in the query``, or ``item 3 (from 0) of `identifiers` in the body``.
+    """
+    if len(location) < 2 or location[0] not in {"query", "path", "body"}:
+        return f"`{'.'.join(map(str, location))}`"
+    names = [str(p) for p in location[1:] if not isinstance(p, int)]
+    items = [p for p in location[1:] if isinstance(p, int)]
+    where = f"`{'.'.join(names)}` in the {location[0]}"
+    return f"item {items[-1]} (from 0) of {where}" if items else where
+
+
 def _argument(details: list[dict[str, Any]]) -> str | None:
     """Return the one argument every problem is about (``query``/``path``/``body`` and a name), else ``None``."""
     names = {
@@ -208,7 +285,7 @@ def invalid_request_error(problems: list[dict[str, Any]], prefix: str = "The req
         ApiError: The error, with ``argument`` when every problem is about one argument.
     """
     shown = problems[:DETAILS_MAX]
-    parts = [f"`{'.'.join(map(str, d['location']))}`: {str(d['message']).rstrip('.')}" for d in shown]
+    parts = [f"{_where(d['location'])} {str(d['message']).rstrip('.')}" for d in shown]
     more = len(problems) - len(shown)
     if more:
         parts.append(f"and {more} more")
@@ -255,7 +332,34 @@ def _no_constant(name: str) -> Any:
     raise ValueError(msg)
 
 
-def read_json_body(body: bytes, content_type: str, model: type[pydantic.BaseModel]) -> Any:
+def _check_media(content_type: str, content_encoding: str | None) -> None:
+    """Refuse a body that is not uncompressed JSON in UTF-8 (``415 unsupported_media_type``)."""
+    codings = [c.strip().lower() for c in (content_encoding or "").split(",") if c.strip()]
+    if any(c != "identity" for c in codings):
+        msg = "unsupported_media_type"
+        raise ApiError(
+            msg,
+            f"The body is sent with `Content-Encoding: {content_encoding}`; this server reads bodies uncompressed "
+            "only: send it without `Content-Encoding` (or as `identity`).",
+        )
+    kind, _, parameters = content_type.partition(";")
+    if kind.strip().lower() != "application/json":
+        msg = "unsupported_media_type"
+        raise ApiError(
+            msg,
+            "The body must be JSON with the header `Content-Type: application/json`; got "
+            f"{json.dumps(kind.strip().lower() or 'no type')}.",
+        )
+    for parameter in parameters.split(";"):
+        name, _, value = parameter.partition("=")
+        if name.strip().lower() == "charset" and value.strip().strip('"').lower() not in {"utf-8", "utf8"}:
+            msg = "unsupported_media_type"
+            raise ApiError(msg, f"JSON is UTF-8 (RFC 8259); the body declares charset={json.dumps(value.strip())}.")
+
+
+def read_json_body(
+    body: bytes, content_type: str, model: type[pydantic.BaseModel], content_encoding: str | None = None
+) -> Any:
     """Read a request body as the api reads every body: UTF-8 JSON, strictly, into *model*; refuse with a 4xx else.
 
     The body is decoded as UTF-8 (RFC 8259; a declared other charset is ``415``), parsed without NaN or infinity, with
@@ -267,6 +371,7 @@ def read_json_body(body: bytes, content_type: str, model: type[pydantic.BaseMode
         body: The bytes.
         content_type: The ``Content-Type`` header.
         model: The body's model.
+        content_encoding: The ``Content-Encoding`` header (``None``: not sent); only ``identity`` is read.
 
     Returns:
         Any: The model's instance.
@@ -274,22 +379,7 @@ def read_json_body(body: bytes, content_type: str, model: type[pydantic.BaseMode
     Raises:
         ApiError: ``unsupported_media_type`` or ``invalid_request``.
     """
-    kind, _, parameters = content_type.partition(";")
-    if kind.strip().lower() != "application/json":
-        msg = "unsupported_media_type"
-        raise ApiError(
-            msg,
-            "The body must be JSON with the header `Content-Type: application/json`; got "
-            f"{kind.strip().lower() or 'no type'!r}.",
-        )
-    for parameter in parameters.split(";"):
-        name, _, value = parameter.partition("=")
-        if name.strip().lower() == "charset" and value.strip().strip('"').lower() not in {"utf-8", "utf8"}:
-            msg = "unsupported_media_type"
-            raise ApiError(
-                msg,
-                f"JSON is UTF-8 (RFC 8259); the body declares charset={value.strip()!r}.",
-            )
+    _check_media(content_type, content_encoding)
 
     def refuse(message: str) -> ApiError:
         return ApiError(
@@ -325,20 +415,16 @@ def read_json_body(body: bytes, content_type: str, model: type[pydantic.BaseMode
         raise refuse(msg)
     unknown = [k for k in data if k not in model.model_fields]
     if unknown:
-        raise invalid_request_error(
-            [{"location": ["body", k], "message": "a key the body does not take"} for k in unknown],
+        refusal = invalid_request_error(
+            [{"location": ["body", k], "message": "is a key the body does not take"} for k in unknown],
             "The body is not valid",
         )
+        refusal.message = f"{refusal.message[:-1]}; it takes {listed(list(model.model_fields))}."
+        raise refusal
     try:
         return model.model_validate(data)
     except pydantic.ValidationError as error:
-        raise invalid_request_error(
-            [
-                {"location": ["body", *_location(e.get("loc", ()))], "message": str(e.get("msg", ""))}
-                for e in error.errors()
-            ],
-            "The body is not valid",
-        ) from None
+        raise invalid_request_error(_problems(error.errors(), ("body",)), "The body is not valid") from None
 
 
 def create_app(  # noqa: PLR0915 - every endpoint, in one place
@@ -434,11 +520,13 @@ def create_app(  # noqa: PLR0915 - every endpoint, in one place
 
     app.state.methods_at = methods_at
 
+    reference = " The reference for people, with a console per endpoint: `/developers`." if settings.static_dir else ""
+
     def no_endpoint(path: str) -> ApiError:
         return ApiError(
             "not_found",
             f"There is no endpoint {path}. The api's endpoints are under {API_PREFIX}: `GET {API_PREFIX}` lists them "
-            f"all, and `{API_PREFIX}/openapi.json` describes them.",
+            f"all, and `{API_PREFIX}/openapi.json` describes them.{reference}",
         )
 
     app.state.no_endpoint = no_endpoint
@@ -457,8 +545,7 @@ def create_app(  # noqa: PLR0915 - every endpoint, in one place
 
     @app.exception_handler(RequestValidationError)
     async def invalid_request(request: Request, error: RequestValidationError) -> Response:
-        problems = [{"location": _location(e.get("loc", ())), "message": str(e.get("msg", ""))} for e in error.errors()]
-        return _error_response(request, invalid_request_error(problems))
+        return _error_response(request, invalid_request_error(_problems(list(error.errors()))))
 
     @app.exception_handler(Exception)
     async def fault(request: Request, _error: Exception) -> Response:
@@ -589,24 +676,31 @@ def create_app(  # noqa: PLR0915 - every endpoint, in one place
 
         return write
 
+    def thread_full(state: dict[str, Any]) -> ApiError:
+        """Return the refusal of a search this worker cannot queue for its search thread (its client's token back)."""
+        state["capacity"] = True
+        return ApiError(
+            "server_busy",
+            f"This worker has {slot.waiting} requests waiting for its search thread; retry in a few seconds.",
+            headers={"Retry-After": "2"},
+        )
+
     async def on_search_thread(request: Request, work: Callable[[float], Any], write: Callable[[Any], bytes]) -> bytes:
         """Run *work(deadline)* on this worker's search thread, then *write* its result there, waiting in a queue.
 
-        Both are charged to the client as its search's time (``Server-Timing``: ``search`` and ``write``). A request
-        whose client closed its connection is not searched: it is dropped where it waits, and a batch stops between
-        its groups (``state["gone"]``, set by a watcher of the connection; a search already running finishes, since
-        idtrack cannot be stopped mid-search). When it is done, the worker counts its search as ended (the process
-        model then gives it the next search), even while the answer is still being sent.
+        A search that waited more than ``queue_seconds`` for a worker (in the queue the workers share, then for this
+        worker's search thread) is answered ``503 server_busy`` without being searched; the request's time budget
+        (``request_seconds``, the *deadline*) runs from when its search begins. The search and the writing of its
+        answer are charged to the client as its search's time (``Server-Timing``: ``search`` and ``write``) and recorded
+        in the mean time of recent searches (which estimates the wait of the next). A request whose client closed its
+        connection is not searched: it is dropped where it waits, and a batch stops between its groups
+        (``state["gone"]``, set by a watcher of the connection; a search already running finishes, since idtrack cannot
+        be stopped mid-search). When it is done, the worker counts its search as ended (the process model then gives it
+        the next search), even while the answer is still being sent.
         """
-        if slot.waiting >= slot.queue_max:
-            msg = "server_busy"
-            raise ApiError(
-                msg,
-                f"This worker has {slot.waiting} requests waiting for its search thread; retry in a few seconds.",
-                headers={"Retry-After": "2"},
-            )
         state = request.scope["state"]
-        deadline = float(state["arrived"]) + settings.request_seconds
+        if slot.waiting >= slot.queue_max:
+            raise thread_full(state)
         timing: dict[str, float] = state.setdefault("timing", {})
         queued = time.monotonic()
         gone: threading.Event = state.setdefault("gone", threading.Event())
@@ -618,19 +712,21 @@ def create_app(  # noqa: PLR0915 - every endpoint, in one place
                     gone.set()
                     return
 
-        def timed(deadline: float) -> bytes:
+        def timed() -> bytes:
             if gone.is_set():
                 msg = "request_timeout"
                 raise ApiError(msg, "The client closed its connection before its search began.")
-            if time.monotonic() >= deadline:  # it waited its whole budget for a worker: it is not searched
-                raise service.waited_out(settings)
             started = time.monotonic()
             # Waiting for this worker's search thread, and before for a worker free of searches (the hand-off queue).
-            timing["queue"] = timing.get("queue", 0.0) + started - queued + float(state.get("handed_off", 0.0))
+            waited = started - queued + float(state.get("handed_off", 0.0))
+            timing["queue"] = timing.get("queue", 0.0) + waited
+            if waited > settings.queue_seconds:
+                state["capacity"] = True
+                raise service.waited_out(settings, waited)
             monitor.search_running(running=True)
             try:
                 try:
-                    result = work(deadline)
+                    result = work(started + settings.request_seconds)
                 finally:
                     timing["search"] = timing.get("search", 0.0) + time.monotonic() - started
                 began = time.monotonic()
@@ -640,12 +736,13 @@ def create_app(  # noqa: PLR0915 - every endpoint, in one place
                     timing["write"] = timing.get("write", 0.0) + time.monotonic() - began
             finally:
                 monitor.search_running(running=False)
+                monitor.search_ended(time.monotonic() - started)
 
         slot.waiting += 1
         monitor.search_held(1)
         watcher = asyncio.get_running_loop().create_task(watch())
         try:
-            return await anyio.to_thread.run_sync(timed, deadline, limiter=slot.limiter)
+            return await anyio.to_thread.run_sync(timed, limiter=slot.limiter)
         finally:
             watcher.cancel()
             slot.waiting -= 1
@@ -1021,9 +1118,22 @@ def create_app(  # noqa: PLR0915 - every endpoint, in one place
             from_release, to_release, None, from_database, explain=False, allow_bridges=allow_bridges
         )
 
+        arguments = {
+            "identifier": identifier,
+            "from_release": from_release,
+            "to_release": to_release,
+            "from_database": from_database,
+            "allow_bridges": allow_bridges,
+        }
+
         def work(deadline: float) -> dict[str, Any]:
             release, conversions = service.convert_each_database(graph, identifier, conversion, settings, deadline)
-            return {"organism": graph.organism, "to_release": release, "conversions": conversions}
+            return {
+                "organism": graph.organism,
+                "arguments": arguments,
+                "to_release": release,
+                "conversions": conversions,
+            }
 
         body = await on_search_thread(request, work, written(advice_of()))
         return answered(body, graph)
@@ -1043,7 +1153,9 @@ def create_app(  # noqa: PLR0915 - every endpoint, in one place
                 "headers": {
                     "Content-Disposition": {
                         "description": (
-                            'With `format=tsv`: `attachment; filename="idtrack_<organism>.tsv"` (a file to save).'
+                            "With `format=tsv`: `attachment; "
+                            "filename=\"idtrack_<organism>_<to_release>_<the first 12 characters of the graph's "
+                            'digest>.tsv"` (a file to save, named after what produced it).'
                         ),
                         "schema": {"type": "string"},
                     }
@@ -1061,7 +1173,7 @@ def create_app(  # noqa: PLR0915 - every endpoint, in one place
             "`details`). With `read_copies` (the default) an item can be answered as the copy of another item of the "
             "same batch. `format=tsv` gives one row per candidate. Prefer it to many single calls."
         ),
-        dependencies=[Depends(only("format"))],
+        dependencies=[Depends(only("format", "provenance"))],
         openapi_extra={
             "requestBody": {
                 "required": True,
@@ -1082,9 +1194,27 @@ def create_app(  # noqa: PLR0915 - every endpoint, in one place
                 ),
             ),
         ] = "json",
+        *,
+        provenance: _boolean_query(  # type: ignore[valid-type]
+            "With `format=tsv`: write one line before the header, beginning with `#`, that names the api's and "
+            "idtrack's versions, the organism, the graph's content digest, the arguments and the request's id, so a "
+            "saved table stays tied to what produced it (a reader of the table skips it as a comment). Not taken "
+            "with `format=json`, whose answer and headers carry the same."
+        ) = False,
     ) -> Response:
+        if provenance and answer_format != "tsv":
+            msg = "invalid_argument"
+            raise ApiError(
+                msg,
+                "`provenance=true` writes a line of the table (`format=tsv`); a JSON answer names the organism and the "
+                "arguments itself, and its headers the versions and the graph's digest.",
+                argument="provenance",
+            )
         body: schemas.BatchRequest = read_json_body(
-            await request.body(), request.headers.get("content-type", ""), schemas.BatchRequest
+            await request.body(),
+            request.headers.get("content-type", ""),
+            schemas.BatchRequest,
+            request.headers.get("content-encoding"),
         )
         identifiers = checked_identifiers(body.identifiers)
         conversion = service.conversion_arguments(
@@ -1108,23 +1238,41 @@ def create_app(  # noqa: PLR0915 - every endpoint, in one place
                 abandoned=request.scope["state"]["gone"].is_set,
             )
 
+        arguments = body.model_dump(exclude={"identifiers"})
         if answer_format == "tsv":
+            identity = graph.graph.identity()
+            target = identity.snapshot_release if body.to_release is None else body.to_release
+            digest = identity.content_digest or "none"
+            head: list[str] = []
+            if provenance:
+                written_args = ", ".join(f"{k} {json.dumps(v)}" for k, v in arguments.items())
+                head.append(
+                    f"# idtrack-web {idtrack_web_api.__version__}, idtrack {idtrack_version()}, organism "
+                    f"{graph.organism}, graph {digest}, {written_args}, request {_request_id(request)}\n"
+                )
 
             def table(results: list[dict[str, Any]]) -> bytes:
                 try:
-                    return writing.lines_bytes(tsv.lines(results), settings.response_max_bytes)
+                    return writing.lines_bytes([*head, *tsv.lines(results)], settings.response_max_bytes)
                 except writing.TooLargeError as error:
                     raise too_large(error, advice) from None
 
             text = await on_search_thread(request, work, table)
+            name = f"idtrack_{graph.organism}_{target}_{digest[:12]}.tsv"
             return answered(
                 text,
                 graph,
                 media_type="text/tab-separated-values; charset=utf-8",
-                **{"Content-Disposition": f'attachment; filename="idtrack_{graph.organism}.tsv"'},
+                **{"Content-Disposition": f'attachment; filename="{name}"'},
             )
         write = written(advice)
-        data = await on_search_thread(request, work, lambda results: write({"count": len(results), "results": results}))
+        data = await on_search_thread(
+            request,
+            work,
+            lambda results: write(
+                {"organism": graph.organism, "arguments": arguments, "count": len(results), "results": results}
+            ),
+        )
         return answered(data, graph)
 
     def checked_identifiers(identifiers: list[str]) -> list[str]:
@@ -1184,17 +1332,25 @@ def create_app(  # noqa: PLR0915 - every endpoint, in one place
     )
     async def source_inference(request: Request, graph: Annotated[LoadedGraph, Depends(graph_of)]) -> Response:
         body: schemas.SourceInferenceRequest = read_json_body(
-            await request.body(), request.headers.get("content-type", ""), schemas.SourceInferenceRequest
+            await request.body(),
+            request.headers.get("content-type", ""),
+            schemas.SourceInferenceRequest,
+            request.headers.get("content-encoding"),
         )
         identifiers = checked_identifiers(body.identifiers)
-        body_bytes = await on_search_thread(
-            request,
-            lambda _deadline: {
+
+        def work(_deadline: float) -> dict[str, Any]:
+            inference = service.source_inference(graph, identifiers, body.mode)
+            best = service.named_origin(inference["band"][0], body.mode) if inference["band"] else None
+            return {
                 "organism": graph.organism,
-                "inference": service.source_inference(graph, identifiers, body.mode),
-            },
-            written(advice_of(identifiers=len(identifiers))),
-        )
+                "mode": body.mode,
+                "best": best,
+                "from_release": None if best is None else best["release"],
+                "inference": inference,
+            }
+
+        body_bytes = await on_search_thread(request, work, written(advice_of(identifiers=len(identifiers))))
         return answered(body_bytes, graph)
 
     @app.get(
@@ -1229,9 +1385,17 @@ def create_app(  # noqa: PLR0915 - every endpoint, in one place
         ) = None,
     ) -> Response:
         service.require_text(name, "name", settings)
+        if not name.strip():
+            msg = "missing_value"
+            raise ApiError(msg, "`name` is empty; send the name to look up, such as `TP53`.", argument="name")
+        arguments = {"name": name, "fold_case": fold_case, "release": release}
         body = await on_search_thread(
             request,
-            lambda _deadline: {"matches": service.genes_named(graph, name, fold_case=fold_case, release=release)},
+            lambda _deadline: {
+                "organism": graph.organism,
+                "arguments": arguments,
+                "matches": service.genes_named(graph, name, fold_case=fold_case, release=release),
+            },
             written(advice_of()),
         )
         return answered(body, graph)
@@ -1270,7 +1434,11 @@ def create_app(  # noqa: PLR0915 - every endpoint, in one place
         service.require_text(gene, "gene", settings)
         body = await on_search_thread(
             request,
-            lambda _deadline: {"matches": service.names_of(graph, gene, release)},
+            lambda _deadline: {
+                "organism": graph.organism,
+                "arguments": {"gene": gene, "release": release},
+                "matches": service.names_of(graph, gene, release),
+            },
             written(advice_of()),
         )
         return answered(body, graph)
@@ -1390,6 +1558,18 @@ def _serve_frontend(
         raise ApiError(msg, f"There is no file /{path}.")
 
 
+#: The fields of ``/limits`` that are per-client allowances (:py:mod:`idtrack_web_api.limits`), applied only where
+#: ``rate_per_minute`` is above 0; every other bound holds on every server.
+ALLOWANCE_FIELDS: tuple[str, ...] = (
+    "rate_per_minute",
+    "rate_burst",
+    "read_share",
+    "rate_search_seconds",
+    "rate_search_burst_seconds",
+    "rate_concurrent_searches",
+)
+
+
 def limits(settings: Settings) -> dict[str, Any]:
     """Return the body of ``/limits``: the bounds of the server's settings.
 
@@ -1405,6 +1585,7 @@ def limits(settings: Settings) -> dict[str, Any]:
         "body_max_bytes": settings.body_max_bytes,
         "response_max_bytes": settings.response_max_bytes,
         "request_seconds": float(settings.request_seconds),
+        "queue_seconds": float(settings.queue_seconds),
         "search_seconds": float(settings.search_seconds),
         "search_states": settings.search_states,
         "rate_per_minute": settings.rate_per_minute,
@@ -1417,6 +1598,7 @@ def limits(settings: Settings) -> dict[str, Any]:
         "body_seconds": float(settings.body_seconds),
         "answer_cache_bytes": settings.answer_cache_bytes,
         "allowances_enforced": settings.rate_per_minute > 0,
+        "allowance_fields": list(ALLOWANCE_FIELDS),
         "rate_concurrent_searches": settings.rate_concurrent_searches,
         "send_seconds": float(settings.send_seconds),
         "send_min_bytes_per_second": SEND_MIN_RATE,

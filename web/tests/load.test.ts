@@ -110,6 +110,22 @@ describe("the state rule", () => {
     expect(workWaiting(unread)).toBe(0);
     expect(loadState(unread)).toBe("ok");
   });
+
+  it("adds the three disjoint counts of waiting work once each", () => {
+    // 31 searches in the queue the workers share, none in the kernel's queue or for a worker's own thread: 31 wait.
+    const handedOff = withLoad((s) => {
+      s.requests.searches_waiting = 0;
+      s.requests.searches_queued = 31;
+      s.requests.connections_waiting = 0;
+    });
+    expect(workWaiting(handedOff)).toBe(31);
+    const all = withLoad((s) => {
+      s.requests.searches_waiting = 2;
+      s.requests.searches_queued = 5;
+      s.requests.connections_waiting = 1;
+    });
+    expect(workWaiting(all)).toBe(8);
+  });
 });
 
 describe("conversions for reading, each with the exact value", () => {

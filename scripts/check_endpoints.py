@@ -260,7 +260,7 @@ def main() -> int:  # noqa: PLR0912, PLR0915 - one script, read top to bottom
                     {"identifiers": batch})  # fmt: skip
     rows = table.splitlines()
     tsv_content = c.document["paths"][f"{org}/convert/batch"]["post"]["responses"]["200"]["content"]
-    if rows[0].split("\t") != tsv_content["text/tab-separated-values"]["x-columns"]:
+    if rows[0].split("\t") != [c["name"] for c in tsv_content["text/tab-separated-values"]["x-columns"]]:
         c.failures.append("batch as TSV: its columns are not those the document lists")
     # Every database at once, and the source of the sample as a list: each idtrack's own call.
     for identifier in identifiers[:5]:

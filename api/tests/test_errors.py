@@ -128,9 +128,11 @@ def test_names_errors(client: TestClient, check_response: Callable[..., Any]) ->
     assert error_of(response, check_response, names_of)["code"] == "unknown_identifier"
     response = client.get(f"{P}/organisms/pig/names-of", params={"gene": GENE, "release": 20})
     assert error_of(response, check_response, names_of)["code"] == "unknown_release"
-    # An empty name is idtrack's to answer: it names no gene.
-    response = client.get(f"{P}/organisms/pig/genes-named", params={"name": ""})
-    assert check_response(response, f"{P}/organisms/{{organism}}/genes-named") == {"matches": []}
+    # An empty name (or one of white space alone) is refused as an empty identifier is: there is nothing to look up.
+    for empty in ("", "  "):
+        response = client.get(f"{P}/organisms/pig/genes-named", params={"name": empty})
+        error = error_of(response, check_response, f"{P}/organisms/{{organism}}/genes-named")
+        assert (error["code"], error["argument"]) == ("missing_value", "name")
     response = client.get(f"{P}/organisms/pig/genes-named", params={"name": "INS", "fold_case": "2"})
     assert error_of(response, check_response, f"{P}/organisms/{{organism}}/genes-named")["code"] == "invalid_request"
     response = client.get(f"{P}/organisms/pig/final-databases", params={"to_release": 40})
@@ -254,13 +256,14 @@ def test_request_budget(
     assert error["code"] == "request_budget_exceeded"
     assert "2 of the 3" in error["message"]
     assert response.headers["retry-after"] == "5"
-    # Out of time before the first search (the request waited for the server): the same code, with a time to retry.
-    monkeypatch.setattr(service, "_remaining", lambda _deadline: -1.0)
-    response = client.get(f"{P}/organisms/pig/convert", params={"identifier": GENE})
+    # The budget runs from when the search begins: the time a request waited for a worker is not part of it, and a
+    # request that waited longer than a search may (`queue_seconds`) is the server's load, not the request's size.
+    waiting = make_client(rate_per_minute=0, queue_seconds=1e-9)
+    response = waiting.get(f"{P}/organisms/pig/convert", params={"identifier": GENE})
     assert response.status_code == 503
     error = error_of(response, check_response, CONVERT)
-    assert error["code"] == "request_budget_exceeded"
-    assert "before its search began" in error["message"]
+    assert error["code"] == "server_busy"
+    assert "was not searched" in error["message"] and "fewer" not in error["message"]
     assert response.headers["retry-after"] == "5"
 
 
@@ -319,7 +322,7 @@ def test_search_time_is_charged(make_client: Callable[..., TestClient], check_re
     assert response.status_code == 429, response.text
     error = error_of(response, check_response, CONVERT)
     assert error["code"] == "rate_limited"
-    assert "s of search per minute" in error["message"]
+    assert "balance of search time is used up" in error["message"]
     assert int(response.headers["retry-after"]) >= 1
 
 

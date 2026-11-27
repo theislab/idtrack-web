@@ -48,7 +48,8 @@ class Settings:
         host: The address the server listens on.
         port: The port the server listens on.
         forwarded_allow_ips: Addresses of reverse proxies whose ``X-Forwarded-For`` names the client.
-        request_seconds: The time budget of one request, from its arrival to its last conversion.
+        request_seconds: The time budget of one request's search, from when it begins to its last conversion.
+        queue_seconds: The longest a search waits for a worker free of searches before it is answered ``503``.
         search_seconds: The longest time one identifier's search may take (never more than ``request_seconds``).
         search_states: The most search states one identifier's search may expand.
         batch_max: The most identifiers of one batch.
@@ -93,6 +94,7 @@ class Settings:
     port: int = 8000
     forwarded_allow_ips: tuple[str, ...] = ("127.0.0.1",)
     request_seconds: float = 20.0
+    queue_seconds: float = 10.0
     search_seconds: float = 10.0
     search_states: int = 200_000
     batch_max: int = 1000
@@ -348,6 +350,7 @@ def load_settings(environ: Mapping[str, str] | None = None) -> Settings:
         port=_integer(env, "PORT", 8000, 1, 65535),
         forwarded_allow_ips=_addresses(env, "FORWARDED_ALLOW_IPS", ("127.0.0.1",)),
         request_seconds=request_seconds,
+        queue_seconds=_seconds(env, "QUEUE_SECONDS", 10.0, 600.0),
         search_seconds=_seconds(env, "SEARCH_SECONDS", min(10.0, request_seconds), 600.0),
         search_states=_integer(env, "SEARCH_STATES", 200_000, 1_000, 100_000_000),
         batch_max=_integer(env, "BATCH_MAX", 1000, 1, 100_000),

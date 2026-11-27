@@ -376,6 +376,7 @@
      "body_max_bytes": 1048576,
      "response_max_bytes": 33554432,
      "request_seconds": 20.0,
+     "queue_seconds": 10.0,
      "search_seconds": 10.0,
      "search_states": 200000,
      "rate_per_minute": 0,
@@ -388,6 +389,14 @@
      "body_seconds": 30.0,
      "answer_cache_bytes": 67108864,
      "allowances_enforced": false,
+     "allowance_fields": [
+      "rate_per_minute",
+      "rate_burst",
+      "read_share",
+      "rate_search_seconds",
+      "rate_search_burst_seconds",
+      "rate_concurrent_searches"
+     ],
      "rate_concurrent_searches": 2,
      "send_seconds": 30.0,
      "send_min_bytes_per_second": 65536,
@@ -4634,6 +4643,13 @@
    "responses": {
     "application/json": {
      "organism": "homo_sapiens",
+     "arguments": {
+      "identifier": "TP53",
+      "from_release": null,
+      "to_release": 115,
+      "from_database": null,
+      "allow_bridges": true
+     },
      "to_release": 115,
      "conversions": [
       {
@@ -5432,6 +5448,13 @@
    "responses": {
     "application/json": {
      "organism": "homo_sapiens",
+     "mode": "release",
+     "best": {
+      "database": null,
+      "assembly": null,
+      "release": 50
+     },
+     "from_release": 50,
      "inference": {
       "mode": "release",
       "band": [
@@ -5865,6 +5888,16 @@
   "convert_batch": {
    "responses": {
     "application/json": {
+     "organism": "homo_sapiens",
+     "arguments": {
+      "from_release": null,
+      "to_release": null,
+      "final_database": null,
+      "from_database": null,
+      "explain": false,
+      "allow_bridges": true,
+      "read_copies": true
+     },
      "count": 3,
      "results": [
       {
@@ -6025,6 +6058,12 @@
   "genes_named": {
    "responses": {
     "application/json": {
+     "organism": "homo_sapiens",
+     "arguments": {
+      "name": "NOV",
+      "fold_case": false,
+      "release": null
+     },
      "matches": [
       {
        "name": "NOV",
@@ -6781,6 +6820,11 @@
   "names_of": {
    "responses": {
     "application/json": {
+     "organism": "homo_sapiens",
+     "arguments": {
+      "gene": "ENSG00000141510.20",
+      "release": 115
+     },
      "matches": [
       {
        "name": "7157",

@@ -5,6 +5,7 @@ load (``/status``) reported for every worker and the master."""
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import http.client
 import json
 import os
@@ -415,7 +416,10 @@ def test_reads_never_wait_behind_queued_searches(cut_store: Path) -> None:
         assert all(f.result()[0] == 200 for f in [*long, *queued])
     assert max(waits) < 0.5, waits
     assert status["requests"]["searches_queued"] >= 6, status["requests"]
-    assert status["requests"]["connections_waiting"] >= status["requests"]["searches_queued"]
+    # The three counts of waiting requests are disjoint: the queued searches are not counted again as connections in
+    # the kernel's queue, nor as searches waiting for a worker's own thread.
+    assert status["requests"]["connections_waiting"] == 0, status["requests"]
+    assert status["requests"]["searches_waiting"] == 0, status["requests"]
 
 
 def test_a_search_waits_only_for_the_first_free_worker(cut_store: Path) -> None:
@@ -541,3 +545,119 @@ def test_a_search_that_waited_for_a_worker_is_still_answered(cut_store: Path) ->
     assert status == 200, headers
     assert waited > 2.0, "the search did not wait for a worker"
     assert float(headers["server-timing"].split("queue;dur=")[1].split(",")[0]) > 2000
+
+
+def raw_request(base: str, request: bytes, timeout: float = 30) -> tuple[int, dict[str, str], bytes]:
+    """Send bytes as a request on a connection of its own; return the status, the headers and the body answered."""
+    host, port = base.removeprefix("http://").split(":")
+    with socket.create_connection((host, int(port))) as sock:
+        sock.sendall(request)
+        sock.settimeout(timeout)
+        answer = b""
+        with contextlib.suppress(ConnectionResetError, TimeoutError):
+            while chunk := sock.recv(65536):
+                answer += chunk
+    head, _, body = answer.partition(b"\r\n\r\n")
+    lines = head.decode("latin-1").split("\r\n")
+    headers = {k.strip().lower(): v.strip() for k, _, v in (line.partition(":") for line in lines[1:])}
+    return int(lines[0].split()[1]), headers, body
+
+
+def test_a_slow_body_holds_no_search(cut_store: Path) -> None:
+    """A search counts in its worker only once its whole request has arrived: bodies sent a byte a second, as many as
+    the workers, delay no one else's search (without a proxy that buffers bodies in front)."""
+    with serving(cut_store, 0, 1) as (base, _):
+        host, port = base.removeprefix("http://").split(":")
+        slow = []
+        for _ in range(2):
+            sock = socket.create_connection((host, int(port)))
+            sock.sendall(
+                b"POST /api/v1/organisms/pig/convert/batch HTTP/1.1\r\nHost: x\r\nContent-Type: application/json\r\n"
+                b"Content-Length: 100000\r\n\r\n{"
+            )
+            slow.append(sock)
+        try:
+            for _ in range(3):
+                time.sleep(1.0)
+                for sock in slow:
+                    sock.sendall(b" ")
+                start = time.monotonic()
+                status, _, _ = get(f"{base}{P}/organisms/pig/convert?identifier={GENE}&to_release=90", timeout=30)
+                assert status == 200
+                assert time.monotonic() - start < 1.0, "a search waited behind bodies still on their way"
+        finally:
+            for sock in slow:
+                sock.close()
+
+
+def test_queued_searches_are_answered_when_the_server_stops(cut_store: Path) -> None:
+    """A graceful stop (SIGTERM) answers the searches still in the queue `503 server_busy` with `Retry-After`, and
+    finishes the searches running."""
+    with serving(cut_store, 0, 1, slow=True) as (base, master), ThreadPoolExecutor(6) as pool:
+        running = [
+            pool.submit(get, f"{base}{P}/organisms/pig/convert?identifier=SLOW3.{'0' * i}", 60) for i in range(2)
+        ]
+        time.sleep(0.5)
+        queued = [
+            pool.submit(get, f"{base}{P}/organisms/pig/convert?identifier={GENE}&to_release={r}", 60) for r in (80, 90)
+        ]
+        time.sleep(0.5)
+        assert status_of(base)["requests"]["searches_queued"] == 2
+        stopped = time.monotonic()
+        os.kill(master, signal.SIGTERM)
+        answers = [f.result() for f in queued]
+        assert time.monotonic() - stopped < 3.0, "the queued searches were not answered at once"
+        assert [f.result()[0] for f in running] == [200, 200]
+    for status, headers, body in answers:
+        error = json.loads(body)["error"]
+        assert (status, error["code"]) == (503, "server_busy"), body
+        assert headers["retry-after"] == "5" and "stopping" in error["message"]
+
+
+def test_a_worker_killed_in_a_search_locks_no_client_out(cut_store: Path) -> None:
+    """The places a killed worker held among its clients' searches in progress are given back by the master: the
+    client searches again at once."""
+    extra = {"IDTRACK_WEB_RATE_CONCURRENT_SEARCHES": "2"}
+    with serving(cut_store, 600, 100, boots=4, slow=True, extra=extra) as (base, master), ThreadPoolExecutor(2) as pool:
+        running = [
+            pool.submit(get, f"{base}{P}/organisms/pig/convert?identifier=SLOW5.{'0' * i}", 60) for i in range(2)
+        ]
+        time.sleep(1.0)
+        for pid in children_of(master):
+            os.kill(pid, signal.SIGKILL)
+        del running  # their connections die with the workers
+        deadline = time.monotonic() + 60
+        while len(children_of(master)) != 2 or status_of(base)["workers_alive"] != 2:
+            assert time.monotonic() < deadline
+        status, _, body = get(f"{base}{P}/organisms/pig/convert?identifier={GENE}&to_release=90")
+        assert status == 200, body
+
+
+def test_a_search_that_would_wait_too_long_is_refused(cut_store: Path) -> None:
+    """A search whose wait for a worker, estimated from the queue and the recent searches' time, would pass
+    `queue_seconds` is refused at once (its token given back); one that waited `queue_seconds` anyway is refused
+    unsearched: both `503 server_busy`, never `request_budget_exceeded` with advice to send less."""
+    extra = {"IDTRACK_WEB_QUEUE_SECONDS": "1.8", "IDTRACK_WEB_RATE_CONCURRENT_SEARCHES": "0"}
+    with serving(cut_store, 1, 30, slow=True, extra=extra) as (base, _), ThreadPoolExecutor(8) as pool:
+        assert get(f"{base}{P}/organisms/pig/convert?identifier=SLOW1")[0] == 200  # the recent mean: about 1 s
+        running = [
+            pool.submit(get, f"{base}{P}/organisms/pig/convert?identifier=SLOW4.{'0' * i}", 60) for i in range(2)
+        ]
+        time.sleep(0.5)
+        queued = []
+        for release in (80, 90):  # estimated waits of about 1 and 1.5 s: queued
+            queued.append(pool.submit(get, f"{base}{P}/organisms/pig/convert?identifier={GENE}&to_release={release}"))
+            time.sleep(0.2)
+        status, headers, body = get(f"{base}{P}/organisms/pig/convert?identifier={GENE}&to_release=110")
+        start = time.monotonic()
+        assert [f.result()[0] for f in running] == [200, 200]
+        waited = [f.result() for f in queued]
+    error = json.loads(body)["error"]
+    assert (status, error["code"]) == (503, "server_busy") and "would wait" in error["message"], body
+    assert int(headers["retry-after"]) >= 1
+    # Five searching requests were admitted before it (rate 1 a minute: nothing refills); its own token came back.
+    assert '"searches";r=25' in headers["ratelimit"], headers["ratelimit"]
+    assert time.monotonic() - start < 60
+    for status, _, body in waited:
+        error = json.loads(body)["error"]
+        assert (status, error["code"]) == (503, "server_busy") and "was not searched" in error["message"], body

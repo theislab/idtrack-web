@@ -15,14 +15,22 @@ without consuming it (``MSG_PEEK``) and routes it by its method and path (:py:fu
 - a search is kept by the worker that took it when that worker holds no other search; otherwise the worker hands the
   connection on, unread, through a queue shared by the workers (:py:class:`HandOff`: a socket pair made before the
   fork, the connection passed as a file descriptor), from which the first worker that holds no search takes it, in
-  the order the searches arrived. A worker holds a search from the moment it keeps it until the search's answer is
-  written (not until a slow client has read it). When the queue holds as many searches as it may
-  (``queue_max`` times the workers), a search is answered ``503 server_busy`` with ``Retry-After``.
+  the order the searches arrived. A worker holds a search from the moment its whole request has arrived (its head,
+  and the body of a ``POST``: a body still on its way holds no search, so a client that sends it slowly delays its own
+  request only) until the search's answer is written (not until a slow client has read it). A search is answered
+  ``503 server_busy`` with ``Retry-After`` rather than queued when the queue holds as many searches as it may
+  (``queue_max`` times the workers), or when its wait, estimated from the searches waiting before it and the recent
+  searches' mean time, would pass ``queue_seconds``; a search that waited ``queue_seconds`` for a worker anyway is
+  answered so without being searched (:py:mod:`idtrack_web_api.app`).
 
 So a search waits only for the first worker that is free of searches, never behind another search in a worker that
-took it, and a health check waits for nothing but the interpreter lock. A taken connection must send its request's
-line within ``head_seconds`` (5 s by default), and its whole head within that time of its connection being made, or it
-is closed: a connection that sends nothing (a browser's speculative preconnect, a stalled client) holds no worker.
+took it (but for one whose body completed in that worker while it waited), and a health check waits for nothing but
+the interpreter lock. When the server stops (``SIGTERM``), every search still in the queue is answered
+``503 server_busy`` with ``Retry-After`` (by a worker as it stops, and by the master as it exits), never dropped.
+
+A taken connection must send its request's line within ``head_seconds`` (5 s by default), and its whole head within
+that time of its connection being made, or it is closed: a connection that sends nothing (a browser's speculative
+preconnect, a stalled client) holds no worker.
 Every answer closes its connection (``Connection: close``), so each request is routed afresh and no client is bound to
 one worker. An answer that its client stops taking is bounded too (:py:mod:`idtrack_web_api.guard`, the send's
 deadlines): this module gives the outer layer the connection to close (:py:data:`idtrack_web_api.guard.CONNECTION`).
@@ -32,8 +40,9 @@ from __future__ import annotations
 
 import array
 import asyncio
-import json
+import contextlib
 import logging
+import math
 import multiprocessing
 import socket
 import struct
@@ -50,9 +59,9 @@ from uvicorn.protocols.http.h11_impl import H11Protocol
 from uvicorn.server import Server
 from uvicorn_worker import UvicornWorker
 
-from idtrack_web_api.errors import ApiError
+from idtrack_web_api.errors import ApiError, error_json
 from idtrack_web_api.guard import API_POLICY, CONNECTION, URI_MAX_BYTES, is_search
-from idtrack_web_api.limits import client_key
+from idtrack_web_api.limits import NO_PLACE, Admission, client_key
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -74,9 +83,15 @@ PEEK_BYTES = 1024
 #: Connections a worker takes from the listening socket at one wake-up.
 TAKE_AT_ONCE = 16
 
-_PAYLOAD = struct.Struct("d")
+#: What a hand-off carries beside the connection: when it was taken, and its place among its client's searches.
+_PAYLOAD = struct.Struct("dqq")
 #: The longest client key a hand-off carries (an IPv6 network is under 50 characters).
 _KEY_BYTES = 128
+#: The most bytes of a request read and dropped before a refusal is written to its connection (so that closing it does
+#: not reset the connection before its client reads the refusal).
+_DROP_MAX_BYTES = 2_097_152
+#: The seconds a client is told to wait (``Retry-After``) when the server stops with its search in the queue.
+RESTART_RETRY_SECONDS = 5
 
 
 class HandOff:
@@ -107,14 +122,14 @@ class HandOff:
         """The searches waiting in the queue."""
         return max(0, int(self._waiting.value))
 
-    def put(self, connection: socket.socket, taken_at: float, admitted: str | None = None) -> bool:
+    def put(self, connection: socket.socket, taken_at: float, admitted: Admission | None = None) -> bool:
         """Put a connection in the queue (the caller then closes its own descriptor of it).
 
         Args:
             connection: The connection, its request unread.
             taken_at: When a worker took it (``time.monotonic()``: one clock for every process of the machine).
-            admitted: The client whose allowances admitted the search (its place among the client's searches in
-                progress goes with the connection).
+            admitted: The admission of the search by its client's allowances (its place among the client's searches
+                in progress goes with the connection).
 
         Returns:
             bool: ``False`` when the queue is full (or the kernel refused): the caller answers the request itself.
@@ -125,7 +140,9 @@ class HandOff:
             self._waiting.value += 1
         try:
             fds = array.array("i", [connection.fileno()])
-            payload = _PAYLOAD.pack(taken_at) + (admitted or "").encode("utf-8")[:_KEY_BYTES]
+            row, generation = NO_PLACE if admitted is None else admitted.place
+            client = "" if admitted is None else admitted.client
+            payload = _PAYLOAD.pack(taken_at, row, generation) + client.encode("utf-8")[:_KEY_BYTES]
             self.sending.sendmsg([payload], [(socket.SOL_SOCKET, socket.SCM_RIGHTS, fds.tobytes())])
         except OSError as error:
             log.warning("Cannot hand a search on: %s.", error)
@@ -134,12 +151,12 @@ class HandOff:
             return False
         return True
 
-    def take(self) -> tuple[socket.socket, float, str | None] | None:
+    def take(self) -> tuple[socket.socket, float, Admission | None] | None:
         """Take the search that has waited longest, if any.
 
         Returns:
-            tuple[socket.socket, float, str | None] | None: The connection, when it was first taken, and the client
-            whose allowances admitted it.
+            tuple[socket.socket, float, Admission | None] | None: The connection, when it was first taken, and its
+            admission by its client's allowances.
         """
         try:
             data, ancillary, _, _ = self.receiving.recvmsg(
@@ -157,9 +174,120 @@ class HandOff:
             return None
         for extra in fds[1:]:
             socket.socket(fileno=extra).close()
-        taken_at = _PAYLOAD.unpack(data[: _PAYLOAD.size])[0] if len(data) >= _PAYLOAD.size else time.monotonic()
-        admitted = data[_PAYLOAD.size :].decode("utf-8", "replace") or None
+        taken_at, row, generation = (
+            _PAYLOAD.unpack(data[: _PAYLOAD.size]) if len(data) >= _PAYLOAD.size else (time.monotonic(), *NO_PLACE)
+        )
+        client = data[_PAYLOAD.size :].decode("utf-8", "replace")
+        admitted = Admission(client, (int(row), int(generation))) if client else None
         return socket.socket(fileno=fds[0]), taken_at, admitted
+
+    def drain(self, answer: Callable[[socket.socket, Admission | None], None]) -> int:
+        """Take every search still in the queue and answer each (the server is stopping).
+
+        Args:
+            answer: What answers one connection (and gives its admission back).
+
+        Returns:
+            int: The searches answered.
+        """
+        answered = 0
+        while (taken := self.take()) is not None:
+            conn, _, admitted = taken
+            answer(conn, admitted)
+            answered += 1
+        return answered
+
+
+def request_whole(data: bytes) -> bool:
+    """Return whether the first bytes of a request hold all of it: its head and, for a body, all its bytes.
+
+    Args:
+        data: The request's bytes that have arrived (peeked).
+
+    Returns:
+        bool: ``False`` while the head is incomplete, for a body whose length is not given (chunked), and for one not
+        all arrived.
+    """
+    end = data.find(b"\r\n\r\n")
+    if end < 0:
+        return False
+    length: bytes | None = None
+    for line in data[:end].split(b"\r\n")[1:]:
+        name, _, value = line.partition(b":")
+        key = name.strip().lower()
+        if key == b"transfer-encoding":
+            return False
+        if key == b"content-length":
+            length = value.strip()
+    if length is None:
+        return True
+    return length.isdigit() and len(data) - (end + 4) >= int(length)
+
+
+_REASONS = {400: b"Bad Request", 414: b"URI Too Long", 503: b"Service Unavailable"}
+
+
+def raw_answer(error: ApiError, request_id: str) -> bytes:
+    """Return the bytes of a refusal written straight to a connection (no application in between): the api's JSON.
+
+    Args:
+        error: The refusal.
+        request_id: Its request's id.
+
+    Returns:
+        bytes: The status line, the headers (the api's policy, no caching, ``Retry-After`` where the error has one) and
+        the body.
+    """
+    body = error_json(error, request_id)
+    headers = [
+        (b"content-type", b"application/json"),
+        (b"content-length", str(len(body)).encode()),
+        (b"connection", b"close"),
+        (b"cache-control", b"no-store"),
+        (b"x-request-id", request_id.encode()),
+        (b"x-content-type-options", b"nosniff"),
+        (b"content-security-policy", API_POLICY),
+        *((k.lower().encode("latin-1"), v.encode("latin-1")) for k, v in error.headers.items()),
+    ]
+    head = b"".join(name + b": " + value + b"\r\n" for name, value in headers)
+    status = str(error.status).encode()
+    return b"HTTP/1.1 " + status + b" " + _REASONS.get(error.status, b"Error") + b"\r\n" + head + b"\r\n" + body
+
+
+def refuse_unread(conn: socket.socket, error: ApiError) -> None:
+    """Answer a connection no worker will serve with a refusal written to its socket, then close it.
+
+    What has arrived of the request is read and dropped first (at most :py:data:`_DROP_MAX_BYTES`), so that closing the
+    connection does not reset it before its client has read the refusal.
+
+    Args:
+        conn: The connection, its request unread.
+        error: The refusal.
+    """
+    request_id = uuid.uuid4().hex
+    try:
+        conn.settimeout(0.0)
+        dropped = 0
+        with contextlib.suppress(BlockingIOError, InterruptedError):
+            while dropped < _DROP_MAX_BYTES and (chunk := conn.recv(65_536)):
+                dropped += len(chunk)
+        conn.settimeout(1.0)
+        conn.sendall(raw_answer(error, request_id))
+        conn.shutdown(socket.SHUT_WR)
+    except OSError:
+        pass
+    finally:
+        conn.close()
+    log.info("A search no worker will serve: answered %d %s (request %s).", error.status, error.code, request_id)
+
+
+def restarting() -> ApiError:
+    """Return the refusal of a search the server cannot serve because it is stopping."""
+    return ApiError(
+        "server_busy",
+        f"The server is stopping (to restart) before this search could begin; retry in {RESTART_RETRY_SECONDS} s.",
+        headers={"Retry-After": str(RESTART_RETRY_SECONDS)},
+    )
 
 
 def route_of(peeked: bytes) -> tuple[str, str] | None:
@@ -186,9 +314,9 @@ class _Connection(asyncio.Protocol):
 
     The outer layer reaches it through :py:data:`idtrack_web_api.guard.CONNECTION`: when it was first taken and how
     long it waited for a worker free of searches, a refusal decided before its request was read (its client's
-    allowances, a full queue), the client whose allowances admitted its search (released once, when the request
-    ends or the connection closes), the end of its search, and closing it at once (an answer its client stopped
-    taking).
+    allowances, a full queue), the admission of its search by its client's allowances (given back once, when the
+    request ends or the connection closes), the moment its whole request has arrived (from then on its search counts
+    in its worker), the end of its search, and closing it at once (an answer its client stopped taking).
     """
 
     def __init__(
@@ -197,10 +325,10 @@ class _Connection(asyncio.Protocol):
         head_seconds: float,
         taken_at: float,
         refusal: ApiError | None = None,
-        search_ended: Callable[[], None] | None = None,
+        search: tuple[Callable[[], None], Callable[[], None]] | None = None,
         waited: float = 0.0,
-        admitted: str | None = None,
-        leave: Callable[[str], None] | None = None,
+        admitted: Admission | None = None,
+        leave: Callable[[Admission], None] | None = None,
     ) -> None:
         self.protocol = protocol
         self.head_seconds = head_seconds
@@ -209,18 +337,28 @@ class _Connection(asyncio.Protocol):
         self.refusal = refusal
         self.admitted = admitted
         self._leave = leave
-        self._search_ended = search_ended
+        self._search_began: Callable[[], None] | None = None if search is None else search[0]
+        self._search_ended: Callable[[], None] | None = None if search is None else search[1]
+        self._counted = False
         self.transport: asyncio.Transport | None = None
         self.timer: asyncio.TimerHandle | None = None
 
+    def request_arrived(self) -> None:
+        """Count this connection's search in its worker: its whole request has arrived (once)."""
+        began, self._search_began = self._search_began, None
+        if began is not None:
+            began()
+            self._counted = True
+
     def release_search(self) -> None:
         """Count the search of this connection as ended in its worker (once; also when the connection closes)."""
+        self._search_began = None  # a request that ends before all of it arrived never counts
         ended, self._search_ended = self._search_ended, None
-        if ended is not None:
+        if ended is not None and self._counted:
             ended()
 
     def release_admission(self) -> None:
-        """End the place of this connection's search among its client's searches in progress (once)."""
+        """Give back the place of this connection's search among its client's searches in progress (once)."""
         admitted, self.admitted = self.admitted, None
         if admitted is not None and self._leave is not None:
             self._leave(admitted)
@@ -318,6 +456,17 @@ class _Taker:
         self._update_handoff()
         if self.pause_timer is not None:
             self.pause_timer.cancel()
+        if self.handoff is not None:
+            answered = self.handoff.drain(self.refuse_stopping)
+            if answered:
+                log.info("Stopping: %d searches still in the queue answered 503 server_busy.", answered)
+
+    def refuse_stopping(self, conn: socket.socket, admitted: Admission | None) -> None:
+        """Answer a search that the stopping server will not serve: 503, its token and place given back."""
+        if admitted is not None and self.gate is not None:
+            self.gate.limiter.give_back(admitted.client, "search")
+            self.gate.limiter.leave_search(admitted.place)
+        refuse_unread(conn, restarting())
 
     def _listen(self, *, on: bool) -> None:
         for sock in self.sockets:
@@ -370,8 +519,14 @@ class _Taker:
         if taken is not None:
             conn, taken_at, admitted = taken
             conn.settimeout(0.0)
+            if admitted is not None and self.gate is not None:
+                self.gate.limiter.hold(admitted.place)  # this worker holds its place now
+            try:
+                whole = request_whole(conn.recv(HEAD_MAX_BYTES, socket.MSG_PEEK))
+            except OSError:
+                whole = False
             waited = max(0.0, time.monotonic() - taken_at)
-            self._serve(conn, taken_at, search=True, waited=waited, admitted=admitted)
+            self._serve(conn, taken_at, search=True, waited=waited, admitted=admitted, whole=whole)
 
     def _spawn(self, coroutine: Any) -> None:
         task = self.loop.create_task(coroutine)
@@ -426,45 +581,85 @@ class _Taker:
         await self.proxies(scope, _nothing_receive, _nothing_send)  # type: ignore[arg-type]
         return client_key(scope["client"][0])
 
-    async def _route(self, conn: socket.socket, taken_at: float) -> None:
+    async def _route(self, conn: socket.socket, taken_at: float) -> None:  # noqa: PLR0911 - one exit per way
         if self.config.ssl is not None:  # encrypted: nothing to read before the handshake; served where taken
             self._serve(conn, taken_at)
             return
         deadline = taken_at + self.head_seconds
         peeked = await self._peek(conn, deadline, lambda data: route_of(data) is not None, PEEK_BYTES)
-        if peeked is None or self.stopped:
+        if peeked is None:
             conn.close()
             return
         found = route_of(peeked)
         if found is None or not is_search(*found):
-            self._serve(conn, taken_at)
+            if self.stopped:
+                conn.close()
+            else:
+                self._serve(conn, taken_at)
             return
-        admitted: str | None = None
+        if self.stopped:
+            refuse_unread(conn, restarting())
+            return
+        # The head, and as much of the body as has arrived (a search counts in its worker once all of it is there).
+        head = await self._peek(conn, deadline, lambda data: b"\r\n\r\n" in data, HEAD_MAX_BYTES)
+        if head is None or self.stopped:
+            conn.close()
+            return
+        whole = request_whole(head)
+        admitted: Admission | None = None
         if self.gate is not None:
             # A search is admitted by its client's allowances before it waits for a worker: a burst from one client
             # is refused at once, not queued ahead of everyone else's searches.
-            head = await self._peek(conn, deadline, lambda data: b"\r\n\r\n" in data, HEAD_MAX_BYTES)
-            if head is None or self.stopped:
-                conn.close()
-                return
             client = await self._client(conn, head)
-            refusal = self.gate.admit_search(client)
-            if refusal is not None:
-                self._serve(conn, taken_at, refusal=refusal)
+            decided = self.gate.admit_search(client)
+            if isinstance(decided, ApiError):
+                self._serve(conn, taken_at, refusal=decided)
                 return
-            admitted = client
+            admitted = decided
         if self.searches == 0:
-            self._serve(conn, taken_at, search=True, admitted=admitted)
-        elif self.handoff is not None and self.handoff.put(conn, taken_at, admitted):
+            self._serve(conn, taken_at, search=True, admitted=admitted, whole=whole)
+            return
+        busy = self._busy()
+        if busy is None and self.handoff is not None and self.handoff.put(conn, taken_at, admitted):
             conn.close()  # the queue holds the connection now
-        else:
-            busy = ApiError(
+            return
+        if admitted is not None and self.gate is not None:
+            self.gate.limiter.give_back(admitted.client, "search")  # refused for the server's capacity
+        self._serve(
+            conn,
+            taken_at,
+            refusal=busy
+            or ApiError(
                 "server_busy",
-                "Every worker is in a search and as many searches as the server queues already wait for one; retry in "
-                "a few seconds.",
+                "Every worker is in a search and as many searches as the server queues already wait for one; retry "
+                "in a few seconds.",
                 headers={"Retry-After": "2"},
-            )
-            self._serve(conn, taken_at, refusal=busy, admitted=admitted)
+            ),
+            admitted=admitted,
+        )
+
+    def _busy(self) -> ApiError | None:
+        """Return the refusal of a search that would wait longer for a worker than a search may, by an estimate.
+
+        Every worker holds a search; the estimate is the searches queued before it shared among the workers, plus the
+        one each worker runs, each taking the recent searches' mean time (``None``: within ``queue_seconds``, or no
+        search measured yet).
+        """
+        if self.gate is None or self.handoff is None:
+            return None
+        settings = self.gate.settings
+        mean = self.gate.monitor.mean_search_seconds()
+        estimate = mean * (self.handoff.waiting / max(1, settings.workers) + 1.0)
+        if estimate <= settings.queue_seconds:
+            return None
+        wait = max(1, math.ceil(estimate - settings.queue_seconds))
+        return ApiError(
+            "server_busy",
+            f"Every worker is in a search and {self.handoff.waiting} searches wait for one: this one would wait about "
+            f"{estimate:.1f} s, more than the {settings.queue_seconds:g} s a search may wait for a worker "
+            f"(`queue_seconds`); retry in {wait} s.",
+            headers={"Retry-After": str(wait)},
+        )
 
     def _serve(
         self,
@@ -474,18 +669,27 @@ class _Taker:
         search: bool = False,
         refusal: ApiError | None = None,
         waited: float = 0.0,
-        admitted: str | None = None,
+        admitted: Admission | None = None,
+        whole: bool = True,
     ) -> None:
-        ended: Callable[[], None] | None = None
+        counting: tuple[Callable[[], None], Callable[[], None]] | None = None
         if search:
-            self.searches += 1
-            self._update_handoff()
-            ended = self._search_ended
-        leave = None if self.gate is None else self.gate.limiter.leave_search
+            counting = (self._search_began, self._search_ended)
+        leave = None if self.gate is None else self._leave
         protocol = _Connection(
-            self.protocol_factory(), self.head_seconds, taken_at, refusal, ended, waited, admitted, leave
+            self.protocol_factory(), self.head_seconds, taken_at, refusal, counting, waited, admitted, leave
         )
+        if search and whole:
+            protocol.request_arrived()
         self._spawn(self._connect(conn, protocol))
+
+    def _leave(self, admitted: Admission) -> None:
+        if self.gate is not None:
+            self.gate.limiter.leave_search(admitted.place)
+
+    def _search_began(self) -> None:
+        self.searches += 1
+        self._update_handoff()
 
     def _search_ended(self) -> None:
         self.searches -= 1
@@ -551,11 +755,6 @@ class _BalancedServer(Server):
         await super().shutdown(sockets=sockets)
 
 
-def _error_body(code: str, message: str, request_id: str) -> bytes:
-    error = {"code": code, "message": message, "argument": None, "allowed": None, "details": None}
-    return json.dumps({"error": {**error, "request_id": request_id}}, separators=(",", ":")).encode()
-
-
 class _Protocol(H11Protocol):
     """Uvicorn's HTTP/1.1 protocol, answering a request its parser refuses in the api's own words (JSON)."""
 
@@ -563,29 +762,17 @@ class _Protocol(H11Protocol):
         request_id = uuid.uuid4().hex
         unread = len(self.conn.trailing_data[0])
         if unread >= HEAD_MAX_BYTES:
-            status, code = 414, "uri_too_long"
-            message = (
+            error = ApiError(
+                "uri_too_long",
                 f"The request's head (its line and headers) is longer than the {HEAD_MAX_BYTES} bytes this server "
-                f"reads (its path and query: at most {URI_MAX_BYTES})."
+                f"reads (its path and query: at most {URI_MAX_BYTES}).",
             )
         else:
-            status, code = 400, "invalid_request"
-            message = "The request is not valid HTTP/1.1 (its line or a header cannot be read)."
-        body = _error_body(code, message, request_id)
-        headers = [
-            (b"content-type", b"application/json"),
-            (b"content-length", str(len(body)).encode()),
-            (b"connection", b"close"),
-            (b"cache-control", b"no-store"),
-            (b"x-request-id", request_id.encode()),
-            (b"x-content-type-options", b"nosniff"),
-            (b"content-security-policy", API_POLICY),
-        ]
-        reason = {400: b"Bad Request", 414: b"URI Too Long"}[status]
-        head = b"".join(name + b": " + value + b"\r\n" for name, value in headers)
-        output = b"HTTP/1.1 " + str(status).encode() + b" " + reason + b"\r\n" + head + b"\r\n" + body
-        self.transport.write(output)
-        log.info("A request its parser refused (%s): answered %d %s.", msg, status, code)
+            error = ApiError(
+                "invalid_request", "The request is not valid HTTP/1.1 (its line or a header cannot be read)."
+            )
+        self.transport.write(raw_answer(error, request_id))
+        log.info("A request its parser refused (%s): answered %d %s.", msg, error.status, error.code)
         self.transport.close()
 
 
@@ -652,12 +839,15 @@ class _Gunicorn(BaseApplication):  # type: ignore[misc]  # gunicorn has no type 
         return self.application
 
 
-def gunicorn_options(settings: Settings, monitor: Any = None) -> dict[str, Any]:
+def gunicorn_options(settings: Settings, monitor: Any = None, limiter: Any = None) -> dict[str, Any]:
     """Return the options of the process model.
 
     Args:
         settings: The server's settings.
         monitor: The load monitor, told in the master when a worker ends (``child_exit``).
+        limiter: The clients' allowances: a worker that ends gives back the places it held among its clients'
+            searches in progress (``child_exit``), and the searches still queued when the master exits get theirs back
+            as they are refused (``on_exit``).
 
     Returns:
         dict[str, Any]: Gunicorn's settings.
@@ -666,16 +856,36 @@ def gunicorn_options(settings: Settings, monitor: Any = None) -> dict[str, Any]:
     def child_exit(_server: Any, worker: Any) -> None:
         if monitor is not None:
             monitor.worker_exited(int(worker.pid))
+        if limiter is not None:
+            freed = limiter.release_holder(int(worker.pid))
+            if freed:
+                log.warning(
+                    "Worker %d ended holding %d searches in progress; their places are given back.", worker.pid, freed
+                )
+
+    def on_exit(_server: Any) -> None:
+        def refuse(conn: socket.socket, admitted: Admission | None) -> None:
+            if admitted is not None and limiter is not None:
+                limiter.give_back(admitted.client, "search")
+                limiter.leave_search(admitted.place)
+            refuse_unread(conn, restarting())
+
+        if _handoff is not None:
+            answered = _handoff.drain(refuse)
+            if answered:
+                log.info("Exiting: %d searches still in the queue answered 503 server_busy.", answered)
 
     return {
         "child_exit": child_exit,
+        "on_exit": on_exit,
         "bind": f"{settings.host}:{settings.port}",
         "workers": settings.workers,
         "worker_class": "idtrack_web_api.server.Worker",
         "preload_app": True,
         # A worker that does not answer the master for this long is replaced; a search runs beside the event loop,
         # so the loop answers during a search, and this bound is only reached by a worker that is truly stuck.
-        "timeout": int(settings.request_seconds) + 60,
+        "timeout": int(settings.queue_seconds + settings.request_seconds) + 60,
+        # A stopping worker finishes the searches it holds (each within its budget) and the answers it sends.
         "graceful_timeout": int(settings.request_seconds) + 10,
         "forwarded_allow_ips": ",".join(settings.forwarded_allow_ips),
         "accesslog": None,
@@ -700,8 +910,21 @@ def run(application: ASGIApp, settings: Settings) -> int:
     """
     global _handoff  # noqa: PLW0603 - shared by the workers: made before the fork
     _handoff = HandOff(settings.queue_max * settings.workers)
-    _Gunicorn(application, gunicorn_options(settings, getattr(application, "monitor", None))).run()
+    options = gunicorn_options(settings, getattr(application, "monitor", None), getattr(application, "limiter", None))
+    _Gunicorn(application, options).run()
     return 0
 
 
-__all__ = ["HEAD_MAX_BYTES", "PEEK_BYTES", "HandOff", "Worker", "gunicorn_options", "route_of", "run"]
+__all__ = [
+    "HEAD_MAX_BYTES",
+    "PEEK_BYTES",
+    "RESTART_RETRY_SECONDS",
+    "HandOff",
+    "Worker",
+    "gunicorn_options",
+    "raw_answer",
+    "refuse_unread",
+    "request_whole",
+    "route_of",
+    "run",
+]

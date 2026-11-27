@@ -20,10 +20,11 @@ its CPU and memory as its own sampler measured them. Any worker reads the whole 
   of the process alone: what it would free on exit). The limit is the smallest cgroup v2 ``memory.max`` of the
   process's cgroup and its ancestors, with that cgroup's ``memory.current``; without one, the machine's total and
   available memory (``/proc/meminfo``).
-- **Requests waiting for a worker** (``idtrack_web_api.server``): connections in the kernel's listen queue that no
-  worker has taken yet (the queue's length the kernel reports for the listening socket, Linux's ``TCP_INFO``), and
-  searches a busy worker handed on to the queue the workers share (its count in shared memory), read when ``/status``
-  is answered.
+- **Requests waiting**, in three counts that never hold the same request twice (``idtrack_web_api.server``):
+  connections in the kernel's listen queue that no worker has taken yet (the queue's length the kernel reports for the
+  listening socket, Linux's ``TCP_INFO``), searches a busy worker handed on to the queue the workers share (its count in
+  shared memory), both read when ``/status`` is answered, and searches a worker holds that wait for its own search
+  thread.
 - **Answers not yet taken**: the bytes of answers each worker holds for clients that have not read them yet.
 
 What cannot be measured (``/proc`` missing, off Linux) is ``null`` and named in ``unavailable``; no value is made up.
@@ -84,7 +85,12 @@ _NAN = math.nan
 # the table's lock.
 _MADE_WALL, _MADE_MONO, _RETIRED_REQUESTS, _RETIRED_4XX, _RETIRED_5XX = 0, 1, 2, 3, 4
 _EXITS, _LAST_EXIT_WALL, _LOST, _RETIRED_STATUS, _LOCK_HOLDER = 5, 6, 7, 8, 9
+# The mean time of the recent searches (each weighted by :py:data:`SEARCH_WEIGHT`), and the searches measured.
+_SEARCH_MEAN, _SEARCHES_MEASURED = 10, 11
 _SERVER = 12
+#: The weight of the latest search in the mean of recent searches' time (an exponential moving mean: the last ten or so
+#: searches carry most of it), which estimates how long a search waits in the queue (:py:mod:`idtrack_web_api.server`).
+SEARCH_WEIGHT = 0.2
 
 
 def _known(value: float) -> float | None:
@@ -577,6 +583,25 @@ class LoadMonitor:
         if row:
             self._add(row, _SENDING, float(change))
 
+    def search_ended(self, seconds: float) -> None:
+        """Record the time a search took (with writing its answer), in the mean of the recent searches' time.
+
+        Args:
+            seconds: Its time.
+        """
+        measured = self._server[_SEARCHES_MEASURED]
+        mean = self._server[_SEARCH_MEAN]
+        self._server[_SEARCH_MEAN] = seconds if measured == 0 else mean + SEARCH_WEIGHT * (seconds - mean)
+        self._server[_SEARCHES_MEASURED] = measured + 1.0
+
+    def mean_search_seconds(self) -> float:
+        """Return the mean time of the recent searches, every worker's (0 before any search).
+
+        Returns:
+            float: Seconds.
+        """
+        return max(0.0, float(self._server[_SEARCH_MEAN]))
+
     def search_running(self, *, running: bool) -> None:
         """Mark this worker's search thread as running a search or idle.
 
@@ -772,8 +797,6 @@ class LoadMonitor:
         queued = None if self.handoff is None else int(self.handoff.waiting)
         if waiting is None:
             unavailable.append("requests.connections_waiting")
-        elif queued is not None:
-            waiting += queued
         if queued is None:
             unavailable.append("requests.searches_queued")
         second = math.floor(now)
@@ -811,7 +834,7 @@ class LoadMonitor:
                 "total": int(server[_RETIRED_REQUESTS] + sum(self._get(row, _REQUESTS) for row in recorded)),
                 "in_flight": sum(w["in_flight"] for w in workers),
                 "searches_running": sum(w["searches_running"] for w in workers),
-                "searches_waiting": sum(w["searches_waiting"] for w in workers) + (queued or 0),
+                "searches_waiting": sum(w["searches_waiting"] for w in workers),
                 "connections_waiting": waiting,
                 "searches_queued": queued,
                 "sending_bytes": sum(w["sending_bytes"] for w in workers),
