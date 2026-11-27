@@ -10,10 +10,14 @@ import { readVocabulary } from "../src/lib/vocabulary";
 import { description, fixture, vocabularyResponse } from "./fixtures";
 
 const vocabulary = readVocabulary(vocabularyResponse());
-const base = (JSON.parse(fixture("sus_scrofa", "batch_json").raw) as { results: ConversionResult[] }).results[0];
+const all = (JSON.parse(fixture("sus_scrofa", "batch_json").raw) as { results: ConversionResult[] }).results;
+const base = all.find((r) => r.candidates.length > 0);
+if (!base) throw new Error("the fixture holds a result with a candidate");
+const first = base.candidates[0];
+if (!first) throw new Error("the fixture holds a candidate");
 
-const candidate = (over: Partial<Candidate>): Candidate => ({ ...(base?.candidates[0]!), ...over });
-const result = (over: Partial<ConversionResult>): ConversionResult => ({ ...(base!), ...over });
+const candidate = (over: Partial<Candidate>): Candidate => ({ ...first, ...over });
+const result = (over: Partial<ConversionResult>): ConversionResult => ({ ...base, ...over });
 
 describe("a name its database calls otherwise at the target", () => {
   const rows = batchRows(
