@@ -38,8 +38,9 @@ test("Method: every stage is drawn on the real answer its case claims, linked to
   const shown = (["read", "walk", "bridge", "rank", "answer"] as const)
     .map((stage) => stageCase(stage, digests))
     .filter((c) => c !== null);
-  // Every case of a graph this server holds with its digest still shows what it is drawn for.
-  for (const c of shown) {
+  // Every case of a graph this server holds with its digest (the one drawn and those after it) still shows what it is
+  // drawn for.
+  for (const c of STAGE_CASES.filter((x) => digests.get(x.query.organism) === x.checkedOn)) {
     const q = apiQuery(c.query);
     const parameters = new URLSearchParams({ identifier: q.identifier, explain: "true" });
     if (q.from_release !== null) parameters.set("from_release", String(q.from_release));
@@ -70,7 +71,7 @@ test("Method: every stage is drawn on the real answer its case claims, linked to
   if (shown.some((c) => c.stage === "read")) {
     await expect(page.locator(".read-fig__step--matched")).toHaveCount(1);
   }
-  expect(STAGE_CASES.length).toBe(5);
+  expect(new Set(STAGE_CASES.map((c) => c.stage)).size).toBe(5);
   await expectAccessible(page);
   await shot(page, info, "28-method-stages");
 });
@@ -154,7 +155,10 @@ test("Explore: Ensembl's id history from the server's counts, and the assembly c
     ordered.map((d) => `${databaseLabel(d.name)}: releases ${releaseRanges(d.releases)}`),
   );
   await page.getByText(/^What each of the \d+ database names holds$/).click();
-  await expect(page.locator(".db-meanings__row")).toHaveCount(matrix.databases.length);
+  // Every name is either described (a row) or named once among those idtrack does not describe.
+  const described = await page.locator(".db-meanings__row").count();
+  const unsaid = await page.locator(".db-meanings__unsaid .mono").count();
+  expect(described + unsaid).toBe(matrix.databases.length);
   // The symbol databases are said for this organism: only the first of the graph's list is its name authority.
   const authority = page.locator(".db-meanings__row", { hasText: "The symbol of the organism's name authority" });
   await expect(authority).toHaveCount(matrix.symbol_databases.length ? 1 : 0);

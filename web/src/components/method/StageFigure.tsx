@@ -34,6 +34,8 @@ interface Item {
 }
 
 const OVERVIEW = 30;
+/** The header of the assemblies' names over the bands. */
+const NAMES = 32;
 const LANE = 52;
 
 function glyphOfStep(s: FigureStep): Glyph {
@@ -118,7 +120,10 @@ function StageDrawing({ stage, graph }: { stage: StageModel; graph: GraphDescrip
   const overview = releaseScale(graph.releases, x0, x1);
   const bands = assemblyBands(graph);
   const top = OVERVIEW + 44;
-  const laneY = (lane: number) => top + 20 + lane * (phone ? LANE + 14 : LANE);
+  // The assemblies' names stand in a header of their own over the bands (two rows: the names that fit inside, then
+  // those of the narrow bands), and the lanes start under it, so that no name is drawn on a lane, a bar or an edge. On a
+  // phone each lane's id stands on a line of its own above its bar.
+  const laneY = (lane: number) => top + NAMES + (phone ? 34 : 20) + lane * (phone ? LANE + 18 : LANE);
   const lastLane = laneY(lanes.length - 1);
   const history = model.steps.filter((s) => s.family !== "cross");
   const scoreTop = lastLane + 34;
@@ -326,6 +331,10 @@ function StageDrawing({ stage, graph }: { stage: StageModel; graph: GraphDescrip
   const window0 = window[0] ?? model.span[0];
   const window1 = window[window.length - 1] ?? model.span[1];
 
+  // A frame not laid out yet (a panel out of view is skipped by the browser until it nears the window) reports no
+  // width: nothing is drawn into it until it has one, so no mark is ever given a negative size.
+  if (x1 - x0 < 40)
+    return <div className="stage-fig fig" ref={ref} style={{ height }} aria-hidden="true" />;
   return (
     <div className="stage-fig fig" ref={ref} style={{ height }}>
       <svg
@@ -343,7 +352,7 @@ function StageDrawing({ stage, graph }: { stage: StageModel; graph: GraphDescrip
               key={`${b.assembly}-${b.first}`}
               x={overview.x(b.first - 0.5)}
               y={8}
-              width={overview.x(b.last + 0.5) - overview.x(b.first - 0.5)}
+              width={Math.max(0, overview.x(b.last + 0.5) - overview.x(b.first - 0.5))}
               height={8}
               className={i % 2 ? "stage-fig__ov-band stage-fig__ov-band--b" : "stage-fig__ov-band"}
             />
@@ -351,7 +360,7 @@ function StageDrawing({ stage, graph }: { stage: StageModel; graph: GraphDescrip
           <rect
             x={overview.x(window0 - 0.5)}
             y={4}
-            width={overview.x(window1 + 0.5) - overview.x(window0 - 0.5)}
+            width={Math.max(0, overview.x(window1 + 0.5) - overview.x(window0 - 0.5))}
             height={16}
             className="stage-fig__ov-window"
           />
@@ -393,7 +402,7 @@ function StageDrawing({ stage, graph }: { stage: StageModel; graph: GraphDescrip
           <Bands
             bands={bands}
             scale={scale}
-            top={0}
+            top={NAMES}
             bottom={axisY - top}
             labelY={13}
             outerY={27}
@@ -404,7 +413,7 @@ function StageDrawing({ stage, graph }: { stage: StageModel; graph: GraphDescrip
           <text
             key={lane.id}
             x={phone ? 4 : 4}
-            y={phone ? laneY(i) - 30 : laneY(i) + 4}
+            y={phone ? laneY(i) - 12 : laneY(i) + 4}
             className="fig-text stage-fig__lane"
           >
             {lane.id}

@@ -207,7 +207,9 @@ export function DatabaseMatrix({ matrix: full, description }: { matrix: Matrix; 
                   className="dbm__divide"
                 />
               ) : null}
-              <ReleaseTicks scale={scale} y={height - FOOT + 4} releases={releases} />
+              {/* The end labels inside the svg with 3 px to spare: a browser whose digits are wider than measured still
+                  draws them within the frame. */}
+              <ReleaseTicks scale={scale} y={height - FOOT + 4} releases={releases} bounds={[1, width - 3]} />
               {shown ? (
                 <rect
                   x={scale.x(first + shown.col - 0.5)}

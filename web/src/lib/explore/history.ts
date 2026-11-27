@@ -4,7 +4,8 @@
 // what changed into a release stands at that release; a transition between releases apart is kept whole in the note.
 import { scaleLinear } from "d3-scale";
 import type { ConversionResult, HistoryResponse, PathStep, ShowcaseResponse } from "../../api/types";
-import { bestSteps, isHandoff } from "../home/caseKinds";
+import { bestSteps, isCaseKind, isHandoff } from "../home/caseKinds";
+import { KIND_TEXT } from "../home/cases";
 
 type HistoryTransition = HistoryResponse["transitions"][number];
 export type ShowcaseCase = ShowcaseResponse["cases"][number];
@@ -20,8 +21,14 @@ export interface HistoryColumn {
   versionChanges: number;
   idChanges: number;
   retired: number;
+  /** Edges that keep an id and its version across Ensembl's mapping, with its score (a re-mapping to itself). */
   kept: number;
   scored: number;
+  /** Gene versions whose edges reach two or more gene versions (the fan out of Ensembl's mapping: where a gene splits);
+   *  null where the server does not count it. */
+  fanOut: number | null;
+  /** Gene versions reached from two or more gene versions (the fan in: where genes merge); null where not counted. */
+  fanIn: number | null;
   /** The first release of the graph: its ids are where the graph begins, not ids Ensembl created there. */
   first: boolean;
 }
@@ -33,6 +40,9 @@ export function historyColumns(history: HistoryResponse): HistoryColumn[] {
   for (const t of history.transitions) into.set(t.to_release, [...(into.get(t.to_release) ?? []), t]);
   type Count = "version_changes" | "id_changes" | "retired" | "same_version" | "scored";
   const sum = (ts: readonly HistoryTransition[], field: Count) => ts.reduce((s, t) => s + t[field], 0);
+  // A fan count the server does not send stays unknown (null), never a zero.
+  const fan = (ts: readonly HistoryTransition[], field: "one_to_many" | "many_to_one") =>
+    ts.some((t) => t[field] === null || t[field] === undefined) ? null : ts.reduce((s, t) => s + (t[field] ?? 0), 0);
   return releases.map((r) => {
     const ts = into.get(r.release) ?? [];
     return {
@@ -46,20 +56,34 @@ export function historyColumns(history: HistoryResponse): HistoryColumn[] {
       retired: sum(ts, "retired"),
       kept: sum(ts, "same_version"),
       scored: sum(ts, "scored"),
+      fanOut: fan(ts, "one_to_many"),
+      fanIn: fan(ts, "many_to_one"),
       first: r.release === first,
     };
   });
 }
 
-/** What changed into a release: the version changes, the changes of id and the retirements. */
+/** Whether the server counts the fan of Ensembl's mapping (splits and merges) for every release of a history. */
+export function fansCounted(columns: readonly HistoryColumn[]): boolean {
+  return columns.length > 0 && columns.every((c) => c.fanOut !== null && c.fanIn !== null);
+}
+
+/** What changed into a release: the version changes, the changes of id and the retirements (an edge that keeps an id
+ *  and its version, a re-mapping to itself, is counted apart: `kept`). */
 export function changed(c: HistoryColumn): number {
   return c.versionChanges + c.idChanges + c.retired;
 }
 
 /** The heights of the history figure, for a reserve held while the answer comes (compact: without an axis of its own,
- *  under one shared axis). */
+ *  under one shared axis; an organism's page: without its numbered marks, which follow the showcase). */
 export function historyHeight(compact: boolean): number {
-  return compact ? 86 : 330;
+  return compact ? 112 : 458;
+}
+
+/** A case's kind in the words of the gallery's titles ("A split"), never its code; a kind the gallery does not name is
+ *  said in plain words of its code. */
+export function kindWords(kind: string): string {
+  return isCaseKind(kind) ? KIND_TEXT[kind].title : kind.replace(/_/g, " ");
 }
 
 /** The largest value of a part's scale: the next round number at or above the largest count drawn. */
@@ -75,12 +99,20 @@ export function niceMax(value: number): number {
 /** What changed into a release as a share of the gene ids active at the release before it (the ids the edges leave),
  *  and the ids created as a share of those active at the release: the measure in which organisms of different sizes
  *  can stand on one axis. Null where the denominator is zero or the release is the graph's first. */
-export function shares(columns: readonly HistoryColumn[]): { changed: number | null; created: number | null }[] {
+export function shares(columns: readonly HistoryColumn[]): {
+  changed: number | null;
+  created: number | null;
+  fanOut: number | null;
+  fanIn: number | null;
+}[] {
   return columns.map((c, i) => {
     const before = columns[i - 1];
+    const of = (v: number | null) => (before && before.genes > 0 && v !== null ? v / before.genes : null);
     return {
-      changed: before && before.genes > 0 ? changed(c) / before.genes : null,
+      changed: of(changed(c)),
       created: !c.first && c.genes > 0 ? c.created / c.genes : null,
+      fanOut: of(c.fanOut),
+      fanIn: of(c.fanIn),
     };
   });
 }

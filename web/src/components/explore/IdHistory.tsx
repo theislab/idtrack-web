@@ -1,20 +1,26 @@
-// Ensembl's id history of one graph, release by release, on the release axis every figure shares, over the bands of the
-// assemblies that serve each release (`GET /organisms/{organism}/history`): the gene ids active at each release (a
-// line), and what changed into each release (a column: versions followed by another version of the same id, by a
-// version of another id, and ids retired; below the axis, the ids created there). Every release is focusable with its
-// exact counts, the transitions that end there with their two releases, and the server's conversions whose path passes
-// through it (links; Enter opens the first). On an organism's page the server's cases stand as numbered marks at the
-// release of the step that makes each its kind, keyed to the list under the figure.
+// Ensembl's id history of one graph, release by release, on the release axis every figure shares, under the names of
+// the assemblies that serve each release and over their bands (`GET /organisms/{organism}/history`). Its parts, each on
+// its own linear scale from 0 (both ends written): the gene ids active at each release (a line); what changed into each
+// release (a column: versions followed by another version of the same id, by a version of another id, and ids
+// retired); below the axis, the ids created there; the fan of Ensembl's mapping, the gene versions it maps to two or
+// more (a split, above a midline) and those it maps two or more into (a merge, below); and the edges that keep an id and
+// its version (a re-mapping to itself). Every release is focusable with its exact counts, the transitions that end there
+// with their two releases, and the server's conversions whose path passes through it (links; Enter opens the first). On
+// an organism's page the server's cases stand as numbered marks at the release of the step that makes each its kind,
+// keyed to the list under the figure.
 //
-// In compact form (Explore, one row per graph on one shared axis) only the columns are drawn, without an axis of their
-// own; `share` draws them as shares of the gene ids active (what changed into a release over the ids active at the
-// release before; the ids created over those active at the release), on one axis of 0 to 100 % for every graph.
-import { useCallback, useMemo, type KeyboardEvent } from "react";
+// In compact form (Explore, one row per graph on one shared axis) the columns, the created ids and the fan are drawn,
+// without an axis of their own; `share` draws them as shares of the gene ids active (what changed into a release over
+// the ids active at the release before; the ids created over those active at the release), on one axis of 0 to 100 %
+// for every graph (the fan on 0 to 10 %).
+import { useCallback, useId, useMemo, type KeyboardEvent, type ReactNode } from "react";
 import type { GraphDescription, HistoryResponse } from "../../api/types";
 import {
   casesThrough,
   changed,
+  fansCounted,
   historyColumns,
+  kindWords,
   niceMax,
   shares,
   type CaseMark,
@@ -24,7 +30,6 @@ import { caseHref, caseQueryOf } from "../../lib/home/links";
 import { groupedInteger } from "../../lib/numbers";
 import { navigate } from "../../lib/router";
 import { Link } from "../ui";
-import { spaced } from "../../lib/vocabulary";
 import { assemblyBands, releaseScale } from "../figure/releases";
 import { Bands, ReleaseTicks } from "../figure/axis";
 import { FigureNote } from "../figure/FigureNote";
@@ -35,17 +40,71 @@ import { useWidth } from "../figure/useWidth";
 
 const LEFT = 64;
 const RIGHT = 12;
+/** The rows of the assemblies' names above the bands (an organism's page): the names inside, then the names of the
+ *  bands too narrow for theirs; the bands start under them, so no name stands on a band's edge. */
+const NAMES = 32;
+/** The fan's axis in share mode: 0 to 10 % of the gene ids active before (the largest of the five graphs is 7.4 %), or
+ *  the next round share above a larger one. */
+const FAN_SHARE = 0.1;
 
 const plural = (n: number, one: string, many: string) => `${groupedInteger(n)} ${n === 1 ? one : many}`;
 const percent = (share: number) => `${(share * 100).toFixed(1)} %`;
 
 /** A transition's counts in words, each kind once, the scored edges as a count of edges. */
-function transitionWords(t: HistoryColumn["into"][number]): string {
+export function transitionWords(t: HistoryColumn["into"][number]): string {
   const moved = t.version_changes + t.id_changes;
-  return `${plural(t.version_changes, "version", "versions")} to another version, ${plural(t.id_changes, "version", "versions")} to another id (${groupedInteger(moved)} changed), ${plural(t.retired, "id", "ids")} retired, ${plural(t.same_version, "kept", "kept")}; ${plural(t.scored, "of these edges carries", "of these edges carry")} Ensembl's score`;
+  const fan =
+    t.one_to_many === null || t.one_to_many === undefined || t.many_to_one === null || t.many_to_one === undefined
+      ? ""
+      : `; ${plural(t.one_to_many, "version is", "versions are")} mapped to two or more (a split), ${plural(t.many_to_one, "version receives", "versions receive")} two or more (a merge)`;
+  return `${plural(t.version_changes, "version", "versions")} to another version, ${plural(t.id_changes, "version", "versions")} to another id (${groupedInteger(moved)} changed), ${plural(t.retired, "id", "ids")} retired; ${plural(t.same_version, "id keeps", "ids keep")} its version (re-mapped to itself)${fan}; ${plural(t.scored, "of these edges carries", "of these edges carry")} Ensembl's score`;
+}
+
+/** What changed into a release, in words: every history edge that ends there, by what it does to the id. */
+export function columnWords(c: HistoryColumn): string {
+  const fan =
+    c.fanOut === null || c.fanIn === null
+      ? ""
+      : `; ${plural(c.fanOut, "version is", "versions are")} mapped to two or more, ${plural(c.fanIn, "receives", "receive")} two or more`;
+  return `${plural(changed(c), "history edge changes or retires", "history edges change or retire")} an id (${groupedInteger(c.versionChanges + c.idChanges)} changed, ${groupedInteger(c.retired)} retired); ${plural(c.kept, "keeps", "keep")} it and its version (re-mapped to itself)${fan}`;
 }
 
 const NO_MARKS: readonly CaseMark[] = [];
+
+/** One part of the figure: its name and the largest value of its scale in the left gutter (an organism's page). */
+function PartLabels({
+  name,
+  y0,
+  y1,
+  max,
+  zero = true,
+  bottomMax = false,
+}: {
+  name: ReactNode;
+  /** The top and the bottom of the part. */
+  y0: number;
+  y1: number;
+  max: string;
+  zero?: boolean;
+  /** The largest value at the bottom (a part drawn downward). */
+  bottomMax?: boolean;
+}) {
+  return (
+    <>
+      <text x={LEFT - 6} y={bottomMax ? y1 : y0 + 8} textAnchor="end" className="fig-text idh__tick">
+        {max}
+      </text>
+      {zero ? (
+        <text x={LEFT - 6} y={bottomMax ? y0 + 8 : y1} textAnchor="end" className="fig-text idh__tick">
+          0
+        </text>
+      ) : null}
+      <text x={4} y={(y0 + y1) / 2 + 4} className="fig-text fig-text--sans idh__axis-name">
+        {name}
+      </text>
+    </>
+  );
+}
 
 export function IdHistory({
   history,
@@ -73,8 +132,10 @@ export function IdHistory({
   label: string;
 }) {
   const { ref, width } = useWidth<HTMLDivElement>(900);
+  const patternId = useId().replace(/:/g, "");
   const columns = useMemo(() => historyColumns(history), [history]);
   const shareOf = useMemo(() => shares(columns), [columns]);
+  const fans = fansCounted(columns);
   const axisReleases = releases ?? description.releases;
   // In compact form the axis is that of Explore's assemblies (4 px in, 8 px from the right), and the scales' values
   // are written beside the row, not in it.
@@ -93,29 +154,46 @@ export function IdHistory({
     markRow.set(m.number, row);
   }
   const markH = placed.length ? 14 * rowEnds.length + 8 : 0;
-  const top = compact ? 6 : 36 + markH;
+  const bandsTop = compact ? 0 : NAMES;
+  const markTop = NAMES + 8;
+  const top = compact ? 6 : NAMES + 12 + markH;
   const genesH = compact ? 0 : 64;
   const gap = compact ? 0 : 26;
   const upH = compact ? 46 : 104;
   const downH = compact ? 26 : 50;
+  const fanGap = compact ? 8 : 26;
+  const fanH = fans ? (compact ? 9 : 26) : 0;
+  const keptGap = compact ? 0 : 22;
+  const keptH = compact ? 0 : 36;
   const genesTop = top;
   const base = top + genesH + gap + upH;
-  const axisY = base + downH + 6;
+  const fanMid = base + downH + fanGap + fanH;
+  const keptTop = fanMid + (fans ? fanH : 0) + keptGap;
+  const keptBase = keptTop + keptH;
+  const axisY = (compact ? fanMid + fanH : keptBase) + 6;
   const height = axis ? axisY + 26 : axisY + 2;
   const drawn = columns.filter((c) => !c.first);
   const upMax = share ? 1 : niceMax(Math.max(0, ...columns.map(changed)));
   const downMax = share ? 1 : niceMax(Math.max(0, ...drawn.map((c) => c.created)));
+  const fanMaxShare = Math.max(0, ...shareOf.map((s) => Math.max(s.fanOut ?? 0, s.fanIn ?? 0)));
+  const fanMax = share
+    ? fanMaxShare <= FAN_SHARE
+      ? FAN_SHARE
+      : niceMax(fanMaxShare * 100) / 100
+    : niceMax(Math.max(0, ...columns.map((c) => Math.max(c.fanOut ?? 0, c.fanIn ?? 0))));
+  const keptMax = niceMax(Math.max(0, ...columns.map((c) => c.kept)));
   const genesMax = niceMax(Math.max(0, ...columns.map((c) => c.genes)));
-  const up = (v: number) => Math.min(upH, (v / upMax) * upH);
-  const down = (v: number) => Math.min(downH, (v / downMax) * downH);
+  // A value above zero is never drawn thinner than a hairline: it would read as none.
+  const sized = (v: number, max: number, h: number) => (v <= 0 ? 0 : Math.max(1, Math.min(h, (v / max) * h)));
+  const up = (v: number) => sized(v, upMax, upH);
+  const down = (v: number) => sized(v, downMax, downH);
   const gy = (v: number) => genesTop + genesH - (v / genesMax) * genesH;
   const barW = Math.max(1, Math.min(14, scale.step - (scale.step > 4 ? 1.5 : 0.5)));
   const svg = useCallback(() => ref.current?.querySelector("svg") ?? null, [ref]);
   const roving = useRoving(columns.length, svg);
   const shownIndex = roving.shown;
   const shown: HistoryColumn | null = shownIndex === null ? null : (columns[shownIndex] ?? null);
-  const shownShare: { changed: number | null; created: number | null } | undefined =
-    shownIndex === null ? undefined : shareOf[shownIndex];
+  const shownShare = shownIndex === null ? undefined : shareOf[shownIndex];
   const through = (c: HistoryColumn) => casesThrough(marks, c.release);
   const line = columns
     .map((c, i) => `${i ? "L" : "M"}${scale.x(c.release).toFixed(1)},${gy(c.genes).toFixed(1)}`)
@@ -125,48 +203,70 @@ export function IdHistory({
     const s = shareOf[i];
     const changedWords =
       share && s && s.changed !== null
-        ? `${percent(s.changed)} of the ids active before changed into it`
-        : `${groupedInteger(changed(c))} history edges end at it (${groupedInteger(c.versionChanges + c.idChanges)} changed, ${groupedInteger(c.retired)} retired)`;
+        ? `${percent(s.changed)} of the ids active before changed or retired into it; ${columnWords(c)}`
+        : columnWords(c);
     const cases = through(c);
     return `Release ${c.release}: ${groupedInteger(c.genes)} gene ids active; ${changedWords}; ${c.first ? "the graph's first release" : `${groupedInteger(c.created)} created`}${cases.length ? `; ${cases.length === 1 ? "1 conversion of this server passes" : `${cases.length} conversions of this server pass`} through it, Enter opens the first` : ""}`;
   };
+  const hatch = `idh-hatch-${patternId}`;
   return (
     <div className={`idh${compact ? " idh--compact" : ""}`} ref={ref}>
       <svg width={width} height={height} role="group" aria-label={label} className="idh__svg">
-        <Bands bands={bands} scale={scale} top={0} bottom={axisY} labels={!compact} labelY={13} outerY={27} />
+        <defs>
+          {/* A version followed by a version of another id: the history hue in stripes, so that it stands apart
+              from a version of the same id (solid) at the contrast of a mark, and in forced colours. */}
+          <pattern id={hatch} width={3} height={3} patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+            <rect width={3} height={3} className="idh__hatch-ground" />
+            <rect width={1.6} height={3} className="idh__hatch" />
+          </pattern>
+        </defs>
+        <Bands bands={bands} scale={scale} top={bandsTop} bottom={axisY} labels={!compact} labelY={13} outerY={27} />
         {compact ? null : (
           <g className="idh__genes">
             <line x1={scale.x0} x2={scale.x1} y1={genesTop + genesH} y2={genesTop + genesH} className="idh__base" />
             <path d={line} className="idh__line" />
-            <text x={LEFT - 6} y={gy(genesMax) + 4} textAnchor="end" className="fig-text idh__tick">
-              {groupedInteger(genesMax)}
-            </text>
-            <text x={LEFT - 6} y={genesTop + genesH + 4} textAnchor="end" className="fig-text idh__tick">
-              0
-            </text>
-            <text x={4} y={genesTop + genesH / 2 + 4} className="fig-text fig-text--sans idh__axis-name">
-              genes
-            </text>
+            <PartLabels name="genes" y0={genesTop} y1={genesTop + genesH} max={groupedInteger(genesMax)} />
           </g>
         )}
         <line x1={scale.x0} x2={scale.x1} y1={base} y2={base} className="idh__base" />
         {compact ? null : (
           <>
-            <text x={LEFT - 6} y={base - upH + 4} textAnchor="end" className="fig-text idh__tick">
-              {groupedInteger(upMax)}
-            </text>
-            <text x={LEFT - 6} y={base + 4} textAnchor="end" className="fig-text idh__tick">
-              0
-            </text>
-            <text x={LEFT - 6} y={base + downH} textAnchor="end" className="fig-text idh__tick">
-              {groupedInteger(downMax)}
-            </text>
-            <text x={4} y={base - upH / 2 + 4} className="fig-text fig-text--sans idh__axis-name">
-              changed
-            </text>
-            <text x={4} y={base + downH / 2 + 4} className="fig-text fig-text--sans idh__axis-name">
-              created
-            </text>
+            <PartLabels name="changed" y0={base - upH} y1={base} max={groupedInteger(upMax)} />
+            <PartLabels
+              name="created"
+              y0={base}
+              y1={base + downH}
+              max={groupedInteger(downMax)}
+              zero={false}
+              bottomMax
+            />
+          </>
+        )}
+        {fans ? (
+          <>
+            <line x1={scale.x0} x2={scale.x1} y1={fanMid} y2={fanMid} className="idh__base idh__base--fan" />
+            {compact ? null : (
+              <>
+                <text x={LEFT - 6} y={fanMid - fanH + 8} textAnchor="end" className="fig-text idh__tick">
+                  {groupedInteger(fanMax)}
+                </text>
+                <text x={LEFT - 6} y={fanMid + fanH} textAnchor="end" className="fig-text idh__tick">
+                  {groupedInteger(fanMax)}
+                </text>
+                <text x={4} y={fanMid - 6} className="fig-text fig-text--sans idh__axis-name">
+                  split
+                </text>
+                <text x={4} y={fanMid + 14} className="fig-text fig-text--sans idh__axis-name">
+                  merge
+                </text>
+              </>
+            )}
+          </>
+        ) : null}
+        {compact ? null : (
+          <>
+            <line x1={scale.x0} x2={scale.x1} y1={keptBase} y2={keptBase} className="idh__base" />
+            <PartLabels name="kept" y0={keptTop} y1={keptBase} max={groupedInteger(keptMax)} />
           </>
         )}
         {columns.map((c, i) => {
@@ -174,20 +274,36 @@ export function IdHistory({
           let y = base;
           // In share mode the three parts keep their proportions within the column's share.
           const factor = share ? (shareOf[i]?.changed ?? 0) / Math.max(1, changed(c)) : 1;
-          const segment = (value: number, className: string) => {
+          const segment = (value: number, className: string, fill?: string) => {
             if (value <= 0) return null;
             const h = up(value * factor);
             y -= h;
-            return <rect key={className} x={x} y={y} width={barW} height={h} className={className} />;
+            return <rect key={className} x={x} y={y} width={barW} height={h} className={className} fill={fill} />;
           };
           const created = share ? (shareOf[i]?.created ?? 0) : c.created;
+          const fanValue = (v: number | null, s: number | null | undefined) =>
+            sized(share ? (s ?? 0) : (v ?? 0), fanMax, fanH);
+          const out = fans ? fanValue(c.fanOut, shareOf[i]?.fanOut) : 0;
+          const into = fans ? fanValue(c.fanIn, shareOf[i]?.fanIn) : 0;
+          const kept = compact ? 0 : sized(c.kept, keptMax, keptH);
           return (
             <g key={c.release} className="idh__col">
               {segment(c.versionChanges, "idh__version")}
-              {segment(c.idChanges, "idh__id")}
+              {segment(c.idChanges, "idh__id", `url(#${hatch})`)}
               {segment(c.retired, "idh__retired")}
               {!c.first && created > 0 ? (
                 <rect x={x} y={base} width={barW} height={down(created)} className="idh__created" />
+              ) : null}
+              {out > 0 ? <rect x={x} y={fanMid - out} width={barW} height={out} className="idh__fan" /> : null}
+              {into > 0 ? <rect x={x} y={fanMid} width={barW} height={into} className="idh__fan" /> : null}
+              {kept > 0 ? (
+                <rect
+                  x={x + 0.5}
+                  y={keptBase - kept + 0.5}
+                  width={Math.max(0.5, barW - 1)}
+                  height={Math.max(0.5, kept - 0.5)}
+                  className="idh__kept"
+                />
               ) : null}
             </g>
           );
@@ -196,7 +312,7 @@ export function IdHistory({
           <g className="idh__marks" aria-hidden="true">
             {placed.map((m) => {
               const x = scale.x(m.release ?? 0);
-              const y = 36 + 6 + (markRow.get(m.number) ?? 0) * 14;
+              const y = markTop + 6 + (markRow.get(m.number) ?? 0) * 14;
               const glyph = m.step ? glyphOf(m.step) : "version";
               return (
                 <g key={m.number}>
@@ -217,9 +333,9 @@ export function IdHistory({
             <rect
               key={`hit-${c.release}`}
               x={scale.x(c.release) - Math.max(scale.step, 6) / 2}
-              y={0}
+              y={bandsTop}
               width={Math.max(scale.step, 6)}
-              height={axisY}
+              height={axisY - bandsTop}
               className={`idh__hit${roving.focused === i ? " idh__hit--on" : ""}`}
               role="img"
               aria-label={columnLabel(c, i)}
@@ -275,6 +391,9 @@ export function IdHistory({
           {share && shownShare?.changed !== undefined && shownShare.changed !== null ? (
             <p className="fig-note__quiet">
               Changed or retired: {percent(shownShare.changed)} of the gene ids active at the release before
+              {shownShare.fanOut !== null && shownShare.fanIn !== null
+                ? `; mapped to two or more: ${percent(shownShare.fanOut)}; receiving two or more: ${percent(shownShare.fanIn)}`
+                : ""}
             </p>
           ) : null}
           {through(shown).length ? (
@@ -288,7 +407,7 @@ export function IdHistory({
                       <Link to={hrefOf(m)}>
                         <span className="mono">{m.case.query.identifier}</span>
                       </Link>{" "}
-                      <span className="muted">{spaced(m.case.kind)}</span>
+                      <span className="muted">{kindWords(m.case.kind).toLowerCase()}</span>
                     </li>
                   ))}
               </ul>

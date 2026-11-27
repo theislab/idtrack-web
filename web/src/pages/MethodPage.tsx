@@ -3,7 +3,7 @@
 // (its own citation, and a sentence for a methods section from this server's versions), what it does not do yet, and
 // the bounds this server enforces.
 import { docsPage } from "../lib/links";
-import { Absent, CopyButton, Link, Mono, Prose, SectionTitle, TableFrame } from "../components/ui";
+import { Absent, CopyButton, Disclosure, Link, Mono, Prose, SectionTitle, TableFrame } from "../components/ui";
 import type { LimitsResponse } from "../api/types";
 import { byteSize, groupedInteger, pythonFloat } from "../lib/numbers";
 import { organismName } from "../lib/organismNames";
@@ -38,6 +38,47 @@ function limitRows(l: LimitsResponse): [string, string, string | undefined][] {
   ];
 }
 
+/** How many limitations stand at display size; the rest are one press away (a list is bounded by design). */
+const LIMITATIONS_SHOWN = 8;
+
+function LimitationItem({ item }: { item: (typeof docs.limitations.items)[number] }) {
+  return (
+    <li>
+      <a href={`${docs.limitations.source.replace(/#.*$/, "")}#${item.anchor}`} className="limitations-list__lead">
+        <Prose text={item.sentence} />
+      </a>
+      {item.next && item.sentence.length < 90 ? (
+        <span className="limitations-list__next">
+          <Prose text={item.next} />
+        </span>
+      ) : null}
+    </li>
+  );
+}
+
+/** idtrack's limitations, each by its first sentence, linked: the first few, then the rest on request, numbered on. */
+function Limitations() {
+  const items = docs.limitations.items;
+  return (
+    <>
+      <ol className="limitations-list">
+        {items.slice(0, LIMITATIONS_SHOWN).map((item) => (
+          <LimitationItem key={item.anchor} item={item} />
+        ))}
+      </ol>
+      {items.length > LIMITATIONS_SHOWN ? (
+        <Disclosure summary={`and ${items.length - LIMITATIONS_SHOWN} more`}>
+          <ol className="limitations-list" start={LIMITATIONS_SHOWN + 1}>
+            {items.slice(LIMITATIONS_SHOWN).map((item) => (
+              <LimitationItem key={item.anchor} item={item} />
+            ))}
+          </ol>
+        </Disclosure>
+      ) : null}
+    </>
+  );
+}
+
 export function MethodPage() {
   const { version, organisms } = useOrganisms();
   const limits = useLimits();
@@ -61,14 +102,11 @@ export function MethodPage() {
     <div className="page page--about page--method">
       <header className="page-head">
         <p className="eyebrow">Method</p>
-        <h1>How idtrack answers</h1>
+        <h1>How idtrack answers, and how often it is right</h1>
         <p className="lede">
-          Gene identifiers change: Ensembl versions and replaces its ids, splits and merges genes, and moves to new
-          genome assemblies; Ensembl&apos;s cross references to other databases change as their authorities rename
-          symbols and retire, merge or demote accessions. idtrack follows an identifier through all of it, release by
-          release, and says how it got its answer. An answer is found in five stages; each is drawn below on a real
-          answer of this server, beside its terms in idtrack&apos;s own words, and panels f and g give how often the
-          answers are right, as the benchmarks measured them.
+          An answer is found in five stages, each drawn below on a real answer of this server; then how often the
+          answers agree with Ensembl&apos;s records and the authorities, and with the tools people use, as the
+          benchmarks measured them.
         </p>
         <p className="method-scope" role="note">
           <strong>Within one organism.</strong> Each graph is one organism&apos;s releases: idtrack converts between the
@@ -201,23 +239,7 @@ export function MethodPage() {
             <Mono>{docs.commit.slice(0, 7)}</Mono> are to its documentation only), linked to the section that sizes it
             and says what to do instead:
           </p>
-          <ol className="limitations-list">
-            {docs.limitations.items.map((item) => (
-              <li key={item.anchor}>
-                <a
-                  href={`${docs.limitations.source.replace(/#.*$/, "")}#${item.anchor}`}
-                  className="limitations-list__lead"
-                >
-                  <Prose text={item.sentence} />
-                </a>
-                {item.next && item.sentence.length < 90 ? (
-                  <span className="limitations-list__next">
-                    <Prose text={item.next} />
-                  </span>
-                ) : null}
-              </li>
-            ))}
-          </ol>
+          <Limitations />
           <p>
             All of them, with their measured sizes:{" "}
             <a href={docs.limitations.source}>Limitations in idtrack&apos;s documentation</a>. What the benchmarks

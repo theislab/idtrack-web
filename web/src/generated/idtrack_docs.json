@@ -240,7 +240,7 @@
         "title": "Without a release, a string is what it means today",
         "anchor": "without-a-release-a-string-is-what-it-means-today",
         "lead": "Without a release, a string is what it means today",
-        "sentence": "Without a release, a string is what it means today (or at the target release), by design: what it meant only at other releases is reported in `result.other_readings`, not answered.",
+        "sentence": "Without a release, a string is what it means today (or at the target release), by design: what it meant only at other releases is reported in the result's other readings, not answered.",
         "next": ""
       },
       {
@@ -255,14 +255,14 @@
         "anchor": "copies-on-patches-and-alternative-loci",
         "lead": "Copies on patches and alternative loci are placed by Ensembl's assembly exceptions.",
         "sentence": "Copies on patches and alternative loci are placed by Ensembl's assembly exceptions.",
-        "next": "A copy's place is the region of the reference sequence that its patch or haplotype replaces at that release (Ensembl's `assembly_exception`), and a gene outside that region lies apart from it (pig and the macaques have no assembly exceptions)."
+        "next": "A copy's place is the region of the reference sequence that its patch or haplotype replaces at that release (Ensembl's assembly exception), and a gene outside that region lies apart from it (pig and the macaques have no assembly exceptions)."
       },
       {
         "title": "Numbers that several numbering schemes share",
         "anchor": "numbers-that-several-numbering-schemes-share",
         "lead": "A string of digits is read in every database whose ids are numbers.",
         "sentence": "A string of digits is read in every database whose ids are numbers.",
-        "next": "These are NCBI's gene ids, and the numeric Havana ids and RefSeq rows of early releases (reading-rules)."
+        "next": "These are NCBI's gene ids, and the numeric Havana ids and RefSeq rows of early releases (Four rules between readings)."
       },
       {
         "title": "A branch can outrank the gene's own continuation",
@@ -276,7 +276,7 @@
         "anchor": "an-id-that-ensembl-moves-to-another-place",
         "lead": "An id that Ensembl's history carries to another place answers that id, and the result does not say that the gene moved.",
         "sentence": "An id that Ensembl's history carries to another place answers that id, and the result does not say that the gene moved.",
-        "next": "Where Ensembl keeps a stable id across a version event that puts the gene on another chromosome or strand, idtrack follows the id as Ensembl does; only the explained path marks the step, and `Candidate.score`, the product of Ensembl's scores along the path, shows how weak the event is."
+        "next": "Where Ensembl keeps a stable id across a version event that puts the gene on another chromosome or strand, idtrack follows the id as Ensembl does; only the explained path marks the step, and the candidate's score, the product of Ensembl's scores along the path, shows how weak the event is."
       },
       {
         "title": "An id with two lives",
@@ -304,28 +304,28 @@
         "anchor": "a-name-that-another-source-gives-another-gene",
         "lead": "A string is read in every name source and database the graph holds at the release read, so the answer holds every gene that any of them gives it.",
         "sentence": "A string is read in every name source and database the graph holds at the release read, so the answer holds every gene that any of them gives it.",
-        "next": "Ensembl's display name ranks first, then the support (concept-ranking), and the other genes are in `view(\"all\")`: human `convert(\"BBS1\", from_release=69, to_release=115)` answers BBS1, ENSG00000174483, and `view(\"all\")` adds ENSG00000256349, a gene to which UniProt's gene name BBS1 is attached at 69."
+        "next": "Ensembl's display name ranks first, then the support (How candidates are ranked), and the other genes are in `view(\"all\")`: human `convert(\"BBS1\", from_release=69, to_release=115)` answers BBS1, ENSG00000174483, and `view(\"all\")` adds ENSG00000256349, a gene to which UniProt's gene name BBS1 is attached at 69."
       },
       {
         "title": "A name in one letter case that another gene's link spells so",
         "anchor": "a-name-in-one-letter-case-that-another-gene-s-link-spells-so",
         "lead": "A name in one letter case that a link of another gene spells exactly so answers that gene, not the gene the name authority displays with it in mixed case.",
         "sentence": "A name in one letter case that a link of another gene spells exactly so answers that gene, not the gene the name authority displays with it in mixed case.",
-        "next": "Where, at one release, Ensembl displays a name for one mouse gene as the authority writes it and for another gene in capitals, the string in one letter case is an exact match of the links spelt so, and an exact match follows only those links (reading-matching): the authority's gene is then not among the genes reached, and the rule that ranks the authority's display name first, read without letter case, ranks only the genes reached."
+        "next": "Where, at one release, Ensembl displays a name for one mouse gene as the authority writes it and for another gene in capitals, the string in one letter case is an exact match of the links spelt so, and an exact match follows only those links (Matching the string): the authority's gene is then not among the genes reached, and the rule that ranks the authority's display name first, read without letter case, ranks only the genes reached."
       },
       {
         "title": "Symbols typed in small letters where symbols are written in capitals",
         "anchor": "symbols-typed-in-small-letters-where-symbols-are-written-in-capitals",
         "lead": "Where an organism's symbols are written in capitals, a symbol typed with small letters can answer another gene whose synonym is spelt so.",
         "sentence": "Where an organism's symbols are written in capitals, a symbol typed with small letters can answer another gene whose synonym is spelt so.",
-        "next": "The rule that reads a string against the organism's letter case first as a symbol without letter case (reading-rules) holds where symbols are written in mixed case (mouse); in pig, the macaques and human an exact synonym of another gene comes first."
+        "next": "The rule that reads a string against the organism's letter case first as a symbol without letter case (Four rules between readings) holds where symbols are written in mixed case (mouse); in pig, the macaques and human an exact synonym of another gene comes first."
       },
       {
         "title": "Answers that only a bridge reaches",
         "anchor": "answers-that-only-a-bridge-reaches",
         "lead": "Where Ensembl's history gives a gene no successor, an answer is the gene a bridge reaches, which no record of Ensembl states.",
         "sentence": "Where Ensembl's history gives a gene no successor, an answer is the gene a bridge reaches, which no record of Ensembl states.",
-        "next": "A bridge needs an identifier that the two genes carried one after the other and places that overlap (or, across an assembly change that Ensembl publishes no mapping for, chromosomes of one name: limitation-assembly-mapping), so its gene is the plausible successor at that place, not one that Ensembl's history or the place proves."
+        "next": "A bridge needs an identifier that the two genes carried one after the other and places that overlap (or, across an assembly change that Ensembl publishes no mapping for, chromosomes of one name: Places across an assembly change), so its gene is the plausible successor at that place, not one that Ensembl's history or the place proves."
       },
       {
         "title": "A retired gene whose accession another gene holds today",
@@ -339,7 +339,7 @@
         "anchor": "a-split-gene-converted-to-an-external-database",
         "lead": "A gene whose history splits, converted to an external database, answers no identifier where the first-ranked of its descendants has none, although another descendant has one.",
         "sentence": "A gene whose history splits, converted to an external database, answers no identifier where the first-ranked of its descendants has none, although another descendant has one.",
-        "next": "The answer is first a gene, ranked as Ensembl genes, and the identifiers are those of the genes of that best answer; where none of them has one, the result is those genes, in `view(\"all\")` too, and the other descendants are listed as genes only."
+        "next": "The answer is first a gene, ranked as Ensembl genes, and the identifiers are those of the genes of that best answer; where none of them has one, the result is those genes (no target), in `view(\"all\")` too, and the other descendants are listed as genes only."
       },
       {
         "title": "Among the successors of a split, the best answer does not look at the old place",
@@ -367,7 +367,7 @@
         "anchor": "single-cell-suffixes-after-a-name-that-is-no-authority-s-symbol",
         "lead": "A suffix of single-cell tools after a name that is no symbol of the name authority at the release asked about can be read into another gene's synonym.",
         "sentence": "A suffix of single-cell tools after a name that is no symbol of the name authority at the release asked about can be read into another gene's synonym.",
-        "next": "The rule that keeps `SRF.1` from SPATA6's synonym `SRF-1` (reading-rules) needs the string before the suffix to be a symbol that a name authority gives at the release asked about (without a release, the target release), also where the synonym is read at another release."
+        "next": "The rule that keeps `SRF.1` from SPATA6's synonym `SRF-1` (Four rules between readings) needs the string before the suffix to be a symbol that a name authority gives at the release asked about (without a release, the target release), also where the synonym is read at another release."
       },
       {
         "title": "The GRCh37 gene ids of LRG records list their answer among the copies",
@@ -381,7 +381,7 @@
         "anchor": "low-9-quotation-marks",
         "lead": "Low-9 quotation marks are not read as quotes.",
         "sentence": "Low-9 quotation marks are not read as quotes.",
-        "next": "The quotation marks removed around an identifier are Unicode's initial and final quotes and the ASCII ones (reading-cleaning); the low-9 marks that open a quotation in German and other languages belong to Unicode's category of opening punctuation together with the brackets, and no property of Unicode tells the two apart, so `„TP53“` and `‚TP53‘` are not found (never another gene)."
+        "next": "The quotation marks removed around an identifier are Unicode's initial and final quotes and the ASCII ones (What is cleaned); the low-9 marks that open a quotation in German and other languages belong to Unicode's category of opening punctuation together with the brackets, and no property of Unicode tells the two apart, so `„TP53“` and `‚TP53‘` are not found (never another gene)."
       },
       {
         "title": "Databases the graph does not hold",

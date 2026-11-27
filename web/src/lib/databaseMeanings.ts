@@ -100,11 +100,23 @@ export function symbolRole(
   return { role: "other", of, authority };
 }
 
+/** Whether idtrack's note on a group of names says they are the projections of the organism's own name authority
+ *  ("HGNC's projections" on a graph whose authority is HGNC Symbol): a projection is onto another organism's genes, so
+ *  on the authority's own organism the note does not hold and is not said. */
+export function projectionOfOwnAuthority(note: string | null, authority: string | null): boolean {
+  const of = note === null ? null : (/^(.+?)'s projections$/.exec(note.trim())?.[1] ?? null);
+  return of !== null && authority !== null && authority.split(/\s+/)[0] === of;
+}
+
 export function describeDatabase(
   name: string,
   graph: { symbolDatabases: readonly string[]; commonName: string | null },
 ): DatabaseDescription {
-  const meaning = databaseMeaning(name);
+  const listed = databaseMeaning(name);
+  const meaning =
+    listed && projectionOfOwnAuthority(listed.note, graph.symbolDatabases[0] ?? null)
+      ? { ...listed, note: null }
+      : listed;
   return {
     name,
     meaning,

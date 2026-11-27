@@ -11,6 +11,7 @@ import { commonName, organismName } from "../../lib/organismNames";
 import { useOrganisms } from "../../lib/organisms";
 import { useInView } from "../../lib/useInView";
 import { useRequest } from "../../lib/useRequest";
+import { databaseLabel } from "../../lib/databases";
 import { Button, Link, Mono } from "../ui";
 
 export interface StageFigureProps {
@@ -52,6 +53,8 @@ export function StageCase({
   // changed engine can) is not drawn as if it did.
   const holds = result ? holdsStage(stage, result) : null;
   const best = result?.candidates.find((c) => c.best) ?? null;
+  const targets = [...new Set(result?.candidates.filter((c) => c.best).map((c) => c.target) ?? [])];
+  const genes = [...new Set(result?.candidates.filter((c) => c.best).map((c) => c.gene) ?? [])];
   const q = chosen.query;
   return (
     <figure className="stage-case" ref={ref} aria-labelledby={headId}>
@@ -78,12 +81,26 @@ export function StageCase({
                 {" "}
                 →{" "}
               </span>
-              <span className="visually-hidden"> converted to </span>
-              <Mono strong>{best.target}</Mono>
+              {targets.length > 1 ? (
+                // A tie is never said as one answer: the count of equal best ids, and of whose gene they are.
+                <>
+                  <span className="visually-hidden"> answered by </span>
+                  {targets.length} {genes.length === 1 ? "ids of " : `ids of ${genes.length} genes, equal best`}
+                  {genes.length === 1 ? <Mono strong>{genes[0]}</Mono> : null}
+                </>
+              ) : (
+                <>
+                  <span className="visually-hidden"> converted to </span>
+                  <Mono strong>{best.target}</Mono>
+                </>
+              )}
               <span className="stage-case__at">
                 {" "}
                 at release <Mono>{result.to_release}</Mono>
-                {result.final_database !== "ensembl_gene" ? <> in {result.final_database}</> : null}
+                {result.final_database !== null && result.final_database !== "ensembl_gene" ? (
+                  <> in {databaseLabel(result.final_database)}</>
+                ) : null}
+                {targets.length > 1 ? " (a tie)" : null}
               </span>
             </>
           ) : null}

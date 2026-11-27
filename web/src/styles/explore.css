@@ -268,19 +268,35 @@ a.organism-switch__item:hover {
   color: var(--ink-3);
 }
 
+/* The track takes the row's whole height, so that the decades' gridlines run unbroken from the first row to the axis;
+   the bar stands at its middle. */
 .counts__track {
   position: relative;
-  height: 8px;
-  background-image: linear-gradient(to right, var(--line) 1px, transparent 1px);
-  background-size: calc(100% / var(--decades, 7)) 100%;
+  align-self: stretch;
+  min-height: 30px;
+}
+
+.counts__grid {
+  position: absolute;
+  inset-block: 0;
+  inline-size: 0;
+  border-left: 1px solid var(--line);
 }
 
 .counts__bar {
   position: absolute;
-  inset: 0 auto 0 0;
+  inset-inline-start: 0;
+  inset-block-start: calc(50% - 4px);
+  block-size: 8px;
   min-width: 2px;
   background: var(--ink-2);
   border-radius: 0 2px 2px 0;
+}
+
+.counts__unnamed {
+  margin-top: var(--space-2);
+  max-width: var(--measure);
+  color: var(--ink-3);
 }
 
 .counts .counts__value {
@@ -417,17 +433,41 @@ a.organism-switch__item:hover {
   fill: var(--hue-history);
 }
 
-.idh__id {
+/* A version of another id: stripes of the history hue on the surface (each stripe a mark at the hue's contrast). */
+.idh__hatch {
   fill: var(--hue-history);
-  opacity: 0.45;
+}
+
+.idh__hatch-ground {
+  fill: var(--surface);
 }
 
 .idh__retired {
   fill: var(--ink-1);
 }
 
+/* Ids created (below the axis): an outlined bar in the quiet ink, its outline at 7:1 on the surface. */
 .idh__created {
-  fill: var(--line-strong);
+  fill: var(--surface);
+  stroke: var(--ink-3);
+  stroke-width: 1;
+}
+
+/* The fan of Ensembl's mapping: a version mapped to two or more (above the midline), one receiving two or more
+   (below), in the hue of a split or a merge. */
+.idh__fan {
+  fill: var(--hue-event);
+}
+
+/* An id and its version kept (a re-mapping to itself): outlined in the history hue. */
+.idh__kept {
+  fill: var(--surface);
+  stroke: var(--hue-history);
+  stroke-width: 1;
+}
+
+.idh__base--fan {
+  stroke: var(--line);
 }
 
 .idh__tick,
@@ -483,8 +523,23 @@ a.organism-switch__item:hover {
 .idh-cases li {
   display: flex;
   gap: var(--space-2);
-  padding: 2px 0;
+  padding: 3px 0;
   break-inside: avoid;
+}
+
+/* An identifier whole on its line, what the case is under it: an id is never broken in its middle. */
+.idh-cases__body {
+  display: grid;
+  min-width: 0;
+}
+
+.idh-cases__id {
+  justify-self: start;
+  white-space: nowrap;
+}
+
+.idh-cases__what {
+  color: var(--ink-3);
 }
 
 .idh-cases__n {
@@ -573,15 +628,42 @@ a.organism-switch__item:hover {
 }
 
 @media (forced-colors: active) {
+  /* Each kind of column keeps its own drawing: solid, striped, outlined thick, outlined grey. */
   .idh__version,
-  .idh__retired,
-  .idh__created {
+  .idh__hatch,
+  .idh__fan {
     fill: CanvasText;
     forced-color-adjust: none;
   }
 
-  .idh__id {
-    fill: GrayText;
+  .idh__hatch-ground,
+  .idh__created,
+  .idh__kept {
+    fill: Canvas;
+    forced-color-adjust: none;
+  }
+
+  .idh__retired {
+    fill: Canvas;
+    stroke: CanvasText;
+    stroke-width: 1.5;
+    forced-color-adjust: none;
+  }
+
+  .idh__created {
+    stroke: CanvasText;
+  }
+
+  .idh__kept {
+    stroke: GrayText;
+  }
+
+  .idh__tick,
+  .idh__axis-name,
+  .idh__mark-number,
+  .arows__name--out {
+    fill: CanvasText;
+    forced-color-adjust: none;
   }
 
   .idh__line {
@@ -621,6 +703,7 @@ a.organism-switch__item:hover {
   .counts__track {
     grid-column: 1 / -1;
     grid-row: 2;
+    min-height: 16px;
     margin: 0 var(--space-2) var(--space-2);
   }
 
@@ -961,4 +1044,11 @@ a.organism-switch__item:hover {
   margin: var(--space-2) 0 0;
   font-size: var(--text-xs);
   color: var(--ink-3);
+}
+
+/* The database names idtrack does not describe, named together once under the described ones. */
+.db-meanings__unsaid {
+  margin-top: var(--space-3);
+  max-width: var(--measure);
+  color: var(--ink-2);
 }

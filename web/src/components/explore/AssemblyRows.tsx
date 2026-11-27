@@ -7,9 +7,9 @@ import { databaseLabel } from "../../lib/databases";
 import { MAPPING_WORDS, type Handoff } from "../../lib/explore/handoffs";
 import { runs } from "../../lib/explore/runs";
 import { releaseRanges } from "../../lib/numbers";
-import { releaseScale, shortNames } from "../figure/releases";
+import { releaseScale } from "../figure/releases";
 import { ReleaseTicks } from "../figure/axis";
-import { placeLabels, type LabelRequest } from "../figure/labels";
+import { placeLabels, type LabelRequest, type PlacedLabel } from "../figure/labels";
 import { FigureNote } from "../figure/FigureNote";
 import { useRoving } from "../figure/roving";
 import { useWidth } from "../figure/useWidth";
@@ -25,7 +25,11 @@ export interface AssemblyRow {
   handoffs?: Handoff[];
 }
 
+/** A row's height, and where its bar stands: names inside the bars (the bar at the row's middle), or every name under
+ *  its bar on up to two lines (the bar higher). */
 const ROW = 54;
+const ROW_UNDER = 70;
+const BAR_UNDER = 22;
 const AXIS = 30;
 
 export function AssemblyRows({
@@ -45,60 +49,50 @@ export function AssemblyRows({
   const { ref, width } = useWidth<HTMLDivElement>(900);
   const releases = Array.from({ length: last - first + 1 }, (_, i) => first + i);
   const scale = releaseScale(releases, 4, width - 8);
-  const height = rows.length * ROW + AXIS;
   const items = rows.flatMap((row, i) =>
     row.assemblies.map((a, j) => ({ row, rowIndex: i, assembly: a, shade: j % 2 === 1 })),
   );
-  // Every bar is named, by one rule: its name inside it where it has room, else its short name inside it, else its
-  // name (or short name) just above it, or just below it; the full name is always in its note and the table.
-  const shorts = shortNames(items.map((it) => it.assembly.name ?? String(it.assembly.assembly)));
+  // Every bar is named by its whole name, in one place for the whole figure: inside the bar where every bar has room
+  // for its name; else under its bar, from the bar's start, on the first of two lines where it meets no other name (a
+  // name is never shortened, and never stands above one bar and below another). The name is also in its note and the
+  // table.
+  const nameOf = (it: (typeof items)[number]) => it.assembly.name ?? String(it.assembly.assembly);
   const requests: LabelRequest[] = [];
   items.forEach((it, index) => {
-    const name = it.assembly.name ?? String(it.assembly.assembly);
-    const short = shorts.get(name) ?? name;
     runs(it.assembly.serves).forEach(([p, q], k) => {
       const x0 = scale.x(p - 0.5) + 1;
       const x1 = scale.x(q + 0.5) - 1;
-      const key = `${index}:${k}`;
       requests.push({
-        key: `in-${key}`,
+        key: `in-${index}:${k}`,
         anchor: x0 + 6,
-        forms: [name, short],
+        forms: [nameOf(it)],
         align: "start",
-        rows: [`in-${key}`],
+        rows: [`in-${index}:${k}`],
         bounds: [x0 + 5, x1 - 4],
       });
     });
   });
-  const inside = placeLabels(requests, { bounds: [2, width - 2] });
-  // A name that has no room inside its bar stands above it, in its full or short form; only where neither fits above
-  // (another name holds the place) below it: one consistent place, so that the rows keep their rhythm.
-  const outside = (rowOf: (rowIndex: number) => string) =>
-    items.flatMap((it, index) => {
-      const name = it.assembly.name ?? String(it.assembly.assembly);
-      return runs(it.assembly.serves).flatMap(([p, q], k) =>
-        inside.has(`in-${index}:${k}`)
-          ? []
-          : [
-              {
-                key: `up-${index}:${k}`,
-                anchor: (scale.x(p - 0.5) + scale.x(q + 0.5)) / 2,
-                forms: [name, shorts.get(name) ?? name],
-                align: "center" as const,
-                rows: [rowOf(it.rowIndex)],
-              },
-            ],
-      );
-    });
-  const first_ = placeLabels(
-    outside((r) => `up-${r}`),
-    { bounds: [2, width - 2], gap: 8 },
-  );
-  const second = placeLabels(
-    outside((r) => `down-${r}`).filter((request) => !first_.has(request.key)),
-    { bounds: [2, width - 2], gap: 8 },
-  );
-  const above = new Map([...first_, ...second]);
+  const fitted = placeLabels(requests, { bounds: [2, width - 2] });
+  const under = requests.length > 0 && fitted.size < requests.length;
+  const inside = under ? new Map<string, never>() : fitted;
+  const rowH = under ? ROW_UNDER : ROW;
+  const barY = (rowIndex: number) => rowIndex * rowH + (under ? BAR_UNDER : rowH / 2);
+  const height = rows.length * rowH + AXIS;
+  const below = under
+    ? placeLabels(
+        items.flatMap((it, index) =>
+          runs(it.assembly.serves).map(([p], k) => ({
+            key: `up-${index}:${k}`,
+            anchor: scale.x(p - 0.5) + 1,
+            forms: [nameOf(it)],
+            align: "start" as const,
+            rows: [`u1-${it.rowIndex}`, `u2-${it.rowIndex}`],
+          })),
+        ),
+        { bounds: [2, width - 2], gap: 10 },
+      )
+    : new Map<string, PlacedLabel>();
+  const above = below;
   const svg = useCallback(() => ref.current?.querySelector("svg") ?? null, [ref]);
   const roving = useRoving(items.length, svg);
   const shown = roving.shown === null ? null : items[roving.shown];
@@ -112,7 +106,10 @@ export function AssemblyRows({
     <div className="arows">
       <ul className="arows__labels">
         {rows.map((row) => (
-          <li key={row.key} style={{ height: ROW }}>
+          <li
+            key={row.key}
+            style={under ? { height: rowH, alignItems: "flex-start", paddingTop: BAR_UNDER - 15 } : { height: rowH }}
+          >
             {row.label}
           </li>
         ))}
@@ -120,17 +117,10 @@ export function AssemblyRows({
       <div className="arows__plot" ref={ref} style={{ height }}>
         <svg width={width} height={height} role="group" aria-label={label}>
           {rows.map((row, i) => (
-            <line
-              key={row.key}
-              x1={scale.x0}
-              x2={scale.x1}
-              y1={i * ROW + ROW / 2}
-              y2={i * ROW + ROW / 2}
-              className="arows__track"
-            />
+            <line key={row.key} x1={scale.x0} x2={scale.x1} y1={barY(i)} y2={barY(i)} className="arows__track" />
           ))}
           {items.map((it, index) => {
-            const y = it.rowIndex * ROW + ROW / 2;
+            const y = barY(it.rowIndex);
             const a = it.assembly;
             const name = a.name ?? String(a.assembly);
             const heldRuns = runs(a.releases);
@@ -171,8 +161,8 @@ export function AssemblyRows({
                       {outer ? (
                         <text
                           x={outer.x}
-                          y={outer.row.startsWith("up") ? y - 14 : y + 23}
-                          textAnchor="middle"
+                          y={outer.row.startsWith("u1") ? y + 23 : y + 37}
+                          textAnchor={outer.anchor}
                           className="fig-text arows__name--out"
                         >
                           {outer.text}
@@ -201,7 +191,7 @@ export function AssemblyRows({
           {rows.flatMap((row, i) =>
             (row.handoffs ?? []).map((h) => {
               const x = scale.x(h.release - 0.5);
-              const y = i * ROW + ROW / 2;
+              const y = barY(i);
               return (
                 <path
                   key={`${row.key}-h${h.release}`}
@@ -212,10 +202,10 @@ export function AssemblyRows({
               );
             }),
           )}
-          <ReleaseTicks scale={scale} y={rows.length * ROW + 4} releases={releases} />
+          <ReleaseTicks scale={scale} y={rows.length * rowH + 4} releases={releases} />
         </svg>
         {shown ? (
-          <FigureNote x={centre(shown)} y={shown.rowIndex * ROW + ROW / 2 + 16} width={width}>
+          <FigureNote x={centre(shown)} y={barY(shown.rowIndex) + 16} width={width}>
             <p className="fig-note__title">
               {shown.row.owner ? `${shown.row.owner} · ` : ""}
               {shown.assembly.name ?? shown.assembly.assembly}{" "}

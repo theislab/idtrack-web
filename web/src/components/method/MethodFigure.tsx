@@ -6,11 +6,13 @@
 // (src/generated/idtrack_docs.json), linked.
 import { docsPage } from "../../lib/links";
 import docs from "../../generated/idtrack_docs.json";
+import type { ConversionResult } from "../../api/types";
 import { firstSentence, readerText } from "../../lib/method/readerText";
 import { firstWords } from "../../lib/values";
 import { spaced, type Vocabulary } from "../../lib/vocabulary";
 import { useVocabulary } from "../../lib/vocabularyContext";
 import { Term } from "../ResultParts";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Disclosure, Prose, StatusBadge } from "../ui";
 import { AnswerFigure } from "./AnswerFigure";
 import { BridgeChecks } from "./BridgeChecks";
@@ -94,6 +96,19 @@ function TermList({
   );
 }
 
+/** The terms of a stage, folded behind one line that names them and how many each list holds: the figure and its two
+ *  sentences stay open, the glossary is one press away. */
+function Glossary({ lists, children }: { lists: [string, number][]; children: ReactNode }) {
+  const words = lists.map(([what, n]) => (n ? `${what} (${n})` : what)).join(", ");
+  return (
+    <div className="method-glossary">
+      <Disclosure summary={<span className="method-glossary__summary">The terms of this stage: {words}</span>}>
+        {children}
+      </Disclosure>
+    </div>
+  );
+}
+
 function ReadPanel({ v }: { v: Vocabulary }) {
   return (
     <section className="panel method-panel" aria-labelledby="method-read">
@@ -124,11 +139,19 @@ function ReadPanel({ v }: { v: Vocabulary }) {
       >
         {({ result }) => <ReadFigure result={result} />}
       </StageCase>
-      <FullWords entries={[...v.matchSteps.entries()]} summary="The steps of a match, in idtrack's full words" />
-      <div className="method-columns">
-        <TermList title="Prefixes of a match" entries={[...v.matchPrefixes.entries()]} />
-        <TermList title="Other readings, reported beside the answer" entries={[...v.readingReasons.entries()]} />
-      </div>
+      <Glossary
+        lists={[
+          ["the steps of a match", v.matchSteps.size],
+          ["its prefixes", v.matchPrefixes.size],
+          ["the other readings beside an answer", v.readingReasons.size],
+        ]}
+      >
+        <FullWords entries={[...v.matchSteps.entries()]} summary="The steps of a match, in idtrack's full words" />
+        <div className="method-columns">
+          <TermList title="Prefixes of a match" entries={[...v.matchPrefixes.entries()]} />
+          <TermList title="Other readings, reported beside the answer" entries={[...v.readingReasons.entries()]} />
+        </div>
+      </Glossary>
     </section>
   );
 }
@@ -171,25 +194,57 @@ function WalkPanel({ v }: { v: Vocabulary }) {
       </StageCase>
       <h3 className="method-sub">The kinds of history step</h3>
       <HistoryKinds v={v} />
-      <FullWords
-        entries={[
-          "new_version",
-          "replaced",
-          "split",
-          "merge",
-          "split_and_merge",
-          "self_loop",
-          "mitochondrial_genome",
-        ].map((code) => [code, v.stepReasons.get(code)])}
-        summary="Each kind of step in idtrack's full words"
-      />
-      <TermList
-        title="Where the later gene lies, for a step between two genes"
-        entries={[...v.placeRelations.entries()]}
-      />
+      <Glossary
+        lists={[
+          ["each kind of step in idtrack's full words", 0],
+          ["where the later gene lies", v.placeRelations.size],
+        ]}
+      >
+        <FullWords
+          entries={[
+            "new_version",
+            "replaced",
+            "split",
+            "merge",
+            "split_and_merge",
+            "self_loop",
+            "mitochondrial_genome",
+          ].map((code) => [code, v.stepReasons.get(code)])}
+          summary="Each kind of step in idtrack's full words"
+        />
+        <TermList
+          title="Where the later gene lies, for a step between two genes"
+          entries={[...v.placeRelations.entries()]}
+        />
+      </Glossary>
     </section>
   );
 }
+
+/** Where the bridge of an answer's path joins two genes whose places idtrack cannot compare (their assemblies have no
+ *  published mapping), the answer rests on the shared id and the chromosomes' names alone: said under the figure, in
+ *  idtrack's words, with its limitation. */
+function BridgePlaces({ result }: { result: ConversionResult }) {
+  const steps = result.path?.steps ?? [];
+  const near = steps.find((s) => s.kind === "bridge_near");
+  const far = steps.find((s) => s.kind === "bridge_far");
+  const bridge = (result.path?.bridges ?? []).find(
+    (b) => b.taken && b.source === near?.source && b.target === far?.target,
+  );
+  const limitation = docs.limitations.items.find((l) => l.anchor === PLACES_LIMITATION);
+  if (!bridge || bridge.places === "same_place" || !limitation) return null;
+  return (
+    <p className="method-caveat" role="note">
+      <strong>Places not compared.</strong> This bridge joins genes on two assemblies ({spaced(bridge.places)}), so
+      their places are not compared; in idtrack&apos;s words: <Prose text={limitation.sentence} />{" "}
+      {limitation.next ? <Prose text={limitation.next} /> : null}{" "}
+      <a href={`${docs.limitations.source.replace(/#.*$/, "")}#${limitation.anchor}`}>{limitation.title}</a>
+    </p>
+  );
+}
+
+/** idtrack's limitation on places across an assembly change (its section's anchor in the documentation). */
+const PLACES_LIMITATION = "places-across-an-assembly-change";
 
 function BridgePanel({ v }: { v: Vocabulary }) {
   const rules = [...v.bridgeRules.entries()];
@@ -213,8 +268,9 @@ function BridgePanel({ v }: { v: Vocabulary }) {
         caption={
           <>
             The best answer&apos;s path, drawn over the releases it spans and two on each side: each lane one stable id,
-            each bar one version of it; the identifier read through its transcript as the gene below it; the bridge from
-            the gene whose history ends to the other gene, through the id they carried one after the other; below,
+            each bar one version of it; the identifier read as its gene (through its transcript or translation where it
+            names one); the bridge from the gene whose history ends to the other gene, through the id they carried one
+            after the other; below,
             Ensembl&apos;s mapping score of each history step. Under it, every bridge the search considered, with where
             the two genes lie and the rule of each id they shared.
           </>
@@ -224,21 +280,33 @@ function BridgePanel({ v }: { v: Vocabulary }) {
           <>
             <StageFigure result={result} graph={graph} />
             <StageLegend result={result} graph={graph} />
+            <BridgePlaces result={result} />
             <BridgeChecks result={result} />
           </>
         )}
       </StageCase>
-      <div className="method-columns">
-        <TermList
-          title="The two steps of a bridge"
-          entries={["bridge_near", "bridge_far"].map((code) => [code, v.stepReasons.get(code)])}
-        />
-        <TermList title="Taken when" entries={rules.filter(([, r]) => r.taken).map(([code, r]) => [code, r.meaning])} />
-        <TermList
-          title="Refused when"
-          entries={rules.filter(([, r]) => !r.taken).map(([code, r]) => [code, r.meaning])}
-        />
-      </div>
+      <Glossary
+        lists={[
+          ["the two steps of a bridge", 2],
+          ["the rules it is taken by", rules.filter(([, r]) => r.taken).length],
+          ["the rules it is refused by", rules.filter(([, r]) => !r.taken).length],
+        ]}
+      >
+        <div className="method-columns">
+          <TermList
+            title="The two steps of a bridge"
+            entries={["bridge_near", "bridge_far"].map((code) => [code, v.stepReasons.get(code)])}
+          />
+          <TermList
+            title="Taken when"
+            entries={rules.filter(([, r]) => r.taken).map(([code, r]) => [code, r.meaning])}
+          />
+          <TermList
+            title="Refused when"
+            entries={rules.filter(([, r]) => !r.taken).map(([code, r]) => [code, r.meaning])}
+          />
+        </div>
+      </Glossary>
     </section>
   );
 }
@@ -342,13 +410,20 @@ function AnswerPanel({ v }: { v: Vocabulary }) {
       >
         {({ result }) => <AnswerFigure result={result} />}
       </StageCase>
-      <div className="method-columns">
-        <TermList
-          title="The last step of a path"
-          entries={["identity", "final", "final_other_release"].map((code) => [code, v.stepReasons.get(code)])}
-        />
-        <TermList title="Every result has one status" entries={[...v.statuses.entries()]} status />
-      </div>
+      <Glossary
+        lists={[
+          ["the last step of a path", 3],
+          ["the statuses of a result", v.statuses.size],
+        ]}
+      >
+        <div className="method-columns">
+          <TermList
+            title="The last step of a path"
+            entries={["identity", "final", "final_other_release"].map((code) => [code, v.stepReasons.get(code)])}
+          />
+          <TermList title="Every result has one status" entries={[...v.statuses.entries()]} status />
+        </div>
+      </Glossary>
     </section>
   );
 }
@@ -381,8 +456,28 @@ const STAGES: [string, string, string, string][] = [
   ],
 ];
 
+/** The way back to the page's contents, once they are scrolled past: a long page is never thirty swipes from its
+ *  index. */
+function useAway<E extends Element>() {
+  const ref = useRef<E>(null);
+  const [away, setAway] = useState(false);
+  useEffect(() => {
+    const element = ref.current;
+    if (!element || typeof IntersectionObserver === "undefined") return;
+    const observer = new IntersectionObserver(([entry]) => {
+      if (entry) setAway(!entry.isIntersecting && entry.boundingClientRect.top < 0);
+    });
+    observer.observe(element);
+    return () => {
+      observer.disconnect();
+    };
+  }, []);
+  return { ref, away };
+}
+
 export function MethodFigure() {
   const v = useVocabulary();
+  const { ref: contents, away } = useAway<HTMLElement>();
   return (
     <div className="method-figure">
       <ol className="method-stages" aria-label="The stages of an answer">
@@ -396,7 +491,7 @@ export function MethodFigure() {
           </li>
         ))}
       </ol>
-      <nav className="method-contents" aria-label="Also on this page">
+      <nav className="method-contents" aria-label="Also on this page" id="method-contents" ref={contents}>
         <span className="label">Also on this page</span>
         <ul>
           {[
@@ -421,6 +516,14 @@ export function MethodFigure() {
           The api&apos;s vocabulary could not be read: the codes below are shown without their meanings.
         </p>
       )}
+      {away ? (
+        <a href="#method-contents" className="method-back">
+          Contents
+          <svg viewBox="0 0 12 12" aria-hidden="true" focusable="false">
+            <path d="M6 10V2M2.5 5.5 6 2l3.5 3.5" fill="none" stroke="currentColor" strokeWidth="1.4" />
+          </svg>
+        </a>
+      ) : null}
       <ReadPanel v={v} />
       <WalkPanel v={v} />
       <BridgePanel v={v} />

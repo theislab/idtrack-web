@@ -76,6 +76,7 @@
   scroll-margin-top: calc(var(--masthead-height) + var(--space-4));
 }
 
+
 .method-panel__head {
   display: flex;
   align-items: baseline;
@@ -90,7 +91,51 @@
 
 .method-panel__lede {
   color: var(--ink-2);
-  max-width: 96ch;
+  max-width: var(--measure);
+}
+
+/* The terms of a stage, folded behind one line that names them. */
+.method-glossary {
+  margin-top: var(--space-2);
+}
+
+.method-glossary__summary {
+  font-weight: var(--weight-medium);
+}
+
+/* What an example's evidence leaves open, said under its figure. */
+.method-caveat {
+  max-width: var(--measure);
+  padding-left: var(--space-3);
+  border-left: 2px solid var(--state-warn);
+  font-size: var(--text-sm);
+  color: var(--ink-2);
+}
+
+/* The way back to the contents of a long page, once they are scrolled past. */
+.method-back {
+  position: fixed;
+  right: var(--space-4);
+  bottom: var(--space-4);
+  z-index: 15;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 44px;
+  padding: 0 var(--space-4);
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  background: var(--surface-raised);
+  color: var(--ink-1);
+  box-shadow: var(--shadow);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  text-decoration: none;
+}
+
+.method-back svg {
+  width: 12px;
+  height: 12px;
 }
 
 .method-sub {
@@ -175,6 +220,7 @@
   gap: var(--space-2) var(--space-4);
   margin: calc(-1 * var(--space-3)) 0 var(--space-6);
   font-size: var(--text-sm);
+  scroll-margin-top: calc(var(--masthead-height) + var(--space-6));
 }
 
 .method-contents ul {
@@ -519,18 +565,22 @@
   color: var(--ink-2);
 }
 
+/* The steps share one set of columns (a subgrid), so that the step-name column is as wide as its longest name and
+   no name runs into its state. */
 .read-fig__steps {
   list-style: none;
   margin: 0;
   padding: 0;
   display: grid;
+  grid-template-columns: 1.5em 14px max-content minmax(0, 1fr);
+  column-gap: var(--space-3);
 }
 
 .read-fig__step {
   display: grid;
-  grid-template-columns: 1.5em 14px minmax(8rem, auto) minmax(0, 1fr);
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
   grid-template-areas: "n mark code state" ". . meaning meaning";
-  column-gap: var(--space-2);
   align-items: baseline;
   padding: var(--space-2) 0;
   border-top: 1px solid var(--line);
@@ -742,8 +792,11 @@
     gap: var(--space-3);
   }
 
-  .read-fig__step {
+  .read-fig__steps {
     grid-template-columns: 1.5em 14px minmax(0, 1fr);
+  }
+
+  .read-fig__step {
     grid-template-areas: "n mark code" ". . state" ". . meaning";
   }
 

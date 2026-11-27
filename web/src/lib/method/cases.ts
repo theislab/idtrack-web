@@ -23,6 +23,14 @@ const PIG_115 = "80bda9b3bb224243664e8b35d2ea602255b02b4dd39abb22e982f7aa2aff62d
 export const STAGE_CASES: StageCase[] = [
   { stage: "read", query: { organism: "homo_sapiens", identifier: "tp53" }, checkedOn: HUMAN_115 },
   { stage: "walk", query: { organism: "sus_scrofa", identifier: "ENSSSCG00000038317.1", to: 86 }, checkedOn: PIG_115 },
+  // A bridge whose two genes lie at one place (both on one assembly), idtrack's documented case of a bridge, first; where
+  // the server holds no human graph of this digest, a bridge across an assembly change Ensembl does not map, whose
+  // places cannot be compared (the panel says so, with idtrack's limitation).
+  {
+    stage: "bridge",
+    query: { organism: "homo_sapiens", identifier: "ENSG00000198477", from: 48 },
+    checkedOn: HUMAN_115,
+  },
   {
     stage: "bridge",
     query: { organism: "sus_scrofa", identifier: "ENSSSCP00000069370.1", to: 56 },
@@ -53,7 +61,8 @@ export function holdsStage(stage: Stage, result: ConversionResult): boolean {
   }
 }
 
-/** The case of a stage this server can show: its graph is held with the digest it was checked on. */
+/** The case of a stage this server can show: the first of the stage's cases whose graph is held with the digest it was
+ *  checked on. */
 export function stageCase(stage: Stage, digests: ReadonlyMap<string, string | null>): StageCase | null {
   return STAGE_CASES.find((c) => c.stage === stage && digests.get(c.query.organism) === c.checkedOn) ?? null;
 }
