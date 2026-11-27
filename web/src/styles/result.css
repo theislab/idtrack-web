@@ -258,11 +258,14 @@
   font-size: var(--text-md) !important;
 }
 
+/* The line of the answer's gene and symbol keeps its height before the symbol comes (one line of the symbol's type):
+   the answer does not move when it arrives. */
 .answer__gene {
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
   gap: var(--space-1) var(--space-2);
+  min-height: 1.5rem;
   font-size: var(--text-sm);
   color: var(--ink-3);
 }
@@ -2595,6 +2598,12 @@ a.anatomy__link:hover .anatomy__go {
   fill: var(--ink-3);
 }
 
+@media (forced-colors: active) {
+  .places-fig .places-fig__versions {
+    fill: CanvasText;
+  }
+}
+
 .places-fig__caption {
   margin-bottom: var(--space-3);
 }
@@ -2658,6 +2667,7 @@ a.anatomy__link:hover .anatomy__go {
 }
 
 .answer__alert .evidence__glyph {
+  align-self: start;
   margin-top: 5px;
 }
 

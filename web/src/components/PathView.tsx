@@ -360,6 +360,10 @@ function spoken(title: string, facts: [string, string][], wanted: string[]): str
   return said.length ? `${title}; ${said.join("; ")}` : title;
 }
 
+/** The distance from an element's middle to its note: the half-height of the element's hit area (24 px), so that the
+ *  pointer passes from the element straight onto its note, with no gap to cross. */
+const REACH = 12;
+
 /** The top of the window's free room: the bottom of the sticky masthead (a note never stands under it). */
 function freeTop(): number {
   const header = document.querySelector(".masthead");
@@ -399,8 +403,8 @@ function Tooltip({
     const height = element.scrollHeight;
     let origin = canvas.getBoundingClientRect().top;
     let y = Math.min(Math.max(origin + item.y, mast + gap), bottom - gap);
-    const below = bottom - (y + 16) - gap;
-    const over = y - 16 - gap - mast;
+    const below = bottom - (y + REACH) - gap;
+    const over = y - REACH - gap - mast;
     if (mayScroll && height > below && height > over) {
       // Neither side holds it: bring the element near the top of the free room, then open below.
       const shift = y - (mast + 3 * gap);
@@ -410,16 +414,16 @@ function Tooltip({
         y = Math.min(Math.max(origin + item.y, mast + gap), bottom - gap);
       }
     }
-    const room = bottom - (y + 16) - gap;
-    const roomOver = y - 16 - gap - mast;
+    const room = bottom - (y + REACH) - gap;
+    const roomOver = y - REACH - gap - mast;
     const anchor = y - origin;
     let next: { key: string; top: number; max: number | null };
     if (height <= room || room >= roomOver)
-      next = { key: item.key, top: anchor + 16, max: height <= room ? null : Math.max(120, room) };
+      next = { key: item.key, top: anchor + REACH, max: height <= room ? null : Math.max(120, room) };
     else
       next = {
         key: item.key,
-        top: anchor - 16 - Math.min(height, roomOver),
+        top: anchor - REACH - Math.min(height, roomOver),
         max: height <= roomOver ? null : roomOver,
       };
     if (place?.key !== next.key || place.top !== next.top || place.max !== next.max) setPlace(next);
@@ -436,7 +440,7 @@ function Tooltip({
       ref={ref}
       style={{
         left,
-        top: place?.key === item.key ? place.top : item.y + 16,
+        top: place?.key === item.key ? place.top : item.y + REACH,
         maxHeight: place?.key === item.key && place.max !== null ? place.max : undefined,
       }}
       {...pointer}
@@ -473,13 +477,18 @@ function useSteadyHover<K>() {
   };
   useEffect(() => cancel, []);
   const { hover, enter: baseEnter, leave: baseLeave, drop: baseDrop } = base;
+  const keep = base.note.onPointerEnter;
   const enter = useCallback(
     (key: K) => {
       cancel();
       if (hover === null || hover === key) baseEnter(key);
-      else pending.current = window.setTimeout(() => baseEnter(key), SWITCH_MS);
+      else {
+        // The note shown stays (its leave is forgotten) until the pointer rests on the other element.
+        keep();
+        pending.current = window.setTimeout(() => baseEnter(key), SWITCH_MS);
+      }
     },
-    [hover, baseEnter],
+    [hover, baseEnter, keep],
   );
   const leave = useCallback(() => {
     cancel();
@@ -1671,47 +1680,130 @@ function useStepShown(shown: string | null, onStepShown: (index: number | null) 
   }, [shown, onStepShown]);
 }
 
+interface StubCount {
+  x: number;
+  y: number;
+  n: number;
+  anchor: "start" | "end";
+}
+
+/** Along time from an event's glyph: +1 toward later releases (the walk's direction does not change Ensembl's event). */
+function alongFrom(x: number, y: number, vertical: boolean) {
+  return (dt: number, ds: number): [number, number] => (vertical ? [x + ds, y + dt] : [x + dt, y + ds]);
+}
+
+/** The counts of an event's other ids, where they stand: at the end of the fan, above it on a wide drawing, beside it
+ *  on a phone's timeline (clear of the lanes). */
+function stubCounts(step: ModelStep, x: number, y: number, vertical: boolean): StubCount[] {
+  const along = alongFrom(x, y, vertical);
+  const out: StubCount[] = [];
+  for (const [n, side] of [
+    [step.api.splits, 1],
+    [step.api.merges, -1],
+  ] as const) {
+    if (!n) continue;
+    const [cx, cy] = vertical ? along(side * 22, 14) : along(side * 25, -10);
+    out.push({ x: cx, y: cy, n, anchor: vertical || side > 0 ? "start" : "end" });
+  }
+  return out;
+}
+
+/** The box a count's text takes (10 px of the monospaced face). */
+function countBox(c: StubCount): [number, number, number, number] {
+  const w = textWidth(`+${c.n}`, 10);
+  const x0 = c.anchor === "start" ? c.x : c.x - w;
+  return [x0 - 1, c.y - 6, x0 + w + 1, c.y + 6];
+}
+
 /** The other ids of a split or a merge, counted by the api and not named: a short stub per id (at most three) leaving
  *  the event's glyph toward the later releases (a split: the earlier id passed to them too) or entering it from the
- *  earlier ones (a merge: they passed to the later id too), with their count at its end. Drawn in the event's hue; the
- *  path in words names them. */
-function EventStubs({ step, x, y, vertical }: { step: ModelStep; x: number; y: number; vertical: boolean }) {
-  const { splits, merges } = step.api;
-  if (!splits && !merges) return null;
-  // Along time: +1 toward later releases. The walk's direction does not change Ensembl's event.
-  const along = (dt: number, ds: number): [number, number] => (vertical ? [x + ds, y + dt] : [x + dt, y + ds]);
+ *  earlier ones (a merge: they passed to the later id too), with their count at its end where no other count stands.
+ *  Drawn in the event's hue; the path in words names them. */
+function EventStubs({
+  step,
+  x,
+  y,
+  vertical,
+  counts,
+}: {
+  step: ModelStep;
+  x: number;
+  y: number;
+  vertical: boolean;
+  counts: StubCount[];
+}) {
+  const along = alongFrom(x, y, vertical);
   const stubs: string[] = [];
-  const counts: { x: number; y: number; n: number; side: 1 | -1 }[] = [];
-  const fan = (n: number, side: 1 | -1) => {
-    if (!n) return;
-    const shown = Math.min(3, n);
-    for (let i = 0; i < shown; i++) {
+  for (const [n, side] of [
+    [step.api.splits, 1],
+    [step.api.merges, -1],
+  ] as const) {
+    for (let i = 0; i < Math.min(3, n); i++) {
       const spread = (Math.floor(i / 2) + 1) * 10;
       const [x1, y1] = along(side * 6, 0);
       const [x2, y2] = along(side * 22, (i % 2 ? 1 : -1) * spread);
       stubs.push(`M${x1},${y1}L${x2},${y2}`);
     }
-    const [cx, cy] = along(side * 25, -10);
-    counts.push({ x: cx, y: cy, n, side });
-  };
-  fan(splits, 1);
-  fan(merges, -1);
+  }
   return (
     <g className="pv-stubs" aria-hidden="true">
       {stubs.map((d) => (
         <path key={d} d={d} />
       ))}
       {counts.map((c) => (
-        <text
-          key={c.side}
-          className="pv-stubs__count"
-          x={c.x}
-          y={c.y + 3}
-          textAnchor={vertical ? "start" : c.side > 0 ? "start" : "end"}
-        >
+        <text key={`${c.x}|${c.y}`} className="pv-stubs__count" x={c.x} y={c.y + 3} textAnchor={c.anchor}>
           +{c.n}
         </text>
       ))}
+    </g>
+  );
+}
+
+/** The stubs of every drawn event of Ensembl's history, apart from the steps' focusable marks (counts, not names: no
+ *  part of an element's name). The chosen path's first; a count is left out where another stands (two events at one
+ *  place: the note and the words have each). */
+function EventStubLayer({
+  edges,
+  toXY,
+  vertical,
+  isStrong,
+}: {
+  edges: readonly EdgePlace[];
+  toXY: (t: number, s: number) => [number, number];
+  vertical: boolean;
+  isStrong: (candidates: number[], best: boolean) => boolean;
+}) {
+  // The events of the path drawn strongly (the chosen path, or the candidate pointed at); the alternatives' events are
+  // drawn at their weight by their own marks, their other ids counted in their notes.
+  const events = edges
+    .filter(
+      (e) =>
+        marksMiddle(e.step) &&
+        isEvent(e.step.api) &&
+        (e.step.api.splits || e.step.api.merges) &&
+        isStrong(e.step.candidates, e.step.best),
+    )
+    .map((edge) => ({ edge, at: toXY(edge.mid.t, edge.mid.s) }));
+  const placed: [number, number, number, number][] = [];
+  const meets = (a: [number, number, number, number], b: [number, number, number, number]) =>
+    a[0] < b[2] && b[0] < a[2] && a[1] < b[3] && b[1] < a[3];
+  return (
+    <g className="pv-stub-layer" aria-hidden="true">
+      {events.map(({ edge, at: [x, y] }) => {
+        // An event's fan is left out where another's stands (several lanes meeting one event at one release).
+        const fan: [number, number, number, number] = vertical
+          ? [x - 22, y - 26, x + 22, y + 26]
+          : [x - 26, y - 22, x + 26, y + 22];
+        if (placed.some((p) => meets(p, fan))) return null;
+        const counts = stubCounts(edge.step, x, y, vertical).filter((c) => {
+          const box = countBox(c);
+          if (placed.some((p) => meets(p, box))) return false;
+          placed.push(box);
+          return true;
+        });
+        placed.push(fan);
+        return <EventStubs key={edge.step.index} step={edge.step} x={x} y={y} vertical={vertical} counts={counts} />;
+      })}
     </g>
   );
 }
@@ -1939,12 +2031,12 @@ function PathMarks({
                 />
               )
             ) : null}
-            {middle && isEvent(step.api) ? <EventStubs step={step} x={mx} y={my} vertical={vertical} /> : null}
             {ringed ? <circle className="fig-focus" cx={mx} cy={my} r={12} /> : null}
             {pointed ? <circle className="pv-lit" cx={mx} cy={my} r={12} /> : null}
           </g>
         );
       })}
+      <EventStubLayer edges={edges} toXY={toXY} vertical={vertical} isStrong={isStrong} />
       {/* The identifier, the forms it is read through and the ids bridges pass through. */}
       {[...layout.nodes.values()].map((place) => {
         if (place.node.role === "gene") return null;
@@ -2019,7 +2111,7 @@ function answerLine(
     c.best ? (decided ? `best, by ${decided}` : tiedWith ? `best, tied with ${tiedWith}` : "best") : "",
     `score ${shortScore(c.api.score).text}`,
   ].filter(Boolean);
-  while (parts.length > 1 && textWidth(parts.join(" · "), 10, "sans") > room) parts.pop();
+  while (parts.length > 1 && textWidth(parts.join(" · "), 11, "sans") > room) parts.pop();
   return parts.join(" · ");
 }
 
@@ -2115,7 +2207,7 @@ function AnswerColumn({
                     symbol: (symbols?.of.get(c.api.gene) ?? []).filter((x) => x !== c.api.target).join(", "),
                     decided: decided ? spaced(decision.key) : null,
                     tiedWith: tied ? model.candidates.filter((x) => x.best).length - 1 : 0,
-                    room: width - 46,
+                    room: width - 58,
                   })}
                 </text>
               </g>
@@ -2179,7 +2271,7 @@ function PathLegend({ present }: { present?: Set<string> }) {
           </g>
         </svg>
       ),
-      text: "Other ids of the same split or merge (counted by the api; named in the words, on a press)",
+      text: "Other ids of the same split or merge, and how many (counted by the api; named in the words)",
     },
     { key: "loop", glyph: "loop", text: "A re-mapping of a gene to itself" },
     { key: "handoff", glyph: "handoff", text: "A step across an assembly change" },

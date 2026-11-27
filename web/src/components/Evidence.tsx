@@ -75,7 +75,10 @@ function Card({ mark, links }: { mark: EvidenceMark; links: EvidenceLinks }) {
           </a>
         </span>
       ) : null}
-      <span className="evidence__card-code mono">{mark.code}</span>
+      <span className="evidence__card-code">
+        <span className="evidence__card-source">Read from the api&apos;s answer:</span>{" "}
+        <span className="mono">{mark.code}</span>
+      </span>
     </span>
   );
 }

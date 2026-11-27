@@ -886,6 +886,89 @@ function OtherGenesReached({
   );
 }
 
+/** The versions of an id the graph holds listed as links at first (the rest named after them). */
+const VERSIONS_SHOWN = 12;
+
+/** The ways on from a result without an answer: the id without its version, the versions the graph holds, what a
+ *  string not found may be, the life of a retired id, the names of the graph, and the api's error. */
+function NoAnswerWaysOn({
+  result,
+  organism,
+  description,
+  requestedDatabase,
+}: {
+  result: ConversionResult;
+  organism: string;
+  description: GraphDescription;
+  requestedDatabase: string | null;
+}) {
+  const base = result.status === "unknown_version" ? stableId(result.query_id) : null;
+  const given = result.from_release_given ?? result.from_release;
+  return (
+    <>
+      {base && base !== result.query_id ? (
+        <p className="answer__next">
+          <Link
+            to={convertHref(organism, {
+              ...plainConversion(base),
+              fromRelease: given,
+              toRelease: result.to_release,
+              finalDatabase: requestedDatabase,
+            })}
+          >
+            Convert <Mono>{base}</Mono> without its version
+            {given !== null ? ` (read at release ${given}: the version of that release)` : ""}
+          </Link>
+        </p>
+      ) : null}
+      {result.known_versions.length ? (
+        <div className="answer__versions">
+          <p>
+            The {result.known_versions.length} versions the graph holds, each converted on a press
+            {given !== null ? ` (from the release each is read at, to ${result.to_release})` : ""}:
+          </p>
+          <ul className="answer__other-genes">
+            {result.known_versions.slice(0, VERSIONS_SHOWN).map((v) => (
+              <li key={v}>
+                <Link
+                  to={convertHref(organism, {
+                    ...plainConversion(v),
+                    toRelease: result.to_release,
+                    finalDatabase: requestedDatabase,
+                  })}
+                >
+                  <Mono>{v}</Mono>
+                </Link>
+              </li>
+            ))}
+          </ul>
+          {result.known_versions.length > VERSIONS_SHOWN ? (
+            <p className="muted">
+              and {result.known_versions.length - VERSIONS_SHOWN} more:{" "}
+              {result.known_versions.slice(VERSIONS_SHOWN).join(", ")}
+            </p>
+          ) : null}
+        </div>
+      ) : null}
+      {result.status === "not_found" ? <NotFoundHints result={result} organism={organism} /> : null}
+      {result.status === "no_conversion" ? <RetiredLife result={result} description={description} /> : null}
+      {result.status === "not_found" ? (
+        <p className="answer__next">
+          <Link to={href("/names", { organism, name: result.query_id, fold_case: true })}>
+            Look <Mono>{result.query_id}</Mono> up among the names of the graph
+          </Link>{" "}
+          <span className="muted">(without letter case)</span>
+        </p>
+      ) : null}
+      {result.error ? (
+        <p className="answer__error">
+          <Term code={result.error.type} meaning={null} />: {result.error.message}
+        </p>
+      ) : null}
+    </>
+  );
+}
+
 export const AnswerPanel = memo(function AnswerPanel({
   result,
   model,
@@ -1041,8 +1124,6 @@ export const AnswerPanel = memo(function AnswerPanel({
       </>
     );
   } else if (!bests.length) {
-    const base = result.status === "unknown_version" ? stableId(result.query_id) : null;
-    const given = result.from_release_given ?? result.from_release;
     body = (
       <>
         <div className="answer__flow">
@@ -1062,59 +1143,12 @@ export const AnswerPanel = memo(function AnswerPanel({
         </div>
         {status}
         {evidence}
-        {base && base !== result.query_id ? (
-          <p className="answer__next">
-            <Link
-              to={convertHref(organism, {
-                ...plainConversion(base),
-                fromRelease: given,
-                toRelease: result.to_release,
-                finalDatabase: requestedDatabase,
-              })}
-            >
-              Convert <Mono>{base}</Mono> without its version
-              {given !== null ? ` (read at release ${given}: the version of that release)` : ""}
-            </Link>
-          </p>
-        ) : null}
-        {result.known_versions.length ? (
-          <div className="answer__versions">
-            <p>
-              The {result.known_versions.length} versions the graph holds, each converted on a press
-              {given !== null ? ` (from the release each is read at, to ${result.to_release})` : ""}:
-            </p>
-            <ul className="answer__other-genes">
-              {result.known_versions.map((v) => (
-                <li key={v}>
-                  <Link
-                    to={convertHref(organism, {
-                      ...plainConversion(v),
-                      toRelease: result.to_release,
-                      finalDatabase: requestedDatabase,
-                    })}
-                  >
-                    <Mono>{v}</Mono>
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </div>
-        ) : null}
-        {result.status === "not_found" ? <NotFoundHints result={result} organism={organism} /> : null}
-        {result.status === "no_conversion" ? <RetiredLife result={result} description={description} /> : null}
-        {result.status === "not_found" ? (
-          <p className="answer__next">
-            <Link to={href("/names", { organism, name: result.query_id, fold_case: true })}>
-              Look <Mono>{result.query_id}</Mono> up among the names of the graph
-            </Link>{" "}
-            <span className="muted">(without letter case)</span>
-          </p>
-        ) : null}
-        {result.error ? (
-          <p className="answer__error">
-            <Term code={result.error.type} meaning={null} />: {result.error.message}
-          </p>
-        ) : null}
+        <NoAnswerWaysOn
+          result={result}
+          organism={organism}
+          description={description}
+          requestedDatabase={requestedDatabase}
+        />
       </>
     );
   } else {
@@ -1237,6 +1271,71 @@ function Stage({
   );
 }
 
+/** The Walked card: the best path's steps and releases, its kinds of step, assemblies and the bridges considered. */
+function WalkedStage({
+  walked,
+  names,
+  result,
+}: {
+  walked: Anatomy["walked"];
+  names: AssemblyNames;
+  result: ConversionResult;
+}) {
+  const history = walked.byReason.filter((r) => ["history", "event"].includes(r.hue)).length > 0;
+  const span = walked.releases ? [...walked.releases].sort((a, b) => a - b) : null;
+  const noAnswer = !result.candidates.some((c) => c.best);
+  return (
+    <>
+      {walked.explained && walked.steps ? (
+        <>
+          <span className="anatomy__main">
+            <Mono>{walked.steps}</Mono> step{walked.steps === 1 ? "" : "s"}
+            <span className="anatomy__aside">
+              {" "}
+              of the best path
+              {span && span[0] !== span[1] ? (
+                <>
+                  , releases{" "}
+                  <span className="mono anatomy__range">
+                    {span[0]}–{span[1]}
+                  </span>
+                </>
+              ) : null}
+            </span>
+          </span>
+          <StepStrip hues={walked.hues} />
+          <span className="anatomy__line">
+            {history
+              ? kindsText(walked.byReason)
+              : `no history step: read through databases at release ${span?.[0] ?? result.to_release}`}
+          </span>
+          {walked.backward ? (
+            <span className="anatomy__line">
+              <span aria-hidden="true">← </span>walked backward, to an earlier release
+            </span>
+          ) : null}
+          {walked.assemblies.length > 1 ? (
+            <span className="anatomy__line">
+              {walked.assemblies.map((a) => assemblyText(a, names)).join(walked.backward ? " ← " : " → ")}
+              {walked.handoffs ? ` (${walked.handoffs} handoff${walked.handoffs === 1 ? "" : "s"})` : ""}
+            </span>
+          ) : null}
+          <span className="anatomy__line anatomy__line--quiet">
+            {walked.bridgesTaken + walked.bridgesRefused
+              ? noAnswer && walked.bridgesTaken
+                ? `bridges considered: ${walked.bridgesTaken} allowed, none leading to a gene at release ${result.to_release}; ${walked.bridgesRefused} refused`
+                : `bridges considered: ${walked.bridgesTaken} allowed, ${walked.bridgesRefused} refused`
+              : "no bridge considered"}
+            {walked.refused ? ` · ${walked.refused} history step${walked.refused === 1 ? "" : "s"} refused` : ""}
+          </span>
+        </>
+      ) : (
+        <span className="anatomy__main">{walked.explained ? "no path" : "path not asked for"}</span>
+      )}
+    </>
+  );
+}
+
 function AnatomyStrip({
   anatomy,
   names,
@@ -1253,9 +1352,6 @@ function AnatomyStrip({
   const { read, walked, ranked, answered } = anatomy;
   const shownDatabases = read.databases.slice(0, 2).map(databaseLabel);
   const more = read.databases.length - shownDatabases.length;
-  const history = walked.byReason.filter((r) => ["history", "event"].includes(r.hue)).length > 0;
-  const span = walked.releases ? [...walked.releases].sort((a, b) => a - b) : null;
-  const noAnswer = !result.candidates.some((c) => c.best);
   return (
     <nav className="anatomy" aria-label="How the answer was reached">
       <ol className="anatomy__stages">
@@ -1293,52 +1389,7 @@ function AnatomyStrip({
           )}
         </Stage>
         <Stage number={2} name="Walked" to={links.walked}>
-          {walked.explained && walked.steps ? (
-            <>
-              <span className="anatomy__main">
-                <Mono>{walked.steps}</Mono> step{walked.steps === 1 ? "" : "s"}
-                <span className="anatomy__aside">
-                  {" "}
-                  of the best path
-                  {span && span[0] !== span[1] ? (
-                    <>
-                      , releases{" "}
-                      <span className="mono anatomy__range">
-                        {span[0]}–{span[1]}
-                      </span>
-                    </>
-                  ) : null}
-                </span>
-              </span>
-              <StepStrip hues={walked.hues} />
-              <span className="anatomy__line">
-                {history
-                  ? kindsText(walked.byReason)
-                  : `no history step: read through databases at release ${span?.[0] ?? result.to_release}`}
-              </span>
-              {walked.backward ? (
-                <span className="anatomy__line">
-                  <span aria-hidden="true">← </span>walked backward, to an earlier release
-                </span>
-              ) : null}
-              {walked.assemblies.length > 1 ? (
-                <span className="anatomy__line">
-                  {walked.assemblies.map((a) => assemblyText(a, names)).join(walked.backward ? " ← " : " → ")}
-                  {walked.handoffs ? ` (${walked.handoffs} handoff${walked.handoffs === 1 ? "" : "s"})` : ""}
-                </span>
-              ) : null}
-              <span className="anatomy__line anatomy__line--quiet">
-                {walked.bridgesTaken + walked.bridgesRefused
-                  ? noAnswer && walked.bridgesTaken
-                    ? `bridges considered: ${walked.bridgesTaken} allowed, none leading to a gene at release ${result.to_release}; ${walked.bridgesRefused} refused`
-                    : `bridges considered: ${walked.bridgesTaken} allowed, ${walked.bridgesRefused} refused`
-                  : "no bridge considered"}
-                {walked.refused ? ` · ${walked.refused} history step${walked.refused === 1 ? "" : "s"} refused` : ""}
-              </span>
-            </>
-          ) : (
-            <span className="anatomy__main">{walked.explained ? "no path" : "path not asked for"}</span>
-          )}
+          <WalkedStage walked={walked} names={names} result={result} />
         </Stage>
         <Stage number={3} name="Ranked" to={links.ranked}>
           <span className="anatomy__main">

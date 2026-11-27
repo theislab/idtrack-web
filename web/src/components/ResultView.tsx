@@ -310,12 +310,13 @@ export const ResultView = memo(function ResultView({
                   The reading of <span className="mono">{result.query_id}</span> at release{" "}
                   <span className="mono">{oneRelease}</span>.
                 </strong>{" "}
-                The path holds no step of Ensembl&apos;s history: every step holds at one release, so it is drawn as the
-                databases crossed rather than on a time axis. Left to right (top to bottom on a narrow screen): the
-                identifier, each form or database it is read through (an open square: an external id; an open circle: an
-                Ensembl form), the Ensembl gene it is read as (a bar), and the answer&apos;s id in the database asked (a
-                filled square), each crossing named by its databases. Every id opens a menu of where to go from it; the
-                next panel says every step in words.
+                No step of Ensembl&apos;s history: every step holds at this release, so the drawing shows the databases
+                crossed, not a time axis: the identifier, each database or form it is read through (an open square, an
+                open circle), the gene it is read as (a bar) and the answer&apos;s id in the database asked (a filled
+                square).
+                <span className="fig-caption__how">
+                  Every id opens a menu of where to go from it; the next panel says every step in words.
+                </span>
               </FigureCaption>
             </figure>
           ) : (

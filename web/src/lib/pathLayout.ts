@@ -145,6 +145,156 @@ function loop(from: Point, to: Point, height: number): string {
   return `M${t0},${from.s}C${t0},${from.s - height} ${t1},${from.s - height} ${t1},${from.s}`;
 }
 
+/** The visible nodes in the order of their first use along the walked candidates (the best first): the order rows and
+ *  lanes are given in. */
+function nodeOrder(model: PathModel, walk: readonly ModelCandidate[], visible: ReadonlySet<string>): string[] {
+  const order: string[] = [];
+  const seen = new Set<string>();
+  const takeNode = (id: string | null) => {
+    if (id === null || seen.has(id) || !visible.has(id)) return;
+    seen.add(id);
+    order.push(id);
+  };
+  if (model.result.graph_id !== null) takeNode(model.result.graph_id);
+  for (const candidate of walk) {
+    for (const index of candidate.steps) {
+      const step = model.steps[index];
+      if (!step) continue;
+      takeNode(step.api.source);
+      takeNode(step.api.target);
+    }
+    takeNode(candidate.api.gene);
+  }
+  return order;
+}
+
+/** The genes of a candidate's path in the walk's order (the identifier first where it is a gene, its own gene last). */
+function genesOf(model: PathModel, candidate: ModelCandidate): string[] {
+  const isGene = (id: string | null): id is string => id !== null && model.nodeById.get(id)?.role === "gene";
+  const genes: string[] = [];
+  const add = (id: string | null) => {
+    if (isGene(id) && !genes.includes(id)) genes.push(id);
+  };
+  add(model.result.graph_id);
+  for (const index of candidate.steps) {
+    const step = model.steps[index];
+    if (step) for (const id of [step.api.source, step.api.target]) add(id);
+  }
+  add(candidate.api.gene);
+  return genes;
+}
+
+/** The lane of each gene: the best candidates' genes on lane 0 where they fit; a gene keeps the lane of the gene it came
+ *  from where its releases are free there; alternatives never take lane 0; genes alive at the same releases never share
+ *  a lane. */
+function assignLanes(
+  model: PathModel,
+  walk: readonly ModelCandidate[],
+  visible: ReadonlySet<string>,
+): { laneOf: Map<string, number>; laneIntervals: [number, number][][] } {
+  const laneOf = new Map<string, number>();
+  const laneIntervals: [number, number][][] = [];
+  const place = (id: string, preferred: number | null, minimum: number) => {
+    const n = model.nodeById.get(id);
+    if (!n || laneOf.has(id)) return;
+    const interval: [number, number] = [n.first, n.last];
+    const fits = (lane: number) => !overlaps(laneIntervals[lane] ?? [], interval);
+    let lane = preferred !== null && preferred >= minimum && fits(preferred) ? preferred : minimum;
+    while (!fits(lane)) lane += 1;
+    laneOf.set(id, lane);
+    (laneIntervals[lane] ??= []).push(interval);
+  };
+  for (const candidate of walk) {
+    let previous: number | null = candidate.best ? 0 : null;
+    const minimum = candidate.best ? 0 : 1;
+    for (const id of genesOf(model, candidate)) {
+      if (!visible.has(id)) continue;
+      place(id, previous, minimum);
+      previous = laneOf.get(id) ?? previous;
+    }
+  }
+  return { laneOf, laneIntervals };
+}
+
+/** The drawn steps, each from its source's point to its target's (a re-mapping a loop above its lane; a final step
+ *  stopping short of the answer's mark). */
+function edgesOf(
+  visibleSteps: readonly ModelStep[],
+  drawn: ReadonlySet<number>,
+  pointOf: (id: string | null, release: number) => Point | null,
+  scale: (release: number) => number,
+): EdgePlace[] {
+  const edges: EdgePlace[] = [];
+  for (const step of visibleSteps) {
+    if (!step.candidates.some((c) => drawn.has(c))) continue;
+    const to = pointOf(step.api.target, step.targetRelease);
+    if (!to) continue;
+    if (step.api.kind === "identity" || step.api.source === null) {
+      edges.push({ step, from: to, to, d: "", mid: to });
+      continue;
+    }
+    const from = pointOf(step.api.source, step.sourceRelease);
+    if (!from) continue;
+    if (step.api.kind === "self_loop") {
+      const end = { t: scale(step.targetRelease), s: from.s };
+      edges.push({ step, from, to: end, d: loop(from, end, 14), mid: { t: (from.t + end.t) / 2, s: from.s - 11 } });
+      continue;
+    }
+    const target = step.api.kind === "final" ? { t: to.t - 5, s: to.s } : to;
+    edges.push({
+      step,
+      from,
+      to: target,
+      d: curve(from, target),
+      mid: { t: (from.t + target.t) / 2, s: (from.s + target.s) / 2 },
+    });
+  }
+  return edges;
+}
+
+/** The drawn candidates by the lane of their gene, at most `rows` a lane (the rest counted). */
+function answersByLane(
+  shown: readonly ModelCandidate[],
+  laneOf: ReadonlyMap<string, number>,
+  rows: number,
+): { answersPerLane: Map<number, ModelCandidate[]>; foldedCount: Map<number, number> } {
+  const answersPerLane = new Map<number, ModelCandidate[]>();
+  const foldedCount = new Map<number, number>();
+  for (const candidate of shown) {
+    const lane = laneOf.get(candidate.api.gene) ?? 0;
+    const list = answersPerLane.get(lane) ?? [];
+    if (list.length >= rows) {
+      foldedCount.set(lane, (foldedCount.get(lane) ?? 0) + 1);
+      continue;
+    }
+    list.push(candidate);
+    answersPerLane.set(lane, list);
+  }
+  return { answersPerLane, foldedCount };
+}
+
+/** Each lane's place across time from `start`: a lane of the chosen path keeps a wider gap than an alternative's, and
+ *  a lane of several answers makes room for them. */
+function lanePlaces(
+  lanes: number,
+  answers: (lane: number) => number,
+  best: (lane: number) => boolean,
+  metrics: LayoutMetrics,
+  start: number,
+): { laneS: number[]; laneBest: boolean[]; stackSize: number } {
+  const laneS: number[] = [];
+  const laneBest: boolean[] = [];
+  let lastGap = metrics.laneGap;
+  let cursor = start;
+  for (let lane = 0; lane < lanes; lane += 1) {
+    laneS[lane] = cursor;
+    laneBest[lane] = best(lane);
+    lastGap = laneBest[lane] ? metrics.laneGap : metrics.weakLaneGap;
+    cursor += lastGap + Math.max(0, answers(lane) - 1) * metrics.subGap;
+  }
+  return { laneS, laneBest, stackSize: cursor - lastGap + metrics.pad + metrics.lead };
+}
+
 export function layoutPath(model: PathModel, options: LayoutOptions): PathLayout {
   const { scale, metrics, answerT } = options;
   const shown = shownCandidates(model, options.limit);
@@ -168,25 +318,8 @@ export function layoutPath(model: PathModel, options: LayoutOptions): PathLayout
   }
 
   // Order of first use, best candidates first: the order rows and lanes are given in.
-  const order: string[] = [];
-  const seen = new Set<string>();
-  const takeNode = (id: string | null) => {
-    if (id === null || seen.has(id) || !visibleNodeIds.has(id)) return;
-    seen.add(id);
-    order.push(id);
-  };
-  if (model.result.graph_id !== null) takeNode(model.result.graph_id);
   const walk = [...shown.filter((c) => c.best), ...shown.filter((c) => !c.best)];
-  for (const candidate of walk) {
-    for (const index of candidate.steps) {
-      const step = model.steps[index];
-      if (!step) continue;
-      takeNode(step.api.source);
-      takeNode(step.api.target);
-    }
-    takeNode(candidate.api.gene);
-  }
-
+  const order = nodeOrder(model, walk, visibleNodeIds);
   const node = (id: string) => model.nodeById.get(id);
   const upper = order.filter((id) => node(id)?.role === "upper");
   // Ids a bridge passes through: each on a row of its own between the forms and the genes, so that leaving Ensembl
@@ -199,67 +332,19 @@ export function layoutPath(model: PathModel, options: LayoutOptions): PathLayout
 
   // Lanes of genes: the best candidates' genes on lane 0 where they fit; a gene keeps the lane of the gene it came
   // from where its releases are free there; alternatives never take lane 0.
-  const laneOf = new Map<string, number>();
-  const laneIntervals: [number, number][][] = [];
-  const place = (id: string, preferred: number | null, minimum: number) => {
-    const n = node(id);
-    if (!n || laneOf.has(id)) return;
-    const interval: [number, number] = [n.first, n.last];
-    const fits = (lane: number) => !overlaps(laneIntervals[lane] ?? [], interval);
-    let lane = preferred !== null && preferred >= minimum && fits(preferred) ? preferred : minimum;
-    while (!fits(lane)) lane += 1;
-    laneOf.set(id, lane);
-    (laneIntervals[lane] ??= []).push(interval);
-  };
-  for (const candidate of walk) {
-    let previous: number | null = candidate.best ? 0 : null;
-    const minimum = candidate.best ? 0 : 1;
-    const genes: string[] = [];
-    if (model.result.graph_id !== null && node(model.result.graph_id)?.role === "gene")
-      genes.push(model.result.graph_id);
-    for (const index of candidate.steps) {
-      const step = model.steps[index];
-      if (!step) continue;
-      for (const id of [step.api.source, step.api.target]) {
-        if (id !== null && node(id)?.role === "gene" && !genes.includes(id)) genes.push(id);
-      }
-    }
-    if (node(candidate.api.gene)?.role === "gene" && !genes.includes(candidate.api.gene))
-      genes.push(candidate.api.gene);
-    for (const id of genes) {
-      if (!visibleNodeIds.has(id)) continue;
-      place(id, previous, minimum);
-      previous = laneOf.get(id) ?? previous;
-    }
-  }
+  const { laneOf, laneIntervals } = assignLanes(model, walk, visibleNodeIds);
   const lanes = laneIntervals.length;
 
-  // Targets per lane (the answer column holds one row per drawn candidate, at its gene's lane).
-  const answersPerLane = new Map<number, ModelCandidate[]>();
-  const foldedCount = new Map<number, number>();
-  const rowsPerLane = options.rowsPerLane ?? Number.POSITIVE_INFINITY;
-  for (const candidate of shown) {
-    const lane = laneOf.get(candidate.api.gene) ?? 0;
-    const list = answersPerLane.get(lane) ?? [];
-    if (list.length >= rowsPerLane) {
-      foldedCount.set(lane, (foldedCount.get(lane) ?? 0) + 1);
-      continue;
-    }
-    answersPerLane.set(lane, [...list, candidate]);
-  }
-  const laneS: number[] = [];
-  const laneBest: boolean[] = [];
-  let lastGap = metrics.laneGap;
+  // Targets per lane (the answer column holds one row per drawn candidate, at its gene's lane), and the lanes' places.
+  const { answersPerLane, foldedCount } = answersByLane(shown, laneOf, options.rowsPerLane ?? Number.POSITIVE_INFINITY);
   const rowsAbove = upper.length + bridgeRows.length;
-  let cursor = metrics.pad + rowsAbove * metrics.rowGap + (rowsAbove ? metrics.lead : 0);
-  for (let lane = 0; lane < Math.max(lanes, 1); lane += 1) {
-    laneS[lane] = cursor;
-    const count = (answersPerLane.get(lane)?.length ?? 1) + (foldedCount.has(lane) ? 1 : 0);
-    laneBest[lane] = [...laneOf].some(([id, l]) => l === lane && bestNodes.has(id));
-    lastGap = laneBest[lane] ? metrics.laneGap : metrics.weakLaneGap;
-    cursor += lastGap + Math.max(0, count - 1) * metrics.subGap;
-  }
-  const stackSize = cursor - lastGap + metrics.pad + metrics.lead;
+  const { laneS, laneBest, stackSize } = lanePlaces(
+    Math.max(lanes, 1),
+    (lane) => (answersPerLane.get(lane)?.length ?? 1) + (foldedCount.has(lane) ? 1 : 0),
+    (lane) => [...laneOf].some(([id, l]) => l === lane && bestNodes.has(id)),
+    metrics,
+    metrics.pad + rowsAbove * metrics.rowGap + (rowsAbove ? metrics.lead : 0),
+  );
 
   const places = new Map<string, NodePlace>();
   upper.forEach((id, row) => {
@@ -357,31 +442,7 @@ export function layoutPath(model: PathModel, options: LayoutOptions): PathLayout
   };
 
   const drawnCandidates = new Set([...answersPerLane.values()].flat().map((c) => c.index));
-  const edges: EdgePlace[] = [];
-  for (const step of visibleSteps) {
-    if (!step.candidates.some((c) => drawnCandidates.has(c))) continue;
-    const to = pointOf(step.api.target, step.targetRelease);
-    if (!to) continue;
-    if (step.api.kind === "identity" || step.api.source === null) {
-      edges.push({ step, from: to, to, d: "", mid: to });
-      continue;
-    }
-    const from = pointOf(step.api.source, step.sourceRelease);
-    if (!from) continue;
-    if (step.api.kind === "self_loop") {
-      const end = { t: scale(step.targetRelease), s: from.s };
-      edges.push({ step, from, to: end, d: loop(from, end, 14), mid: { t: (from.t + end.t) / 2, s: from.s - 11 } });
-      continue;
-    }
-    const target = step.api.kind === "final" ? { t: to.t - 5, s: to.s } : to;
-    edges.push({
-      step,
-      from,
-      to: target,
-      d: curve(from, target),
-      mid: { t: (from.t + target.t) / 2, s: (from.s + target.s) / 2 },
-    });
-  }
+  const edges = edgesOf(visibleSteps, drawnCandidates, pointOf, scale);
 
   return {
     nodes: places,
@@ -507,7 +568,7 @@ export function pathLabels(
       if (lane !== null) take(`${lane}:a0`, [edge.mid.t - 9, edge.mid.t + 9]);
       continue;
     }
-    stubExtents(edge, laneOf, take);
+    if (edge.step.best) stubExtents(edge, laneOf, take);
     if (edge.from.s === edge.to.s) continue;
     for (const [end, other, id] of [
       [edge.from, edge.to, edge.step.api.source],
@@ -580,7 +641,7 @@ export function presentMarks(model: PathModel, limit: number): Set<string> {
       if (step.handoff) present.add("handoff");
       else if (step.kind === "history") present.add("version");
       if (step.kind === "split_merge") present.add("event");
-      if (step.api.splits || step.api.merges) present.add("stubs");
+      if (candidate.best && (step.api.splits || step.api.merges)) present.add("stubs");
       if (step.kind === "self_loop") present.add("loop");
       if (["entry_external", "bridge_near", "bridge_far", "final"].includes(step.kind)) present.add("cross");
       if (step.kind === "bridge_near" || step.kind === "entry_external") present.add("read");
