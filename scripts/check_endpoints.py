@@ -39,6 +39,8 @@ import jsonschema
 from referencing import Registry
 from referencing.jsonschema import DRAFT202012
 
+from idtrack_web_api.cautions import cautions_of
+
 OPENAPI = Path(__file__).resolve().parents[1] / "api" / "openapi.json"
 #: One entry of ``Server-Timing``: a name and a duration in milliseconds.
 TIMING = re.compile(r"^(?P<name>[a-z]+);dur=(?P<ms>\d+(\.\d+)?)$")
@@ -145,6 +147,16 @@ class Checker:
         return []
 
 
+def idtracks(data: Any) -> Any:
+    """Return an answer as idtrack's record: every result's ``cautions`` (the api's reading) taken out."""
+    if isinstance(data, list):
+        return [idtracks(item) for item in data]
+    if isinstance(data, dict):
+        own = "candidates" in data and "cautions" in data
+        return {k: idtracks(v) for k, v in data.items() if not (own and k == "cautions")}
+    return data
+
+
 def floats(value: Any) -> list[str]:
     """Return every float inside a JSON value, as its exact hexadecimal text."""
     if isinstance(value, float):
@@ -224,6 +236,8 @@ def main() -> int:  # noqa: PLR0912, PLR0915 - one script, read top to bottom
     ]
     compared = 0
     float_count = 0
+    cautions_compared = 0
+    docs_url = c.check("GET", "/api/v1/version", "/api/v1/version")["docs_url"]
     statuses: collections.Counter[str] = collections.Counter()
     for variant in variants:
         query = {k: (str(v).lower() if isinstance(v, bool) else v) for k, v in variant.items()}
@@ -234,8 +248,13 @@ def main() -> int:  # noqa: PLR0912, PLR0915 - one script, read top to bottom
                 expected: Any = reference.convert(identifier, **variant).to_dict()
                 compared += 1
                 float_count += len(floats(expected))
-                if data != expected or floats(data) != floats(expected):
+                if idtracks(data) != expected or floats(idtracks(data)) != floats(expected):
                     c.failures.append(f"convert {identifier} {variant}: the answer differs from idtrack's")
+                # The cautions: those of the result with its path, whatever `explain` asked.
+                explained = reference.convert(identifier, **{**variant, "explain": True}).to_dict()
+                cautions_compared += 1
+                if data["cautions"] != cautions_of(explained, docs_url):
+                    c.failures.append(f"convert {identifier} {variant}: the cautions differ from the rules' reading")
     batch = identifiers + identifiers[:5]
     for variant in ({}, {"explain": True, "to_release": middle}):
         data = c.check("POST", f"{org}/convert/batch", f"{p}/organisms/{o}/convert/batch", None,
@@ -243,7 +262,7 @@ def main() -> int:  # noqa: PLR0912, PLR0915 - one script, read top to bottom
         if reference is not None:
             expected = [r.to_dict() for r in reference.convert_many(batch, **variant)]
             compared += len(batch)
-            if data["results"] != expected or floats(data["results"]) != floats(expected):
+            if idtracks(data["results"]) != expected or floats(idtracks(data["results"])) != floats(expected):
                 c.failures.append(f"batch {variant}: the answers differ from idtrack's")
     # Items that extend others by a numbered suffix: idtrack answers some as copies of the item they extend.
     copied = [i for i in identifiers if not i.startswith("ENS")][:30]
@@ -254,7 +273,7 @@ def main() -> int:  # noqa: PLR0912, PLR0915 - one script, read top to bottom
     if reference is not None:
         expected = [r.to_dict() for r in reference.convert_many(batch_copies)]
         compared += len(batch_copies)
-        if data["results"] != expected or floats(data["results"]) != floats(expected):
+        if idtracks(data["results"]) != expected or floats(idtracks(data["results"])) != floats(expected):
             c.failures.append("batch of copies: the answers differ from idtrack's")
     table = c.check("POST", f"{org}/convert/batch", f"{p}/organisms/{o}/convert/batch", {"format": "tsv"},
                     {"identifiers": batch})  # fmt: skip
@@ -272,7 +291,7 @@ def main() -> int:  # noqa: PLR0912, PLR0915 - one script, read top to bottom
                 for d in reference.final_databases(middle)
             ]
             compared += len(expected)
-            if data["conversions"] != expected or floats(data["conversions"]) != floats(expected):
+            if idtracks(data["conversions"]) != expected or floats(idtracks(data["conversions"])) != floats(expected):
                 c.failures.append(f"each database {identifier}: the answers differ from idtrack's")
     for mode in ("release", "assembly_release"):
         data = c.check("POST", f"{org}/source-inference", f"{p}/organisms/{o}/source-inference", None,
@@ -572,6 +591,7 @@ def main() -> int:  # noqa: PLR0912, PLR0915 - one script, read top to bottom
         "by_endpoint_and_status": dict(sorted(c.tally.items())),
         "conversion_statuses": dict(statuses),
         "compared_with_idtrack": compared,
+        "cautions_compared": cautions_compared,
         "floats_compared_bit_for_bit": float_count,
         "tsv_rows": len(rows) - 1,
         "copies_answered": copies_answered,
