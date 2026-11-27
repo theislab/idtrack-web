@@ -25,7 +25,7 @@ export function plural(n: number, one: string, many = `${one}s`): string {
 }
 
 /** A count of one reason of step in words ("13 new versions"). */
-export function reasonCount(reason: string, n: number): string {
+function reasonCount(reason: string, n: number): string {
   const noun = NOUNS[reason];
   return noun ? plural(n, noun[0], noun[1]) : `${n} ${spaced(reason)}`;
 }

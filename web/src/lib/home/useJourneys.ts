@@ -124,7 +124,7 @@ export function journeysGeometry(layout: JourneysLayout) {
 }
 
 /** The least rows a set kept shows: two of its journeys (all, where it has fewer), so that a set reads as a set. */
-export const SET_LEAST = 2;
+const SET_LEAST = 2;
 
 /** The least rows of a set of `size` journeys. */
 const leastOf = (size: number) => Math.min(size, SET_LEAST);

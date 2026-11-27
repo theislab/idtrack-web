@@ -5,7 +5,7 @@
 // consecutive journeys with the same parameters (the release read at, the release asked, the database asked) form one
 // set, named in the figure by those parameters.
 import type { ConversionResult, ShowcaseResponse } from "../../api/types";
-import { answerText, isEnsembl, journeyModel, type JourneyModel } from "./journeyModel";
+import { isEnsembl, journeyModel, type JourneyModel } from "./journeyModel";
 
 interface JourneyParameters {
   from: number | null;
@@ -85,26 +85,6 @@ export function isRenamed(j: Journey): boolean {
   return targets.length > 0 && !targets.includes(r.query_id);
 }
 
-/** A journey's answer as the figure names it: its target (or a tie), and the symbol of an Ensembl gene. */
-export function answerName(j: Journey, symbols: ReadonlyMap<string, readonly string[]> | null): string {
-  if (!j.model) return "";
-  const text = answerText(j.model);
-  const sym = symbolOf(j, symbols);
-  return sym ? `${text} · ${sym}` : text;
-}
-
-/** The symbol of a journey's Ensembl answer (one gene), from the authority's batch; none for another database's id. */
-export function symbolOf(j: Journey, symbols: ReadonlyMap<string, readonly string[]> | null): string | null {
-  const m = j.model;
-  if (!m || !symbols) return null;
-  const db = m.result.final_database;
-  if (db !== null && !isEnsembl(db)) return null;
-  const targets = [...new Set(m.best.map((c) => c.target))];
-  if (targets.length !== 1) return null;
-  const found = symbols.get(targets[0] ?? "") ?? [];
-  return found.length ? found.join(", ") : null;
-}
-
 /** Whether a journey's best answer takes a split or a merge of Ensembl's history. */
 function splitsOrMerges(j: Journey): boolean {
   return (j.model?.marks ?? []).some(
@@ -114,7 +94,7 @@ function splitsOrMerges(j: Journey): boolean {
 
 /** Whether a journey crosses from one database into another: read through an external database and answered in
  *  another database than the ones it was read in (an Ensembl gene included). */
-export function crossesDatabases(j: Journey): boolean {
+function crossesDatabases(j: Journey): boolean {
   const r = j.result;
   if (!r || !j.model) return false;
   const read = r.from_databases.filter((d) => !isEnsembl(d));

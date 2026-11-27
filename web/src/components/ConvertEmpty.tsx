@@ -6,7 +6,7 @@
 // head paints first, before the server's organisms are known; the figure's room is held and its frame (the bands, the
 // axis) drawn before its journeys arrive, so nothing moves. The longer stories of the showcase (the cases, one journey
 // up close, the server's facts) are on Explore (components/explore/Stories.tsx).
-import { Suspense, useCallback, useId, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { Suspense, useCallback, useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import type { GraphDescription } from "../api/types";
 import { databaseLabel } from "../lib/databases";
 import { isEnsembl } from "../lib/home/journeyModel";
@@ -31,13 +31,14 @@ import "../styles/home.css";
 // arrive; the head and the form paint without it.
 const JourneysFigure = lazyPart(() => import("./home/JourneysFigure").then((m) => ({ default: m.JourneysFigure })));
 JourneysFigure.preload();
-// The measured line reads the benchmarks' results: its own chunk, after the head has painted (its room is held).
+// The measured line reads the benchmarks' results: its own chunk, asked for once the page is idle (its room is held).
 const HeroMeasure = lazyPart(() => import("./home/HeroMeasure").then((m) => ({ default: m.HeroMeasure })));
 
 export function ConvertEmpty({ description, form }: { description: GraphDescription | null; form: ReactNode }) {
   const id = useId();
   const { organisms } = useOrganisms();
   const releases = releasesOf(organisms);
+  const idle = useIdle();
   return (
     <section className="hero" aria-labelledby={`${id}-title`}>
       <div className="hero__text">
@@ -60,7 +61,7 @@ export function ConvertEmpty({ description, form }: { description: GraphDescript
           database you ask, within one organism, with the evidence for every step and its own inferences marked.
         </p>
         <div className="hero__measure-room">
-          {description ? (
+          {description && idle ? (
             <ErrorBoundary part="The measured line" resetKey={description.organism}>
               <Suspense fallback={null}>
                 <HeroMeasure organism={description.organism} digest={description.content_digest ?? null} />
@@ -90,6 +91,31 @@ export function ConvertEmpty({ description, form }: { description: GraphDescript
       )}
     </section>
   );
+}
+
+/** Whether the page has been idle once since this view appeared (what is not needed for the first paint waits for it). */
+function useIdle(): boolean {
+  const [idle, setIdle] = useState(false);
+  useEffect(() => {
+    const w = window as {
+      requestIdleCallback?: (f: () => void, o?: { timeout: number }) => number;
+      cancelIdleCallback?: (h: number) => void;
+    };
+    const done = () => {
+      setIdle(true);
+    };
+    if (w.requestIdleCallback) {
+      const handle = w.requestIdleCallback(done, { timeout: 1500 });
+      return () => {
+        w.cancelIdleCallback?.(handle);
+      };
+    }
+    const timer = window.setTimeout(done, 300);
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, []);
+  return idle;
 }
 
 /** The legend of the journeys: the line of a journey, then each kind of mark the journeys hold (only those). */
