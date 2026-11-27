@@ -333,12 +333,24 @@ function GenesNamed({
         {groups.length <= 4 ? (
           <>
             :{" "}
-            {groups.map((g, i) => (
-              <span key={g.gene}>
-                {i ? (i === groups.length - 1 ? " and " : ", ") : ""}
-                <Mono>{g.gene}</Mono> at {releaseRanges(g.releases)}
-              </span>
-            ))}
+            {groups.map((g, i) => {
+              const now = renamedNow(g, today, asked);
+              return (
+                <span key={g.gene}>
+                  {i ? (i === groups.length - 1 ? " and " : ", ") : ""}
+                  <Mono>{g.gene}</Mono> at {releaseRanges(g.releases)}
+                  {now ? (
+                    <>
+                      {" "}
+                      <span className="names-verdict__now">
+                        (named <Mono strong>{now.names.join(", ")}</Mono> in {databaseLabel(now.database)} at{" "}
+                        {description.snapshot_release})
+                      </span>
+                    </>
+                  ) : null}
+                </span>
+              );
+            })}
           </>
         ) : null}
         .
@@ -446,6 +458,24 @@ function GenesNamed({
   );
 }
 
+/** What a database that gives the name to the gene (as its name, not a synonym) calls the gene at the graph's last
+ *  release, where that is another name than the one asked (in any letter case): the first such database in the order of the lanes. */
+function renamedNow(
+  group: GeneGroup,
+  today: Today | "failed" | "loading",
+  asked: string,
+): { database: string; names: string[] } | null {
+  if (typeof today === "string" || !asked) return null;
+  for (const lane of group.lanes) {
+    if (lane.synonym) continue;
+    const found = today.byDatabase.get(lane.database)?.get(group.gene);
+    // Compared without letter case: a name asked in other letter case is the same name.
+    const same = found?.targets.some((t) => t.toLowerCase() === asked.toLowerCase());
+    if (found?.targets.length && !same) return { database: lane.database, names: found.targets };
+  }
+  return null;
+}
+
 /** The versions of a gene in short (`.4–.11` for a run of consecutive versions, else each). */
 function versionsWords(versions: readonly string[]): string {
   const numbers = versions.map((v) => Number(/\.(\d+)$/.exec(v)?.[1] ?? NaN));
@@ -511,10 +541,12 @@ function useTurnNames(description: GraphDescription, groups: readonly GeneGroup[
   return answer.state === "done" ? answer.answer.data : null;
 }
 
-/** The versions of a lane written above their segments where they have room (all are in the column beside). */
-function VersionLabels({ lane, axis }: { lane: NameLane; axis: Axis }) {
+/** The versions of a lane written above their segments where they have room (all are in the column beside), clear
+ *  of the hairlines where the assembly changes, as of every other label. */
+function VersionLabels({ lane, axis, bands }: { lane: NameLane; axis: Axis; bands: AxisBand[] }) {
   const { ref, width } = useWidth<HTMLSpanElement>(0);
   const n = axis.releases.length;
+  const edges: [number, number][] = bands.slice(1).map((b) => [b.left * width - 1, b.left * width + 1]);
   const placed = width
     ? placeLabels(
         lane.parts.map((p) => {
@@ -528,7 +560,7 @@ function VersionLabels({ lane, axis }: { lane: NameLane; axis: Axis }) {
             rows: ["v"],
           };
         }),
-        { bounds: [0, width], gap: 3 },
+        { bounds: [0, width], gap: 3, taken: new Map([["v", edges]]) },
       )
     : new Map<string, PlacedLabel>();
   return (
@@ -618,7 +650,7 @@ function LaneRow({
         <span className="names-lane__bands" aria-hidden="true">
           <BandBackdrop bands={bands} />
         </span>
-        <VersionLabels lane={lane} axis={axis} />
+        <VersionLabels lane={lane} axis={axis} bands={bands} />
         <span className="names-lane__track">
           <ReleaseLane axis={axis} bands={[]} runs={runs} variant={lane.synonym ? "synonym" : "fill"} mark={release} />
           {ticks.map((t) => (

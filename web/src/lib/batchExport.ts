@@ -353,7 +353,7 @@ export function methodsSentence({
   const date = (provenance.answer.answered_at ?? provenance.exported_at).slice(0, 10);
   const digest = provenance.graph.content_digest ? provenance.graph.content_digest.slice(0, 12) : "unknown";
   const outcome = counts.map(([status, count]) => statusWords(status, count)).join(", ");
-  return `${String(n)} gene identifier${n === 1 ? "" : "s"} of ${organismName} were converted ${from} to Ensembl release ${String(provenance.request.resolved.to_release)} (${databaseWords}) with idtrack ${provenance.idtrack_version ?? "(version unknown)"} through its web server (api ${provenance.api_version ?? "unknown"}; graph content digest ${digest}; bridges ${body.allow_bridges ? "allowed" : "not allowed"}) on ${date}: ${outcome}.`;
+  return `${String(n)} gene identifier${n === 1 ? "" : "s"} of ${organismName} were converted ${from} to Ensembl release ${String(provenance.request.resolved.to_release)} (${databaseWords}) with idtrack ${provenance.idtrack_version ?? "(version unknown)"} through its web server (api ${provenance.api_version ?? "unknown"}; graph content digest ${digest}; bridges ${body.allow_bridges ? "allowed" : "not allowed"}) on ${date}, with these statuses: ${outcome}.`;
 }
 
 /** A database's name as a part of a column's name: letters and digits, the rest as `_`. */

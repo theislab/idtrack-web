@@ -114,10 +114,9 @@ export function BatchInference({
             marks={[{ release: best, label: `best ${String(best)}`, kind: "target" }]}
           />
           <figcaption className="fig-caption">
-            The distinct identifiers of the list found at each release (each column as tall as their number, the
-            tallest <Mono>{groupedInteger(Math.max(...inference.counts.values()))}</Mono>), counted on the assembly
-            that serves the release; in ink, the band the list cannot tell apart from the best (idtrack&rsquo;s
-            one-sided sign test). From <Mono>POST /api/v1/organisms/{organism}/source-inference</Mono>
+            The list&rsquo;s distinct identifiers found at each release, on the assembly that serves it (the tallest
+            column <Mono>{groupedInteger(Math.max(...inference.counts.values()))}</Mono>); in ink, the releases it cannot
+            tell apart from the best. <Mono>POST …/source-inference</Mono>
             {answer.requestId ? (
               <>
                 , request <Mono>{answer.requestId}</Mono>

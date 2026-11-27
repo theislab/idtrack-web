@@ -852,10 +852,14 @@ function EmptyBatch({ organism }: { organism: string }) {
     [
       "b",
       "The results",
-      "one row per identifier in your order: the gene today and its symbol, how it was read, what decided it, its evidence",
+      "one row per identifier in your order: the gene today and its symbol, how it was read, what decided it and with which values, its cautions",
     ],
     ["c", "Through the releases", "where each identifier was read, and the steps of Ensembl's history its path took"],
-    ["d", "Download", "a table of one row per identifier with its provenance, and the api's own JSON and TSV"],
+    [
+      "d",
+      "Download and cite",
+      "a table of one row per identifier (TSV or CSV) with its provenance, the api's own JSON and TSV, and a sentence for a methods section",
+    ],
   ];
   return (
     <div className="batch-empty">

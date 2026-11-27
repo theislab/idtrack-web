@@ -2558,6 +2558,40 @@ function FilePreview({ text, lines, label }: { text: string; lines: number; labe
   );
 }
 
+/** The table's first rows as a table: its first columns, then how many more (the file holds every one). */
+function TablePreview({ text }: { text: string }) {
+  const lines = text
+    .split("\n")
+    .filter(Boolean)
+    .map((l) => l.split("\t"));
+  const [head = [], ...body] = lines;
+  const shown = 6;
+  return (
+    <div className="file__preview file__preview--table" role="img" aria-label={`The table's columns: ${head.join(", ")}`}>
+      <table>
+        <thead>
+          <tr>
+            {head.slice(0, shown).map((h, i) => (
+              <th key={i}>{h}</th>
+            ))}
+            {head.length > shown ? <th className="file__more">+{head.length - shown} columns</th> : null}
+          </tr>
+        </thead>
+        <tbody>
+          {body.map((cells, r) => (
+            <tr key={r}>
+              {cells.slice(0, shown).map((c, i) => (
+                <td key={i}>{c}</td>
+              ))}
+              {head.length > shown ? <td className="file__more">…</td> : null}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 function Downloads({
   description,
   answer,
@@ -2695,7 +2729,7 @@ function Downloads({
       provenance: made,
       organismName: organismName(organism),
       counts,
-      statusWords: (status, n) => `${groupedInteger(n)} ${statusTitle(status).toLowerCase()}`,
+      statusWords: (status, n) => `${statusTitle(status).toLowerCase()} ${groupedInteger(n)}`,
       databaseWords:
         request.final_database === null
           ? "as Ensembl genes"
@@ -2728,11 +2762,7 @@ function Downloads({
             <span className="file__name">Table, one row per identifier</span>
             <span className="file__kind">made by this page</span>
           </div>
-          <FilePreview
-            text={preview.table}
-            lines={4}
-            label="The first lines of the table, after its lines of provenance"
-          />
+          <TablePreview text={preview.table} />
           <p className="file__facts">
             <Mono>{groupedInteger(rows.length)}</Mono> rows × <Mono>{preview.columns}</Mono> columns, in your order
             {source?.separator ? ", your own columns first" : ""}; begun by <Mono>{preview.head}</Mono> lines that start
@@ -2810,7 +2840,14 @@ function Downloads({
       </ul>
       <figure className="cite">
         <figcaption className="cite__title setting__label">For a methods section</figcaption>
-        <blockquote className="cite__sentence">{sentence}</blockquote>
+        <blockquote className="cite__sentence">
+          {sentence.split(organismName(organism)).map((part, i) => (
+            <Fragment key={i}>
+              {i ? <i>{organismName(organism)}</i> : null}
+              {part}
+            </Fragment>
+          ))}
+        </blockquote>
         <p className="cite__actions">
           <Button onClick={copySentence}>{copied ? "Copied" : "Copy the sentence"}</Button>{" "}
           <span className="muted cite__note" role="status">

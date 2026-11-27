@@ -15,6 +15,8 @@ import { draftOver, keepDraftOver } from "../lib/drafts";
 import { revealArea, useFocusMove } from "../lib/focus";
 import { groupedInteger } from "../lib/numbers";
 import { useOrganisms } from "../lib/organisms";
+import { organismName } from "../lib/organismNames";
+import { databaseLabel, sortDatabases } from "../lib/databases";
 import { href, navigate, useLocation } from "../lib/router";
 import { useRequest, type RequestState } from "../lib/useRequest";
 import "../styles/tables.css";
@@ -37,14 +39,12 @@ function NamesForOrganism({ description }: { description: GraphDescription }) {
   const named = useRequest(asked.name ? `${organism}|${asked.name}|${asked.foldCase}` : null, (signal, fresh) =>
     api.genesNamed(organism, asked.name, asked.foldCase, { signal, fresh }),
   );
-  const releaseValue =
-    asked.release === ""
-      ? null
-      : /^\d+$/.test(asked.release)
-        ? Number(asked.release)
-        : (asked.release as unknown as number);
-  const names = useRequest(asked.gene ? `${organism}|${asked.gene}|${asked.release}` : null, (signal, fresh) =>
-    api.namesOf(organism, asked.gene, releaseValue, { signal, fresh }),
+  // A release of the address that is no whole number is refused here, as Convert refuses it: nothing is asked.
+  const notRelease = asked.release.trim() !== "" && !/^\d+$/.test(asked.release.trim());
+  const releaseValue = asked.release.trim() === "" || notRelease ? null : Number(asked.release.trim());
+  const names = useRequest(
+    asked.gene && !notRelease ? `${organism}|${asked.gene}|${asked.release}` : null,
+    (signal, fresh) => api.namesOf(organism, asked.gene, releaseValue, { signal, fresh }),
   );
   const namedArea = useRef<HTMLDivElement>(null);
   const namesArea = useRef<HTMLDivElement>(null);
@@ -95,6 +95,8 @@ function NamesForOrganism({ description }: { description: GraphDescription }) {
             release.
           </p>
           <NameForm
+            placeholder={examples.names[0] ?? ""}
+            databases={description.synonym_databases}
             name={asked.name}
             foldCase={asked.foldCase}
             onSubmit={(name, foldCase) => {
@@ -149,6 +151,7 @@ function NamesForOrganism({ description }: { description: GraphDescription }) {
             them.
           </p>
           <GeneForm
+            genePlaceholder={examples.genes[0] ?? ""}
             gene={asked.gene}
             release={asked.release}
             onSubmit={(gene, release) => {
@@ -163,6 +166,25 @@ function NamesForOrganism({ description }: { description: GraphDescription }) {
             }}
           />
           <div aria-busy={names.state === "loading"} ref={namesArea}>
+            {notRelease ? (
+              <div className="notice notice--danger" role="alert">
+                <h3 className="notice__title">Not a release: {asked.release}</h3>
+                <p>
+                  A release is a whole number; the <em>{organismName(organism)}</em> graph holds releases{" "}
+                  <Mono>{description.releases[0]}</Mono> to{" "}
+                  <Mono>{description.releases[description.releases.length - 1]}</Mono>. Nothing was asked of the api.
+                </p>
+                <div className="notice__actions">
+                  <Button
+                    onClick={() => {
+                      go({ release: null });
+                    }}
+                  >
+                    List the names at every release
+                  </Button>
+                </div>
+              </div>
+            ) : null}
             {names.state === "loading" ? <TableSkeleton /> : null}
             {names.state === "failed" ? (
               <ErrorPanel
@@ -196,7 +218,7 @@ function NamesForOrganism({ description }: { description: GraphDescription }) {
                 }
                 asked={asked.gene}
                 first="name"
-                release={typeof releaseValue === "number" ? releaseValue : null}
+                release={releaseValue}
                 endpoint={`GET /api/v1/organisms/${organism}/names-of`}
               />
             ) : null}
@@ -211,7 +233,12 @@ function NameForm({
   name: addressName,
   foldCase: addressFoldCase,
   onSubmit,
+  placeholder,
+  databases,
 }: {
+  placeholder: string;
+  /** The graph's databases of names, named in the hint. */
+  databases: readonly string[];
   name: string;
   foldCase: boolean;
   onSubmit: (name: string, foldCase: boolean) => void;
@@ -238,13 +265,18 @@ function NameForm({
   };
   return (
     <form onSubmit={submit} noValidate className="names-form" aria-label="Genes a name names">
-      <Field label="Name" hint="A symbol or an id of an external database (HGNC Symbol, RefSeq, UniProt…).">
+      <Field
+        label="Name"
+        hint={`A symbol or an id of an external database${databases.length ? ` (${sortDatabases(databases).slice(0, 3).map(databaseLabel).join(", ")}, accessions…)` : ""}.`}
+      >
         {({ id, describedBy }) => (
           <TextInput
             id={id}
             className="input--mono"
             value={name}
-            placeholder="INS"
+            placeholder={placeholder}
+            autoCapitalize="off"
+            autoCorrect="off"
             aria-describedby={describedBy}
             aria-required="true"
             maxLength={256}
@@ -273,7 +305,9 @@ function GeneForm({
   gene: addressGene,
   release: addressRelease,
   onSubmit,
+  genePlaceholder,
 }: {
+  genePlaceholder: string;
   gene: string;
   release: string;
   onSubmit: (gene: string, release: string) => void;
@@ -302,6 +336,9 @@ function GeneForm({
             id={id}
             className="input--mono"
             value={gene}
+            placeholder={genePlaceholder}
+            autoCapitalize="off"
+            autoCorrect="off"
             aria-describedby={describedBy}
             aria-required="true"
             maxLength={256}
@@ -385,7 +422,7 @@ function Examples({ label, values, onPick }: { label: string; values: string[]; 
 
 function TableSkeleton() {
   return (
-    <div className="result--loading">
+    <div className="result--loading names-skeleton">
       <p className="visually-hidden">Looking up…</p>
       {Array.from({ length: 4 }, (_, i) => (
         <Skeleton key={i} width="100%" height={24} className="skeleton--row" />
