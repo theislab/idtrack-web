@@ -49,6 +49,8 @@ interface Result {
 }
 
 const spaced = (code: string) => code.replace(/_/g, " ");
+/** A step's reason in the page's words (a re-mapping of a gene to itself is called so on every figure and table). */
+const stepWords = (code: string) => (code === "self_loop" ? "re-mapped to itself" : spaced(code));
 const cases = data.cases ?? [];
 
 test.skip(cases.length === 0, "this graph's test data names no cases");
@@ -79,7 +81,13 @@ for (const item of cases) {
       await expect(page.locator(".answer__other-genes a")).toHaveCount(others.length);
       expect(answerText).not.toMatch(/none has|these genes/);
     }
-    if (answer.tie) expect(answerText).toContain("equal best: a tie");
+    // A tie of genes is said so; a tie of one gene's ids is said to be ids of one gene, all part of the best answer.
+    if (answer.tie)
+      expect(answerText).toContain(
+        new Set(answer.candidates.filter((x) => x.best).map((x) => x.gene)).size > 1
+          ? "equal best: a tie"
+          : "ids of one gene, all part of the best answer",
+      );
     // The evidence to weigh stands under the status: a bridge of the best answer is named there.
     if (!answer.no_target && answer.candidates.some((c) => c.best && (c as { bridges?: number }).bridges))
       await expect(page.locator(".answer__evidence")).toContainText("bridge");
@@ -106,7 +114,7 @@ for (const item of cases) {
           expect(text).toContain(`${step.old_release ?? "—"} → ${step.new_release ?? "—"}`);
           const weight = weights[index] ?? "null";
           expect(text).toContain(weight === "null" ? "no score" : weight);
-          expect(text).toContain(spaced(step.reason));
+          expect(text).toContain(stepWords(step.reason));
           if (step.splits) expect(text).toContain(`the earlier id also passed to ${step.splits} other id`);
           if (step.merges) expect(text).toContain(`${step.merges} other id`);
           if (step.places !== null) expect(text).toContain(spaced(step.places));
