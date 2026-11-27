@@ -131,7 +131,7 @@ function ContentsLinks({
  *  with an IntersectionObserver (no layout read on scroll). Every target lands at one offset (the page's scroll padding
  *  and the targets' one scroll margin), read once after the first frame (never while the page is laid out the first
  *  time) and again when the window's size changes, so the entry just followed is the one marked. */
-function useReading(groups: ReturnType<typeof grouped>): string | null {
+function useReading(groups: ReturnType<typeof grouped>, complete: boolean): string | null {
   const [active, setActive] = useState<string | null>(null);
   useEffect(() => {
     if (typeof IntersectionObserver === "undefined") return;
@@ -174,14 +174,14 @@ function useReading(groups: ReturnType<typeof grouped>): string | null {
       window.removeEventListener("resize", later);
       observer?.disconnect();
     };
-  }, [groups]);
+  }, [groups, complete]);
   return active;
 }
 
 /** The contents beside the reference on a wide screen; on a narrower one, a bar that stays under the masthead and
  *  opens to the same list (no control floats over the text). */
-function Contents({ groups }: { groups: ReturnType<typeof grouped> }) {
-  const active = useReading(groups);
+function Contents({ groups, complete }: { groups: ReturnType<typeof grouped>; complete: boolean }) {
+  const active = useReading(groups, complete);
   return (
     <nav className="api-toc" aria-label="On this page">
       <p className="api-toc__head">On this page</p>
@@ -486,7 +486,9 @@ function ReadingAnAnswer({ doc, raw }: { doc: OpenApiDocument | null; raw: strin
                         </p>
                       </details>
                     ) : (
-                      <Marked text={lead} />
+                      <p className="api-rule__plain">
+                        <Marked text={lead} />
+                      </p>
                     )}
                   </li>
                 );
@@ -524,7 +526,18 @@ function ReadingAnAnswer({ doc, raw }: { doc: OpenApiDocument | null; raw: strin
                 return (
                   <div key={key} className="api-annotated__row">
                     <dt>
-                      <Mono>{key}</Mono> <Mono strong>{value}</Mono>
+                      <Mono>{key}</Mono>{" "}
+                      {value.length > 80 ? (
+                        <details className="api-annotated__long">
+                          <summary>
+                            <Mono strong>{value.slice(0, 1)}…</Mono>{" "}
+                            <span className="schema__count">{value.length} characters as written</span>
+                          </summary>
+                          <Mono strong>{value}</Mono>
+                        </details>
+                      ) : (
+                        <Mono strong>{value}</Mono>
+                      )}
                     </dt>
                     <dd>
                       <Prose text={describe(schema, name)} literal />
@@ -545,6 +558,9 @@ function ReadingAnAnswer({ doc, raw }: { doc: OpenApiDocument | null; raw: strin
     </Section>
   );
 }
+
+const INSTALL = `pip install idtrack                  # the package
+pip install "idtrack[harmonize]"     # with HarmonizeFeatures, for count matrices`;
 
 const HARMONIZE_EXAMPLE = `from idtrack.harmonize import HarmonizeFeatures
 
@@ -570,6 +586,9 @@ os.makedirs("./idtrack_cache", exist_ok=True)              # the local repositor
 api = API.build("homo_sapiens", 115, "./idtrack_cache")    # built once (hours for human), then loaded in seconds
 print(api.convert("TP53").targets())                                                    # ('ENSG00000141510.20',)
 print(api.convert("ENSG00000141510", from_release=100, final_database="HGNC Symbol").targets())   # ('TP53',)`;
+
+/** The endpoints drawn in one step after the document has come. */
+const ENDPOINTS_AT_ONCE = 2;
 
 export function ApiPage() {
   const origin = typeof window === "undefined" ? "" : window.location.origin;
@@ -603,12 +622,33 @@ export function ApiPage() {
   const groups = useMemo(() => grouped(list), [list]);
   const timing = document.state === "done" ? (document.answer.serverTiming ?? null) : null;
   const limitFields = doc ? fieldsOf(doc, "LimitsResponse") : [];
-  // The endpoints are drawn once the document has come: an address with an endpoint's anchor is honoured then.
+  // The endpoints are drawn a few at a time once the document has come (each step a short task, so the page answers
+  // while it is drawn), all at once for an address with an anchor, which is honoured then.
+  const [drawn, setDrawn] = useState(0);
   useEffect(() => {
-    if (!doc || !window.location.hash) return;
+    if (!doc) return;
+    if (window.location.hash) {
+      setDrawn(Number.POSITIVE_INFINITY);
+      return;
+    }
+    let timer = 0;
+    const more = () => {
+      setDrawn((n) => {
+        if (n + ENDPOINTS_AT_ONCE < list.length) timer = window.setTimeout(more, 0);
+        return n + ENDPOINTS_AT_ONCE;
+      });
+    };
+    more();
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [doc, list.length]);
+  const complete = doc !== null && drawn >= list.length;
+  useEffect(() => {
+    if (!complete || !window.location.hash) return;
     const target = window.document.getElementById(decodeURIComponent(window.location.hash.slice(1)));
     target?.scrollIntoView();
-  }, [doc]);
+  }, [complete]);
   const errors = [...vocabulary.errors.entries()];
   // The bounds the api names as per-client allowances: configured, and applied only where it enforces them.
   const allowances = new Set(limits?.allowance_fields ?? []);
@@ -663,7 +703,7 @@ export function ApiPage() {
         <PhoneContents groups={groups} count={list.length} />
 
         <div className="api-layout">
-          <Contents groups={groups} />
+          <Contents groups={groups} complete={complete} />
           <div className="api-main">
             <FirstRequest
               origin={origin}
@@ -989,19 +1029,21 @@ export function ApiPage() {
                     </>
                   }
                 >
-                  {g.endpoints.map((e) => (
-                    <EndpointSection
-                      key={e.key}
-                      document={doc}
-                      endpoint={e}
-                      example={exampleRequest(e, organism, example)}
-                      origin={origin}
-                      organisms={held}
-                      releases={releases}
-                      batchMax={limits?.batch_max ?? null}
-                      raw={raw}
-                    />
-                  ))}
+                  {g.endpoints.map((e) =>
+                    list.indexOf(e) >= drawn ? null : (
+                      <EndpointSection
+                        key={e.key}
+                        document={doc}
+                        endpoint={e}
+                        example={exampleRequest(e, organism, example)}
+                        origin={origin}
+                        organisms={held}
+                        releases={releases}
+                        batchMax={limits?.batch_max ?? null}
+                        raw={raw}
+                      />
+                    ),
+                  )}
                 </Section>
               ))
             )}
@@ -1030,7 +1072,15 @@ export function ApiPage() {
                             <Mono>{e.status}</Mono>
                           </td>
                           <td data-label="Retry">
-                            {e.retryable ? "retry (after Retry-After)" : "change the request"}
+                            {e.retryable ? (
+                              <>
+                                yes<span className="api-errors__long">, after Retry-After</span>
+                              </>
+                            ) : (
+                              <>
+                                no<span className="api-errors__long">: change the request</span>
+                              </>
+                            )}
                           </td>
                           <td data-label="When" className="cell-wrap">
                             {/* One child: in the cards of a phone, prose with code wraps as one paragraph. */}
@@ -1061,34 +1111,25 @@ export function ApiPage() {
                   the same graph. Its <a href={docsPage()}>documentation</a> has the quickstart, how it answers and its
                   limitations.
                 </p>
-                <CodeBlock code="pip install idtrack" what="the install command" label="Install" language="bash" />
-                <CodeBlock
-                  code={PYTHON_EXAMPLE}
-                  what="the Python example"
-                  label="Convert (idtrack's README)"
-                  language="python"
-                />
-                <h3 className="api-local__title" id="harmonizing">
-                  Harmonizing count matrices
-                </h3>
-                <p className="api-card__text">
+                <p className="api-card__text" id="harmonizing">
                   For single-cell and other count matrices, idtrack&apos;s <Mono>HarmonizeFeatures</Mono> converts the
                   features of several <Mono>.h5ad</Mono> datasets to one Ensembl release and merges them into one
                   AnnData, with a report of every feature&apos;s conversion, nothing dropped or rewritten silently (
                   <a href={docsPage("harmonization.html")}>Harmonizing Datasets</a>, where the example makes its own toy
                   datasets).
                 </p>
-                <CodeBlock
-                  code={'pip install "idtrack[harmonize]"'}
-                  what="the install command of the harmonization"
-                  label="Install"
-                  language="bash"
-                />
-                <CodeBlock
-                  code={HARMONIZE_EXAMPLE}
-                  what="the harmonization example"
-                  label="Harmonize (idtrack's documentation)"
-                  language="python"
+                <CodeBlock code={INSTALL} what="the install commands" label="Install" language="bash" />
+                <CodeChoice
+                  what="Idtrack in Python"
+                  items={[
+                    { key: "convert", label: "Convert (idtrack's README)", code: PYTHON_EXAMPLE, language: "python" },
+                    {
+                      key: "harmonize",
+                      label: "Harmonize (idtrack's documentation)",
+                      code: HARMONIZE_EXAMPLE,
+                      language: "python",
+                    },
+                  ]}
                 />
               </div>
             </Section>

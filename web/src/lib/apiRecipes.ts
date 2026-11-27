@@ -138,7 +138,9 @@ for (chunk in chunks) {
 stopifnot("the graph changed during the run" = length(graphs) == 1)
 
 mapping <- do.call(rbind, rows[identifiers])
+out <- file("mapping.tsv", "w")
 writeLines(sprintf("# idtrack-web, %s graph %s, from_release %s, to_release %s",
-  organism, graphs, from_release, targets), "mapping.tsv")
-write.table(mapping, "mapping.tsv", sep = "\t", quote = FALSE, row.names = FALSE, append = TRUE)`;
+  organism, graphs, from_release, targets), out)
+write.table(mapping, out, sep = "\t", quote = FALSE, row.names = FALSE)
+close(out)`;
 }

@@ -89,80 +89,97 @@ export function indentedText(raw: string, indent = 2): string | null {
   return tokens ? tokens.map((t) => t.text).join("") : null;
 }
 
-/** The spans of every value of a JSON text by its path of object keys and array indexes (joined by NUL),
- *  made in one pass over the text: [start, end) of the value as written. */
-function spansOf(raw: string): Map<string, [number, number]> {
-  const spans = new Map<string, [number, number]>();
+const QUOTE = 34;
+const BACKSLASH = 92;
+
+function isSpace(code: number): boolean {
+  return code === 32 || code === 9 || code === 10 || code === 13;
+}
+
+/** Where a JSON value that starts at `i` (after white space) ends, or -1 where the text is not JSON: strings, objects
+ *  and arrays are passed by counting brackets outside strings, without reading what they hold. */
+function valueEnd(raw: string, i: number): number {
+  const n = raw.length;
+  const c = raw.charCodeAt(i);
+  if (c === QUOTE) {
+    let j = i + 1;
+    while (j < n) {
+      const d = raw.charCodeAt(j);
+      if (d === BACKSLASH) j += 2;
+      else if (d === QUOTE) return j + 1;
+      else j++;
+    }
+    return -1;
+  }
+  if (c === 123 || c === 91) {
+    let depth = 0;
+    let j = i;
+    while (j < n) {
+      const d = raw.charCodeAt(j);
+      if (d === QUOTE) {
+        const end = valueEnd(raw, j);
+        if (end < 0) return -1;
+        j = end;
+        continue;
+      }
+      if (d === 123 || d === 91) depth++;
+      else if (d === 125 || d === 93) {
+        depth--;
+        if (depth === 0) return j + 1;
+      }
+      j++;
+    }
+    return -1;
+  }
+  const literal = /^(-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?|true|false|null)/.exec(raw.slice(i, i + 400));
+  return literal?.[0] ? i + literal[0].length : -1;
+}
+
+/** The text of the value at a path of object keys (an array's item by its index, as text) inside a JSON text,
+ *  exactly as written there (no parse and write again: every number keeps its spelling); `null` when the path is not
+ *  in it. The text is walked once along the path: every value off the path is passed over by its brackets, not read
+ *  (a lookup in the api's document costs a scan of the bytes before the value, and keeps nothing). */
+export function rawValueAt(raw: string, keys: readonly string[]): string | null {
   const n = raw.length;
   let i = 0;
   const skip = () => {
-    while (i < n && " \t\r\n".includes(raw.charAt(i))) i++;
+    while (i < n && isSpace(raw.charCodeAt(i))) i++;
   };
-  const stringEnd = (from: number) => {
-    let j = from + 1;
-    while (j < n && raw.charAt(j) !== '"') j += raw.charAt(j) === "\\" ? 2 : 1;
-    return j + 1;
-  };
-  // A value at `path` (null: inside an array, not indexed); returns false where the text is not JSON.
-  const value = (path: string | null): boolean => {
-    skip();
-    const start = i;
-    const c = raw.charAt(i);
-    if (c === "{") {
-      i++;
+  skip();
+  for (const key of keys) {
+    const open = raw.charAt(i);
+    if (open !== "{" && open !== "[") return null;
+    i++;
+    let index = 0;
+    let found = false;
+    for (;;) {
       skip();
-      while (i < n && raw.charAt(i) !== "}") {
-        if (raw.charAt(i) !== '"') return false;
-        const keyEnd = stringEnd(i);
-        const key = JSON.parse(raw.slice(i, keyEnd)) as string;
+      const c = raw.charAt(i);
+      if (c === "}" || c === "]" || i >= n) return null;
+      let name = String(index);
+      if (open === "{") {
+        const keyEnd = valueEnd(raw, i);
+        if (keyEnd < 0) return null;
+        name = JSON.parse(raw.slice(i, keyEnd)) as string;
         i = keyEnd;
         skip();
-        if (raw.charAt(i) !== ":") return false;
+        if (raw.charAt(i) !== ":") return null;
         i++;
-        if (!value(path === null ? null : path === "" ? key : `${path}\u0000${key}`)) return false;
         skip();
-        if (raw.charAt(i) === ",") {
-          i++;
-          skip();
-        }
       }
-      i++;
-    } else if (c === "[") {
-      i++;
+      if (name === key) {
+        found = true;
+        break;
+      }
+      const end = valueEnd(raw, i);
+      if (end < 0) return null;
+      i = end;
       skip();
-      let index = 0;
-      while (i < n && raw.charAt(i) !== "]") {
-        if (!value(path === null ? null : path === "" ? String(index) : `${path}\u0000${index}`)) return false;
-        index++;
-        skip();
-        if (raw.charAt(i) === ",") i++;
-        skip();
-      }
-      i++;
-    } else if (c === '"') {
-      i = stringEnd(i);
-    } else {
-      const literal = /^(-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?|true|false|null)/.exec(raw.slice(i, i + 400));
-      if (!literal?.[0]) return false;
-      i += literal[0].length;
+      if (raw.charAt(i) === ",") i++;
+      index++;
     }
-    if (i > n) return false;
-    if (path !== null) spans.set(path, [start, i]);
-    return true;
-  };
-  if (!value("")) spans.clear();
-  return spans;
-}
-
-/** The last text indexed and its spans: the api page reads every endpoint's example from one document. */
-let indexed: { raw: string; spans: Map<string, [number, number]> } | null = null;
-
-/** The text of the value at a path of object keys (an array's item by its index, as text) inside a JSON text,
- *  exactly as written there (no parse and write
- *  again: every number keeps its spelling); `null` when the path is not in it. The text is indexed once (one pass),
- *  then every path is a lookup. */
-export function rawValueAt(raw: string, keys: readonly string[]): string | null {
-  if (indexed?.raw !== raw) indexed = { raw, spans: spansOf(raw) };
-  const span = indexed.spans.get(keys.join("\u0000"));
-  return span ? raw.slice(span[0], span[1]) : null;
+    if (!found) return null;
+  }
+  const end = valueEnd(raw, i);
+  return end < 0 ? null : raw.slice(i, end);
 }

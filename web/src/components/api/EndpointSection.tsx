@@ -1,7 +1,7 @@
 // One endpoint of the api, read from the OpenAPI document: method and path, what it answers, its parameters (each a
 // line, the rest of its text on demand), its body, its answers (folded to one line) with their fields and, for a
 // table, its columns; beside it the request in four languages, a recorded answer and a console that sends it.
-import { useEffect, useId, useRef, useState, type ReactNode } from "react";
+import { useEffect, useId, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { isAbort, send, type Exchange } from "../../api/client";
 import { announce } from "../../lib/announce";
 import { acceptOf, requestUrl, type RequestSpec } from "../../lib/apiExamples";
@@ -24,6 +24,26 @@ export interface ReleaseRange {
   organism: string;
   first: number;
   last: number;
+}
+
+const PHONE = "(max-width: 640px)";
+
+function onPhoneChange(listener: () => void): () => void {
+  if (typeof window.matchMedia !== "function") return () => undefined;
+  const query = window.matchMedia(PHONE);
+  query.addEventListener("change", listener);
+  return () => {
+    query.removeEventListener("change", listener);
+  };
+}
+
+/** Whether the window is a phone's: there an endpoint's request opens on demand, so the reference reads quickly. */
+function usePhone(): boolean {
+  return useSyncExternalStore(
+    onPhoneChange,
+    () => typeof window.matchMedia === "function" && window.matchMedia(PHONE).matches,
+    () => false,
+  );
 }
 
 /** A count and its noun, singular for one: "1 field", "4 fields". */
@@ -599,6 +619,7 @@ export function EndpointSection({
 }) {
   const [spec, setSpec] = useState(example);
   const [trying, setTrying] = useState(false);
+  const phone = usePhone();
   const success = endpoint.answers.find((a) => a.status.startsWith("2"));
   const titleId = useId();
   return (
@@ -618,14 +639,14 @@ export function EndpointSection({
         <Prose literal text={endpoint.summary} />
       </p>
       {endpoint.description ? (
-        endpoint.description.length > 240 ? (
+        endpoint.description.length > 160 ? (
           <details className="endpoint__about">
             <summary>
               <span className="endpoint__description">
                 <Prose literal text={endpoint.description} />
               </span>
               <span className="endpoint__about-more" aria-hidden="true">
-                The whole description
+                the whole description
               </span>
             </summary>
           </details>
@@ -641,13 +662,13 @@ export function EndpointSection({
             Parameters{" "}
             {endpoint.parameters.length ? (
               <span className="endpoint__label-aside">each line opens to the rest of its text</span>
-            ) : null}
+            ) : (
+              <span className="endpoint__label-aside">none</span>
+            )}
           </h4>
           {endpoint.parameters.length ? (
             <ParameterRows parameters={endpoint.parameters} releases={releases} />
-          ) : (
-            <p className="endpoint__none">None.</p>
-          )}
+          ) : null}
           {endpoint.body?.schema ? (
             <LazyDetails
               className="schema__nested schema__nested--top"
@@ -726,11 +747,24 @@ export function EndpointSection({
           )}
         </div>
         <div className={`endpoint__run ${trying ? "endpoint__run--console" : ""}`}>
-          <h4 className="endpoint__label">
+          <h4 className={`endpoint__label${phone && !trying ? " visually-hidden" : ""}`}>
             Request{" "}
             <span className="endpoint__label-aside">{trying ? "as set below" : "an example of this server"}</span>
           </h4>
-          <CodeTabs origin={origin} spec={spec} what={`${endpoint.key}, the request`} />
+          {phone && !trying ? (
+            <LazyDetails
+              className="schema__nested schema__nested--top"
+              summary={
+                <>
+                  The request <span className="schema__count">curl, Python, R, JavaScript</span>
+                </>
+              }
+            >
+              {() => <CodeTabs origin={origin} spec={spec} what={`${endpoint.key}, the request`} />}
+            </LazyDetails>
+          ) : (
+            <CodeTabs origin={origin} spec={spec} what={`${endpoint.key}, the request`} />
+          )}
           {trying ? (
             <TryIt
               endpoint={endpoint}

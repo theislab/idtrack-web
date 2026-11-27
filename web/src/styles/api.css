@@ -609,11 +609,6 @@
   font-size: var(--text-xs);
 }
 
-.endpoint__none {
-  color: var(--ink-3);
-  font-size: var(--text-sm);
-}
-
 .endpoint__schema-name {
   font-size: var(--text-sm);
   color: var(--ink-2);
@@ -1237,13 +1232,6 @@
   max-height: 360px;
 }
 
-.api-local__title {
-  font-family: var(--font-display);
-  font-weight: var(--weight-medium);
-  font-size: var(--text-lg);
-  margin-top: var(--space-4);
-}
-
 /* In the cards of a phone, a cell's prose is one block that wraps as a paragraph (its code spans inside it). */
 .cell-value {
   display: block;
@@ -1374,6 +1362,10 @@
   margin-top: var(--space-1);
   max-width: var(--measure);
   color: var(--ink-2);
+}
+
+.api-errors td:nth-child(3) {
+  white-space: nowrap;
 }
 
 .api-errors td:first-child {
@@ -1516,10 +1508,12 @@
 }
 
 /* Reading an answer: the rules beside a recorded answer, annotated. */
+/* The rules (their leads, each opening to the whole rule) above the annotated answer, whose fields stand in two
+   columns where there is room. */
 .api-reading {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: var(--space-6);
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-5);
   align-items: start;
 }
 
@@ -1561,7 +1555,8 @@
 
 .api-annotated {
   margin: 0;
-  display: grid;
+  columns: 2 320px;
+  column-gap: var(--space-6);
 }
 
 .api-annotated__row {
@@ -1569,6 +1564,7 @@
   gap: 2px;
   padding: var(--space-2) 0;
   border-top: 1px solid var(--line);
+  break-inside: avoid;
 }
 
 .api-annotated dt {
@@ -1718,10 +1714,23 @@
     content: none;
   }
 
+  .api-errors tr {
+    grid-template-columns: minmax(0, 1fr) auto auto;
+  }
+
   .api-errors td:nth-child(3) {
-    grid-column: 1 / -1;
     color: var(--ink-3);
     font-size: var(--text-xs);
+  }
+
+  .api-errors td:nth-child(3)::before {
+    content: "retry ";
+    position: static;
+    width: auto;
+  }
+
+  .api-errors__long {
+    display: none;
   }
 
   .api-errors td:nth-child(4) {
@@ -1745,4 +1754,115 @@
 
 .endpoint__more > .endpoint__recorded[open] {
   flex-basis: 100%;
+}
+
+/* A long value of the annotated answer: its first character, opening to the whole value as written. */
+.api-annotated__long {
+  display: inline;
+}
+
+.api-annotated__long > summary {
+  display: inline;
+  cursor: pointer;
+}
+
+.api-annotated__long[open] > .mono {
+  display: block;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.endpoint__about > summary {
+  display: block;
+}
+
+.endpoint__about-more {
+  display: inline-block;
+}
+
+@media (max-width: 640px) {
+  /* A phone: the console's button and the recorded answer on one line, the answer's source in its text only. */
+  .endpoint__more > .endpoint__recorded {
+    flex-basis: 160px;
+  }
+
+  .endpoint__recorded .schema__count {
+    display: none;
+  }
+
+  .endpoint__more > .endpoint__recorded[open] .schema__count {
+    display: inline;
+  }
+}
+
+/* A wide screen: a parameter is one line (its head, then its first sentence cut to the room left); open, its text is
+   whole below its head. */
+@media (min-width: 1181px) {
+  .endpoint__grid {
+    grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
+  }
+
+  .params__fold:not([open]) > summary,
+  .params__plain {
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: baseline;
+    column-gap: var(--space-3);
+  }
+
+  .params__fold:not([open]) .params__first {
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    display: block;
+    overflow: hidden;
+  }
+}
+
+.api-rule__plain {
+  margin: 0;
+  padding-left: var(--space-4);
+}
+
+/* Every disclosure of the page wears the one chevron (no browser triangle). */
+.schema__nested > summary,
+.api-errors details > summary,
+.api-annotated__long > summary {
+  position: relative;
+  list-style: none;
+}
+
+.schema__nested > summary::-webkit-details-marker,
+.api-errors details > summary::-webkit-details-marker,
+.api-annotated__long > summary::-webkit-details-marker {
+  display: none;
+}
+
+.schema__nested > summary {
+  padding-left: calc(var(--space-3) + var(--space-4));
+}
+
+.api-errors details > summary {
+  padding-left: var(--space-4);
+}
+
+.schema__nested > summary::before,
+.api-errors details > summary::before {
+  content: "";
+  position: absolute;
+  left: calc(var(--space-3) + 2px);
+  top: calc(var(--space-2) + 0.45em);
+  width: 5px;
+  height: 5px;
+  border-right: 1.5px solid var(--ink-3);
+  border-bottom: 1.5px solid var(--ink-3);
+  transform: rotate(-45deg);
+}
+
+.api-errors details > summary::before {
+  left: 2px;
+  top: 0.5em;
+}
+
+.schema__nested[open] > summary::before,
+.api-errors details[open] > summary::before {
+  transform: rotate(45deg);
 }

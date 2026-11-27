@@ -226,7 +226,9 @@ test("the api page: a first request above all, the rules for reading an answer, 
 test("the api page's contents mark the entry just followed", async ({ page }, info) => {
   test.skip(isPhone(info), "the contents beside the reference are a wide screen's");
   await page.goto("/developers");
-  await expect(page.locator("article.endpoint").first()).toBeVisible();
+  const document = (await (await page.request.get("/api/v1/openapi.json")).json()) as OpenApi;
+  const count = Object.values(document.paths).reduce((n, item) => n + Object.keys(item).length, 0);
+  await expect(page.locator("article.endpoint")).toHaveCount(count); // every endpoint drawn
   const toc = page.getByRole("navigation", { name: "On this page" }).first();
   for (const [name, id] of [
     ["Reading an answer", "reading"],
