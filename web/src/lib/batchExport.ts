@@ -179,7 +179,8 @@ export const EVIDENCE_CODES: Record<EvidenceMark["kind"], string> = {
   outside_reference:
     "every gene of the best answer lies outside the reference sequence (a haplotype, patch or alternative locus)",
   listed_as_copy: "the best answer is also listed among the copies the result sets apart (alternative_locus_genes)",
-  bare_number: "a bare number, read in every database whose ids are numbers",
+  bare_number:
+    "a number (bare, or written with a version), read in every database whose ids are numbers; its digits alone may be another gene's",
   one_gene: "the targets are every id of one gene in the database asked, not the identifier's counterpart alone",
   split_ranked: "the path passes a split; its successors are ranked by Ensembl's scores, not by place",
   unscored: "the path holds history steps between two different ids without Ensembl's score",
@@ -188,6 +189,14 @@ export const EVIDENCE_CODES: Record<EvidenceMark["kind"], string> = {
   match: "matched otherwise than as written (a synonym, letter case, separators, a copy, a newer version)",
   other_release: "the string has another meaning at other releases",
   other_reading: "the string has another reading idtrack reports",
+  runner_named:
+    "a gene ranked below carries the name typed at the target release, and no gene of the best answer does (read where the answer's symbols were asked)",
+  name_elsewhere:
+    "the name is read through several databases, but the best answer through some of them only, with neither the name authority nor Ensembl's display name for it",
+  own_continuation:
+    "the best answer's path leaves the entry gene's id while the id itself lived on, followed by candidates ranked below",
+  projected_symbols:
+    "the database asked is a symbol database of the graph that is not the organism's name authority (read where the organism's symbol databases were asked)",
   lowest_score:
     "the lowest of Ensembl's mapping scores on the best path, where one is below 1 (0 to 1: how much of the old gene the new one keeps)",
 };
