@@ -19,14 +19,14 @@ export const STATUS_TIMEOUT_MS = 30_000;
 
 /** The state rule, in words (shown in the panel under the state). */
 export const STATE_RULE =
-  "OK below 70 % of the cores available and below 70 % of the memory limit in the server's own footprint (its processes' PSS summed; what else the limit's cgroup holds is shown, not counted); busy from 70 % of either; saturated while work waits for a worker (a search for a worker's search thread, or a connection in the listen queue); late while /status has not answered for 4 s (the values are then its last answer, a sign of load in itself); refused while /status answers with a refusal; unreadable while it answers with something this page cannot read; unreachable while this page gets no answer from /status.";
+  "OK below 70 % of the cores available and below 70 % of the memory limit in the server's own footprint (its processes' PSS summed; what else the limit's cgroup holds is shown, not counted); busy from 70 % of either; saturated while work waits (a search for a worker free of searches, a search for its worker's own search thread, or a connection in the kernel's listen queue); late while /status has not answered for 4 s (the values are then its last answer, a sign of load in itself); refused while /status answers with a refusal; unreadable while it answers with something this page cannot read; unreachable while this page gets no answer from /status.";
 
 /** What each state says of the server now. */
 export const STATE_SENTENCES: Record<LoadState, string> = {
   ok: "The cores used and the server's footprint are below 70 % of the cores available and of the memory limit, and no work waits for a worker.",
   busy: "The cores used or the server's footprint is at 70 % or more of the cores available or of the memory limit.",
   saturated:
-    "Work waits for a worker: a search for a worker's search thread, or a connection in the listen queue; new work queues until a worker is free.",
+    "Work waits: a search for a worker free of searches or for its worker's own search thread, or a connection in the kernel's listen queue; new work queues until a worker is free.",
   late: "The server has not answered /status for a while (a busy server answers it late too); the values are its last answer, not current.",
   refused:
     "The server answered /status with a refusal (too many requests from this address, or busy); the values are its last answer.",
@@ -47,11 +47,21 @@ export const STATE_WORDS: Record<LoadState, string> = {
   waiting: "Reading",
 };
 
-/** Work that waits: the api's three disjoint counts (connections in the kernel's listen queue, searches in the queue
- *  the workers share, searches waiting for a worker's own search thread), each `null` where it was not read. */
+/** The work waiting, in the three places the api counts apart (they never overlap, so their sum counts each request
+ *  once): searches handed on to the queue the workers share, searches waiting for their worker's own search thread,
+ *  and connections in the kernel's listen queue (`null`, not read, counts nothing). */
+export function waitingParts(status: StatusResponse): { queued: number | null; thread: number; listen: number | null } {
+  return {
+    queued: status.requests.searches_queued ?? null,
+    thread: status.requests.searches_waiting,
+    listen: status.requests.connections_waiting,
+  };
+}
+
+/** All the work waiting: the sum of its three disjoint places. */
 export function workWaiting(status: StatusResponse): number {
-  const { searches_waiting, searches_queued, connections_waiting } = status.requests;
-  return searches_waiting + (searches_queued ?? 0) + (connections_waiting ?? 0);
+  const { queued, thread, listen } = waitingParts(status);
+  return thread + (queued ?? 0) + (listen ?? 0);
 }
 
 /** The share of the memory limit the server's processes hold (their PSS summed), or `null` where either is unknown. */
@@ -170,11 +180,46 @@ export function sampleOf(status: StatusResponse, at: number): Sample {
   };
 }
 
+/** The server's own samples of the last minutes (`history`), placed on the browser's clock: each at the time of the
+ *  answer that carried it less how much earlier than that answer the server took it (so that the two clocks need not
+ *  agree). The share of the cores and the limit are the answer's (the cores available and the limit do not change
+ *  while a server runs). */
+export function historyOf(status: StatusResponse, receivedAt: number): Sample[] {
+  const answered = Date.parse(status.sampled_at);
+  const available = status.cpu.cores_available;
+  return status.history.samples
+    .map((s) => ({ s, before: answered - Date.parse(s.sampled_at) }))
+    .filter(({ before }) => Number.isFinite(before) && before >= 0)
+    .map(({ s, before }) => ({
+      at: receivedAt - before,
+      coresUsed: s.cores_used,
+      cpuShare: s.cores_used === null || available <= 0 ? null : s.cores_used / available,
+      pssBytes: s.pss_bytes,
+      limitBytes: status.memory.limit_bytes,
+      waiting: s.waiting ?? 0,
+      failed: false,
+    }));
+}
+
 /** The most samples kept: two hours at one every 5 s. */
 export const MAX_SAMPLES = 1440;
 
 export function appendSample(samples: readonly Sample[], sample: Sample): Sample[] {
   const next = [...samples, sample];
+  return next.length > MAX_SAMPLES ? next.slice(next.length - MAX_SAMPLES) : next;
+}
+
+/** The samples after an answer: where the page holds no sample of the last `GAP_MS` (its first answer, or after the tab
+ *  was hidden or the server unreachable), the server's own samples of that stretch first, then the answer's. */
+export function withAnswer(samples: readonly Sample[], status: StatusResponse, at: number): Sample[] {
+  const last = samples.findLast((s) => !s.failed)?.at ?? null;
+  let next: Sample[] = [...samples];
+  if (last === null || at - last > GAP_MS) {
+    const after = last ?? Number.NEGATIVE_INFINITY;
+    const gapAfter = samples[samples.length - 1]?.at ?? Number.NEGATIVE_INFINITY;
+    next = [...next, ...historyOf(status, at).filter((s) => s.at > after && s.at > gapAfter && s.at < at)];
+  }
+  next.push(sampleOf(status, at));
   return next.length > MAX_SAMPLES ? next.slice(next.length - MAX_SAMPLES) : next;
 }
 

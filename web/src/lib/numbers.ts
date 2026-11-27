@@ -43,9 +43,10 @@ export function shortFloat(value: number, significant = 3): { text: string; shor
  *  figures formats thousands of counts. */
 const GROUPED = new Intl.NumberFormat("en-US");
 
-/** An integer with thin separators for reading (counts, sizes); the exact value is the digits without them. */
+/** An integer with its digits grouped for reading (counts, sizes) by a narrow no-break space (U+202F), so that a number
+ *  never wraps inside itself; the exact value is the digits without them. */
 export function groupedInteger(value: number): string {
-  return GROUPED.format(value).replace(/,/g, " ");
+  return GROUPED.format(value).replace(/,/g, "\u202f");
 }
 
 /** A byte size in words beside its exact number of bytes. */

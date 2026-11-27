@@ -29,6 +29,8 @@ import {
   type LoadState,
   type Reading,
   type Sample,
+  waitingParts,
+  workWaiting,
 } from "../lib/load";
 import type { LoadSnapshot } from "../lib/loadStore";
 import { groupedInteger } from "../lib/numbers";
@@ -228,8 +230,70 @@ function bytesOrMissing(value: number | null, field: string) {
   return value === null ? <Missing field={field} /> : <Value reading={gib(value)} />;
 }
 
-/** A number in running text kept on one line (its groups joined by no-break spaces). */
-const unbroken = (text: string) => text.replace(/ /g, "\u00a0");
+/** The work waiting, in the three places the api counts apart (they never overlap). */
+function WaitingStats({ status }: { status: StatusResponse }) {
+  const waiting = waitingParts(status);
+  return (
+    <dl className="load-stats load-stats--three">
+      <Stat label="Searches queued" note="handed on by a busy worker, for the first worker free of searches">
+        {waiting.queued === null ? <span className="load-missing">not read</span> : <Count value={waiting.queued} />}
+      </Stat>
+      <Stat label="Searches held" note="taken by a worker, waiting for its own search thread">
+        <Count value={waiting.thread} />
+      </Stat>
+      <Stat label="Connections not yet taken" note="in the kernel's listen queue, by the kernel's count">
+        {waiting.listen === null ? <span className="load-missing">not read</span> : <Count value={waiting.listen} />}
+      </Stat>
+    </dl>
+  );
+}
+
+/** Move the focus among the exact values of `group` by the arrow keys, Home and End; return the value focused. */
+function roved(event: globalThis.KeyboardEvent, group: HTMLElement): HTMLElement | null {
+  const target = event.target;
+  if (!(target instanceof HTMLElement) || !target.matches(".exact")) return null;
+  const all = [...group.querySelectorAll<HTMLElement>(".exact")];
+  const at = all.indexOf(target);
+  const to: Record<string, number> = {
+    ArrowRight: at + 1,
+    ArrowDown: at + 1,
+    ArrowLeft: at - 1,
+    ArrowUp: at - 1,
+    Home: 0,
+    End: all.length - 1,
+  };
+  const index = to[event.key];
+  const next = index === undefined ? undefined : all[Math.max(0, Math.min(all.length - 1, index))];
+  if (!next) return null;
+  event.preventDefault();
+  for (const e of all) e.tabIndex = e === next ? 0 : -1;
+  next.focus();
+  return next;
+}
+
+/** Hide a shown tip until the pointer leaves its value and focus leaves it. */
+function dismissTip(element: HTMLElement): void {
+  element.classList.add("exact--dismissed");
+  let pointed = element.matches(":hover");
+  let focused = element.matches(":focus");
+  const end = () => {
+    if (pointed || focused) return;
+    element.classList.remove("exact--dismissed");
+    element.removeEventListener("pointerleave", left);
+    element.removeEventListener("blur", blurred);
+  };
+  const left = () => {
+    pointed = false;
+    end();
+  };
+  const blurred = () => {
+    focused = false;
+    end();
+  };
+  element.addEventListener("pointerleave", left);
+  element.addEventListener("blur", blurred);
+  element.dispatchEvent(new CustomEvent("exact-dismiss"));
+}
 
 /** Why the master's request cells hold no number. */
 const MASTER_SERVES_NONE = "The master answers no request: it loaded the graphs and forked the workers.";
@@ -444,6 +508,31 @@ export default function LoadPanel({
     };
   }, [onClose]);
 
+  const values = useRef<HTMLDivElement>(null);
+  const active = useRef<Element | null>(null);
+  // After every render (a poll redraws the values): one exact value holds the tab stop, the last focused or the first.
+  useEffect(() => {
+    const all = [...(values.current?.querySelectorAll<HTMLElement>(".exact") ?? [])];
+    const holder = all.find((e) => e === active.current) ?? all[0];
+    for (const e of all) e.tabIndex = e === holder ? 0 : -1;
+  });
+  useEffect(() => {
+    const group = values.current;
+    if (!group) return;
+    const onFocus = (event: FocusEvent) => {
+      if (event.target instanceof HTMLElement && event.target.matches(".exact")) active.current = event.target;
+    };
+    const onKey = (event: globalThis.KeyboardEvent) => {
+      const next = roved(event, group);
+      if (next) active.current = next;
+    };
+    group.addEventListener("keydown", onKey);
+    group.addEventListener("focusin", onFocus);
+    return () => {
+      group.removeEventListener("keydown", onKey);
+      group.removeEventListener("focusin", onFocus);
+    };
+  });
   const { latest, failure, samples, late } = snapshot;
   const status = latest?.status ?? null;
   const unavailable = new Set(status?.unavailable ?? []);
@@ -461,6 +550,14 @@ export default function LoadPanel({
       aria-labelledby={titleId}
       onCancel={(event) => {
         event.preventDefault();
+        // Escape hides an exact value's tip shown by pointing, focus or a press first (WCAG 1.4.13); the next closes.
+        const shown = dialog.current?.querySelector<HTMLElement>(
+          ".exact:is(:hover, :focus-visible, .exact--pinned):not(.exact--dismissed)",
+        );
+        if (shown) {
+          dismissTip(shown);
+          return;
+        }
         onClose();
       }}
     >
@@ -495,7 +592,10 @@ export default function LoadPanel({
             <p>
               <strong>{STATE_WORDS[state]}.</strong> {STATE_SENTENCES[state]}
             </p>
-            <p className="load-panel__rule">{STATE_RULE}</p>
+            {/* The rule of every state, on demand: the numbers come first. */}
+            <Disclosure summary="How the state is judged">
+              <p className="load-panel__rule">{STATE_RULE}</p>
+            </Disclosure>
           </div>
         </div>
 
@@ -531,7 +631,11 @@ export default function LoadPanel({
         ) : null}
 
         {status ? (
+          // The exact values are one tab stop: the arrow keys move between them (useRovingValues).
           <div
+            ref={values}
+            role="group"
+            aria-label="The values (one tab stop: the arrow keys move between the exact values)"
             className={`load-panel__data${state === "late" || state === "refused" || state === "unreadable" ? " load-panel__data--stale" : ""}`}
           >
             <section className="load-section" aria-labelledby={`${titleId}-cpu`}>
@@ -574,10 +678,12 @@ export default function LoadPanel({
                 }}
               />
               <p className="load-caption">
-                Cores kept busy by the server&apos;s processes (master and workers summed; 1 is one core), each point an
-                answer of /status taken by this page: every {OPEN_INTERVAL_MS / 1000}&nbsp;s while this panel is open,
-                every {CLOSED_INTERVAL_MS / 1000}&nbsp;s while it is closed, none while the tab is hidden (a gap). The
-                axis ends at {Number(cpuTop.toFixed(3))} cores
+                Cores kept busy by the server&apos;s processes (master and workers summed; 1 is one core). The line
+                begins with the server&apos;s own samples of the last minutes (one every{" "}
+                {status.history.interval_seconds}&nbsp;s, sent with the answer), then each answer this page takes: every{" "}
+                {OPEN_INTERVAL_MS / 1000}&nbsp;s while this panel is open, every {CLOSED_INTERVAL_MS / 1000}
+                &nbsp;s while it is closed, none while the tab is hidden (a gap the server&apos;s samples fill when it
+                is shown again). The axis ends at {Number(cpuTop.toFixed(3))} cores
                 {cpuTop < status.cpu.cores_available
                   ? `; the ${groupedInteger(status.cpu.cores_available)} available lie above it.`
                   : "."}
@@ -697,24 +803,18 @@ export default function LoadPanel({
                   <Count value={status.requests.errors_5xx} />
                 </Stat>
               </dl>
-              <dl className="load-stats load-stats--four">
+              <dl className="load-stats load-stats--three">
                 <Stat label="In flight now">
                   <Count value={status.requests.in_flight} />
                 </Stat>
                 <Stat label="Searches running">
                   <Count value={status.requests.searches_running} />
                 </Stat>
-                <Stat label="Searches waiting" note="for a worker's search thread">
-                  <Count value={status.requests.searches_waiting} />
-                </Stat>
-                <Stat label="Connections waiting" note="in the listen queue, for a free worker (the kernel's count)">
-                  {status.requests.connections_waiting === null ? (
-                    <span className="load-missing">not read</span>
-                  ) : (
-                    <Count value={status.requests.connections_waiting} />
-                  )}
+                <Stat label="Waiting, in all" note="the three places below, each request counted once">
+                  <Count value={workWaiting(status)} />
                 </Stat>
               </dl>
+              <WaitingStats status={status} />
               <h4 className="load-subtitle">Latency</h4>
               <dl className="load-stats load-stats--four">
                 {(
@@ -737,11 +837,11 @@ export default function LoadPanel({
               <LatencyStrip status={status} />
               <p className="load-caption">
                 From arrival to the last byte sent, nearest rank, over the{" "}
-                {unbroken(groupedInteger(status.requests.latency.count))} most recent requests (at most{" "}
-                {unbroken(groupedInteger(status.requests.latency.most_recent))}) that ended in the last{" "}
+                {groupedInteger(status.requests.latency.count)} most recent requests (at most{" "}
+                {groupedInteger(status.requests.latency.most_recent)}) that ended in the last{" "}
                 {status.requests.latency.window_seconds}&nbsp;s; the strip is logarithmic. Requests to /status are
-                counted apart ({unbroken(groupedInteger(status.requests.status_requests))} since the start), so watching
-                the load does not change it.
+                counted apart ({groupedInteger(status.requests.status_requests)} since the start), so watching the load
+                does not change it.
               </p>
             </section>
 

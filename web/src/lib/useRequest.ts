@@ -1,8 +1,10 @@
 // A request's state for a view: idle, loading, done or failed; a newer request cancels the one before it. A read that
 // failed because nothing answered is asked again by itself when the browser is back online or the tab is shown again;
 // a refusal that names its wait (`Retry-After`, a rate limit or a busy server) is asked again once after that wait.
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
 import {
+  answersGeneration,
+  onAnswersGeneration,
   ApiError,
   isAbort,
   isRequestError,
@@ -40,12 +42,15 @@ function useLatest<T>(value: T) {
   return ref;
 }
 
-/** Run `load` whenever `key` changes (null: nothing to load). The state is the answer of the current key only.
- *  `fresh` is true on a retry: the answer is asked of the api again even when one is held (api/client.ts). */
+/** Run `load` whenever `key` changes (null: nothing to load), and again when the server's graphs change (a new
+ *  generation of the answers held, api/client.ts). The state is the answer of the current key only. `fresh` is true on
+ *  a retry: the answer is asked of the api again even when one is held. */
 export function useRequest<T>(
-  key: string | null,
+  asked: string | null,
   load: (signal: AbortSignal, fresh: boolean) => Promise<Answer<T>>,
 ): RequestState<T> & { retry: () => void } {
+  const generation = useSyncExternalStore(onAnswersGeneration, answersGeneration, answersGeneration);
+  const key = asked === null ? null : `${asked}\u0000${String(generation)}`;
   const [settled, setSettled] = useState<{ key: string; attempt: number; state: RequestState<T> } | null>(null);
   // The retries of the current key: a new key starts again at its first attempt (asked without `fresh`).
   const [tries, setTries] = useState<{ key: string | null; n: number }>({ key, n: 0 });

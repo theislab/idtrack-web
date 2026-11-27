@@ -233,7 +233,7 @@ describe("Ensembl's id history, read for a person", () => {
 
 describe("counts", () => {
   it("are grouped with thin spaces by one formatter", () => {
-    expect(groupedInteger(1234567)).toBe("1 234 567");
+    expect(groupedInteger(1234567)).toBe("1\u202f234\u202f567");
     expect(groupedInteger(12)).toBe("12");
   });
 });

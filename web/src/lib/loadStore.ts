@@ -1,6 +1,8 @@
 // The page's samples of the server's load: one store for the masthead's reading and the panel. It asks `/status`
 // every 5 s while the panel is open and every 15 s while it is closed, never while the tab is hidden, and only while
-// something shows it; the samples of the session are kept for the charts (at most two hours of them). A request that
+// something shows it; the samples are kept for the charts (at most two hours of them), begun by the server's own
+// samples of the last minutes (`history` of the first answer, and of an answer after a stretch without one), so that
+// the lines are drawn from the first answer rather than from the page's first minutes. A request that
 // has waited longer than LATE_MS makes the reading late (its values are then the last answer's, said to be old, and the
 // line has a gap); one unanswered after STATUS_TIMEOUT_MS is given up; a refusal's Retry-After is waited before the
 // next ask.
@@ -12,7 +14,7 @@ import {
   CLOSED_INTERVAL_MS,
   LATE_MS,
   OPEN_INTERVAL_MS,
-  sampleOf,
+  withAnswer,
   STATUS_TIMEOUT_MS,
   type FailureKind,
   type Sample,
@@ -169,7 +171,7 @@ export class LoadStore {
         latest: { status: answer.data, raw: answer.raw, receivedAt: at },
         failure: null,
         late: null,
-        samples: appendSample(this.snapshot.samples, sampleOf(answer.data, at)),
+        samples: withAnswer(this.snapshot.samples, answer.data, at),
       });
     } catch (error) {
       if (this.controller !== controller) return;

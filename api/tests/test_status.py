@@ -17,7 +17,13 @@ from typing import TYPE_CHECKING, Any
 
 import pytest
 
-from idtrack_web_api.monitor import CACHE_SECONDS, LoadMonitor, SystemReader, connections_waiting
+from idtrack_web_api.monitor import (
+    CACHE_SECONDS,
+    HISTORY_SAMPLES,
+    LoadMonitor,
+    SystemReader,
+    connections_waiting,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -92,6 +98,21 @@ def test_status_counts_this_process(make_client: Callable[..., TestClient], chec
     assert data["memory"]["source"] in {"cgroup", "meminfo"}
     assert data["graphs"] == [{"organism": "sus_scrofa", "file_bytes": data["graphs_file_bytes"]}]
     assert data["workers_alive"] == 1
+    # The server's totals of the recent past: the first sample is taken when the sampler starts.
+    history = data["history"]
+    assert history["interval_seconds"] > 0 and history["most_samples"] >= 60
+    [first, *_] = history["samples"]
+    assert first["pss_bytes"] is not None and first["pss_bytes"] > 0
+    assert first["waiting"] is None  # one process: the listen queue and the shared queue are not read
+
+
+def test_history_keeps_the_last_samples_oldest_first() -> None:
+    monitor = LoadMonitor(workers=1, sample_seconds=0.01, history_seconds=0.0)  # a sample due at every call
+    for _ in range(HISTORY_SAMPLES + 5):
+        monitor.sample()
+    samples = monitor.history()
+    assert len(samples) == HISTORY_SAMPLES
+    assert [s["sampled_at"] for s in samples] == sorted(s["sampled_at"] for s in samples)
 
 
 def test_status_is_cached_and_does_not_count_itself(client: TestClient) -> None:

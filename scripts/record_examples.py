@@ -75,6 +75,7 @@ TRIMMED: dict[str, list[tuple[tuple[str, ...], int]]] = {
     "showcase": [(("journeys",), 1), (("cases",), 1)],
     "convert_each_database": [(("conversions",), 2)],
     "history": [(("transitions",), 6)],
+    "status": [(("history", "samples"), 3)],
     "vocabulary": [
         ((table,), 2)
         for table in (

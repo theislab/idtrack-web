@@ -30,7 +30,7 @@ test("an unknown release: the api's message, the accepted values, what to change
   const meaning = vocabulary.errors.find((e) => e.code === "unknown_release")?.title ?? "-";
   await expect(alert.locator(".notice__title")).toHaveText(meaning);
   // The accepted values in the words of the form; the api's message on request.
-  await expect(alert).toContainText(/Accepted for the to release/);
+  await expect(alert).toContainText(/Accepted for the target release/);
   await expectAccessible(page);
   await shot(page, info, "12-error-unknown-release");
 });

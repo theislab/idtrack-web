@@ -2,7 +2,7 @@
 // size) and its frame never changes height when it is drawn. No layout is read during a commit: one ResizeObserver for
 // every figure reports each frame's width after the browser's own layout, before the paint, and the figures take it at
 // once (flushSync), so the first frame painted is already drawn at its width.
-import { useLayoutEffect, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import { flushSync } from "react-dom";
 
 const setters = new Map<Element, (width: number) => void>();
@@ -24,16 +24,26 @@ function watch(element: Element, set: (width: number) => void): () => void {
   };
 }
 
+/** The width of the element given `ref`, kept current. `ref` is a callback ref (it also holds the element, as
+ *  `ref.current`): whenever the element appears, is replaced or goes (a figure that draws nothing until its data come,
+ *  a frame swapped for another), the observer follows it, so a figure always measures the element it draws in. */
 export function useWidth<T extends HTMLElement>(fallback = 960) {
-  const ref = useRef<T>(null);
   const [width, setWidth] = useState(fallback);
-  useLayoutEffect(() => {
-    const element = ref.current;
-    if (!element) return;
-    return watch(element, (value) => {
-      const next = Math.round(value);
-      if (next > 0) setWidth((w) => (Math.abs(w - next) >= 1 ? next : w));
-    });
+  const ref = useMemo(() => {
+    const held: { element: T | null; stop: (() => void) | null } = { element: null, stop: null };
+    const attach = (element: T | null) => {
+      held.stop?.();
+      held.stop = null;
+      held.element = element;
+      if (!element) return;
+      held.stop = watch(element, (value) => {
+        const next = Math.round(value);
+        if (next > 0) setWidth((w) => (Math.abs(w - next) >= 1 ? next : w));
+      });
+    };
+    return Object.defineProperty(attach, "current", { get: () => held.element }) as typeof attach & {
+      readonly current: T | null;
+    };
   }, []);
   return { ref, width };
 }

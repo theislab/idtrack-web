@@ -1030,6 +1030,37 @@ class RequestsLoad(BaseModel):
     )
 
 
+class StatusSample(BaseModel):
+    """The server's totals at one moment of the recent past."""
+
+    model_config = _STRICT
+    sampled_at: str = Field(..., description="When it was taken (UTC, ISO 8601).")
+    cores_used: float | None = Field(
+        ..., description="The cores the server's processes used then (`cpu.cores_used`); `null`: not measured."
+    )
+    pss_bytes: int | None = Field(
+        ..., description="The server's footprint then (`memory.pss_bytes`); `null`: not measured."
+    )
+    waiting: int | None = Field(
+        ...,
+        description=(
+            "All the work waiting then: `requests.searches_waiting`, `requests.searches_queued` and "
+            "`requests.connections_waiting` summed; `null` where one of them was not read."
+        ),
+    )
+
+
+class StatusHistory(BaseModel):
+    """The server's totals over the last minutes, so that a reader sees them at once."""
+
+    model_config = _STRICT
+    interval_seconds: float = Field(..., description="Seconds between two samples.")
+    most_samples: int = Field(..., description="The samples kept at most (the oldest is dropped for a new one).")
+    samples: list[StatusSample] = Field(
+        ..., description="The samples, oldest first (empty until the first is taken, at the server's start)."
+    )
+
+
 class GraphLoad(BaseModel):
     """A graph the server holds in memory."""
 
@@ -1085,6 +1116,13 @@ class StatusResponse(BaseModel):
     memory: MemoryLoad = Field(..., description="The memory of the server's processes, and the limit it runs under.")
     requests: RequestsLoad = Field(
         ..., description="The requests of every worker: answered, in progress, searching, waiting, failed, by latency."
+    )
+    history: StatusHistory = Field(
+        ...,
+        description=(
+            "The server's totals every `interval_seconds` over the last minutes (cores used, footprint, work waiting), "
+            "taken by the server whether or not anyone asks."
+        ),
     )
     graphs: list[GraphLoad] = Field(..., description="The graphs loaded, in the manifest's order.")
     graphs_file_bytes: int = Field(..., description="The sizes of the graph files, summed.")

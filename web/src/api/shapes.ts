@@ -493,6 +493,7 @@ export const SCHEMAS: Record<string, Shape> = {
       inference: { r: "SourceInference" },
     },
   },
+  StatusHistory: { o: { interval_seconds: "number", most_samples: "integer", samples: { a: { r: "StatusSample" } } } },
   StatusResponse: {
     o: {
       sampled_at: "string",
@@ -510,9 +511,18 @@ export const SCHEMAS: Record<string, Shape> = {
       cpu: { r: "CpuLoad" },
       memory: { r: "MemoryLoad" },
       requests: { r: "RequestsLoad" },
+      history: { r: "StatusHistory" },
       graphs: { a: { r: "GraphLoad" } },
       graphs_file_bytes: "integer",
       unavailable: { a: "string" },
+    },
+  },
+  StatusSample: {
+    o: {
+      sampled_at: "string",
+      cores_used: { u: ["number", "null"] },
+      pss_bytes: { u: ["integer", "null"] },
+      waiting: { u: ["integer", "null"] },
     },
   },
   StatusTerm: {

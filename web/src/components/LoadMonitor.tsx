@@ -19,6 +19,7 @@ import {
   type Sample,
 } from "../lib/load";
 import { loadStore, useLoad } from "../lib/loadStore";
+import { useLocation } from "../lib/router";
 import { ErrorBoundary } from "./ErrorBoundary";
 import "../styles/load.css";
 
@@ -92,9 +93,20 @@ function useClock(active: boolean): number {
 
 export function LoadMonitor() {
   const snapshot = useLoad();
-  const [open, setOpen] = useState(false);
+  // The panel is open on the page where it was asked for: going to another page closes it, so a panel whose code
+  // arrives late (it could not be fetched offline) never opens by itself over a page the person moved on to.
+  const { path } = useLocation();
+  const [openOn, setOpenOn] = useState<string | null>(null);
+  const open = openOn === path;
+  const setOpen = useCallback(
+    (next: boolean) => {
+      setOpenOn(next ? path : null);
+    },
+    [path],
+  );
   const [opened, setOpened] = useState(false);
   const trigger = useRef<HTMLButtonElement>(null);
+  const root = useRef<HTMLDivElement>(null);
   const panelId = useId();
   const { latest, failure, samples, late } = snapshot;
   const state = monitorState(latest, failure?.kind ?? null, late !== null);
@@ -107,9 +119,29 @@ export function LoadMonitor() {
   }, [open]);
 
   const close = useCallback(() => {
-    setOpen(false);
+    setOpenOn(null);
     trigger.current?.focus();
   }, []);
+
+  // While the panel is asked for but not shown (its code is on its way, or could not be fetched and its statement
+  // stands under the reading), Escape and a press outside dismiss the statement and the wish to open it; the shown
+  // panel, a modal dialog, handles both itself.
+  useEffect(() => {
+    if (!open) return;
+    const shown = () => Boolean(root.current?.querySelector("dialog[open]"));
+    const onKey = (event: globalThis.KeyboardEvent) => {
+      if (event.key === "Escape" && !shown()) setOpenOn(null);
+    };
+    const onPointer = (event: globalThis.PointerEvent) => {
+      if (!shown() && root.current && !root.current.contains(event.target as Node)) setOpenOn(null);
+    };
+    document.addEventListener("keydown", onKey);
+    document.addEventListener("pointerdown", onPointer);
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.removeEventListener("pointerdown", onPointer);
+    };
+  }, [open]);
 
   const cpu = status?.cpu.share_of_available ?? null;
   const pss = status?.memory.pss_bytes ?? null;
@@ -146,7 +178,7 @@ export function LoadMonitor() {
         : "Server load, as measured by the server (GET /api/v1/status). Open for every process and how it is measured.";
 
   return (
-    <div className="load-monitor">
+    <div className="load-monitor" ref={root}>
       <button
         ref={trigger}
         type="button"
@@ -157,7 +189,7 @@ export function LoadMonitor() {
         title={title}
         onClick={() => {
           setOpened(true);
-          setOpen((o) => !o);
+          setOpen(!open);
         }}
       >
         <span className={`load-dot load-dot--${state}`} aria-hidden="true" />
@@ -189,8 +221,8 @@ export function LoadMonitor() {
       </button>
       {opened ? (
         // The panel's own boundary: if its code cannot be fetched, the reading above stays and the statement stands
-        // under it, over the page, without moving the masthead.
-        <div className="load-monitor__slot">
+        // under it, over the page, without moving the masthead; while the panel is not asked for, nothing of it shows.
+        <div className="load-monitor__slot" hidden={!open}>
           <ErrorBoundary part="The load panel" size="inline">
             <Suspense fallback={null}>
               <LoadPanel

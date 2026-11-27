@@ -40,12 +40,31 @@ import { groupedInteger } from "../src/lib/numbers";
 const RAW = readFileSync(join(import.meta.dirname, "fixtures", "status_answer.json"), "utf8");
 /** A real answer of /status (the five graphs, two workers). */
 const recorded = (): StatusResponse => JSON.parse(RAW) as StatusResponse;
+/** The server's own samples the recorded answer carries (they begin the page's samples). */
+const HISTORY = recorded().history.samples.length;
 
 function withLoad(change: (s: StatusResponse) => void): StatusResponse {
   const s = recorded();
   change(s);
   return s;
 }
+
+describe("the work waiting", () => {
+  it("counts each request once: the shared queue, the workers' own threads and the listen queue are apart", () => {
+    const status = withLoad((s) => {
+      s.requests.searches_queued = 31;
+      s.requests.searches_waiting = 0;
+      s.requests.connections_waiting = 0;
+    });
+    expect(workWaiting(status)).toBe(31);
+    expect(loadState(status)).toBe("saturated");
+    status.requests.searches_waiting = 2;
+    status.requests.connections_waiting = 3;
+    expect(workWaiting(status)).toBe(36);
+    status.requests.connections_waiting = null;
+    expect(workWaiting(status)).toBe(33);
+  });
+});
 
 describe("the state rule", () => {
   it("is ok below 70 % of the cores and of the memory limit with no search waiting", () => {
@@ -270,7 +289,7 @@ describe("the store asks /status", () => {
     const stop = store.subscribe(() => undefined);
     await advance(0);
     expect(fetcher).toHaveBeenCalledTimes(1);
-    expect(store.getSnapshot().samples).toHaveLength(1);
+    expect(store.getSnapshot().samples).toHaveLength(HISTORY + 1);
     await advance(CLOSED_INTERVAL_MS - 1);
     expect(fetcher).toHaveBeenCalledTimes(1);
     await advance(1);
@@ -323,7 +342,7 @@ describe("the store asks /status", () => {
     const snapshot = store.getSnapshot();
     expect(snapshot.failure?.message).toBe("The api cannot be reached.");
     expect(snapshot.latest?.status.workers_alive).toBe(recorded().workers_alive);
-    expect(snapshot.samples.map((s) => s.failed)).toEqual([false, true]);
+    expect(snapshot.samples.slice(HISTORY).map((s) => s.failed)).toEqual([false, true]);
     fail = new ApiError(
       404,
       {
@@ -366,7 +385,12 @@ describe("the store asks /status", () => {
     await advance(1);
     const since = store.getSnapshot().late?.since;
     expect(since).toBe(now - LATE_MS);
-    expect(store.getSnapshot().samples.map((s) => s.failed)).toEqual([false, true]);
+    expect(
+      store
+        .getSnapshot()
+        .samples.slice(HISTORY)
+        .map((s) => s.failed),
+    ).toEqual([false, true]);
     // Opening the panel while the request is on its way waits for it: no second request.
     store.setOpen(true);
     await advance(OPEN_INTERVAL_MS * 2);
@@ -374,7 +398,49 @@ describe("the store asks /status", () => {
     (release as (() => void) | null)?.();
     await advance(0);
     expect(store.getSnapshot().late).toBeNull();
-    expect(store.getSnapshot().samples.map((s) => s.failed)).toEqual([false, true, false]);
+    expect(
+      store
+        .getSnapshot()
+        .samples.slice(HISTORY)
+        .map((s) => s.failed),
+    ).toEqual([false, true, false]);
+    stop();
+  });
+
+  it("begins with the server's own samples, placed on the browser's clock, and fills a stretch without answers", async () => {
+    const { store } = make(ok);
+    const stop = store.subscribe(() => undefined);
+    await advance(0);
+    const status = recorded();
+    const samples = store.getSnapshot().samples;
+    const answered = Date.parse(status.sampled_at);
+    // Each of the server's samples stands as long before the answer as the server took it before answering.
+    status.history.samples.forEach((h, i) => {
+      expect(samples[i]?.at).toBe(now - (answered - Date.parse(h.sampled_at)));
+      expect(samples[i]?.pssBytes).toBe(h.pss_bytes);
+    });
+    expect(samples.map((s) => s.at)).toEqual([...samples.map((s) => s.at)].sort((a, b) => a - b));
+    // An answer within the gap adds itself only.
+    await advance(CLOSED_INTERVAL_MS);
+    expect(store.getSnapshot().samples).toHaveLength(HISTORY + 2);
+    // After the tab was hidden for longer than the gap, the server's samples of the stretch come first: those taken
+    // after the last sample kept and before the answer, none twice.
+    const before = store.getSnapshot().samples.length;
+    const lastKept = store.getSnapshot().samples[before - 1]?.at ?? 0;
+    hidden = true;
+    store.visibilityChanged();
+    await advance(GAP_MS * 2);
+    hidden = false;
+    store.visibilityChanged();
+    await advance(0);
+    const after = store.getSnapshot().samples;
+    expect(after.map((s) => s.at)).toEqual([...after.map((s) => s.at)].sort((a, b) => a - b));
+    const filled = status.history.samples.filter((h) => {
+      const at = now - (answered - Date.parse(h.sampled_at));
+      return at > lastKept && at < now;
+    }).length;
+    expect(filled).toBeGreaterThan(0);
+    expect(after).toHaveLength(before + filled + 1);
     stop();
   });
 

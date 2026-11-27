@@ -12,6 +12,7 @@ import { shapeProblem, type Shape } from "../src/api/shape";
 import { RESPONSES, SCHEMAS } from "../src/api/shapes";
 import type { ConversionResult } from "../src/api/types";
 import { ErrorBoundary } from "../src/components/ErrorBoundary";
+import { useWidth } from "../src/components/figure/useWidth";
 import { decodeFile, linesWithControls, normalizeLines, parseList } from "../src/lib/batchList";
 import { isChunkError } from "../src/lib/chunks";
 import { draftOver, isText, keepDraftOver, readDraft, writeDraft } from "../src/lib/drafts";
@@ -21,7 +22,8 @@ import { refusedArguments } from "../src/lib/refusals";
 import { routeOf } from "../src/lib/routes";
 import { fromShowcase } from "../src/lib/showcase";
 import { useRequest } from "../src/lib/useRequest";
-import { description, ORGANISMS, recorded } from "./fixtures";
+import { OrganismsProvider, useOrganisms } from "../src/lib/organisms";
+import { description, fixture, ORGANISMS, recorded } from "./fixtures";
 
 afterEach(() => {
   cleanup();
@@ -405,5 +407,109 @@ describe("a read that failed", () => {
       await vi.advanceTimersByTimeAsync(10_000);
     });
     expect(load).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("a change of the server's graphs", () => {
+  function respond(body: string) {
+    return new Response(body, { status: 200, headers: { "content-type": "application/json", "x-request-id": "rid" } });
+  }
+
+  function Shown() {
+    const { version, organisms } = useOrganisms();
+    return (
+      <p>
+        digest {organisms[0]?.content_digest ?? "-"}; version digest {version?.graphs[0]?.content_digest ?? "-"}
+      </p>
+    );
+  }
+
+  it("reads every fact of the graphs anew (/version too), asking /organisms once", async () => {
+    const pig = description("sus_scrofa");
+    const version = JSON.parse(fixture("sus_scrofa", "version").raw) as { graphs: { content_digest: string }[] };
+    let graphs = 1;
+    const digest = () => `${"a".repeat(63)}${String(graphs)}`;
+    const asked: string[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((url: string) => {
+        const path = url.replace("/api/v1", "").split("?")[0] ?? "";
+        asked.push(path);
+        if (path === "/organisms")
+          return Promise.resolve(respond(JSON.stringify({ organisms: [{ ...pig, content_digest: digest() }] })));
+        if (path === "/version")
+          return Promise.resolve(
+            respond(
+              JSON.stringify({ ...version, graphs: version.graphs.map((g) => ({ ...g, content_digest: digest() })) }),
+            ),
+          );
+        return Promise.resolve(respond(fixture("sus_scrofa", path.slice(1)).raw));
+      }),
+    );
+    let now = Date.now();
+    vi.spyOn(Date, "now").mockImplementation(() => now);
+    const view = render(
+      <OrganismsProvider>
+        <Shown />
+      </OrganismsProvider>,
+    );
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 20));
+    });
+    expect(view.container.textContent).toContain(`version digest ${"a".repeat(63)}1`);
+    // The server is given other graphs; the tab is shown again two minutes later.
+    graphs = 2;
+    now += 120_000;
+    await act(async () => {
+      document.dispatchEvent(new Event("visibilitychange"));
+      await new Promise((r) => setTimeout(r, 50));
+    });
+    expect(asked.filter((p) => p === "/organisms")).toHaveLength(2);
+    expect(view.container.textContent).toContain(`version digest ${"a".repeat(63)}2`);
+  });
+});
+
+describe("a figure's width", () => {
+  it("is measured on the element it draws in, whenever that element appears or is replaced", () => {
+    const observed: Element[] = [];
+    let report: ((entries: { target: Element; contentRect: { width: number } }[]) => void) | null = null;
+    vi.stubGlobal(
+      "ResizeObserver",
+      class {
+        constructor(callback: typeof report) {
+          report = callback;
+        }
+        observe(element: Element) {
+          observed.push(element);
+        }
+        unobserve(element: Element) {
+          observed.splice(observed.indexOf(element), 1);
+        }
+        disconnect() {
+          observed.length = 0;
+        }
+      },
+    );
+    function Figure({ shown, kind }: { shown: boolean; kind: string }) {
+      const { ref, width } = useWidth<HTMLDivElement>(0);
+      if (!shown) return <p>nothing yet</p>;
+      return (
+        <div ref={ref} data-kind={kind}>
+          width {width}
+        </div>
+      );
+    }
+    const view = render(<Figure shown={false} kind="a" />);
+    expect(observed).toHaveLength(0);
+    view.rerender(<Figure shown kind="a" />);
+    expect(observed).toHaveLength(1);
+    const [frame] = observed;
+    if (!frame) throw new Error("no element observed");
+    act(() => {
+      report?.([{ target: frame, contentRect: { width: 640 } }]);
+    });
+    expect(view.container.textContent).toBe("width 640");
+    view.rerender(<Figure shown={false} kind="a" />);
+    expect(observed).toHaveLength(0);
   });
 });

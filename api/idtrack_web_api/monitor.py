@@ -25,6 +25,9 @@ its CPU and memory as its own sampler measured them. Any worker reads the whole 
   listening socket, Linux's ``TCP_INFO``), searches a busy worker handed on to the queue the workers share (its count in
   shared memory), both read when ``/status`` is answered, and searches a worker holds that wait for its own search
   thread.
+- **The recent past**: every :py:data:`HISTORY_SECONDS` one worker (whichever claims it first) writes the server's
+  totals (cores used, PSS, work waiting) into a ring of shared memory that holds the last :py:data:`HISTORY_SAMPLES`,
+  so that a reader sees the last minutes at once rather than from the moment it began to ask.
 - **Answers not yet taken**: the bytes of answers each worker holds for clients that have not read them yet.
 
 What cannot be measured (``/proc`` missing, off Linux) is ``null`` and named in ``unavailable``; no value is made up.
@@ -64,6 +67,13 @@ LATENCY_REQUESTS = 1000
 LATENCY_WINDOW_SECONDS = 300.0
 #: Requests per second are counted in this many one-second buckets (at least 60 and a few).
 _BUCKETS = 64
+#: Seconds between two samples of the server's totals kept for ``/status``'s ``history``...
+HISTORY_SECONDS = 10.0
+#: ...and how many are kept (15 minutes).
+HISTORY_SAMPLES = 90
+# The fields of one sample of the ring: when (wall clock), cores used, PSS, work waiting (NaN: not measured).
+_H_WALL, _H_CORES, _H_PSS, _H_WAITING = 0, 1, 2, 3
+_H_FIELDS = 4
 
 # The fields of a process's row of the table (floats; an integer count is exact up to 2**53; NaN: not measured).
 _PID, _START_TICKS, _STARTED_WALL = 0, 1, 2
@@ -85,6 +95,8 @@ _NAN = math.nan
 # the table's lock.
 _MADE_WALL, _MADE_MONO, _RETIRED_REQUESTS, _RETIRED_4XX, _RETIRED_5XX = 0, 1, 2, 3, 4
 _EXITS, _LAST_EXIT_WALL, _LOST, _RETIRED_STATUS, _LOCK_HOLDER = 5, 6, 7, 8, 9
+# The ring of the server's totals: when its last sample was claimed (monotonic) and how many were written.
+_HISTORY_AT, _HISTORY_WRITTEN = 10, 11
 # The mean time of the recent searches (each weighted by :py:data:`SEARCH_WEIGHT`), and the searches measured.
 _SEARCH_MEAN, _SEARCHES_MEASURED = 12, 13
 _SERVER = 14
@@ -361,6 +373,7 @@ class LoadMonitor:
         reader: SystemReader | None = None,
         sample_seconds: float = SAMPLE_SECONDS,
         memory_sample_seconds: float = MEMORY_SAMPLE_SECONDS,
+        history_seconds: float = HISTORY_SECONDS,
     ) -> None:
         """Make the shared table (before the workers are forked).
 
@@ -369,23 +382,27 @@ class LoadMonitor:
             reader: What reads ``/proc`` and the cgroups (``None``: the system's).
             sample_seconds: Seconds between two samples of CPU.
             memory_sample_seconds: Seconds between two samples of memory (at least *sample_seconds*).
+            history_seconds: Seconds between two samples of the server's totals kept in ``history``.
         """
         self.workers = workers
         self.reader = reader or SystemReader()
         self.sample_seconds = sample_seconds
         self.memory_sample_seconds = max(sample_seconds, memory_sample_seconds)
+        self.history_seconds = history_seconds
         # A replaced worker leaves its row until a new one takes it; twice the workers leaves room for replacements.
         self.slots = max(2 * workers, workers + 2)
         context = multiprocessing.get_context("fork")
         # Row 0: the master; rows 1 to slots: the workers.
         self._table: Any = context.RawArray("d", (self.slots + 1) * _ROW)
         self._server: Any = context.RawArray("d", _SERVER)
+        self._history: Any = context.RawArray("d", HISTORY_SAMPLES * _H_FIELDS)
         self._lock: Any = context.Lock()
         self.master_pid = os.getpid()
         for row in range(self.slots + 1):
             self._clear(row)
         self._server[_MADE_WALL] = time.time()
         self._server[_MADE_MONO] = time.monotonic()
+        self._server[_HISTORY_AT] = _NAN
         start = self.reader.start_ticks(self.master_pid)
         self._set(0, _PID, float(self.master_pid))
         self._set(0, _START_TICKS, _NAN if start is None else float(start))
@@ -637,6 +654,57 @@ class LoadMonitor:
             self._sample_memory(row, self._pid)
         if self.master_pid != self._pid:
             self._sample_master()
+        self._sample_history()
+
+    def _sample_history(self) -> None:
+        """Write the server's totals into the ring when a sample is due and no other worker claimed it."""
+        with self._locked(0.0) as held:
+            if not held:
+                return
+            now = time.monotonic()
+            then = self._server[_HISTORY_AT]
+            if not math.isnan(then) and now - then < self.history_seconds - self.sample_seconds / 2:
+                return
+            self._server[_HISTORY_AT] = now  # claimed
+        totals = self._totals(time.monotonic())
+        waiting = self._waiting(totals["workers"])
+        known = [waiting["searches_waiting"], waiting["searches_queued"], waiting["connections_waiting"]]
+        sample = (
+            time.time(),
+            _NAN if totals["cores_used"] is None else totals["cores_used"],
+            _NAN if totals["pss"] is None else totals["pss"],
+            _NAN if any(v is None for v in known) else float(sum(v for v in known if v is not None)),
+        )
+        with self._locked(0.5) as held:
+            if not held:
+                return
+            written = int(self._server[_HISTORY_WRITTEN])
+            base = (written % HISTORY_SAMPLES) * _H_FIELDS
+            for field, value in enumerate(sample):
+                self._history[base + field] = value
+            self._server[_HISTORY_WRITTEN] = float(written + 1)
+
+    def history(self) -> list[dict[str, Any]]:
+        """Return the ring's samples, oldest first.
+
+        Returns:
+            list[dict[str, Any]]: As :py:class:`idtrack_web_api.schemas.StatusSample` describes each.
+        """
+        written = int(self._server[_HISTORY_WRITTEN])
+        count = min(written, HISTORY_SAMPLES)
+        samples = []
+        for index in range(written - count, written):
+            base = (index % HISTORY_SAMPLES) * _H_FIELDS
+            wall, cores, pss, waiting = (float(self._history[base + f]) for f in range(_H_FIELDS))
+            samples.append(
+                {
+                    "sampled_at": _iso(wall),
+                    "cores_used": _known(cores),
+                    "pss_bytes": _whole(pss),
+                    "waiting": _whole(waiting),
+                }
+            )
+        return samples
 
     def _sample_memory(self, row: int, pid: int) -> None:
         self._write_memory(row, self.reader.memory(pid))
@@ -756,6 +824,41 @@ class LoadMonitor:
         found.sort(reverse=True)
         return found[:LATENCY_REQUESTS]
 
+    def _totals(self, now: float) -> dict[str, Any]:
+        """Return the processes alive and the server's sums over them (``None`` where one is not measured)."""
+        forked = self.master_pid != os.getpid()
+        recorded = [row for row in range(1, self.slots + 1) if self._get(row, _PID) > 0]
+        alive = [row for row in recorded if self._is_alive(row)]
+        workers = [self._worker(row, now) for row in alive]
+        master = self._process(0, now) if forked else None
+        processes = ([master] if master is not None else []) + workers
+
+        def total(field: str) -> float | None:
+            values = [p[field] for p in processes]
+            if not values or any(v is None for v in values):
+                return None
+            return float(sum(values))
+
+        return {
+            "recorded": recorded,
+            "alive": alive,
+            "workers": workers,
+            "master": master,
+            "processes": processes,
+            "cores_used": total("cpu_share"),
+            "rss": total("rss_bytes"),
+            "pss": total("pss_bytes"),
+            "uss": total("uss_bytes"),
+        }
+
+    def _waiting(self, workers: list[dict[str, Any]]) -> dict[str, int | None]:
+        """Return the work waiting, in its three places that never overlap (``None``: not measured here)."""
+        return {
+            "searches_waiting": sum(w["searches_waiting"] for w in workers),
+            "searches_queued": None if self.handoff is None else int(self.handoff.waiting),
+            "connections_waiting": connections_waiting(self.listening),
+        }
+
     def snapshot(self) -> dict[str, Any]:
         """Return the server's load as ``/status`` answers it (without the graphs, which the app adds).
 
@@ -765,27 +868,20 @@ class LoadMonitor:
         self._mine()
         now = time.monotonic()
         wall = time.time()
-        forked = self.master_pid != os.getpid()
-        recorded = [row for row in range(1, self.slots + 1) if self._get(row, _PID) > 0]
-        alive = [row for row in recorded if self._is_alive(row)]
-        workers = [self._worker(row, now) for row in alive]
-        master = self._process(0, now) if forked else None
-        processes = ([master] if master is not None else []) + workers
+        totals = self._totals(now)
+        recorded, alive, workers = totals["recorded"], totals["alive"], totals["workers"]
+        master, processes = totals["master"], totals["processes"]
 
         unavailable: list[str] = []
-
-        def total(field: str, name: str) -> float | None:
-            values = [p[field] for p in processes]
-            missing = [p for p in processes if p[field] is None]
-            if missing or not values:
+        for field, name in (
+            ("cores_used", "cpu.cores_used"),
+            ("rss", "memory.rss_bytes"),
+            ("pss", "memory.pss_bytes"),
+            ("uss", "memory.uss_bytes"),
+        ):
+            if totals[field] is None:
                 unavailable.append(name)
-                return None
-            return float(sum(values))
-
-        cores_used = total("cpu_share", "cpu.cores_used")
-        rss = total("rss_bytes", "memory.rss_bytes")
-        pss = total("pss_bytes", "memory.pss_bytes")
-        uss = total("uss_bytes", "memory.uss_bytes")
+        cores_used, rss, pss, uss = totals["cores_used"], totals["rss"], totals["pss"], totals["uss"]
         cpu = self.reader.cpu_limit()
         if cpu.quota_cores is None and not self.reader.cgroups():
             unavailable.append("cpu.quota_cores")
@@ -793,11 +889,10 @@ class LoadMonitor:
         if limit is None:
             unavailable += ["memory.limit_bytes", "memory.limit_used_bytes"]
         durations = sorted(seconds for _, seconds in self._durations(recorded, now))
-        waiting = connections_waiting(self.listening)
-        queued = None if self.handoff is None else int(self.handoff.waiting)
-        if waiting is None:
+        waiting = self._waiting(workers)
+        if waiting["connections_waiting"] is None:
             unavailable.append("requests.connections_waiting")
-        if queued is None:
+        if waiting["searches_queued"] is None:
             unavailable.append("requests.searches_queued")
         second = math.floor(now)
         server = self._server
@@ -834,9 +929,9 @@ class LoadMonitor:
                 "total": int(server[_RETIRED_REQUESTS] + sum(self._get(row, _REQUESTS) for row in recorded)),
                 "in_flight": sum(w["in_flight"] for w in workers),
                 "searches_running": sum(w["searches_running"] for w in workers),
-                "searches_waiting": sum(w["searches_waiting"] for w in workers),
-                "connections_waiting": waiting,
-                "searches_queued": queued,
+                "searches_waiting": waiting["searches_waiting"],
+                "connections_waiting": waiting["connections_waiting"],
+                "searches_queued": waiting["searches_queued"],
                 "sending_bytes": sum(w["sending_bytes"] for w in workers),
                 "last_60_seconds": sum(self._last_minute(row, second) for row in recorded),
                 "errors_4xx": int(server[_RETIRED_4XX] + sum(self._get(row, _ERRORS_4XX) for row in recorded)),
@@ -855,6 +950,11 @@ class LoadMonitor:
                     "max_ms": durations[-1] * 1000 if durations else None,
                 },
             },
+        }
+        body["history"] = {
+            "interval_seconds": self.history_seconds,
+            "most_samples": HISTORY_SAMPLES,
+            "samples": self.history(),
         }
         body["unavailable"] = sorted(set(unavailable) | self._missing(processes))
         return body
@@ -898,6 +998,8 @@ def connections_waiting(sockets: list[socket.socket]) -> int | None:
 
 __all__ = [
     "CACHE_SECONDS",
+    "HISTORY_SAMPLES",
+    "HISTORY_SECONDS",
     "LATENCY_REQUESTS",
     "LATENCY_WINDOW_SECONDS",
     "MEMORY_SAMPLE_SECONDS",

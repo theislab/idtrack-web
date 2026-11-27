@@ -1,8 +1,9 @@
 // What the server holds (`/organisms`, `/version`), what its codes mean (`/vocabulary`) and its bounds (`/limits`),
 // read once and shared by every view, and the organism chosen. When the graphs' digests change (the server was
-// given other graphs), every answer held of the earlier ones is forgotten (api/client.ts).
+// given other graphs), every answer held of the earlier ones is forgotten and every view's read is asked again
+// (api/client.ts, a new generation): the version, vocabulary and limits too, and /organisms only once.
 import { createContext, use, useEffect, useMemo, useRef, type ReactNode } from "react";
-import { api, forgetAnswers, type AnyRequestError } from "../api/client";
+import { API_BASE, api, forgetAnswers, type AnyRequestError } from "../api/client";
 import type { GraphDescription, VersionResponse } from "../api/types";
 import { commonName } from "./organismNames";
 import { NO_VOCABULARY, readVocabulary } from "./vocabulary";
@@ -55,9 +56,8 @@ export function OrganismsProvider({ children }: { children: ReactNode }) {
     digests.current = now;
   }, [organisms]);
   // A tab left open across a change of the server's graphs: when it is shown again (at most once a minute), /organisms
-  // is asked again quietly (revalidated against its ETag); other digests forget every answer held and read the
-  // organisms anew.
-  const retryOrganisms = organisms.retry;
+  // is asked again quietly (revalidated against its ETag); other digests forget every answer held but this one, and
+  // every view asks again.
   useEffect(() => {
     let checked = Date.now();
     const check = () => {
@@ -67,8 +67,8 @@ export function OrganismsProvider({ children }: { children: ReactNode }) {
         (answer) => {
           const now = answer.data.organisms.map((o) => `${o.organism}:${o.content_digest ?? ""}`).join(" ");
           if (digests.current !== null && digests.current !== now) {
-            forgetAnswers();
-            retryOrganisms();
+            digests.current = now;
+            forgetAnswers({ [`${API_BASE}/organisms`]: answer });
           }
         },
         () => undefined,
@@ -78,7 +78,7 @@ export function OrganismsProvider({ children }: { children: ReactNode }) {
     return () => {
       document.removeEventListener("visibilitychange", check);
     };
-  }, [retryOrganisms]);
+  }, []);
   const words = useMemo(
     () => (vocabulary.state === "done" ? readVocabulary(vocabulary.answer.data) : NO_VOCABULARY),
     [vocabulary],

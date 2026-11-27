@@ -298,10 +298,38 @@ export function holdPreloaded(
 
 holdPreloaded();
 
-/** Forget every answer held (when the server's graphs changed, so that nothing of the earlier graphs is shown). */
-export function forgetAnswers(): void {
+/** The generation of the answers held: a change of the server's graphs begins a new one, and every view's read
+ *  (`useRequest`) is of one generation, so that a view still showing an earlier graph's answer asks again. */
+let generation = 0;
+const generationListeners = new Set<() => void>();
+
+export function answersGeneration(): number {
+  return generation;
+}
+
+export function onAnswersGeneration(listener: () => void): () => void {
+  generationListeners.add(listener);
+  return () => {
+    generationListeners.delete(listener);
+  };
+}
+
+/** Forget every answer held (when the server's graphs changed, so that nothing of the earlier graphs is shown) and
+ *  begin a new generation; `keep` holds answers already asked of the new graphs (by address), so they are not asked
+ *  twice. */
+export function forgetAnswers(keep: Record<string, Answer<unknown>> = {}): void {
   for (const entry of held.values()) if (!entry.settled) entry.controller.abort();
   held.clear();
+  for (const [key, answer] of Object.entries(keep))
+    held.set(key, {
+      promise: Promise.resolve(answer),
+      controller: new AbortController(),
+      waiting: 0,
+      settled: true,
+      bytes: answer.raw.length,
+    });
+  generation += 1;
+  for (const listener of generationListeners) listener();
 }
 
 /** The number of answers held (for the tests). */

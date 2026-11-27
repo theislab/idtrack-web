@@ -493,9 +493,21 @@
   grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
+.load-stats--three {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.load-stats--three + .load-stats--three {
+  margin-top: var(--space-3);
+}
+
 @media (max-width: 640px) {
   .load-stats--four {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .load-stats--three {
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 
@@ -601,6 +613,11 @@
 .exact:focus-visible .exact__tip,
 .exact--pinned .exact__tip {
   display: block;
+}
+
+/* Escape hid it: it stays hidden until the pointer and focus have left the value. */
+.exact.exact--dismissed .exact__tip {
+  display: none;
 }
 
 /* The processes' table: the balance between the workers as a bar of each one's share of the requests. */

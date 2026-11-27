@@ -11,8 +11,8 @@ import { Button, Mono, Prose } from "./ui";
 const ARGUMENT_WORDS: Record<string, string> = {
   final_database: "the target database at this release",
   from_database: "the source database",
-  from_release: "the from release",
-  to_release: "the to release",
+  from_release: "the release read at",
+  to_release: "the target release",
   organism: "the organism",
 };
 

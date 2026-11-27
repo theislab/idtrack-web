@@ -73,6 +73,12 @@ const NAV: [string, string][] = [
   ["/method", "Method"],
 ];
 
+/** Whether text from an address reads as an organism's name (an Ensembl production name, or a common name such as
+ *  "pig"): at most 40 letters and underscores. Anything else is never echoed into the page. */
+function organismLike(text: string): boolean {
+  return /^[A-Za-z][A-Za-z_]{0,39}$/.test(text);
+}
+
 /** Pages whose address carries no organism (the organism is chosen on the page or does not apply). */
 const WITHOUT_ORGANISM = new Set(["/organisms", "/developers", "/method"]);
 
@@ -291,7 +297,12 @@ function Page() {
   const { status, error, retry, unknownRequested, organisms } = useOrganisms();
   const path = location.path;
   const route = routeOf(path);
-  const pageName = route.page === "organism" ? organismName(route.organism) : route.title;
+  const pageName =
+    route.page === "organism"
+      ? organismLike(route.organism)
+        ? organismName(route.organism)
+        : "An unknown graph"
+      : route.title;
   const redirectTo = route.page === "redirect" ? route.to : null;
   useEffect(() => {
     setPageTitle(pageName);
@@ -354,12 +365,20 @@ function Page() {
       </div>
     );
   }
+  // Text from an address never speaks in the site's voice: it is quoted only when it reads as an organism's name.
   const unknown = unknownRequested ? (
     <div className="notice notice--danger page" role="alert">
       <p className="notice__title">An organism this server does not hold</p>
       <p>
-        <Mono>{unknownRequested}</Mono> is not loaded here; the page shows{" "}
-        {organisms[0] ? organismName(organisms[0].organism) : "another"} instead. Choose one in the header.
+        {organismLike(unknownRequested) ? (
+          <>
+            The organism named in the address, “<Mono>{unknownRequested}</Mono>”, is not loaded here
+          </>
+        ) : (
+          "The organism named in the address is not one this server holds"
+        )}
+        ; the page shows {organisms[0] ? organismName(organisms[0].organism) : "another"} instead. Choose one in the
+        header.
       </p>
     </div>
   ) : null;
