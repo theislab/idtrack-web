@@ -12,6 +12,10 @@ import { shapeProblem, type Shape } from "../src/api/shape";
 import { RESPONSES, SCHEMAS } from "../src/api/shapes";
 import type { ConversionResult } from "../src/api/types";
 import { ErrorBoundary } from "../src/components/ErrorBoundary";
+import { ErrorPanel } from "../src/components/ErrorPanel";
+import { Link } from "../src/components/ui";
+import { NO_VOCABULARY } from "../src/lib/vocabulary";
+import { VocabularyContext } from "../src/lib/vocabularyContext";
 import { useWidth } from "../src/components/figure/useWidth";
 import { decodeFile, linesWithControls, normalizeLines, parseList } from "../src/lib/batchList";
 import { isChunkError } from "../src/lib/chunks";
@@ -511,5 +515,51 @@ describe("a figure's width", () => {
     expect(view.container.textContent).toBe("width 640");
     view.rerender(<Figure shown={false} kind="a" />);
     expect(observed).toHaveLength(0);
+  });
+});
+
+describe("a statement of a failure", () => {
+  it("names what failed, whatever the code, and heads the page where it is the whole page", () => {
+    const error = new ApiError(
+      500,
+      {
+        code: "internal_error",
+        message: "Simulated failure.",
+        argument: null,
+        allowed: null,
+        details: null,
+        request_id: "abc",
+      },
+      null,
+    );
+    const { container } = render(
+      <VocabularyContext
+        value={{
+          ...NO_VOCABULARY,
+          errors: new Map([
+            ["internal_error", { code: "internal_error", title: "A fault of the server.", retryable: true } as never],
+          ]),
+        }}
+      >
+        <ErrorPanel error={error} context="The list of organisms" level={1} />
+      </VocabularyContext>,
+    );
+    expect(container.querySelector("h1")?.textContent).toBe("A fault of the server.");
+    expect(container.textContent).toContain("The list of organisms was refused: Simulated failure.");
+  });
+});
+
+describe("a link to a place on a page", () => {
+  it("keeps the place in the address and does not send the reader to the page's top", () => {
+    const scrolled = vi.fn();
+    vi.stubGlobal("scrollTo", scrolled);
+    window.history.replaceState(null, "", "/");
+    render(<Link to="/method#method-evidence">How it is measured</Link>);
+    fireEvent.click(screen.getByRole("link", { name: "How it is measured" }));
+    expect(window.location.pathname + window.location.hash).toBe("/method#method-evidence");
+    expect(scrolled).not.toHaveBeenCalled();
+    render(<Link to="/batch">Batch</Link>);
+    fireEvent.click(screen.getByRole("link", { name: "Batch" }));
+    expect(scrolled).toHaveBeenCalledWith({ top: 0 });
   });
 });

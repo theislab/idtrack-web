@@ -55,14 +55,14 @@ export function ErrorPanel({
   onRetry?: () => void;
   /** What was being done, for the title: "The conversion", "The organisms". */
   context?: string;
-  /** The level of the statement's heading in the page's outline. */
-  level?: 2 | 3;
+  /** The level of the statement's heading in the page's outline (1 where the statement is the whole page). */
+  level?: 1 | 2 | 3;
   /** Ways on that the page offers for this failure (ask without a refused value, for example). */
   actions?: ReactNode;
 }) {
   const vocabulary = useVocabulary();
   const left = useWaitLeft(error);
-  const Heading = level === 3 ? "h3" : "h2";
+  const Heading = level === 1 ? "h1" : level === 3 ? "h3" : "h2";
   const retryButton = (label = "Try again") =>
     onRetry ? (
       <Button onClick={onRetry} disabled={left > 0}>
@@ -97,7 +97,10 @@ export function ErrorPanel({
     return (
       <div className="notice notice--danger" role="alert">
         <Heading className="notice__title">No answer in time</Heading>
-        <p>{error.message} Ask for less at once (fewer identifiers, or without the path), then try again.</p>
+        <p>
+          {context ? `${context}: ` : ""}
+          {error.message} Ask for less at once (fewer identifiers, or without the path), then try again.
+        </p>
         {actionRow(retryButton())}
       </div>
     );
@@ -142,6 +145,8 @@ export function ErrorPanel({
           </>
         ) : (
           <p className="notice__prose">
+            {/* What was refused is named before the api's words, whatever its code: every statement says what failed. */}
+            {context && meaning ? `${context} was refused: ` : ""}
             <Prose text={body.message} />
           </p>
         )}
@@ -172,6 +177,7 @@ export function ErrorPanel({
     <div className="notice notice--danger" role="alert">
       <Heading className="notice__title">An answer the page cannot read</Heading>
       <p className="notice__prose">
+        {context ? `${context}: ` : ""}
         {error.message} This is a fault: the api answered something its document does not describe. Try again; if it
         persists, report it
         {error instanceof UnexpectedAnswerError && error.requestId ? (

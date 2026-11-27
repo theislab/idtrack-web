@@ -13,7 +13,7 @@ import { OrganismPicker } from "./components/OrganismPicker";
 import { ThemeSwitch } from "./components/ThemeSwitch";
 import { Button, Link, Mono, Skeleton } from "./components/ui";
 import { takeReloadNotice } from "./lib/chunks";
-import { focusWhenThere } from "./lib/focus";
+import { focusWhenThere, fragmentTarget } from "./lib/focus";
 import { organismName } from "./lib/organismNames";
 import { OrganismsProvider, useOrganisms } from "./lib/organisms";
 import { routeOf } from "./lib/routes";
@@ -299,7 +299,7 @@ function Page() {
   if (status === "failed" && error) {
     return (
       <div className="page">
-        <ErrorPanel error={error} onRetry={retry} context="The list of organisms" />
+        <ErrorPanel error={error} onRetry={retry} context="The list of organisms" level={1} />
       </div>
     );
   }
@@ -396,12 +396,18 @@ function Page() {
 /** A route change (another path, not another query of the same page) moves the focus to the new page's heading, as
  *  a page load would put a reader at the top; the first page of a visit is left as the browser opens it. */
 function useRouteFocus(path: string): void {
-  const previous = useRef(path);
+  const previous = useRef<string | null>(null);
   useEffect(() => {
+    const first = previous.current === null;
     if (previous.current === path) return;
     previous.current = path;
     const main = () => document.getElementById("main");
-    return focusWhenThere(main, "h1");
+    // An address with a fragment (`/method#method-evidence`) is a place on the page: it is brought into view and
+    // focused once it is drawn (it may come after the page's head), at the first page of a visit too, where the
+    // browser's own scroll to it would find it not drawn yet.
+    const target = fragmentTarget();
+    if (target) return focusWhenThere(main, target);
+    return first ? undefined : focusWhenThere(main, "h1");
   }, [path]);
 }
 

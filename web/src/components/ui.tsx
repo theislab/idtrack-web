@@ -10,6 +10,7 @@ import {
   type ReactNode,
   type SelectHTMLAttributes,
 } from "react";
+import { focusWhenThere, fragmentTarget } from "../lib/focus";
 import { navigate } from "../lib/router";
 import { prose } from "../lib/values";
 import { statusTitle } from "../lib/vocabulary";
@@ -23,7 +24,9 @@ export function Button({
   return <button type="button" className={`button button--${variant} ${className}`} {...props} />;
 }
 
-/** A link inside the app: navigates without reloading; a modified click opens a new tab as usual. */
+/** A link inside the app: navigates without reloading; a modified click opens a new tab as usual. An address with a
+ *  fragment (`/method#method-evidence`) leads to that place: on another page the route's focus brings it into view once
+ *  it is drawn (App.tsx); on the same page it is brought into view at once. Any other link starts at the page's top. */
 export function Link({
   to,
   children,
@@ -47,8 +50,14 @@ export function Link({
       onClick={(event) => {
         if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey) return;
         event.preventDefault();
+        const target = new URL(to, window.location.href);
+        const samePage = target.pathname === window.location.pathname;
         navigate(to);
-        window.scrollTo({ top: 0 });
+        if (!target.hash) window.scrollTo({ top: 0 });
+        else if (samePage) {
+          const place = fragmentTarget(target.hash);
+          if (place) focusWhenThere(() => document.getElementById("main"), place);
+        }
       }}
     >
       {children}

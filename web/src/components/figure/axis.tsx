@@ -6,8 +6,8 @@ import { bandRange, labelEvery, shortNames, type Band, type ReleaseScale } from 
 import { FIG_TEXT, placeLabels, type LabelRequest, type PlacedLabel } from "./labels";
 
 /** The assembly bands as columns behind a figure. `labelY`: the baseline of the names inside the bands; `outerY`: the
- *  baseline of a second row of names, for the name of a band that has no room inside (none: such a band is named by its short
- *  name where it fits, and always in the figure's caption). `view`: the extent drawn (a zoomed figure). */
+ *  baseline of a second row of names, for the name of a band that has no room inside, with a bracket under it that spans
+ *  its own band (none: such a band is named by its short name where it fits, and always in the figure's caption). `view`: the extent drawn (a zoomed figure). */
 export function Bands({
   bands,
   scale,
@@ -105,9 +105,21 @@ export function Bands({
               </text>
             ) : null}
             {outer && outerY !== undefined ? (
-              <text x={outer.x} y={outerY} textAnchor={outer.anchor} className="fig-band__name fig-band__name--out">
-                {outer.text}
-              </text>
+              <>
+                {/* The name stands over its neighbours' ground: a bracket under it spans its own band, edge to edge,
+                    so the name is read as that band's and no other's. */}
+                <path
+                  className="fig-band__bracket"
+                  d={(() => {
+                    const { l, r } = extent(band);
+                    const y = outerY + 4;
+                    return `M${(l + 1).toFixed(1)},${y - 3}V${y}H${(r - 1).toFixed(1)}V${y - 3}`;
+                  })()}
+                />
+                <text x={outer.x} y={outerY} textAnchor={outer.anchor} className="fig-band__name fig-band__name--out">
+                  {outer.text}
+                </text>
+              </>
             ) : null}
           </g>
         );

@@ -47,6 +47,12 @@ export function focusWhenThere(root: () => HTMLElement | null, selector: string,
   return stop;
 }
 
+/** The selector of the element the address's fragment names (`#history` -> the element of id `history`), or null. */
+export function fragmentTarget(hash = window.location.hash): string | null {
+  const id = decodeURIComponent(hash.replace(/^#/, ""));
+  return id ? `#${CSS.escape(id)}` : null;
+}
+
 /** Bring a result area into view as soon as a request starts (a person sees that something happens). */
 export function revealArea(area: HTMLElement | null): void {
   if (!area) return;

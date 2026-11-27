@@ -4,8 +4,8 @@
 // same content digest); its numbers are written as the repository writes them, and the line leads to Method's panel
 // that states how they are measured. Its own chunk: the measured data load after the page has painted.
 import { BENCHMARKS, judged, measuredGraph } from "../../lib/benchmarks";
-import { openAt } from "../../lib/home/links";
 import { groupedInteger } from "../../lib/numbers";
+import { Link } from "../ui";
 
 export function HeroMeasure({ organism, digest }: { organism: string; digest: string | null }) {
   const family = BENCHMARKS.families.find((f) => f.key === "a");
@@ -16,16 +16,7 @@ export function HeroMeasure({ organism, digest }: { organism: string; digest: st
     <p className="hero__measure">
       Benchmark {family.title.split(",")[0]} on this graph: <span className="mono">{row.rate}</span> of{" "}
       <span className="mono">{groupedInteger(n)}</span> judged answers agree with Ensembl&apos;s id history.{" "}
-      <a
-        href="/method#method-evidence"
-        onClick={(event) => {
-          if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey) return;
-          event.preventDefault();
-          openAt("/method", "method-evidence");
-        }}
-      >
-        How it is measured
-      </a>
+      <Link to="/method#method-evidence">How it is measured</Link>
     </p>
   );
 }

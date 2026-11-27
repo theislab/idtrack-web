@@ -63,6 +63,13 @@
   stroke: var(--fig-ground);
 }
 
+/* The span of the band an outer name names. */
+.fig-band__bracket {
+  fill: none;
+  stroke: var(--ink-3);
+  stroke-width: 1;
+}
+
 .fig-band__range {
   font-weight: var(--weight-regular);
   fill: var(--ink-3);
@@ -393,6 +400,7 @@
   }
 
   .fig-band__edge,
+  .fig-band__bracket,
   .fig-axis__line,
   .fig-axis__tick,
   .fig-score__line,

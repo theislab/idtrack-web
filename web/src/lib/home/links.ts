@@ -1,8 +1,6 @@
 // Addresses of the home page's cases: the page's own address of a conversion, and the api's.
 import type { GraphDescription, ShowcaseQuery } from "../../api/types";
 import { convertHref, plainConversion } from "../convertParameters";
-import { focusWhenThere } from "../focus";
-import { navigate } from "../router";
 import type { CaseQuery } from "./cases";
 
 /** The address of a case's conversion on the Convert page. */
@@ -50,12 +48,4 @@ export function caseQueryOf(organism: string, q: ShowcaseQuery): CaseQuery {
     ...(q.to_release !== null ? { to: q.to_release } : {}),
     ...(q.final_database !== null ? { db: q.final_database } : {}),
   };
-}
-
-/** Go to a page and bring one of its parts into view, focused, once it is drawn (the part may load after the page):
- *  a link from a figure to the place on another page that explains it. */
-export function openAt(path: string, id: string): void {
-  navigate(path);
-  window.scrollTo({ top: 0 });
-  focusWhenThere(() => document.body, `#${CSS.escape(id)}`);
 }
