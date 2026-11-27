@@ -97,42 +97,14 @@ const base: ConversionResult = first;
 const make = (over: Partial<ConversionResult>): ConversionResult => ({ ...base, ...over });
 
 describe("the evidence of an answer", () => {
-  it("marks a bridge, a synonym, ignored case, a newer version, a copy and a fallback, from the fields alone", () => {
-    const best = base.candidates.find((c) => c.best);
-    if (!best) throw new Error("no best candidate in the fixture");
-    const marks = evidenceOf(
-      make({ no_target: false, candidates: [{ ...best, bridges: 1, bridge_gap: 4 }] }),
-      vocabulary,
-    );
-    expect(marks.map((m) => m.kind)).toContain("bridge");
-    expect(marks.find((m) => m.kind === "bridge")?.limitation).not.toBeNull();
-    expect(cautionCount(marks)).toBeGreaterThan(0);
-    expect(evidenceOf(make({ match: "synonym:case" }), vocabulary).map((m) => m.code)).toEqual(
-      expect.arrayContaining(["match: synonym", "match: case"]),
-    );
-    expect(evidenceOf(make({ match: "version_newer_than_graph" }), vocabulary)[0]?.tone).toBe("caution");
-    expect(evidenceOf(make({ match: "copy:exact" }), vocabulary)[0]?.code).toBe("match: copy");
-    expect(
-      evidenceOf(
-        make({
-          from_release: 80,
-          from_release_given: 70,
-          from_release_fallback: true,
-          reasons: ["read_at_another_release"],
-        }),
-        vocabulary,
-      ).map((m) => m.kind),
-    ).toContain("read_at_another_release");
-    expect(
-      evidenceOf(
-        make({
-          match: "exact",
-          other_readings: [],
-          candidates: [{ ...best, bridges: 0, unscored_steps: 0, final_confidence: 0 }],
-        }),
-        vocabulary,
-      ),
-    ).toEqual([]);
+  it("is the api's cautions of each row, in the api's order, the cautions counted", () => {
+    for (const organism of ["homo_sapiens", "sus_scrofa"])
+      for (const result of results(organism)) {
+        const marks = evidenceOf(result, vocabulary);
+        expect(marks.map((m) => m.kind)).toEqual(result.cautions.map((c) => c.code));
+        expect(cautionCount(marks)).toBe(result.cautions.filter((c) => c.tone === "caution").length);
+      }
+    expect(evidenceOf(make({ cautions: [] }), vocabulary)).toEqual([]);
   });
 
   it("reads the kind of a reading from its match", () => {

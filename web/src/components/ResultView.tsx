@@ -12,8 +12,6 @@ import { groupedInteger } from "../lib/numbers";
 import { atOneRelease, buildModel, type PathModel } from "../lib/pathModel";
 import { CrossingView } from "./CrossingView";
 import { useSymbols } from "../lib/symbols";
-import { api } from "../api/client";
-import { useRequest } from "../lib/useRequest";
 import { assemblyNames } from "../lib/pathReading";
 import { useVocabulary } from "../lib/vocabularyContext";
 import { BridgesConsidered, RefusedSteps } from "./PathChecks";
@@ -220,16 +218,8 @@ export const ResultView = memo(function ResultView({
       of.set(c.gene, [...new Set([...(of.get(c.gene) ?? []), ...(c.target === c.gene ? [] : [c.target])])]);
     return { database: requestedDatabase, release: result.to_release, of };
   }, [fetched, requestedDatabase, result]);
-  // The organism's symbol databases (its name authority first), for the marks that need them; asked at once with the
-  // answer (the same request as the symbols', shared: lib/symbols.ts).
-  const databases = useRequest(`databases:${description.organism}`, (signal, fresh) =>
-    api.databases(description.organism, { signal, fresh }),
-  );
-  const symbolDatabases = databases.state === "done" ? databases.answer.data.symbol_databases : null;
-  const marks = useMemo(
-    () => evidenceOf(result, vocabulary, { symbolDatabases, symbols, asked: requestedDatabase }),
-    [result, vocabulary, symbolDatabases, symbols, requestedDatabase],
-  );
+  // The evidence to weigh, as the api states it on the result (`cautions`).
+  const marks = useMemo(() => evidenceOf(result, vocabulary), [result, vocabulary]);
   const context: IdContext = useMemo(
     () => ({
       organism: description.organism,

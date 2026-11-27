@@ -10,7 +10,6 @@ import type { Life } from "./batchLives";
 import { SEPARATOR_WORDS, type Separator } from "./batchList";
 import type { PathsRefused } from "./batchRun";
 import { eventsWords, releaseHow, type BatchRow } from "./batchTable";
-import type { EvidenceMark } from "./evidence";
 import { pythonFloat } from "./numbers";
 
 /** Where the identifiers of a batch came from: the column read of the list or table given, with the person's cells,
@@ -166,41 +165,6 @@ function sourceWords(source: BatchSource | null): string {
   return `Column ${String(source.column + 1)}${name ? ` (${name})` : ""} of a ${SEPARATOR_WORDS[source.separator]}-separated table${source.header ? ", whose first line was taken as its header" : ""}.${once}`;
 }
 
-/** The evidence codes of the table: this page's classes of evidence (`src/lib/evidence.ts`), each in a sentence. A
- *  unit test checks that every class has its sentence. */
-export const EVIDENCE_CODES: Record<EvidenceMark["kind"], string> = {
-  bridge:
-    "the best answer is reached through a bridge: an id two genes carry, idtrack's inference where Ensembl's history ends",
-  bridge_beside: "a bridge joins two genes that existed at the same releases, so neither took the other's place",
-  bridge_rival:
-    "another gene, reached by a bridge from the same gene through ids the bridge taken does not pass, ranks below only by the bridge's gap",
-  places_apart: "a step of Ensembl's history on the path joins genes that do not lie at one place",
-  places_unknown: "a step across assemblies whose places cannot be compared (no published mapping of the assemblies)",
-  outside_reference:
-    "every gene of the best answer lies outside the reference sequence (a haplotype, patch or alternative locus)",
-  listed_as_copy: "the best answer is also listed among the copies the result sets apart (alternative_locus_genes)",
-  bare_number:
-    "a number (bare, or written with a version), read in every database whose ids are numbers; its digits alone may be another gene's",
-  one_gene: "the targets are every id of one gene in the database asked, not the identifier's counterpart alone",
-  split_ranked: "the path passes a split; its successors are ranked by Ensembl's scores, not by place",
-  unscored: "the path holds history steps between two different ids without Ensembl's score",
-  final_other_release: "the target is attached to a transcript or translation of the gene at another release",
-  read_at_another_release: "read at another release than the one given (the graph does not hold it there)",
-  match: "matched otherwise than as written (a synonym, letter case, separators, a copy, a newer version)",
-  other_release: "the string has another meaning at other releases",
-  other_reading: "the string has another reading idtrack reports",
-  runner_named:
-    "a gene ranked below carries the name typed at the target release, and no gene of the best answer does (read where the answer's symbols were asked)",
-  name_elsewhere:
-    "the name is read through several databases, but the best answer through some of them only, with neither the name authority nor Ensembl's display name for it",
-  own_continuation:
-    "the best answer's path leaves the entry gene's id while the id itself lived on, followed by candidates ranked below",
-  projected_symbols:
-    "the database asked is a symbol database of the graph that is not the organism's name authority (read where the organism's symbol databases were asked)",
-  lowest_score:
-    "the lowest of Ensembl's mapping scores on the best path, where one is below 1 (0 to 1: how much of the old gene the new one keeps)",
-};
-
 /** A cell a spreadsheet would read as a formula (it begins with =, +, -, @, a tab or a carriage return and is not a
  *  number) is written after an apostrophe, which spreadsheets show as text; every other cell as it is. */
 export function spreadsheetSafe(cell: string): string {
@@ -312,7 +276,8 @@ export function rowTable(
       r.reasons.join(";"),
     ].map((value) => cellOf(value, format));
   });
-  const kinds = [...new Set(rows.flatMap((row) => row.evidence.map((m) => m.kind)))];
+  // Each class of evidence the file writes, with the api's text of it (`GET /api/v1/vocabulary`, `cautions`).
+  const kinds = new Map(rows.flatMap((row) => row.evidence.map((m) => [m.kind, m.meaning] as const)));
   const lines = [
     `# ${provenance.about}`,
     `# One row per identifier, in the order given; ${source ? sourceWords(source) : "one identifier per line."}`,
@@ -337,8 +302,8 @@ export function rowTable(
       : []),
     `# other_genes: the genes of the candidates below the best answer (the identifier leads to them too); history_events: the steps of Ensembl's history on the best answer's path, in Ensembl's direction (old release->new release)${request.explain ? "" : ", empty: the batch was answered without its paths"}`,
     "# last_release and name_at_read_release: for an identifier that converts to nothing, the last release of the gene it was at its release, and the name the organism's name authority gave it there",
-    "# status, match, from_release_how, decided_by and reasons are the api's codes (GET /api/v1/vocabulary); evidence holds this page's codes of what the answer rests on beyond Ensembl's history of the identifier as written, evidence_words each in words with its values:",
-    ...kinds.map((k) => `#   ${k}: ${EVIDENCE_CODES[k]}`),
+    "# status, match, from_release_how, decided_by, reasons and evidence are the api's codes (GET /api/v1/vocabulary); evidence holds the api's cautions of the result (what the answer rests on beyond Ensembl's history of the identifier as written), evidence_words each in words with its values:",
+    ...[...kinds].map(([k, meaning]) => `#   ${k}: ${meaning ?? "(the api gives no text for this code)"}`),
     `# a cell that begins with = + - @ and is no number is written after an apostrophe, so that a spreadsheet shows it as text`,
     header.map((h) => cellOf(h, format)).join(format === "tsv" ? "\t" : ","),
     ...body.map((cells) => cells.join(format === "tsv" ? "\t" : ",")),

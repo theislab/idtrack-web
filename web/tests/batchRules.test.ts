@@ -4,7 +4,7 @@
 import { describe, expect, it } from "vitest";
 import type { Candidate, ConversionResult } from "../src/api/types";
 import { bandWords, readInference } from "../src/lib/batchInference";
-import { batchProvenance, EVIDENCE_CODES, methodsSentence } from "../src/lib/batchExport";
+import { batchProvenance, methodsSentence } from "../src/lib/batchExport";
 import { batchRows, decidedByScoreAmongGenes, renamedRows } from "../src/lib/batchTable";
 import { readVocabulary } from "../src/lib/vocabulary";
 import { description, fixture, vocabularyResponse } from "./fixtures";
@@ -117,7 +117,9 @@ describe("the release a list comes from", () => {
 
 describe("the files of a batch", () => {
   it("define every evidence code they can write", () => {
-    for (const [kind, words] of Object.entries(EVIDENCE_CODES)) expect(words.length, kind).toBeGreaterThan(20);
+    // The evidence codes are the api's cautions; the api's vocabulary says each in words.
+    for (const [kind, term] of readVocabulary(vocabularyResponse()).cautions)
+      expect(term.meaning.length, kind).toBeGreaterThan(20);
   });
   it("give a sentence for a methods section written from the run", () => {
     const request = {

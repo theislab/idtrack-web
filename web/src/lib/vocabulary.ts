@@ -29,6 +29,8 @@ export interface Vocabulary {
   placeRelations: Map<string, string | null>;
   bridgeRules: Map<string, { meaning: string | null; taken: boolean }>;
   errors: Map<string, { status: number; title: string; meaning: string; retryable: boolean }>;
+  /** The classes of evidence the api computes on every result (`cautions`): what each means, and its tone. */
+  cautions: Map<string, { meaning: string; tone: string }>;
 }
 
 export const NO_VOCABULARY: Vocabulary = {
@@ -44,6 +46,7 @@ export const NO_VOCABULARY: Vocabulary = {
   placeRelations: new Map(),
   bridgeRules: new Map(),
   errors: new Map(),
+  cautions: new Map(),
 };
 
 export function readVocabulary(data: VocabularyResponse): Vocabulary {
@@ -66,6 +69,7 @@ export function readVocabulary(data: VocabularyResponse): Vocabulary {
         { status: t.status, title: t.title, meaning: t.meaning, retryable: t.retryable },
       ]),
     ),
+    cautions: new Map((data.cautions ?? []).map((t) => [t.code, { meaning: t.meaning, tone: t.tone }])),
   };
 }
 
