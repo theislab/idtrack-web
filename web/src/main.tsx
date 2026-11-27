@@ -3,7 +3,7 @@ import "@fontsource-variable/inter/wght-italic.css";
 import "@fontsource-variable/source-serif-4/wght.css";
 import "@fontsource-variable/source-serif-4/wght-italic.css";
 import "@fontsource-variable/jetbrains-mono/wght.css";
-import { startTransition, StrictMode } from "react";
+import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { App, firstPageReady } from "./App";
 import { RootBoundary } from "./components/RootBoundary";
@@ -33,16 +33,13 @@ const root = document.getElementById("root");
 if (!root) throw new Error("The page has no #root element.");
 // The root holds the page's frame the server wrote into it (src/prerender.tsx): the masthead and the page's head, drawn
 // before any code ran. The app is drawn once the page's own code has arrived (it was fetched beside this entry), so its
-// first commit, which replaces the frame, is the page whole; it is drawn in a transition, in slices that leave the
-// main thread free between them.
+// first commit, which replaces the frame, is the page whole.
 void firstPageReady.then(() => {
-  startTransition(() => {
-    createRoot(root).render(
-      <StrictMode>
-        <RootBoundary>
-          <App />
-        </RootBoundary>
-      </StrictMode>,
-    );
-  });
+  createRoot(root).render(
+    <StrictMode>
+      <RootBoundary>
+        <App />
+      </RootBoundary>
+    </StrictMode>,
+  );
 });

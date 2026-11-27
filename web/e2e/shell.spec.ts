@@ -326,6 +326,7 @@ test.describe("the page never asks twice", () => {
 
   test("a return to the home asks nothing of its figures again", async ({ page }) => {
     await page.goto(`/?organism=${data.organism}`);
+    await expect(page.locator("footer.footer")).toBeVisible(); // the app, not the page's frame
     await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
     await page.waitForLoadState("networkidle");
     const asked: string[] = [];
