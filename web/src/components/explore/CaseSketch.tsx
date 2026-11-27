@@ -154,14 +154,8 @@ function Overview({
       {whole ? null : (
         <>
           {/* Down from the stretch's ends until clear of the written releases, then open to the view's top corners. */}
-          <polyline
-            points={`${a},${y + 2} ${a},${ty + 7} ${scale.x0},${VIEW_TOP - 4}`}
-            className="case-sketch__zoom"
-          />
-          <polyline
-            points={`${b},${y + 2} ${b},${ty + 7} ${scale.x1},${VIEW_TOP - 4}`}
-            className="case-sketch__zoom"
-          />
+          <polyline points={`${a},${y + 2} ${a},${ty + 7} ${scale.x0},${VIEW_TOP - 4}`} className="case-sketch__zoom" />
+          <polyline points={`${b},${y + 2} ${b},${ty + 7} ${scale.x1},${VIEW_TOP - 4}`} className="case-sketch__zoom" />
         </>
       )}
     </g>
