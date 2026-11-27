@@ -89,10 +89,12 @@ try {
       .frameHtml(frame)
       .replace('<div class="masthead__tools">', '<div class="masthead__tools" inert="">');
     if (!html.includes('class="masthead__tools" inert=""')) throw new Error(`The frame ${name} has no masthead tools.`);
+    // The theme chosen is the visitor's (kept in their browser), unknown here: the frame marks none of the three.
+    const frameHtml = html.replaceAll('aria-checked="true"', 'aria-checked="false"');
     // The page's security policy allows no inline style or script: a frame that held one would be refused by the
     // browser (and said so in its console).
     if (/\sstyle="|<script/i.test(html)) throw new Error(`The frame ${name} holds an inline style or script.`);
-    out[name] = { html, head: links(frame.module) };
+    out[name] = { html: frameHtml, head: links(frame.module) };
   }
   writeFileSync(`${dist}/frames.json`, `${JSON.stringify({ frames: out }, null, 1)}\n`);
   console.log(
