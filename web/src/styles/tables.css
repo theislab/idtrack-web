@@ -374,7 +374,7 @@
 
 .batch-figure-head__distinct {
   font-size: var(--text-sm);
-  font-weight: var(--weight-regular, 400);
+  font-weight: var(--weight-regular);
   color: var(--ink-3);
 }
 
@@ -596,8 +596,8 @@
   line-height: 1.6;
 }
 
-/* The results table: tools, then the table in a frame that scrolls under its sticky head. */
-/* The tools of the table, folded behind one line where the rows should come first (a short table, a phone). */
+/* The results table: its tools, then the table, which scrolls with the page under its sticky head where it fits.
+   The tools of the table, folded behind one line where the rows should come first (a short table, a phone). */
 .batch-tools {
   margin-top: var(--space-4);
   border-top: 1px solid var(--line);

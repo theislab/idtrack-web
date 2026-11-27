@@ -11,7 +11,7 @@ import { useLimits } from "./vocabularyContext";
 
 /** One gene the identifier was at its release: its id, its releases, the last of them (null: still active at the
  *  graph's last release), its assemblies by name. */
-export interface LifeGene {
+interface LifeGene {
   gene: string;
   active: [number, number | null][];
   last: number | null;
@@ -29,13 +29,13 @@ export interface Life {
 }
 
 /** The last release of a gene, where its life ends inside the graph (null: still active). */
-export function lastOf(active: PathNode["active"]): number | null {
+function lastOf(active: PathNode["active"]): number | null {
   if (!active.length || active.some(([, b]) => b === null)) return null;
   return Math.max(...active.map(([, b]) => b ?? 0));
 }
 
 /** The genes of a result at the release it was read at, with their lives, read from its path's nodes. */
-export function lifeGenes(result: ConversionResult, description: GraphDescription): LifeGene[] {
+function lifeGenes(result: ConversionResult, description: GraphDescription): LifeGene[] {
   const nodes = new Map((result.path?.nodes ?? []).map((n) => [n.id, n]));
   const names = assemblyNames(description.assemblies);
   return [...new Set(result.candidates.map((c) => c.gene))].flatMap((id) => {

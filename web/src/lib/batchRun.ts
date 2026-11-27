@@ -47,7 +47,7 @@ export interface PathsRefused {
 
 /** The one automatic ask of a refused batch: waiting for the time the api named (until when, in ms since the epoch),
  *  or sent (when, ISO 8601). */
-export type AutoRetry = { state: "waiting"; until: number } | { state: "asked"; at: string };
+type AutoRetry = { state: "waiting"; until: number } | { state: "asked"; at: string };
 
 export interface BatchRun {
   /** Counts the runs of the organism: a page follows the run it started. */
@@ -184,7 +184,7 @@ export function markSeen(organism: string): void {
  *  asking without them: the answer larger than the server sends, or a refusal naming `explain` as the argument to
  *  change. A refusal for time (the server busy, the request's budget spent waiting or searching) is not: it is waited
  *  out, with the paths still asked. */
-export function refusesPaths(error: unknown): error is ApiError {
+function refusesPaths(error: unknown): error is ApiError {
   return error instanceof ApiError && (error.body.code === "response_too_large" || error.body.argument === "explain");
 }
 

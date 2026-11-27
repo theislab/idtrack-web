@@ -242,7 +242,7 @@ describe("the batch's figure", () => {
 describe("the names' lanes", () => {
   for (const organism of ORGANISMS) {
     for (const name of ["genes_named_ins", "genes_named_ins_fold"]) {
-      it(`${organism} ${name}: one group per gene id, every version's releases written and drawn`, () => {
+      it(`${organism} ${name}: one group per gene id, every version's releases written and drawn`, async () => {
         const matches = (JSON.parse(fixture(organism, name).raw) as NamesResponse).matches;
         const graph = description(organism);
         render(
@@ -257,7 +257,8 @@ describe("the names' lanes", () => {
             asked="INS"
           />,
         );
-        const region = screen.getByRole("region", { name: "Matches" });
+        // The figure is drawn once what the genes are called today is settled (here no server answers: it says so).
+        const region = await screen.findByRole("region", { name: "Matches" }, { timeout: 4000 });
         const groups = groupByGene(matches);
         const bodies = region.querySelectorAll("tbody.names-gene");
         expect(bodies).toHaveLength(Math.min(groups.length, 12));
