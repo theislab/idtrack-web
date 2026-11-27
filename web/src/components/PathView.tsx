@@ -1575,6 +1575,7 @@ function VerticalPath({
             focus={focus}
             range={[a, b]}
             vertical
+            across={[0, width]}
           />
           {scored.length ? (
             <ScoreTrack
@@ -1675,6 +1676,8 @@ interface MarksProps {
   plot?: [number, number];
   /** A step pointed at in the path in words: ringed. */
   lit?: number | null;
+  /** The phone's timeline: the drawing's extent across (x), inside which a count's text stands. */
+  across?: [number, number];
 }
 
 /** Tell the step the drawing shows (pointed at or focused), and that none is shown when it goes. */
@@ -1856,6 +1859,7 @@ function PathMarks({
   part = "all",
   plot,
   lit = null,
+  across,
 }: MarksProps) {
   const swap = vertical ? `translate(${toXY(0, 0)[0]},0) matrix(0,1,1,0,0,0)` : `translate(0,${toXY(0, 0)[1]})`;
   const candidatesOfNode = useNodeCandidates(model);
@@ -2056,7 +2060,7 @@ function PathMarks({
         toXY={toXY}
         vertical={vertical}
         isStrong={isStrong}
-        bounds={!vertical && plot ? plot : null}
+        bounds={vertical ? (across ?? null) : (plot ?? null)}
       />
       {/* The identifier, the forms it is read through and the ids bridges pass through. */}
       {[...layout.nodes.values()].map((place) => {
