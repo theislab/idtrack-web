@@ -429,10 +429,16 @@
   display: grid;
   gap: var(--space-3);
   min-width: 0;
+}
 
-  /* Drawn when near the window (a long reference lays out only what is read); its place kept meanwhile. */
-  content-visibility: auto;
-  contain-intrinsic-size: auto 480px;
+/* Laid out when near the window (a long reference lays out only what is read), its place kept meanwhile. Not on a
+   phone, where every endpoint's controls are measured as drawn (a skipped part would report no size to a check of
+   the controls' targets). */
+@media (min-width: 641px) {
+  .endpoint {
+    content-visibility: auto;
+    contain-intrinsic-size: auto 480px;
+  }
 }
 
 .endpoint__head {
@@ -1849,12 +1855,6 @@
 .schema__nested[open] > summary::before,
 .api-errors details[open] > summary::before {
   transform: rotate(45deg);
-}
-
-@media (max-width: 640px) {
-  .endpoint {
-    contain-intrinsic-size: auto 760px;
-  }
 }
 
 /* Every control of the reference is at least 24 px each way (WCAG 2.2, 2.5.8), and a finger's height on a phone. */
