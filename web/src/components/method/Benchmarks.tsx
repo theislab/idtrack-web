@@ -205,8 +205,9 @@ function RowInterval({ row }: { row: FamilyRow }) {
 function StratumInterval({ stratum }: { stratum: Stratum }) {
   const shown = shownInterval(stratum);
   return (
-    <span className="mono">
-      ({shown.text}
+    // The values in the monospaced face, the method in words beside them: the line may break between the two.
+    <span className="bench__interval-of">
+      (<span className="mono">{shown.text}</span>
       {shown.method === "published" ? null : (
         <span className="bench__method"> {shown.method === "exact" ? "exact" : "Wilson"}</span>
       )}
