@@ -124,8 +124,9 @@ def llms_txt(base: str, document: dict[str, Any], held: list[dict[str, Any]] | N
         ),
         (
             '3. Per result, the answer is the `target` of the candidates with `"best": true`, and only where `status` '
-            "is `converted` or `tie`; weigh its evidence (`match`, `reasons`, `other_readings`, each candidate's "
-            "`bridges`) as `llms-full.txt` says, and keep the `Idtrack-Graph-Digest` header with the results."
+            "is `converted` or `tie`; review every answer whose `cautions` hold an item of `tone` `caution` (each names "
+            "its class and the limitation of idtrack it falls under), and keep the `Idtrack-Graph-Digest` header with the "
+            "results."
         ),
         "",
         "## Docs",
