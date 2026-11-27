@@ -52,7 +52,7 @@ function counted(n: number, one: string, many = `${one}s`): string {
 }
 
 /** A disclosure whose content is made on its first opening (the fields of a large schema are many). */
-export function LazyDetails({
+function LazyDetails({
   summary,
   children,
   className,

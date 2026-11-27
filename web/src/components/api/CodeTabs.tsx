@@ -52,7 +52,7 @@ const TAB_LANGUAGE: Record<LanguageKey, CodeLanguage> = {
 
 /** Code with its comments, strings, numbers and the language's words set apart (in the ink scale: lib/codeTokens.ts);
  *  its text is the code exactly. */
-export function Code({ code, language }: { code: string; language?: CodeLanguage | undefined }) {
+function Code({ code, language }: { code: string; language?: CodeLanguage | undefined }) {
   if (!language) return <code>{code}</code>;
   return (
     <code>

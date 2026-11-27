@@ -86,7 +86,7 @@ export interface Parameter {
 }
 
 /** A column of a table answer (`x-columns` of its media type). */
-export interface TableColumn {
+interface TableColumn {
   name: string;
   /** Which part of a result it is of: `result`, `error` or `candidate`. */
   group: string;

@@ -3,7 +3,7 @@
 // JavaScript, JSON), not a parser: it only splits the text, and the tokens joined give back the text exactly. Drawn
 // in the ink scale and weights of the page (never a hue: colour is kept for meaning), so it reads in either theme.
 
-export type CodeKind = "comment" | "string" | "number" | "keyword" | "literal" | "plain";
+type CodeKind = "comment" | "string" | "number" | "keyword" | "literal" | "plain";
 
 export interface CodeToken {
   kind: CodeKind;

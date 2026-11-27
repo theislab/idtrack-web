@@ -154,7 +154,7 @@ export async function shot(page: Page, info: TestInfo, name: string): Promise<vo
 
 /** The rules of axe-core the site does not hold to, each with why (empty: every rule holds). A rule enters only with a
  *  reason a reviewer can check, never to make a run pass. */
-export const AXE_ACCEPTED: Readonly<Record<string, string>> = {};
+const AXE_ACCEPTED: Readonly<Record<string, string>> = {};
 
 /** axe-core over the page: the rules of WCAG 2.0, 2.1 and 2.2 at levels A and AA and axe's best practices, and no
  *  violation of any impact (minor and moderate too) but a rule of {@link AXE_ACCEPTED}. */
