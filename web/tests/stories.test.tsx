@@ -9,6 +9,7 @@ import { figureHeight, figureModel, PRODUCT_ROOM, runningProduct } from "../src/
 import {
   activeRuns,
   genesNotDrawn,
+  keyMarks,
   lastRelease,
   shortProduct,
   SKETCH,
@@ -106,6 +107,17 @@ describe("a case's sketch", () => {
     expect(first.startsWith(`${meaning.from_release ?? meaning.to_release}:`)).toBe(true);
     expect(second).toContain(":");
     expect(document.querySelectorAll(".case-sketch__other").length).toBeGreaterThan(0);
+  });
+
+  it("has a key of exactly the marks its sketches draw", () => {
+    const ended = answers.filter((r) => sketchLayout(r).form === "ended");
+    expect(keyMarks(ended)).toContain("ended");
+    expect(keyMarks(ended)).not.toContain("other");
+    const split = answers.filter((r) => sketchLayout(r).form === "path" && sketchRows(r).length > 1);
+    expect(split.length).toBeGreaterThan(0);
+    expect(keyMarks(split)).toContain("branch");
+    const single = answers.filter((r) => sketchLayout(r).form === "path" && sketchRows(r).length === 1);
+    expect(keyMarks(single)).not.toContain("branch");
   });
 
   it("refers to no other figure: the key draws its own marks", () => {

@@ -22,7 +22,7 @@ import { useRequest } from "../../lib/useRequest";
 import { Link, Mono } from "../ui";
 import { CaseSketch, type SketchLife } from "./CaseSketch";
 import { GeneBar, GlyphSwatch } from "../figure/glyphs";
-import { lastRelease } from "../../lib/explore/sketch";
+import { keyMarks, lastRelease, type KeyMark } from "../../lib/explore/sketch";
 
 type ShowcaseCase = ShowcaseResponse["cases"][number];
 
@@ -363,7 +363,7 @@ function Swatch({ children }: { children: ReactNode }) {
 }
 
 /** The key of the sketches: each mark beside its word, drawn by the same components and classes as the sketches. */
-const KEY: [string, ReactNode, string][] = [
+const KEY: [KeyMark, ReactNode, string][] = [
   ["form", <GlyphSwatch key="form" glyph="form" />, "the release read"],
   ["read", <GlyphSwatch key="read" glyph="read" />, "read in an external database"],
   [
@@ -460,6 +460,7 @@ export function CaseGallery({
   const ready = waited || (settled && matrix.state !== "loading" && lives.state !== "loading");
   const lifeOf = (result: ConversionResult) =>
     lives.state === "done" ? (lives.answer.data.get(result) ?? null) : null;
+  const drawn = keyMarks(shown.map((c) => c.result));
   if (!shown.length) return null;
   if (!ready) return <div className="stories-reserve stories-reserve--cases" aria-busy="true" />;
   return (
@@ -532,7 +533,7 @@ export function CaseGallery({
             assembly) with the stretch marked, two hairlines opening from it to the view.
           </p>
           <ul className="case-key" aria-label="The marks of the sketches">
-            {KEY.map(([key, swatch, words]) => (
+            {KEY.filter(([key]) => drawn.has(key)).map(([key, swatch, words]) => (
               <li key={key}>
                 {swatch}
                 <span>{words}</span>

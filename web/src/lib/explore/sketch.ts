@@ -153,3 +153,55 @@ export function sketchWindow(
   }
   return releases.filter((r) => r >= lo && r <= hi);
 }
+
+/** The marks of the gallery's key: those its sketches draw, read from the answers as the sketches read them (the key
+ *  lists exactly the marks drawn). */
+export type KeyMark =
+  | "form"
+  | "read"
+  | "answer"
+  | "final"
+  | "version"
+  | "event"
+  | "loop"
+  | "handoff"
+  | "bridge"
+  | "branch"
+  | "ended"
+  | "other";
+
+export function keyMarks(results: readonly ConversionResult[]): Set<KeyMark> {
+  const marks = new Set<KeyMark>();
+  for (const result of results) {
+    const layout = sketchLayout(result);
+    if (result.from_release !== null) marks.add(result.from_databases.some((d) => !isEnsembl(d)) ? "read" : "form");
+    if (layout.form === "ended") {
+      marks.add("ended");
+      continue;
+    }
+    if (layout.form === "meaning") {
+      marks.add("other");
+      continue;
+    }
+    const external = result.final_database !== null && !isEnsembl(result.final_database);
+    const rows = sketchRows(result);
+    if (layout.form === "path" && rows.length > 1) marks.add("branch");
+    for (const row of rows) {
+      const candidate = result.candidates[row.candidate];
+      if (!candidate) continue;
+      const own = marksOf(candidateSteps(result, candidate), result.to_release).slice(row.from);
+      for (const m of own)
+        if (
+          m.kind === "version" ||
+          m.kind === "event" ||
+          m.kind === "loop" ||
+          m.kind === "handoff" ||
+          m.kind === "bridge"
+        )
+          marks.add(m.kind);
+      marks.add(external && own.some((m) => m.kind === "final") ? "final" : "answer");
+    }
+    if (layout.form === "crossing") marks.add(external ? "final" : "answer");
+  }
+  return marks;
+}
