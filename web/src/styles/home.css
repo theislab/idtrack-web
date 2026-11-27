@@ -1275,6 +1275,11 @@
     margin-top: var(--space-2);
   }
 
+  /* Under the form, the figure starts at once: what its rows leave of its room stands under it. */
+  .hero__frame {
+    justify-content: flex-start;
+  }
+
   /* The legend in two columns of short lines under the axis. */
   .hero__figure .fig-legend {
     display: grid;
