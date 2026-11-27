@@ -759,6 +759,9 @@ const capitalized = (text: string) => text.charAt(0).toUpperCase() + text.slice(
 
 function HistoryPanel({ description: d }: { description: GraphDescription }) {
   const { answer, absent } = useHistory(d.organism);
+  // `?release=76`: a link that names a release of this history (the hero's notes of a release-wide event) shows it.
+  const asked = Number(useLocation().search.get("release") ?? "");
+  const focusRelease = Number.isInteger(asked) && d.releases.includes(asked) ? asked : null;
   const showcase = useRequest(`showcase|${d.organism}`, (signal) => api.showcase(d.organism, { signal }));
   const marks = useMemo(() => (showcase.state === "done" ? caseMarks(showcase.answer.data.cases) : []), [showcase]);
   if (absent) return null;
@@ -779,6 +782,7 @@ function HistoryPanel({ description: d }: { description: GraphDescription }) {
           description={d}
           marks={marks}
           organism={d.organism}
+          focusRelease={focusRelease}
           label={`Ensembl's id history of the ${organismName(d.organism)} graph, release by release. Arrow keys move between the releases; Enter opens a conversion through the release.`}
         />
       ) : answer.state === "failed" ? (

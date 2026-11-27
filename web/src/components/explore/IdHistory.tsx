@@ -13,7 +13,7 @@
 // without an axis of their own; `share` draws them as shares of the gene ids active (what changed into a release over
 // the ids active at the release before; the ids created over those active at the release), on one axis of 0 to 100 %
 // for every graph (the fan on 0 to 10 %).
-import { useCallback, useId, useMemo, type KeyboardEvent, type ReactNode } from "react";
+import { useCallback, useEffect, useId, useMemo, useRef, type KeyboardEvent, type ReactNode } from "react";
 import type { GraphDescription, HistoryResponse } from "../../api/types";
 import {
   casesThrough,
@@ -98,6 +98,7 @@ export function IdHistory({
   marks = NO_MARKS,
   organism,
   label,
+  focusRelease = null,
 }: {
   history: HistoryResponse;
   description: GraphDescription;
@@ -112,6 +113,8 @@ export function IdHistory({
   marks?: readonly CaseMark[];
   organism: string;
   label: string;
+  /** A release to show at once (an address's `?release=`): its column is focused, its exact counts in its note. */
+  focusRelease?: number | null;
 }) {
   const { ref, width } = useWidth<HTMLDivElement>(900);
   const patternId = useId().replace(/:/g, "");
@@ -191,6 +194,17 @@ export function IdHistory({
     return `Release ${c.release}: ${groupedInteger(c.genes)} gene ids active; ${changedWords}; ${c.first ? "the graph's first release" : `${groupedInteger(c.created)} created`}${cases.length ? `; ${cases.length === 1 ? "1 conversion of this server passes" : `${cases.length} conversions of this server pass`} through it, Enter opens the first` : ""}`;
   };
   const hatch = `idh-hatch-${patternId}`;
+  // The release an address names is focused once, when the figure is first drawn with its columns.
+  const focusedOnce = useRef<number | null>(null);
+  useEffect(() => {
+    if (focusRelease === null || focusedOnce.current === focusRelease) return;
+    const index = columns.findIndex((c) => c.release === focusRelease);
+    const element = ref.current?.querySelector<SVGElement>(`[data-index="${index}"]`);
+    if (index < 0 || !element) return;
+    focusedOnce.current = focusRelease;
+    element.focus({ preventScroll: true });
+    ref.current?.scrollIntoView({ block: "center" });
+  }, [focusRelease, columns, ref, width]);
   return (
     <div className={`idh${compact ? " idh--compact" : ""}`} ref={ref}>
       <svg width={width} height={height} role="group" aria-label={label} className="idh__svg">

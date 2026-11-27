@@ -262,6 +262,17 @@ test("Explore: another name of a graph shows its page at the graph's own address
   }
 });
 
+test("Organism: an address that names a release of the history shows that release's exact counts", async ({ page }) => {
+  const response = await page.request.get(`/api/v1/organisms/${data.organism}/history`);
+  test.skip(response.status() !== 200, "this server does not count the history");
+  const columns = historyColumns((await response.json()) as HistoryResponse).filter((c) => !c.first);
+  const column = columns[Math.floor(columns.length / 2)];
+  if (!column) return;
+  await page.goto(`/organisms/${data.organism}?release=${column.release}`);
+  await expect(page.getByRole("tooltip")).toContainText(`Release ${column.release}`);
+  await expect(page.getByRole("tooltip")).toContainText(groupedInteger(column.genes));
+});
+
 test("Explore: the page's title says what it holds; the stories, then the graphs side by side", async ({ page }) => {
   await page.goto("/organisms");
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Stories from Ensembl's history");
