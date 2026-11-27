@@ -237,11 +237,15 @@ describe("names in R", () => {
     }
   });
 
-  it.runIf(spawnSync("Rscript", ["--version"]).status === 0)("read back in R as exactly the name given", () => {
-    for (const name of hostile) {
-      const code = `x <- list(${rName(name)} = 1); cat(names(x), sep = "")`;
-      const out = execFileSync("Rscript", ["-e", code], { encoding: "utf8" });
-      expect(out).toBe(name);
-    }
-  });
+  it.runIf(spawnSync("Rscript", ["--version"]).status === 0)(
+    "read back in R as exactly the name given",
+    () => {
+      for (const name of hostile) {
+        const code = `x <- list(${rName(name)} = 1); cat(names(x), sep = "")`;
+        const out = execFileSync("Rscript", ["-e", code], { encoding: "utf8" });
+        expect(out).toBe(name);
+      }
+    },
+    60_000,
+  ); // Rscript takes seconds to start
 });

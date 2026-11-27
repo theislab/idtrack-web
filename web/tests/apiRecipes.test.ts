@@ -24,17 +24,21 @@ describe("the recipes of a whole feature list", () => {
     expect(code).not.toContain("\t");
   });
 
-  it.runIf(has("Rscript"))("the R recipe is R that parses", () => {
-    const out = execFileSync("Rscript", ["-e", "invisible(parse(file('stdin'))); cat('ok')"], {
-      input: pipelineR(BASE),
-      encoding: "utf8",
-    });
-    expect(out.trim()).toBe("ok");
-  });
+  it.runIf(has("Rscript"))(
+    "the R recipe is R that parses",
+    () => {
+      const out = execFileSync("Rscript", ["-e", "invisible(parse(file('stdin'))); cat('ok')"], {
+        input: pipelineR(BASE),
+        encoding: "utf8",
+      });
+      expect(out.trim()).toBe("ok");
+    },
+    60_000,
+  ); // Rscript takes seconds to start
 
   it("both keep a name and its copies (-1, .1, _1 appended) in one request, and ask with the server's bound", () => {
     for (const code of [pipelinePython(BASE), pipelineR(BASE)]) {
-      expect(code).toContain("([-._]1)+$");
+      expect(code).toContain("^(.+)([-_.])([0-9]+)$"); // idtrack.ids.NUMBERED_SUFFIX
       expect(code).toContain("batch_max");
       expect(code).toContain(BASE);
       // The evidence a pipeline should keep beside each answer.
@@ -48,4 +52,34 @@ describe("the recipes of a whole feature list", () => {
       expect(code).toMatch(/graph %?\{?.*from_release.*to_release/);
     }
   });
+
+  it("keep every item idtrack can read as another's copy in that item's request, chains too (Python)", () => {
+    // The recipe's own function, run on a list where the copies are far apart and the requests small.
+    const code = pipelinePython(BASE);
+    const start = code.indexOf("def batches(");
+    const end = code.indexOf("\nanswers, graphs", start);
+    const program = `import re\n${code.slice(start, end)}\nimport json, sys\nprint(json.dumps(batches(json.loads(sys.argv[1]), 2)))`;
+    const list = ["TP53", "BRCA1", "EGFR", "TP53-2", "KRAS", "TP53_10", "MYC", "TP53.3", "TP53-2-1", "ALB", "X-1"];
+    const out = execFileSync("python3", ["-c", program, JSON.stringify(list)], { encoding: "utf8" });
+    const chunks = JSON.parse(out) as string[][];
+    const tp53 = chunks.find((c) => c.includes("TP53")) ?? [];
+    for (const copy of ["TP53-2", "TP53_10", "TP53.3", "TP53-2-1"]) expect(tp53, copy).toContain(copy);
+    expect(chunks.flat().sort()).toEqual([...list].sort()); // every item once
+    expect(chunks.find((c) => c.includes("X-1"))).not.toContain("TP53"); // no item X: X-1 is itself
+  });
+
+  it.runIf(has("Rscript"))(
+    "keep every item idtrack can read as another's copy in that item's request, chains too (R)",
+    () => {
+      const code = pipelineR(BASE);
+      const start = code.indexOf("batches <- function(");
+      const end = code.indexOf("\n}\n", start) + 2;
+      const list = ["TP53", "BRCA1", "EGFR", "TP53-2", "KRAS", "TP53_10", "MYC", "TP53.3", "TP53-2-1", "ALB", "X-1"];
+      const program = `${code.slice(start, end)}\nfor (chunk in batches(c(${list.map((x) => JSON.stringify(x)).join(", ")}), 2)) cat(chunk, "\\n")`;
+      const out = execFileSync("Rscript", ["-e", program], { encoding: "utf8" });
+      const tp53 = out.split("\n").find((line) => line.split(" ").includes("TP53")) ?? "";
+      for (const copy of ["TP53-2", "TP53_10", "TP53.3", "TP53-2-1"]) expect(tp53.split(" "), copy).toContain(copy);
+    },
+    60_000,
+  );
 });

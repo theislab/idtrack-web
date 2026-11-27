@@ -4,10 +4,10 @@
 //
 // A list is read as it was when it was made: the release of its annotation is given (FROM_RELEASE), or asked of the
 // api from the list itself (`POST .../source-inference`, its `from_release`), and sent with every batch. A batch's
-// answers can depend on its members (`read_copies`, on by default: an item that is another item with `-1`, `.1` or `_1`
-// appended is answered as its copy), so the recipes never split a name from its copies: they group the identifiers by
-// the name without such suffixes, fill each request with whole groups up to `batch_max`, and write the answers in the
-// order given, with how each was read (`match`), the bridges it crossed and the criterion that decided it. The graph
+// answers can depend on its members (`read_copies`, on by default: idtrack answers an item that is another item of the
+// batch with `-`, `_` or `.` and a number appended as its copy, `idtrack.ids.NUMBERED_SUFFIX`), so the recipes never
+// split a name from its copies: they tie the items by idtrack's rule, through chains (as the api's own `batch_groups`
+// does), fill each request with whole groups up to `batch_max`, and write the answers in the order given, with how each was read (`match`), the bridges it crossed and the criterion that decided it. The graph
 // is the one every answer names (`Idtrack-Graph-Digest` of each batch's answer, checked to be one), written with the
 // releases in the table's first line.
 
@@ -38,21 +38,40 @@ if FROM_RELEASE is None:  # read each name as it was when the list was made, not
     inferred = call("POST", f"/organisms/{ORGANISM}/source-inference", json={"identifiers": identifiers[:size]})
     FROM_RELEASE = inferred.json()["from_release"]
 
-# An item with -1, .1 or _1 appended can be read as another item's copy, within one batch only:
-# keep each name and its copies in the same request (a group larger than batch_max is split).
-groups = {}
-for name in identifiers:
-    groups.setdefault(re.sub(r"([-._]1)+$", "", name), []).append(name)
-chunks, chunk = [], []
-for members in groups.values():
-    if chunk and len(chunk) + len(members) > size:
-        chunks.append(chunk)
-        chunk = []
-    chunk += members
-chunks += [chunk] if chunk else []
+def batches(identifiers, size):
+    """The requests of a list, a name and its copies always in one.
+
+    idtrack's rule (idtrack.ids.NUMBERED_SUFFIX): an item that is another item of the same batch with "-", "_"
+    or "." and a number appended may be answered as that item's copy, within one batch only; such items are
+    tied, through chains too (TP53, TP53-1, TP53-1-2), and each tied group goes whole into one request (a
+    group larger than size is split).
+    """
+    copy_of = re.compile(r"^(.+)([-_.])([0-9]+)$")
+    given = set(identifiers)
+    root = {name: name for name in identifiers}
+
+    def find(name):
+        while root[name] != name:
+            name = root[name]
+        return name
+
+    for name in identifiers:
+        found = copy_of.match(name.strip())
+        if found and found.group(1) in given:
+            root[find(name)] = find(found.group(1))
+    groups = {}
+    for name in dict.fromkeys(identifiers):
+        groups.setdefault(find(name), []).append(name)
+    chunks, chunk = [], []
+    for members in groups.values():
+        if chunk and len(chunk) + len(members) > size:
+            chunks.append(chunk)
+            chunk = []
+        chunk += members
+    return chunks + ([chunk] if chunk else [])
 
 answers, graphs, targets = {}, set(), set()
-for chunk in chunks:
+for chunk in batches(identifiers, size):
     body = {"identifiers": chunk, "from_release": FROM_RELEASE, "final_database": "HGNC Symbol"}
     response = call("POST", f"/organisms/{ORGANISM}/convert/batch", json=body)
     graphs.add(response.headers["Idtrack-Graph-Digest"])  # the graph that answered
@@ -101,24 +120,39 @@ if (is.null(from_release)) {  # read each name as it was when the list was made,
   from_release <- resp_body_json(inferred)$from_release
 }
 
-# An item with -1, .1 or _1 appended can be read as another item's copy, within one batch only:
-# keep each name and its copies in the same request (a group larger than batch_max is split).
-groups <- split(identifiers, factor(sub("([-._]1)+$", "", identifiers), levels = unique(sub("([-._]1)+$", "", identifiers))))
-chunks <- list()
-chunk <- character()
-for (members in groups) {
-  if (length(chunk) > 0 && length(chunk) + length(members) > size) {
-    chunks[[length(chunks) + 1]] <- chunk
-    chunk <- character()
+# The requests of a list, a name and its copies always in one. idtrack's rule (idtrack.ids.NUMBERED_SUFFIX): an
+# item that is another item of the same batch with "-", "_" or "." and a number appended may be answered as that
+# item's copy, within one batch only; such items are tied, through chains too (TP53, TP53-1, TP53-1-2), and each
+# tied group goes whole into one request (a group larger than size is split).
+batches <- function(identifiers, size) {
+  root <- setNames(identifiers, identifiers)
+  find <- function(name) {
+    while (root[[name]] != name) name <- root[[name]]
+    name
   }
-  chunk <- c(chunk, members)
+  for (name in identifiers) {
+    found <- regmatches(trimws(name), regexec("^(.+)([-_.])([0-9]+)$", trimws(name)))[[1]]
+    if (length(found) && found[2] %in% identifiers) root[[find(name)]] <- find(found[2])
+  }
+  distinct <- unique(identifiers)
+  groups <- split(distinct, factor(vapply(distinct, find, ""), levels = unique(vapply(distinct, find, ""))))
+  chunks <- list()
+  chunk <- character()
+  for (members in groups) {
+    if (length(chunk) > 0 && length(chunk) + length(members) > size) {
+      chunks[[length(chunks) + 1]] <- chunk
+      chunk <- character()
+    }
+    chunk <- c(chunk, members)
+  }
+  if (length(chunk) > 0) chunks[[length(chunks) + 1]] <- chunk
+  chunks
 }
-if (length(chunk) > 0) chunks[[length(chunks) + 1]] <- chunk
 
 rows <- list()
 graphs <- character()
 targets <- integer()
-for (chunk in chunks) {
+for (chunk in batches(identifiers, size)) {
   response <- call(request(paste0(base, "/organisms/", organism, "/convert/batch")) |>
     req_body_json(list(identifiers = as.list(chunk), from_release = from_release, final_database = "HGNC Symbol")))
   graphs <- union(graphs, resp_header(response, "Idtrack-Graph-Digest"))  # the graph that answered

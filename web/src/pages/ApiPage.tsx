@@ -944,9 +944,10 @@ export function ApiPage() {
                       order, each with its own status, and an identifier whose conversion fails is that item&apos;s
                       error (with its <Mono>code</Mono>). An identifier the api refuses at its boundary (too long,
                       control characters) refuses the whole batch, with every such index in <Mono>details</Mono>:
-                      correct it and send again. An item that is another item of the same batch with <Mono>-1</Mono>,{" "}
-                      <Mono>.1</Mono> or <Mono>_1</Mono> appended can be answered as its copy; send{" "}
-                      <Mono>&quot;read_copies&quot;: false</Mono> to convert every item alone.
+                      correct it and send again. An item that is another item of the same batch with <Mono>-</Mono>,{" "}
+                      <Mono>.</Mono> or <Mono>_</Mono> and a number appended (<Mono>TP53-1</Mono>, <Mono>TP53_10</Mono>)
+                      can be answered as its copy; send <Mono>&quot;read_copies&quot;: false</Mono> to convert every
+                      item alone.
                     </p>
                   </details>
                 </li>
@@ -1140,13 +1141,13 @@ export function ApiPage() {
                 A list of any length in requests of at most this server&apos;s <Mono>batch_max</Mono>, read as it was
                 when it was made: give the Ensembl release of its annotation (<Mono>FROM_RELEASE</Mono>), or let one{" "}
                 <Mono>POST …/source-inference</Mono> find it from the list (its <Mono>from_release</Mono>), sent with
-                every batch. It waits as told on <Mono>429</Mono> and <Mono>503</Mono>, keeps a name and its copies (
-                <Mono>-1</Mono>, <Mono>.1</Mono> or <Mono>_1</Mono> appended) in one request, keeps only the answers in
-                the database asked (<Mono>converted</Mono> and <Mono>tie</Mono>) with how each was read (
-                <Mono>match</Mono>), the bridges it crossed and the criterion that decided it, and writes above the
-                table the graph every answer came from (<Mono>Idtrack-Graph-Digest</Mono> of each answer, checked to be
-                one) and both releases. A batch&apos;s own table (<Mono>format=tsv</Mono>) names the same with{" "}
-                <Mono>provenance=true</Mono>.
+                every batch. It waits as told on <Mono>429</Mono> and <Mono>503</Mono>, keeps a name and its copies (the
+                name with <Mono>-</Mono>, <Mono>.</Mono> or <Mono>_</Mono> and a number appended, idtrack&apos;s rule)
+                in one request, keeps only the answers in the database asked (<Mono>converted</Mono> and{" "}
+                <Mono>tie</Mono>) with how each was read (<Mono>match</Mono>), the bridges it crossed and the criterion
+                that decided it, and writes above the table the graph every answer came from (
+                <Mono>Idtrack-Graph-Digest</Mono> of each answer, checked to be one) and both releases. A batch&apos;s
+                own table (<Mono>format=tsv</Mono>) names the same with <Mono>provenance=true</Mono>.
               </p>
               <CodeChoice
                 what="The pipeline"
