@@ -308,8 +308,10 @@ def test_rate_limit(make_client: Callable[..., TestClient], check_response: Call
 
 def test_search_time_is_charged(make_client: Callable[..., TestClient], check_response: Callable[..., Any]) -> None:
     """A client whose searches used more than its search seconds waits until its balance is back to zero."""
+    # An allowance of search time far below any search's cost (a microsecond a minute, a microsecond of burst): the
+    # first search, however fast the machine, leaves the balance below zero for the next.
     client = make_client(
-        rate_per_minute=1000, rate_burst=1000, rate_search_seconds=0.6, rate_search_burst_seconds=0.001
+        rate_per_minute=1000, rate_burst=1000, rate_search_seconds=0.000001, rate_search_burst_seconds=0.000001
     )
     first = client.post(f"{P}/organisms/pig/convert/batch", json={"identifiers": [GENE, "HSPB1"], "explain": True})
     assert first.status_code == 200
