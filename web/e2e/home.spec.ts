@@ -161,6 +161,9 @@ test("the journeys: every row the showcase's answer, isolated on focus, opened b
   await expect(page.getByRole("tooltip")).toContainText("step 1 of");
   await expectAccessible(page);
   await shot(page, info, "02-start-journey-focused");
+  // The full-page capture resizes the window for a moment (the figure is laid out again in it): the row is focused
+  // again before its Enter.
+  await rows.nth(second).focus();
   await page.keyboard.press("Enter");
   await waitForResult(page);
   await expect(page).toHaveURL(new RegExp(`id=${encodeURIComponent(idOf(second))}`));
