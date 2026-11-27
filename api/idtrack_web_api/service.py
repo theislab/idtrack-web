@@ -220,10 +220,7 @@ def with_cautions(result: dict[str, Any], settings: Settings, *, explain: bool) 
     Returns:
         dict[str, Any]: The result, with ``cautions``.
     """
-    if result.get("status") == "error":
-        result["cautions"] = []
-        return result
-    result["cautions"] = cautions_of(result, settings.docs_url)
+    result["cautions"] = [] if result.get("status") == "error" else cautions_of(result, settings.docs_url)
     if not explain:
         result["path"] = None
         for candidate in result.get("candidates", []):
