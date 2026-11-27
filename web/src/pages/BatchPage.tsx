@@ -1,19 +1,23 @@
 // Convert many identifiers at once: paste or upload a list, read the answer as a figure (what came back, then the
 // results one row per identifier), export it exactly as the api returned it.
 import {
+  memo,
   useCallback,
   useDeferredValue,
   useEffect,
+  useImperativeHandle,
   useLayoutEffect,
   useMemo,
   useRef,
   useState,
   type ChangeEvent,
+  type Ref,
   type SyntheticEvent,
 } from "react";
-import { api } from "../api/client";
+import { api, ApiError } from "../api/client";
 import type { BatchRequest, GraphDescription } from "../api/types";
-import { BatchResults } from "../components/BatchResults";
+import { BatchInference } from "../components/BatchInference";
+import { BatchResults, type BatchAnswer } from "../components/BatchResults";
 import { ErrorPanel } from "../components/ErrorPanel";
 import { Button, Field, Link, Mono, Select, Skeleton, Switch, TextInput } from "../components/ui";
 import { announce } from "../lib/announce";
@@ -26,7 +30,8 @@ import {
   SEPARATOR_WORDS,
   type TableChoice,
 } from "../lib/batchList";
-import { exampleSets, exampleWords, type ExampleSet } from "../lib/batchExamples";
+import { exampleSets, exampleWords, listPlaceholder, type ExampleSet } from "../lib/batchExamples";
+import type { InferredRelease } from "../lib/batchExport";
 import { markSeen, retryBatch, startBatch, useBatchRun, useOtherRuns } from "../lib/batchRun";
 import { useShowcase } from "../lib/showcase";
 import { databaseLabel, sortDatabases } from "../lib/databases";
@@ -94,19 +99,39 @@ function useSettledText(text: string): string {
   return large ? settled : deferred;
 }
 
-function BatchForOrganism({ description }: { description: GraphDescription }) {
-  const organism = description.organism;
-  const limits = useLimits();
-  const settingsKey = `batch.settings.${organism}`;
+/** What the page asks of the list field: set its text (an example, a file), read it as typed now, keep it for the
+ *  session at once, focus it. */
+interface ListHandle {
+  set: (value: string) => void;
+  value: () => string;
+  keep: () => void;
+  focus: () => void;
+}
+
+/** The list as typed: its own state, so that a keystroke draws the field alone and never the page around it (a list
+ *  of tens of thousands of lines, a thousand results below); the page reads it a render later, or for a very long text
+ *  once typing pauses (`onSettled`), and kept for the session as it is typed (a very long one once typing pauses, and
+ *  when the page goes). */
+const ListText = memo(function ListText({
+  id,
+  describedBy,
+  invalid,
+  placeholder,
+  onSettled,
+  onEdit,
+  ref,
+}: {
+  id: string;
+  describedBy: string | undefined;
+  invalid: boolean;
+  placeholder: string;
+  onSettled: (text: string) => void;
+  /** Told of an edit, where the page has a problem to clear. */
+  onEdit: (() => void) | undefined;
+  ref: Ref<ListHandle>;
+}) {
   const [text, setTextState] = useState(() => readDraft(BATCH_TEXT_DRAFT, isText) ?? "");
-  const [choice, setChoice] = useState<TableChoice>(() => readDraft("batch.table", isChoice) ?? {});
-  const [fileNote, setFileNote] = useState<string | null>(null);
-  const [settings, setSettings] = useState<Settings>(() => readDraft(settingsKey, isSettings) ?? NO_SETTINGS);
-  const [problem, setProblem] = useState<string | null>(null);
-  const fileInput = useRef<HTMLInputElement>(null);
-  const area = useRef<HTMLElement>(null);
-  const listField = useRef<HTMLTextAreaElement>(null);
-  // The list is kept for the session as it is typed; a very long one once typing pauses (and when the page goes).
+  const field = useRef<HTMLTextAreaElement>(null);
   const pendingDraft = useRef<string | null>(null);
   const keepText = useCallback(() => {
     if (pendingDraft.current === null) return;
@@ -114,11 +139,14 @@ function BatchForOrganism({ description }: { description: GraphDescription }) {
     pendingDraft.current = null;
   }, []);
   useEffect(() => keepText, [keepText]);
-  const setText = (value: string) => {
-    setTextState(value);
-    pendingDraft.current = value;
-    if (value.length <= LARGE_TEXT) keepText();
-  };
+  const setText = useCallback(
+    (value: string) => {
+      setTextState(value);
+      pendingDraft.current = value;
+      if (value.length <= LARGE_TEXT) keepText();
+    },
+    [keepText],
+  );
   useEffect(() => {
     if (text.length <= LARGE_TEXT) return;
     const timer = window.setTimeout(keepText, 400);
@@ -126,17 +154,33 @@ function BatchForOrganism({ description }: { description: GraphDescription }) {
       window.clearTimeout(timer);
     };
   }, [text, keepText]);
+  const settled = useSettledText(text);
+  useEffect(() => {
+    onSettled(settled);
+  }, [settled, onSettled]);
+  useImperativeHandle(
+    ref,
+    () => ({
+      set: setText,
+      value: () => field.current?.value ?? text,
+      keep: keepText,
+      focus: () => field.current?.focus(),
+    }),
+    [setText, keepText, text],
+  );
   // A large insertion as typed text (dictation, a drop, an automated fill) is put in by the page, at the selection.
   const caret = useRef<number | null>(null);
   useLayoutEffect(() => {
-    const field = listField.current;
-    if (caret.current === null || !field) return;
-    field.setSelectionRange(caret.current, caret.current);
+    const element = field.current;
+    if (caret.current === null || !element) return;
+    element.setSelectionRange(caret.current, caret.current);
     caret.current = null;
   });
+  const edited = useRef(onEdit);
+  edited.current = onEdit;
   useEffect(() => {
-    const field = listField.current;
-    if (!field) return;
+    const element = field.current;
+    if (!element) return;
     const insert = (event: InputEvent) => {
       if (!["insertText", "insertReplacementText", "insertFromDrop"].includes(event.inputType)) return;
       const data = event.data ?? event.dataTransfer?.getData("text/plain") ?? "";
@@ -144,17 +188,61 @@ function BatchForOrganism({ description }: { description: GraphDescription }) {
       for (let i = data.indexOf("\n"); i >= 0 && lines <= LARGE_INSERT_LINES; i = data.indexOf("\n", i + 1)) lines++;
       if (lines <= LARGE_INSERT_LINES) return;
       event.preventDefault();
-      const value = field.value;
-      const next = value.slice(0, field.selectionStart) + data + value.slice(field.selectionEnd);
-      caret.current = field.selectionStart + data.length;
+      const value = element.value;
+      const next = value.slice(0, element.selectionStart) + data + value.slice(element.selectionEnd);
+      caret.current = element.selectionStart + data.length;
       setTextState(next);
       pendingDraft.current = next;
-      setProblem(null);
+      edited.current?.();
     };
-    field.addEventListener("beforeinput", insert);
+    element.addEventListener("beforeinput", insert);
     return () => {
-      field.removeEventListener("beforeinput", insert);
+      element.removeEventListener("beforeinput", insert);
     };
+  }, []);
+  return (
+    <textarea
+      id={id}
+      ref={field}
+      className="input input--mono textarea batch-form__textarea"
+      rows={12}
+      value={text}
+      spellCheck={false}
+      autoCapitalize="off"
+      autoCorrect="off"
+      aria-describedby={describedBy}
+      aria-invalid={invalid}
+      aria-required="true"
+      placeholder={placeholder}
+      onChange={(e) => {
+        setText(e.target.value);
+        edited.current?.();
+      }}
+    />
+  );
+});
+
+function BatchForOrganism({ description }: { description: GraphDescription }) {
+  const organism = description.organism;
+  const limits = useLimits();
+  const settingsKey = `batch.settings.${organism}`;
+  const list = useRef<ListHandle>(null);
+  // The list as the page reads it: the text a render after it is typed (ListText).
+  const [typed, setTyped] = useState(() => readDraft(BATCH_TEXT_DRAFT, isText) ?? "");
+  const [choice, setChoice] = useState<TableChoice>(() => readDraft("batch.table", isChoice) ?? {});
+  const [fileNote, setFileNote] = useState<string | null>(null);
+  const [settings, setSettings] = useState<Settings>(() => readDraft(settingsKey, isSettings) ?? NO_SETTINGS);
+  const [problem, setProblem] = useState<string | null>(null);
+  // The release read at as idtrack's source inference of the list gave it, while the form holds that release.
+  const [inferred, setInferred] = useState<InferredRelease | null>(null);
+  const fileInput = useRef<HTMLInputElement>(null);
+  const area = useRef<HTMLElement>(null);
+  const setText = (value: string) => {
+    list.current?.set(value);
+    setTyped(value);
+  };
+  const clearProblem = useCallback(() => {
+    setProblem(null);
   }, []);
   const choose = (next: TableChoice) => {
     setChoice(next);
@@ -175,8 +263,6 @@ function BatchForOrganism({ description }: { description: GraphDescription }) {
   const setFinalDatabase = setting("finalDatabase");
   const setFromDatabase = setting("fromDatabase");
   const setAllowBridges = setting("allowBridges");
-  // The list is read from the text in a render of its own, so that typing and pasting never wait on it.
-  const typed = useSettledText(text);
   const table = useMemo(() => parseTable(typed, choice), [typed, choice]);
   const identifiers = table.identifiers;
   const distinct = useMemo(() => new Set(identifiers).size, [identifiers]);
@@ -191,6 +277,7 @@ function BatchForOrganism({ description }: { description: GraphDescription }) {
   const showcase = useShowcase(organism);
   const shown = showcase.state === "done" ? showcase.answer.data : null;
   const examples = useMemo(() => exampleSets(shown), [shown]);
+  const placeholder = useMemo(() => listPlaceholder(shown), [shown]);
 
   // The organism's batch: held by lib/batchRun.ts, so that it goes on while another page is shown and is kept for the
   // session once, when its answer comes.
@@ -205,7 +292,18 @@ function BatchForOrganism({ description }: { description: GraphDescription }) {
     if (followed.current !== batch.id || (run.state !== "done" && run.state !== "failed")) return;
     followed.current = null;
     if (run.state === "done") announce(batchSentence(run.answer.data.results));
-    moveFocus(() => area.current, '.batch-figure-head__title, [role="alert"] .notice__title');
+    moveFocus(() => area.current, '.batch-figure-head__line, [role="alert"] .notice__title');
+    // The results' head at the top of the window, so that the answers come first (on a phone too).
+    window.requestAnimationFrame(() => {
+      const head = area.current;
+      if (!head) return;
+      const top = head.getBoundingClientRect().top;
+      if (top > window.innerHeight * 0.25 || top < 0)
+        head.scrollIntoView({
+          block: "start",
+          behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
+        });
+    });
   }, [batch.id, run, organism, moveFocus]);
 
   const onFile = (event: ChangeEvent<HTMLInputElement>) => {
@@ -251,21 +349,21 @@ function BatchForOrganism({ description }: { description: GraphDescription }) {
 
   const over = limits !== null && identifiers.length > limits.batch_max;
   const overWords = limits
-    ? `The list has ${groupedInteger(identifiers.length)} identifiers; this server converts at most ${groupedInteger(limits.batch_max)} per request. The page does not split a list: a batch's answers can depend on its members (an item that is another item with -1, .1 or _1 appended is read as that item's copy). To convert more, use idtrack's convert_many in Python, which takes a list of any length, or the http api in requests of at most ${groupedInteger(limits.batch_max)}, keeping such names in one request (API page).`
+    ? `The list has ${groupedInteger(identifiers.length)} identifiers; this server converts at most ${groupedInteger(limits.batch_max)} per request. The page does not split a list: a batch's answers can depend on its members (an item that is another item with a separator and a number appended, -1, .2 or _3, is read as that item's copy). To convert more, use idtrack's convert_many in Python, which takes a list of any length, or the http api in requests of at most ${groupedInteger(limits.batch_max)}, keeping such names in one request (API page).`
     : "";
   const submit = (event: SyntheticEvent) => {
     event.preventDefault();
     if (run.state === "loading") return;
     // The list as typed now (the reading may be a render behind).
-    const now = parseTable(text, choice);
+    const now = parseTable(list.current?.value() ?? typed, choice);
     if (!now.identifiers.length) {
       setProblem("Paste or upload at least one identifier.");
-      listField.current?.focus();
+      list.current?.focus();
       return;
     }
     if (limits && now.identifiers.length > limits.batch_max) {
       setProblem(overWords);
-      listField.current?.focus();
+      list.current?.focus();
       return;
     }
     const lines = linesWithControls(now.identifiers);
@@ -277,7 +375,7 @@ function BatchForOrganism({ description }: { description: GraphDescription }) {
       setProblem(
         `${groupedInteger(lines.length)} line${lines.length === 1 ? " holds" : "s hold"} a control character, which the api refuses for the whole batch: line${lines.length === 1 ? "" : "s"} ${shownLines}${lines.length > 10 ? " …" : ""} of the list. Remove ${lines.length === 1 ? "it" : "them"} and convert again.`,
       );
-      listField.current?.focus();
+      list.current?.focus();
       return;
     }
     for (const value of [fromRelease, toRelease]) {
@@ -287,7 +385,7 @@ function BatchForOrganism({ description }: { description: GraphDescription }) {
       }
     }
     setProblem(null);
-    keepText();
+    list.current?.keep();
     const body: Required<BatchRequest> = {
       identifiers: now.identifiers,
       from_release: fromRelease.trim() ? Number(fromRelease.trim()) : null,
@@ -304,6 +402,7 @@ function BatchForOrganism({ description }: { description: GraphDescription }) {
       header: now.header,
       column: now.column,
       rows: now.rows,
+      inferred: inferred && fromRelease.trim() === String(inferred.release) ? inferred : null,
     });
     window.requestAnimationFrame(() => {
       revealArea(area.current);
@@ -326,9 +425,27 @@ function BatchForOrganism({ description }: { description: GraphDescription }) {
       `An example: ${groupedInteger(set.identifiers.length)} identifiers of the Convert page's first figure, with its settings (${exampleWords(set, description.snapshot_release)}).`,
     );
   };
+  // The answer drawn below, the same object while the run is the same: typing in the form never draws the results again.
+  const answer = useMemo(
+    (): BatchAnswer | null =>
+      run.state === "done"
+        ? {
+            results: run.answer.data.results,
+            count: run.answer.data.count,
+            request: run.request,
+            raw: run.answer.raw,
+            serverTiming: run.answer.serverTiming,
+            requestId: run.answer.requestId,
+            answeredAt: run.answeredAt || null,
+            source: batch.source,
+            pathsRefused: batch.pathsRefused,
+          }
+        : null,
+    [run, batch.source, batch.pathsRefused],
+  );
   const synonyms = new Set(description.synonym_databases);
   const sources = description.external_databases;
-  const inferred = limitationAt(LIMITATION_OF.other_release);
+  const otherRelease = limitationAt(LIMITATION_OF.other_release);
 
   return (
     <div className="page page--batch">
@@ -360,21 +477,14 @@ function BatchForOrganism({ description }: { description: GraphDescription }) {
             }
           >
             {({ id, describedBy }) => (
-              <textarea
+              <ListText
+                ref={list}
                 id={id}
-                ref={listField}
-                className="input input--mono textarea batch-form__textarea"
-                rows={12}
-                value={text}
-                spellCheck={false}
-                aria-describedby={describedBy}
-                aria-invalid={Boolean(problem)}
-                aria-required="true"
-                placeholder={"INS\nPDX1\nENSG00000139618\nNM_000207"}
-                onChange={(e) => {
-                  setText(e.target.value);
-                  if (problem) setProblem(null);
-                }}
+                describedBy={describedBy}
+                invalid={Boolean(problem)}
+                placeholder={placeholder}
+                onSettled={setTyped}
+                onEdit={problem ? clearProblem : undefined}
               />
             )}
           </Field>
@@ -519,13 +629,13 @@ function BatchForOrganism({ description }: { description: GraphDescription }) {
               hint={
                 <>
                   For a dataset, the Ensembl release of its annotation (the release of its GTF, for instance). Empty:
-                  each identifier is read at the release idtrack infers, a symbol with its meaning there
-                  {inferred ? (
+                  each identifier is read at the release idtrack infers for it alone, a symbol with its meaning there
+                  {otherRelease ? (
                     <>
                       {" "}
                       (
-                      <a href={inferred.href} target="_blank" rel="noreferrer">
-                        {inferred.title}
+                      <a href={otherRelease.href} target="_blank" rel="noreferrer">
+                        {otherRelease.title}
                         <span className="visually-hidden"> (idtrack&apos;s documentation, opens in a new tab)</span>
                         <span aria-hidden="true"> ↗</span>
                       </a>
@@ -566,6 +676,16 @@ function BatchForOrganism({ description }: { description: GraphDescription }) {
               )}
             </Field>
           </div>
+          <BatchInference
+            description={description}
+            identifiers={identifiers}
+            bound={limits?.batch_max ?? 1000}
+            current={fromRelease}
+            onUse={(next) => {
+              setFromRelease(String(next.release));
+              setInferred(next);
+            }}
+          />
           <Field
             label="Target database"
             hint="The database of the answers, among those of the target release. Every row also gives the Ensembl gene at that release."
@@ -655,36 +775,47 @@ function BatchForOrganism({ description }: { description: GraphDescription }) {
           </div>
         ) : null}
         {run.state === "failed" ? (
-          <ErrorPanel
-            error={run.error}
-            context="The batch"
-            onRetry={() => {
-              followed.current = batch.id + 1;
-              retryBatch(organism);
-            }}
-          />
+          <>
+            <ErrorPanel
+              error={run.error}
+              context="The batch"
+              onRetry={() => {
+                followed.current = batch.id + 1;
+                retryBatch(organism);
+              }}
+              actions={
+                run.request.explain &&
+                run.error instanceof ApiError &&
+                run.error.body.code === "request_budget_exceeded" &&
+                batch.retry?.state !== "waiting" ? (
+                  <Button
+                    onClick={() => {
+                      followed.current = batch.id + 1;
+                      retryBatch(organism, true);
+                    }}
+                  >
+                    Ask without the paths
+                  </Button>
+                ) : null
+              }
+            />
+            {batch.retry ? (
+              <p className="batch-retry" role="status">
+                {batch.retry.state === "waiting"
+                  ? "The batch is asked again by itself once, when the wait is over (while this tab is shown); after that, you decide."
+                  : `The batch was asked again by itself at ${timeOf(batch.retry.at)}, after the wait the api named, and refused again: nothing more is asked until you try again${run.request.explain && run.error instanceof ApiError && run.error.body.code === "request_budget_exceeded" ? ", with the paths or without them" : ""}.`}
+              </p>
+            ) : null}
+          </>
         ) : null}
-        {run.state === "done" ? (
-          <BatchResults
-            key={batch.id}
-            description={description}
-            answer={{
-              results: run.answer.data.results,
-              count: run.answer.data.count,
-              request: run.request,
-              raw: run.answer.raw,
-              serverTiming: run.answer.serverTiming,
-              requestId: run.answer.requestId,
-              answeredAt: run.answeredAt || null,
-              source: batch.source,
-              pathsRefused: batch.pathsRefused,
-            }}
-          />
-        ) : null}
+        {run.state === "done" && answer ? <BatchResults key={batch.id} description={description} answer={answer} /> : null}
       </section>
     </div>
   );
 }
+
+/** A time of day as the browser's clock writes it, to the second (`17:02:11`). */
+const timeOf = (iso: string) => new Date(iso).toTimeString().slice(0, 8);
 
 const isChoice = (value: unknown): value is TableChoice =>
   isRecord(value) &&

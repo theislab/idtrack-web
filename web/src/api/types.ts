@@ -30,6 +30,8 @@ export type StatusResponse = Schemas["StatusResponse"];
 export type ShowcaseResponse = Schemas["ShowcaseResponse"];
 export type ShowcaseQuery = Schemas["ShowcaseQuery"];
 export type HistoryResponse = Schemas["HistoryResponse"];
+export type SourceInferenceRequest = Schemas["SourceInferenceRequest"];
+export type SourceInferenceResponse = Schemas["SourceInferenceResponse"];
 
 /** The query of one conversion, as the convert endpoint takes it. */
 export type ConvertQuery = NonNullable<operations["convert"]["parameters"]["query"]>;

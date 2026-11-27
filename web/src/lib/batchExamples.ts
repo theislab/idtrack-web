@@ -46,6 +46,12 @@ function exampleList(showcase: ShowcaseResponse | null): string[] {
   return [...new Set([...journeys, ...cases])];
 }
 
+/** A list for the empty field of the Batch page: the first few identifiers of the organism's figures, one per line (none
+ *  before the showcase arrives, rather than another organism's). */
+export function listPlaceholder(showcase: ShowcaseResponse | null): string {
+  return exampleList(showcase).slice(0, 4).join("\n");
+}
+
 /** Examples for the Names page from the same identifiers: names (the symbols and other ids that are no Ensembl id)
  *  and Ensembl genes written with a version, a few of each. */
 export function nameExamples(showcase: ShowcaseResponse | null): { names: string[]; genes: string[] } {

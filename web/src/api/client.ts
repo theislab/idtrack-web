@@ -19,6 +19,8 @@ import type {
   HistoryResponse,
   LimitsResponse,
   ShowcaseResponse,
+  SourceInferenceRequest,
+  SourceInferenceResponse,
   StatusResponse,
   NamesResponse,
   OrganismsResponse,
@@ -493,6 +495,13 @@ export const api = {
       signal,
       endpoint: "POST /organisms/{organism}/convert/batch",
     }) as Promise<Answer<BatchResponse>>,
+  sourceInference: (organism: string, body: SourceInferenceRequest, signal?: AbortSignal) =>
+    request(`${organismPath(organism)}/source-inference`, {
+      method: "POST",
+      body,
+      signal,
+      endpoint: "POST /organisms/{organism}/source-inference",
+    }) as Promise<Answer<SourceInferenceResponse>>,
   batchTsv: (organism: string, body: BatchRequest, signal?: AbortSignal) =>
     request(`${organismPath(organism)}/convert/batch`, {
       method: "POST",

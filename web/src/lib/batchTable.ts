@@ -310,6 +310,12 @@ export interface RowFilter {
   elsewhere?: boolean;
   /** Not-found rows in the form of a spreadsheet's date. */
   dates?: boolean;
+  /** Rows whose best gene was put before another gene by Ensembl's score alone. */
+  byScore?: boolean;
+  /** Rows answered as another item's copy. */
+  copies?: boolean;
+  /** Only these rows (by index), where given. */
+  only?: ReadonlySet<number> | null;
   text?: string;
 }
 
@@ -322,6 +328,47 @@ function readElsewhere(row: BatchRow): boolean {
 /** Several genes reached: the best answer is one gene (not a tie) and the identifier leads to other genes below it. */
 export function leadsToOthers(row: BatchRow): boolean {
   return row.result.status === "converted" && row.otherGenes.length > 0;
+}
+
+/** The best gene was put before another gene by Ensembl's score alone: a converted answer decided by the criterion
+ *  `score` whose runner-up (the first candidate below the best) is another gene than every best one. */
+export function decidedByScoreAmongGenes(row: BatchRow): boolean {
+  const r = row.result;
+  if (r.status !== "converted" || r.decided_by !== "score") return false;
+  const runnerUp = r.candidates.find((c) => !c.best);
+  return runnerUp !== undefined && !row.genes.includes(runnerUp.gene);
+}
+
+/** A row whose identifier, read as a name of a database, that database names otherwise at the target release. */
+export interface RenamedRow {
+  index: number;
+  /** The name as the graph read it (`graph_id`). */
+  read: string;
+  /** The ids the database gives the answer at the target. */
+  now: string[];
+}
+
+/** The rows read as a name of `database` (among the result's `from_databases`) whose answer the database names
+ *  otherwise at the target: none of the answer's ids there is the name as read. The ids at the target are the rows'
+ *  answers where the batch answered in that database (`names` null), else each best gene's ids from `names`. A row
+ *  whose answer has no id there is not counted (it is not named otherwise, it is not named). */
+export function renamedRows(
+  rows: readonly BatchRow[],
+  database: string,
+  names: ReadonlyMap<string, readonly string[] | null> | null,
+): RenamedRow[] {
+  const out: RenamedRow[] = [];
+  for (const row of rows) {
+    const r = row.result;
+    if ((r.status !== "converted" && r.status !== "tie") || r.graph_id === null) continue;
+    if (!r.from_databases.includes(database)) continue;
+    const now = names
+      ? [...new Set(row.genes.flatMap((g) => names.get(g) ?? []))]
+      : [...new Set(row.answers)];
+    if (!now.length || now.includes(r.graph_id)) continue;
+    out.push({ index: row.index, read: r.graph_id, now });
+  }
+  return out;
 }
 
 /** A not-found identifier in the form of a date a spreadsheet makes of a cell. */
@@ -343,6 +390,9 @@ export function filterRows(rows: readonly BatchRow[], filter: RowFilter): BatchR
     if (filter.several && !leadsToOthers(row)) return false;
     if (filter.elsewhere && !readElsewhere(row)) return false;
     if (filter.dates && !spreadsheetDate(row)) return false;
+    if (filter.byScore && !decidedByScoreAmongGenes(row)) return false;
+    if (filter.copies && !isCopy(r)) return false;
+    if (filter.only && !filter.only.has(row.index)) return false;
     if (!needle) return true;
     return [r.query_id, r.graph_id ?? "", ...row.answers, ...r.candidates.map((c) => c.gene)].some((v) =>
       v.toLowerCase().includes(needle),
@@ -364,6 +414,8 @@ export interface BatchSummary {
   inferred: number;
   dates: number;
   copies: number;
+  /** Rows whose best gene was put before another gene by Ensembl's score alone. */
+  byScore: number;
   /** Whether the answer holds the paths (every row with a candidate has its path). */
   paths: boolean;
   /** Rows whose best paths cross each kind of step (only with the paths). */
@@ -394,6 +446,7 @@ export function summaryOf(rows: readonly BatchRow[]): BatchSummary {
     inferred: 0,
     dates: 0,
     copies: 0,
+    byScore: 0,
   };
   for (const row of rows) {
     const r = row.result;
@@ -405,6 +458,7 @@ export function summaryOf(rows: readonly BatchRow[]): BatchSummary {
     if (how === "inferred") summary.inferred += 1;
     if (spreadsheetDate(row)) summary.dates += 1;
     if (isCopy(r)) summary.copies += 1;
+    if (decidedByScoreAmongGenes(row)) summary.byScore += 1;
     if (r.candidates.length && !row.crossed) paths = false;
     if (!row.crossed) continue;
     for (const kind of row.crossed.kinds) crossings.set(kind, (crossings.get(kind) ?? 0) + 1);

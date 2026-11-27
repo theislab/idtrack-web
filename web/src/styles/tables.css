@@ -4,11 +4,27 @@
 
 /* ---- Shared: panel heads, captions, release scale and lanes ---------------------------------------------------- */
 
+/* A lettered panel's head, as the answer's: the letter, the title in the section's tier, a rule under both. */
 .panel-head {
   display: flex;
+  flex-wrap: wrap;
   align-items: baseline;
-  gap: var(--space-3);
-  margin-bottom: var(--space-4);
+  gap: var(--space-2) var(--space-3);
+  margin-bottom: var(--space-5);
+  padding-bottom: var(--space-3);
+  border-bottom: 1px solid var(--line);
+}
+
+.panel-head .panel-letter {
+  font-size: var(--text-lg);
+  line-height: 1;
+  letter-spacing: -0.01em;
+}
+
+.batch-panel__aside {
+  margin-left: auto;
+  font-size: var(--text-sm);
+  color: var(--ink-3);
 }
 
 .fig-caption .mono {
@@ -345,8 +361,21 @@
   min-width: 0;
 }
 
-.batch-figure-head__title {
+.batch-figure-head__line {
   margin: 0;
+  font-size: var(--text-lg);
+  font-weight: var(--weight-medium);
+  color: var(--ink-1);
+}
+
+.batch-figure-head__line:focus {
+  outline: none;
+}
+
+.batch-figure-head__distinct {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-regular, 400);
+  color: var(--ink-3);
 }
 
 .batch-figure-head__setting {
@@ -405,7 +434,7 @@
 .sbar {
   display: flex;
   gap: 2px;
-  height: 34px;
+  height: 10px;
 }
 
 .sbar__segment {
@@ -429,23 +458,6 @@
   border-radius: var(--radius);
 }
 
-.sbar__count {
-  font-family: var(--font-mono);
-  font-size: var(--text-xs);
-  font-weight: var(--weight-strong);
-  color: var(--surface);
-  font-variant-numeric: tabular-nums slashed-zero;
-}
-
-.sfill--no_target .sbar__count,
-.sfill--unknown_version .sbar__count,
-.sfill--other .sbar__count {
-  color: var(--ink-1);
-  background: var(--surface);
-  padding: 0 3px;
-  border-radius: 2px;
-}
-
 /* The key of the statuses: each status present, its count and the api's meaning, in plain sight. */
 .slegend {
   list-style: none;
@@ -454,7 +466,7 @@
   display: grid;
   grid-template-columns: 12px max-content max-content minmax(0, 1fr);
   align-items: baseline;
-  gap: var(--space-2) var(--space-3);
+  gap: var(--space-2) var(--space-4);
 }
 
 .slegend__item {
@@ -475,7 +487,11 @@
 }
 
 .slegend__count {
-  color: var(--ink-2);
+  font-size: var(--text-xl);
+  font-weight: var(--weight-medium);
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  color: var(--ink-1);
   text-align: right;
   font-variant-numeric: tabular-nums slashed-zero;
 }
@@ -581,10 +597,53 @@
 }
 
 /* The results table: tools, then the table in a frame that scrolls under its sticky head. */
+/* The tools of the table, folded behind one line where the rows should come first (a short table, a phone). */
 .batch-tools {
+  margin-top: var(--space-4);
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+
+.batch-tools__summary {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 40px;
+  cursor: pointer;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-strong);
+  color: var(--ink-1);
+  list-style: none;
+}
+
+.batch-tools__summary::-webkit-details-marker {
+  display: none;
+}
+
+.batch-tools__summary::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-right: 1.5px solid currentcolor;
+  border-bottom: 1.5px solid currentcolor;
+  transform: rotate(-45deg);
+  transition: transform 150ms ease;
+}
+
+.batch-tools[open] > .batch-tools__summary::before {
+  transform: rotate(45deg);
+}
+
+.batch-tools__summary-state {
+  font-weight: var(--weight-regular);
+  color: var(--ink-3);
+}
+
+.batch-tools__body {
   align-items: center;
   display: grid;
   gap: var(--space-3);
+  padding: var(--space-1) 0 var(--space-4);
 }
 
 .batch-tools__filters {
@@ -666,6 +725,15 @@
   max-height: min(78vh, 920px);
   overflow: auto;
   overscroll-behavior: contain;
+}
+
+/* A table that fits its frame scrolls with the page, its head held under the masthead. */
+.table-frame--page .table-wrap {
+  overflow: visible;
+}
+
+.table-frame--page .table--batch > thead > tr > th {
+  top: var(--masthead-offset);
 }
 
 .table--batch > thead > tr > th {
@@ -1436,123 +1504,13 @@ th[aria-sort] .sort__mark {
 }
 
 .slegend__swatch {
-  align-self: center;
+  align-self: baseline;
 }
 
 .slegend__meaning {
   max-width: var(--measure-caption);
   font-size: var(--text-xs);
   line-height: var(--leading-caption);
-  color: var(--ink-2);
-}
-
-/* The counts: one typographic system. The number in the monospaced face with tabular figures and its unit kept
-   beside it; the name; a line of plain words; how it is counted on a press; the rows it counts on a press. An even
-   grid of `--tiles` columns. */
-.tiles {
-  list-style: none;
-  margin: var(--space-5) 0 var(--space-2);
-  padding: 0;
-  display: grid;
-  grid-template-columns: repeat(var(--tiles, 4), minmax(0, 1fr));
-  border-top: 1px solid var(--line);
-  border-left: 1px solid var(--line);
-}
-
-.tile {
-  display: grid;
-  grid-template-rows: auto auto 1fr auto;
-  gap: 2px;
-  min-width: 0;
-  padding: var(--space-3) var(--space-4) var(--space-3);
-  border-right: 1px solid var(--line);
-  border-bottom: 1px solid var(--line);
-  background: var(--surface);
-}
-
-.tile.is-pressed {
-  background: var(--surface-sunk);
-  box-shadow: inset 0 0 0 1.5px var(--ink-1);
-}
-
-.tile__value {
-  display: flex;
-  align-items: baseline;
-  flex-wrap: nowrap;
-  gap: 0.4em;
-  font-size: var(--text-2xl);
-  line-height: 1.15;
-  color: var(--ink-1);
-}
-
-.tile__value > .mono {
-  font-variant-numeric: tabular-nums slashed-zero;
-  font-weight: var(--weight-medium);
-  letter-spacing: -0.02em;
-  white-space: nowrap;
-}
-
-.tile.is-absent .tile__value {
-  color: var(--ink-3);
-}
-
-.tile__unit {
-  font-size: var(--text-xs);
-  color: var(--ink-3);
-  white-space: nowrap;
-}
-
-.tile__label {
-  font-size: var(--text-sm);
-  font-weight: var(--weight-strong);
-  color: var(--ink-1);
-}
-
-.tile__sub {
-  font-size: var(--text-xs);
-  line-height: var(--leading-caption);
-  color: var(--ink-3);
-}
-
-.tile__actions {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-1) var(--space-3);
-  margin-top: var(--space-2);
-  font-size: var(--text-xs);
-}
-
-.tile__show,
-.crossed__show {
-  font: inherit;
-  font-size: var(--text-xs);
-  min-height: 24px;
-  padding: 0 var(--space-2);
-  border: 1px solid var(--line-control);
-  border-radius: 999px;
-  background: var(--surface);
-  color: var(--ink-1);
-  cursor: pointer;
-  white-space: nowrap;
-}
-
-.tile__show[aria-pressed="true"],
-.crossed__show[aria-pressed="true"] {
-  background: var(--ink-1);
-  border-color: var(--ink-1);
-  color: var(--surface);
-}
-
-@media (hover: hover) {
-  .tile__show:hover,
-  .crossed__show:hover {
-    border-color: var(--ink-1);
-  }
-}
-
-.tile__how .toggletip__term {
-  font-size: var(--text-xs);
   color: var(--ink-2);
 }
 
@@ -1771,30 +1729,6 @@ th[aria-sort] .sort__mark {
 }
 
 /* Panel d: each file, its button and what it holds. */
-.downloads {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--space-5) var(--space-6);
-}
-
-.downloads__item {
-  display: grid;
-  align-content: start;
-  justify-items: start;
-  gap: var(--space-2);
-}
-
-.downloads__note {
-  margin: 0;
-  max-width: var(--measure-caption);
-  font-size: var(--text-xs);
-  line-height: var(--leading-caption);
-  color: var(--ink-3);
-}
-
 .batch-downloads:focus {
   outline: none;
 }
@@ -1942,55 +1876,16 @@ th[aria-sort] .sort__mark {
 }
 
 @media (max-width: 900px) {
-  .tiles {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .tile.is-last-odd {
-    grid-column: 1 / -1;
-  }
-
-  .downloads {
+  .files {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  .counts__list {
+    columns: 1;
   }
 }
 
 @media (max-width: 640px) {
-  /* On a phone a count is one line: its number, its name, its buttons; the plain line under the name is on How. */
-  .tiles {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .tile {
-    grid-template-columns: 4.6em minmax(0, 1fr) auto;
-    grid-template-rows: auto;
-    align-items: center;
-    column-gap: var(--space-3);
-    padding: var(--space-2) var(--space-3);
-  }
-
-  .tile__value {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 0;
-    font-size: var(--text-lg);
-  }
-
-  .tile__unit {
-    font-size: var(--text-2xs);
-    line-height: 1.2;
-  }
-
-  .tile__sub,
-  .tile__show-more {
-    display: none;
-  }
-
-  .tile__actions {
-    margin-top: 0;
-    flex-wrap: nowrap;
-  }
-
   .batch-names__select {
     width: 100%;
   }
@@ -2053,12 +1948,6 @@ th[aria-sort] .sort__mark {
     display: grid;
     gap: 4px;
     width: 100%;
-  }
-
-  /* On a phone too the long list of cards scrolls in its own frame, so that the caption, the panels after it and the
-     footer stay a short scroll away. */
-  .table-frame--tall .table-wrap {
-    max-height: 78svh;
   }
 
   /* A result on a phone, as a card: its place and identifier, its status (and why there is no answer), the gene and
@@ -2423,4 +2312,356 @@ th[aria-sort] .sort__mark {
   text-transform: inherit;
   letter-spacing: inherit;
   color: inherit;
+}
+
+/* ---- Batch, panel a: the counts of rows as one list (the number, its name and plain words, Show), the counts of
+   none on one quiet line ------------------------------------------------------------------------------------------- */
+
+.counts {
+  margin-top: var(--space-6);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--line);
+}
+
+.counts__title {
+  margin: 0 0 var(--space-2);
+}
+
+.counts__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  columns: 2;
+  column-gap: var(--space-7);
+}
+
+.count {
+  break-inside: avoid;
+  display: grid;
+  grid-template-columns: 4.5ch minmax(0, 1fr) auto;
+  align-items: baseline;
+  column-gap: var(--space-4);
+  padding: var(--space-3) 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.count.is-pressed {
+  box-shadow: inset 3px 0 0 var(--ink-1);
+  padding-left: var(--space-2);
+}
+
+.count__value {
+  font-size: var(--text-xl);
+  font-weight: var(--weight-medium);
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  text-align: right;
+  color: var(--ink-1);
+  font-variant-numeric: tabular-nums slashed-zero;
+}
+
+.count__text {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.count__label .toggletip__term {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-strong);
+  color: var(--ink-1);
+}
+
+.count__unit {
+  font-size: var(--text-xs);
+  color: var(--ink-3);
+}
+
+.count__sub {
+  font-size: var(--text-xs);
+  line-height: var(--leading-caption);
+  color: var(--ink-3);
+}
+
+.counts__pairs .mono {
+  color: var(--ink-1);
+}
+
+.count__show,
+.crossed__show {
+  font: inherit;
+  font-size: var(--text-xs);
+  min-height: 24px;
+  padding: 0 var(--space-3);
+  border: 1px solid var(--line-control);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--ink-1);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.count__show[aria-pressed="true"],
+.crossed__show[aria-pressed="true"] {
+  background: var(--ink-1);
+  border-color: var(--ink-1);
+  color: var(--surface);
+}
+
+@media (hover: hover) {
+  .count__show:hover,
+  .crossed__show:hover {
+    border-color: var(--ink-1);
+  }
+}
+
+.counts__none {
+  margin: var(--space-3) 0 0;
+  font-size: var(--text-sm);
+  color: var(--ink-3);
+}
+
+.counts__none-label {
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-right: var(--space-2);
+}
+
+.counts__term .toggletip__term {
+  font: inherit;
+  color: var(--ink-2);
+}
+
+/* ---- Batch, panel b: what a retired identifier was; the values that decided; the notes of the evidence ----------- */
+
+.life-line .sub-lead .mono {
+  color: var(--ink-1);
+}
+
+.b-decided__values .mono {
+  color: var(--ink-1);
+}
+
+.b-evidence__notes {
+  display: inline-block;
+  margin-top: 2px;
+  font-size: var(--text-xs);
+  color: var(--ink-3);
+}
+
+.batch-retry {
+  margin: var(--space-3) 0 0;
+  max-width: var(--measure-caption);
+  font-size: var(--text-sm);
+  color: var(--ink-2);
+}
+
+/* ---- Batch, panel d: each file as what it holds (its first lines, its size), then the methods sentence ------------ */
+
+.files {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-5);
+}
+
+.file {
+  display: grid;
+  grid-template-rows: auto auto 1fr auto;
+  gap: var(--space-3);
+  min-width: 0;
+  padding: var(--space-4);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.file__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-1) var(--space-3);
+}
+
+.file__name {
+  font-weight: var(--weight-strong);
+  color: var(--ink-1);
+}
+
+.file__kind {
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--ink-3);
+}
+
+.file__preview {
+  margin: 0;
+  display: grid;
+  padding: var(--space-2) var(--space-3);
+  overflow: hidden;
+  border-radius: var(--radius);
+  background: var(--surface-sunk);
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  line-height: 1.6;
+  color: var(--ink-2);
+  font-variant-numeric: tabular-nums slashed-zero;
+}
+
+.file__line {
+  white-space: pre;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  tab-size: 2;
+}
+
+.file__line--comment {
+  color: var(--ink-3);
+}
+
+.file__about,
+.file__facts {
+  margin: 0;
+  max-width: var(--measure-caption);
+  font-size: var(--text-xs);
+  line-height: var(--leading-caption);
+  color: var(--ink-3);
+}
+
+.file__facts .mono,
+.file__about .mono {
+  color: var(--ink-1);
+}
+
+.file__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.cite {
+  margin: var(--space-6) 0 0;
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--line);
+}
+
+.cite__sentence {
+  margin: var(--space-2) 0 var(--space-3);
+  max-width: 76ch;
+  padding-left: var(--space-4);
+  border-left: 2px solid var(--line-strong);
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  line-height: 1.5;
+  color: var(--ink-1);
+}
+
+.cite__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-4);
+  margin: 0;
+  font-size: var(--text-sm);
+}
+
+/* ---- Batch form: where the list comes from (idtrack's source inference), drawn on the release axis --------------- */
+
+.infer {
+  display: grid;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.infer__ask {
+  display: grid;
+  justify-items: start;
+  gap: var(--space-2);
+}
+
+.infer__assemblies {
+  font-size: var(--text-xs);
+  line-height: var(--leading-caption);
+  color: var(--ink-3);
+}
+
+.infer__figure {
+  margin: 0;
+  display: grid;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.infer__words {
+  margin: 0;
+  font-size: var(--text-sm);
+  line-height: var(--leading-caption);
+  color: var(--ink-2);
+}
+
+.infer__words .mono {
+  color: var(--ink-1);
+}
+
+.infer__plot {
+  position: relative;
+  height: 64px;
+  border-bottom: 1px solid var(--ink-3);
+}
+
+.infer__bands {
+  position: absolute;
+  inset: 0;
+}
+
+.infer__column {
+  position: absolute;
+  bottom: 0;
+  min-height: 1px;
+  box-shadow: inset 1px 0 0 var(--surface);
+  background: var(--line-strong);
+}
+
+.infer__column.is-band {
+  background: var(--ink-2);
+}
+
+.infer__column.is-best {
+  background: var(--ink-1);
+}
+
+.infer__use {
+  display: flex;
+}
+
+@media (forced-colors: active) {
+  .infer__column {
+    background: GrayText;
+  }
+
+  .infer__column.is-band,
+  .infer__column.is-best {
+    background: CanvasText;
+  }
+}
+
+.batch-steps {
+  margin-top: var(--space-2);
+}
+
+.batch-steps__summary {
+  cursor: pointer;
+  font-size: var(--text-xs);
+  color: var(--ink-2);
+}
+
+.batch-steps[open] > .batch-steps__summary {
+  margin-bottom: var(--space-2);
 }

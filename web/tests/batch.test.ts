@@ -186,20 +186,33 @@ describe("the rows of a batch", () => {
       answeredAt: "2026-11-27T00:00:00.000Z",
       count: list.length,
       source,
+      resolvedTo: 115,
       now: new Date("2026-11-27T01:00:00Z"),
     });
+    expect(provenance.request.resolved).toEqual({ to_release: 115, from_release: "inferred for each identifier" });
     const text = rowTable(rows, provenance, source, null);
     const lines = text.trimEnd().split("\n");
     const comments = lines.filter((l) => l.startsWith("#"));
     expect(comments.join("\n")).toContain(graph.content_digest ?? "");
     expect(comments.join("\n")).toContain("homo_sapiens");
     const table = lines.filter((l) => !l.startsWith("#"));
-    expect(table[0]?.split("\t").slice(0, 5)).toEqual(["line", "id", "log2FC", "identifier", "status"]);
+    const head = table[0]?.split("\t") ?? [];
+    expect(head.slice(0, 6)).toEqual(["index", "line", "id", "log2FC", "identifier", "status"]);
+    expect(head).toContain("gene_at_115");
     expect(table).toHaveLength(list.length + 1);
-    expect(table[1]?.split("\t")[0]).toBe("2");
-    expect(table[1]?.split("\t")[2]).toBe("-0.5");
-    expect(table[2]?.split("\t")[2]).toBe("'=1+1");
-    expect(table[2]?.split("\t").at(-2)).toBe("2;4");
+    const cell = (row: number, column: string) => table[row]?.split("\t")[head.indexOf(column)];
+    // One numbering with the page (#, from 1) beside the line of what was given.
+    expect(cell(1, "index")).toBe("1");
+    expect(cell(1, "line")).toBe("2");
+    expect(cell(1, "log2FC")).toBe("-0.5");
+    expect(cell(2, "log2FC")).toBe("'=1+1");
+    expect(cell(2, "shared_with")).toBe("1;3");
+    // Every code of the evidence written is defined in the head.
+    for (const kind of new Set(rows.flatMap((r) => r.evidence.map((m) => m.kind))))
+      expect(comments.some((c) => c.startsWith(`#   ${kind}: `))).toBe(true);
+    // The same table as CSV: a cell with a comma is quoted.
+    const csv = rowTable(rows, provenance, { ...source, rows: source.rows.map((r) => ({ ...r, cells: [r.cells[0] ?? "", "a,b"] })) }, null, null, "csv");
+    expect(csv.split("\n").find((l) => l.startsWith("1,"))).toContain('"a,b"');
   });
 
   it("writes a cell a spreadsheet would read as a formula as text, and numbers as they are", () => {

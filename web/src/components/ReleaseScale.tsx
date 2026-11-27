@@ -221,8 +221,10 @@ export function LaneEnds({ axis }: { axis: Axis }) {
 
 /** The identifiers' travel through releases: from each release at which identifiers were read, an arc to the target
  *  release, as wide as their number (linearly, the widest arc the largest number); those read at the target itself are
- *  a mark on it. Arcs rise in proportion to the distance they travel. Every count stands under its arc's foot on the
- *  axis, in up to three rows (the count read at the target first); `onPlaced` says whether every count found room. */
+ *  a mark on it, their count written at the head of the target's line. Arcs rise in proportion to the distance they
+ *  travel. Every other count stands under its arc's foot on the axis, in up to three rows, a count below the first row
+ *  joined to its foot by a leader that passes no count of a row above (and no count is set over a leader);
+ *  `onPlaced` says whether every count found room. */
 export function TravelArcs({
   axis,
   bands,
@@ -246,9 +248,11 @@ export function TravelArcs({
   const arcs = [...counts.entries()]
     .filter(([release]) => release !== target && axis.index.has(release))
     .sort((a, b) => Math.abs(x(b[0]) - targetX) - Math.abs(x(a[0]) - targetX));
-  const plot = !arcs.length ? 40 : width && width < 560 ? 124 : 160;
+  const plot = !arcs.length ? 48 : width && width < 560 ? 132 : 168;
   const base = plot - 1;
-  const top = 14;
+  // The band above the arcs where the target's count is written: no arc rises into it.
+  const head = 18;
+  const top = head + 6;
   const rowPitch = 15;
   const max = Math.max(1, ...arcs.map(([, count]) => count));
   const span = Math.max(1, n - 1);
@@ -261,25 +265,39 @@ export function TravelArcs({
   const perIdentifier = Math.min(1.5, (widest - 1) / max);
   const strokeOf = (count: number) => 1 + count * perIdentifier;
   const foot = Math.max(1.25, Math.min(2.5, width / n / 3));
-  // The counts under the feet: the target's first, then the arcs from the nearest; each in the first row with room.
-  const requests = [
-    ...(stay ? [{ key: "stay", anchor: targetX, text: `${groupedInteger(stay)} at the target` }] : []),
-    ...[...arcs]
-      .reverse()
-      .map(([release, count]) => ({ key: `a-${String(release)}`, anchor: x(release), text: groupedInteger(count) })),
-  ];
-  const placed = width
-    ? place(
-        requests.map((r) => ({
-          key: r.key,
-          anchor: r.anchor,
-          forms: [r.text],
-          align: "center" as const,
-          rows: ["0", "1", "2"],
-        })),
-        { bounds: [0, width], gap: 6 },
-      )
-    : new Map<string, PlacedLabel>();
+  // The target's count at the head of its line: ending at the line, or beginning at it where the left has no room.
+  const stayText = stay ? `${groupedInteger(stay)} read at ${String(target)}` : null;
+  const stayWidth = stayText ? textWidth(stayText) : 0;
+  const stayLeft = targetX - 6 - stayWidth >= 0 ? targetX - 6 - stayWidth : Math.min(targetX + 6, width - stayWidth);
+  // The counts under the feet, the arcs from the nearest first; each in the first row with room, where its leader
+  // passes no count of a row above it and no count covers a leader.
+  const requests = [...arcs]
+    .reverse()
+    .map(([release, count]) => ({ key: `a-${String(release)}`, anchor: x(release), text: groupedInteger(count) }));
+  const placed = new Map<string, PlacedLabel>();
+  if (width) {
+    const taken = new Map<string, [number, number][]>();
+    const add = (row: string, extent: [number, number]) => {
+      taken.set(row, [...(taken.get(row) ?? []), extent]);
+    };
+    for (const r of requests) {
+      for (const row of [0, 1, 2]) {
+        const crosses = Array.from({ length: row }, (_, q) => taken.get(String(q)) ?? []).some((spans) =>
+          spans.some(([a, b]) => r.anchor > a - 3 && r.anchor < b + 3),
+        );
+        if (crosses) continue;
+        const one = place(
+          [{ key: r.key, anchor: r.anchor, forms: [r.text], align: "center" as const, rows: [String(row)] }],
+          { bounds: [0, width], gap: 6, taken },
+        ).get(r.key);
+        if (!one) continue;
+        placed.set(r.key, one);
+        add(String(row), [one.t0, one.t1]);
+        for (let q = 0; q < row; q++) add(String(q), [r.anchor - 1, r.anchor + 1]);
+        break;
+      }
+    }
+  }
   const all = !width || requests.every((r) => placed.has(r.key));
   useLayoutEffect(() => {
     if (width) onPlaced?.(all);
@@ -314,7 +332,7 @@ export function TravelArcs({
               />
             ) : null,
           )}
-          <line className="travel__target" x1={targetX} x2={targetX} y1={top - 8} y2={base} />
+          <line className="travel__target" x1={targetX} x2={targetX} y1={stayText ? 2 : top - 8} y2={base} />
           {stay ? (
             <rect
               className="travel__stay"
@@ -362,13 +380,22 @@ export function TravelArcs({
           })}
         </svg>
       ) : null}
+      {stayText && width ? (
+        <span
+          className="travel__count travel__count--stay"
+          style={{ left: `${stayLeft.toFixed(2)}px`, top: "0px" }}
+          aria-hidden="true"
+        >
+          {stayText}
+        </span>
+      ) : null}
       {requests.map((r) => {
         const label = placed.get(r.key);
         if (!label) return null;
         return (
           <span
             key={r.key}
-            className={`travel__count ${r.key === "stay" ? "travel__count--stay" : ""}`}
+            className="travel__count"
             style={{
               left: `${(label.t0 - 1).toFixed(2)}px`,
               top: `${(plot + 4 + Number(label.row) * rowPitch).toFixed(2)}px`,
@@ -403,7 +430,7 @@ export function EventStrip({
 }) {
   const { ref, width } = useWidth<HTMLDivElement>(0);
   const n = axis.releases.length;
-  const height = 72;
+  const height = 96;
   const top = 16;
   const base = height - 2;
   const columns = [...events.entries()].filter(([release]) => axis.index.has(release));
