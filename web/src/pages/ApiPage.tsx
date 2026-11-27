@@ -379,6 +379,7 @@ const READ_FIELDS: { path: string[]; schema: string }[] = [
   { path: ["candidates", "0", "history_steps"], schema: "Candidate" },
   { path: ["decided_by"], schema: "ConversionResult" },
   { path: ["other_readings"], schema: "ConversionResult" },
+  { path: ["cautions"], schema: "ConversionResult" },
 ];
 
 /** Inline marks of a rule's text: `code` and **strong**. */
@@ -695,8 +696,11 @@ export function ApiPage() {
                     </li>
                     <li>
                       A result is idtrack&apos;s <Mono>to_dict()</Mono>: a float is written as the shortest text that
-                      reads back as the same double, which JSON parsers read exactly. The one field the api adds is the
-                      stable <Mono>error.code</Mono> of a batch item that failed.
+                      reads back as the same double, which JSON parsers read exactly. The api adds three things of its
+                      own, each said to be the api&apos;s: <Mono>cautions</Mono> on every result (its reading of the
+                      result&apos;s evidence, each with its code and the limitation of idtrack it falls under), the
+                      stable <Mono>error.code</Mono> of a batch item that failed, and around a list&apos;s answers the{" "}
+                      <Mono>organism</Mono> and the <Mono>arguments</Mono> as read.
                     </li>
                     <li>
                       No key and no cookie: any page may call the api from a browser (CORS{" "}
@@ -1026,7 +1030,7 @@ export function ApiPage() {
                             <Mono>{e.status}</Mono>
                           </td>
                           <td data-label="Retry">
-                            {e.retryable ? "yes (after Retry-After where it is sent)" : "no: change the request"}
+                            {e.retryable ? "retry (after Retry-After)" : "change the request"}
                           </td>
                           <td data-label="When" className="cell-wrap">
                             {/* One child: in the cards of a phone, prose with code wraps as one paragraph. */}

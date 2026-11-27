@@ -27,7 +27,7 @@ export interface ReleaseRange {
 }
 
 /** A count and its noun, singular for one: "1 field", "4 fields". */
-export function counted(n: number, one: string, many = `${one}s`): string {
+function counted(n: number, one: string, many = `${one}s`): string {
   return `${n} ${n === 1 ? one : many}`;
 }
 
@@ -477,7 +477,7 @@ function RecordedAnswer({ raw, endpoint, media }: { raw: string; endpoint: Endpo
       summary={
         <>
           {table ? "A recorded table" : "A recorded answer"}{" "}
-          <span className="schema__count">of this api, over the human graph of Ensembl 115</span>
+          <span className="schema__count">human graph, Ensembl 115</span>
         </>
       }
     >
@@ -731,11 +731,6 @@ export function EndpointSection({
             <span className="endpoint__label-aside">{trying ? "as set below" : "an example of this server"}</span>
           </h4>
           <CodeTabs origin={origin} spec={spec} what={`${endpoint.key}, the request`} />
-          {raw !== null && !trying
-            ? success?.media
-                .filter((m) => m.recorded)
-                .map((m) => <RecordedAnswer key={m.type} raw={raw} endpoint={endpoint} media={m} />)
-            : null}
           {trying ? (
             <TryIt
               endpoint={endpoint}
@@ -748,14 +743,21 @@ export function EndpointSection({
               organisms={organisms}
             />
           ) : (
-            <Button
-              className="endpoint__try"
-              onClick={() => {
-                setTrying(true);
-              }}
-            >
-              Try it<span className="visually-hidden">: {endpoint.key}</span>
-            </Button>
+            <div className="endpoint__more">
+              <Button
+                className="endpoint__try"
+                onClick={() => {
+                  setTrying(true);
+                }}
+              >
+                Try it<span className="visually-hidden">: {endpoint.key}</span>
+              </Button>
+              {raw !== null
+                ? success?.media
+                    .filter((m) => m.recorded)
+                    .map((m) => <RecordedAnswer key={m.type} raw={raw} endpoint={endpoint} media={m} />)
+                : null}
+            </div>
           )}
         </div>
       </div>

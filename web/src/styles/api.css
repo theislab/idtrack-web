@@ -1698,3 +1698,51 @@
     padding: var(--space-4);
   }
 }
+
+/* The error codes on a phone: a row each (the code, its status, whether to retry), what it says below, opening to
+   when and what to change; no column names repeated on every row. */
+@media (max-width: 640px) {
+  .api-errors tr {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 2px var(--space-3);
+    padding: var(--space-2) var(--space-3);
+  }
+
+  .api-errors td {
+    padding: 0;
+    min-height: 0;
+  }
+
+  .api-errors td::before {
+    content: none;
+  }
+
+  .api-errors td:nth-child(3) {
+    grid-column: 1 / -1;
+    color: var(--ink-3);
+    font-size: var(--text-xs);
+  }
+
+  .api-errors td:nth-child(4) {
+    grid-column: 1 / -1;
+  }
+}
+
+/* The console's button and the recorded answers share a line where they fit; an answer opened takes the width. */
+.endpoint__more {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--space-2) var(--space-3);
+}
+
+.endpoint__more > .endpoint__recorded {
+  flex: 1 1 260px;
+  min-width: 0;
+  margin-top: 0;
+}
+
+.endpoint__more > .endpoint__recorded[open] {
+  flex-basis: 100%;
+}

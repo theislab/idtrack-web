@@ -5,7 +5,7 @@ import { expect, test, type Page, type TestInfo } from "@playwright/test";
 import { mkdirSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { exampleOrganism } from "../src/lib/apiExamples";
-import { data, expectAccessible, isPhone } from "./helpers";
+import { data, expectAccessible, isPhone, withoutPreload } from "./helpers";
 
 const folder = resolve(
   process.env["E2E_SCREENSHOTS"] ?? join(import.meta.dirname, "..", "test-results", "screenshots"),
@@ -214,10 +214,80 @@ test("the api page: a first request above all, the rules for reading an answer, 
       .evaluateAll((spans) => spans.map((s) => s.getBoundingClientRect().height));
     for (const h of methods) expect(h).toBeLessThan(20);
   } else {
-    await expect(page.locator("details.api-contents > summary")).toBeVisible();
+    // The contents are a bar that stays at the top of the window, never a control floating over the text.
+    const bar = page.locator("details.api-contents > summary");
+    await expect(bar).toBeVisible();
     await page.locator("#errors").scrollIntoViewIfNeeded();
-    await expect(page.getByRole("link", { name: "Contents" })).toBeVisible();
+    await expect(bar).toBeInViewport();
+    expect(await page.locator(".api-contents__back").count()).toBe(0);
   }
+});
+
+test("the api page's contents mark the entry just followed", async ({ page }, info) => {
+  test.skip(isPhone(info), "the contents beside the reference are a wide screen's");
+  await page.goto("/developers");
+  await expect(page.locator("article.endpoint").first()).toBeVisible();
+  const toc = page.getByRole("navigation", { name: "On this page" }).first();
+  for (const [name, id] of [
+    ["Reading an answer", "reading"],
+    ["…/convert/batch", "post-organisms-organism-convert-batch"],
+    ["Error codes", "errors"],
+    ["…/names-of", "get-organisms-organism-names-of"],
+  ] as const) {
+    const link = toc.locator(`a[href="#${id}"]`);
+    await link.click();
+    await expect(link, `following ${name}`).toHaveAttribute("aria-current", "location");
+    expect(await toc.locator('[aria-current="location"]').count()).toBe(1);
+    // Every target lands at one offset below the masthead, sections and endpoints alike.
+    const top = await page.locator(`#${id}`).evaluate((e) => Math.round(e.getBoundingClientRect().top));
+    const masthead = await page.locator(".masthead").evaluate((e) => Math.round(e.getBoundingClientRect().bottom));
+    expect(top - masthead, name).toBeGreaterThanOrEqual(0);
+    expect(top - masthead, name).toBeLessThanOrEqual(24);
+  }
+});
+
+test("the api page marks only the allowances as not applied, and strikes nothing through", async ({ page }) => {
+  await page.goto("/developers");
+  const limits = (await (await page.request.get("/api/v1/limits")).json()) as {
+    allowances_enforced: boolean;
+    allowance_fields: string[];
+  };
+  const rows = page.locator(".api-bounds__row");
+  await expect(rows.first()).toBeVisible();
+  for (const row of await rows.all()) {
+    const name = (await row.locator("summary > .mono").first().innerText()).trim();
+    const tagged = (await row.locator(".api-bounds__state").count()) > 0;
+    expect(tagged, name).toBe(!limits.allowances_enforced && limits.allowance_fields.includes(name));
+    const struck = await row.evaluate((e) =>
+      [...e.querySelectorAll("*")].some((c) => getComputedStyle(c).textDecorationLine.includes("line-through")),
+    );
+    expect(struck, name).toBe(false);
+  }
+});
+
+test("the api page shows a table answer's columns and a recorded table", async ({ page }) => {
+  await page.goto("/developers");
+  const endpoint = page.locator("#post-organisms-organism-convert-batch");
+  await endpoint.getByText("Columns of the table").click();
+  const columns = endpoint.getByRole("region", { name: "The table's columns" });
+  await expect(columns).toContainText("input_index");
+  await expect(columns).toContainText("candidate_count");
+  await expect(columns).toContainText("error_code");
+  await expect(endpoint).toContainText("provenance=true");
+  await endpoint.getByText("A recorded table").click();
+  const table = endpoint.getByRole("region", { name: /a recorded table: the table$/ });
+  await expect(table.locator("th").first()).toHaveText("input_index");
+});
+
+test("the first request says why it has no example when the organisms cannot be read", async ({ page }) => {
+  await withoutPreload(page);
+  await page.route("**/api/v1/organisms", (route) => route.abort());
+  await page.goto("/developers");
+  const first = page.locator("#first-request");
+  await expect(first.getByRole("status")).toContainText("could not be read");
+  await expect(first.getByRole("button", { name: "Try again" })).toBeEnabled();
+  await expect(first.getByRole("button", { name: "Send it" })).toHaveCount(0);
+  await expect(first).not.toContainText("curl");
 });
 
 interface OpenApi {

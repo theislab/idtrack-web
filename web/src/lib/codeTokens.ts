@@ -48,8 +48,8 @@ function scanner(language: CodeLanguage): RegExp {
   const parts: string[] = [];
   if (comment) parts.push(`(?<comment>${comment === "#" ? "(?<![\\w$])#" : "//"}[^\\n]*)`);
   // Strings: double, single and (JavaScript) back quotes, with backslash escapes; a Python f, r or b prefix with them.
-  const quotes = language === "javascript" ? "\"'`" : "\"'";
-  const strings = [...quotes].map((q) => `${q}(?:[^${q}\\\\]|\\\\.)*${q}`).join("|");
+  const quotes = language === "javascript" ? ['"', "'", "`"] : ['"', "'"];
+  const strings = quotes.map((q) => `${q}(?:[^${q}\\\\]|\\\\.)*${q}`).join("|");
   parts.push(`(?<string>${language === "python" ? "(?:[fFrRbB]{1,2})?" : ""}(?:${strings}))`);
   parts.push("(?<number>(?<![\\w.$])-?\\d+(?:\\.\\d+)?(?:[eE][+-]?\\d+)?(?![\\w$]))");
   if (language === "bash") parts.push("(?<keyword>(?<![\\w-])(?:curl|-[A-Za-z]+|--[a-z][a-z-]*)(?![\\w-]))");
@@ -67,7 +67,7 @@ export function codeTokens(code: string, language: CodeLanguage): CodeToken[] {
   for (const match of code.matchAll(scanner(language))) {
     const groups = match.groups ?? {};
     const kind = (Object.keys(groups) as CodeKind[]).find((k) => groups[k] !== undefined);
-    if (!kind || match.index === undefined) continue;
+    if (!kind) continue;
     if (match.index > at) tokens.push({ kind: "plain", text: code.slice(at, match.index) });
     tokens.push({ kind, text: match[0] });
     at = match.index + match[0].length;
