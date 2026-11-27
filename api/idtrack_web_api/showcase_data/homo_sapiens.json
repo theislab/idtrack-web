@@ -1,0 +1,229 @@
+{
+  "checked_on": "f922779314f8a27dd1d1a7a4f24e7b6a316fa7fb8f7b071f3d66857095682cfb",
+  "journeys": [
+    {
+      "identifier": "TP53",
+      "from_release": 50,
+      "to_release": null,
+      "final_database": "HGNC Symbol"
+    },
+    {
+      "identifier": "BRCA1",
+      "from_release": 50,
+      "to_release": null,
+      "final_database": "HGNC Symbol"
+    },
+    {
+      "identifier": "SEPT9",
+      "from_release": 50,
+      "to_release": null,
+      "final_database": "HGNC Symbol"
+    },
+    {
+      "identifier": "MARCH1",
+      "from_release": 50,
+      "to_release": null,
+      "final_database": "HGNC Symbol"
+    },
+    {
+      "identifier": "PARK2",
+      "from_release": 50,
+      "to_release": null,
+      "final_database": "HGNC Symbol"
+    },
+    {
+      "identifier": "C10orf2",
+      "from_release": 50,
+      "to_release": null,
+      "final_database": "HGNC Symbol"
+    },
+    {
+      "identifier": "FAM123B",
+      "from_release": 50,
+      "to_release": null,
+      "final_database": "HGNC Symbol"
+    },
+    {
+      "identifier": "KIAA0101",
+      "from_release": 50,
+      "to_release": null,
+      "final_database": "HGNC Symbol"
+    },
+    {
+      "identifier": "GPR98",
+      "from_release": 50,
+      "to_release": null,
+      "final_database": "HGNC Symbol"
+    },
+    {
+      "identifier": "H2AFX",
+      "from_release": 50,
+      "to_release": null,
+      "final_database": "HGNC Symbol"
+    },
+    {
+      "identifier": "NM_000518",
+      "from_release": 60,
+      "to_release": null,
+      "final_database": "Uniprot/SWISSPROT"
+    },
+    {
+      "identifier": "NM_002046",
+      "from_release": 60,
+      "to_release": null,
+      "final_database": "Uniprot/SWISSPROT"
+    },
+    {
+      "identifier": "NM_000477",
+      "from_release": 60,
+      "to_release": null,
+      "final_database": "Uniprot/SWISSPROT"
+    },
+    {
+      "identifier": "NM_001101",
+      "from_release": 60,
+      "to_release": null,
+      "final_database": "Uniprot/SWISSPROT"
+    },
+    {
+      "identifier": "P04637",
+      "from_release": 70,
+      "to_release": null,
+      "final_database": "HGNC Symbol"
+    },
+    {
+      "identifier": "P38398",
+      "from_release": 70,
+      "to_release": null,
+      "final_database": "HGNC Symbol"
+    },
+    {
+      "identifier": "P00533",
+      "from_release": 70,
+      "to_release": null,
+      "final_database": "HGNC Symbol"
+    },
+    {
+      "identifier": "ENSG00000250239.1",
+      "from_release": null,
+      "to_release": null,
+      "final_database": null
+    },
+    {
+      "identifier": "ENSG00000112096.19",
+      "from_release": null,
+      "to_release": null,
+      "final_database": null
+    },
+    {
+      "identifier": "ENSG00000110347.7",
+      "from_release": null,
+      "to_release": null,
+      "final_database": null
+    },
+    {
+      "identifier": "ENSG00000198477",
+      "from_release": null,
+      "to_release": null,
+      "final_database": null
+    },
+    {
+      "identifier": "ENST00000225823.6",
+      "from_release": null,
+      "to_release": 48,
+      "final_database": null
+    },
+    {
+      "identifier": "ENSG00000171862.13",
+      "from_release": null,
+      "to_release": 48,
+      "final_database": null
+    }
+  ],
+  "cases": [
+    {
+      "kind": "lineage",
+      "identifier": "ENSG00000141510.5",
+      "from_release": 54,
+      "to_release": null,
+      "final_database": null
+    },
+    {
+      "kind": "renamed",
+      "identifier": "SEPT9",
+      "from_release": 50,
+      "to_release": null,
+      "final_database": "HGNC Symbol"
+    },
+    {
+      "kind": "new_version",
+      "identifier": "ENSG00000139618",
+      "from_release": 48,
+      "to_release": null,
+      "final_database": null
+    },
+    {
+      "kind": "replaced",
+      "identifier": "ENSG00000112096.19",
+      "from_release": null,
+      "to_release": null,
+      "final_database": null
+    },
+    {
+      "kind": "split",
+      "identifier": "ENSG00000277780.1",
+      "from_release": 84,
+      "to_release": null,
+      "final_database": null
+    },
+    {
+      "kind": "merge",
+      "identifier": "ENSG00000250239.1",
+      "from_release": null,
+      "to_release": null,
+      "final_database": null
+    },
+    {
+      "kind": "handoff",
+      "identifier": "ENST00000225823",
+      "from_release": 70,
+      "to_release": null,
+      "final_database": null
+    },
+    {
+      "kind": "bridge",
+      "identifier": "ENSG00000198477",
+      "from_release": 48,
+      "to_release": null,
+      "final_database": "HGNC Symbol"
+    },
+    {
+      "kind": "other_release",
+      "identifier": "RNR1",
+      "from_release": null,
+      "to_release": null,
+      "final_database": null
+    },
+    {
+      "kind": "tie",
+      "identifier": "MAT1",
+      "from_release": 60,
+      "to_release": null,
+      "final_database": null
+    },
+    {
+      "kind": "final",
+      "identifier": "NM_000518",
+      "from_release": 60,
+      "to_release": null,
+      "final_database": "Uniprot/SWISSPROT"
+    },
+    {
+      "kind": "retired",
+      "identifier": "ENSG00000265842",
+      "from_release": 75,
+      "to_release": null,
+      "final_database": null
+    }
+  ]
+}

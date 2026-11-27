@@ -15,11 +15,10 @@ It needs the api's environment (idtrack with pandas, h5py and pytest). It takes 
 from __future__ import annotations
 
 import argparse
-import glob
-import os
 import shutil
 import sys
 import tempfile
+from pathlib import Path
 
 
 def main() -> int:
@@ -32,15 +31,16 @@ def main() -> int:
     parser.add_argument("idtrack_source", help="A checkout of idtrack's repository (with its tests/ folder).")
     parser.add_argument("output", help="Where to write the graph file.")
     arguments = parser.parse_args()
-    source = os.path.abspath(arguments.idtrack_source)
-    if not os.path.isfile(os.path.join(source, "tests", "_real_tables.py")):
+    source = Path(arguments.idtrack_source).absolute()
+    if not (source / "tests" / "_real_tables.py").is_file():
         parser.error(f"{source} is not a checkout of idtrack's repository (no tests/_real_tables.py).")
-    sys.path.insert(0, source)
-    from tests._real_tables import RealWorld  # idtrack's test helper: replays the cut tables
+    sys.path.insert(0, str(source))
+    # idtrack's test helper, which replays the cut tables: a module of idtrack's checkout, outside any package.
+    from tests._real_tables import RealWorld  # type: ignore[import-untyped]
 
     with tempfile.TemporaryDirectory() as folder:
         RealWorld("sus_scrofa", folder)
-        [graph] = glob.glob(os.path.join(folder, "graph_sus_scrofa_*.npz"))
+        [graph] = Path(folder).glob("graph_sus_scrofa_*.npz")
         shutil.copyfile(graph, arguments.output)
     print(arguments.output)
     return 0

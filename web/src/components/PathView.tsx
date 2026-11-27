@@ -1,32 +1,64 @@
-// The path view: an identifier's journey through Ensembl's releases, drawn from the api's explained path.
+// The path view: an identifier's journey through Ensembl's releases, drawn from the api's explained path in the figure
+// grammar (components/figure/, DESIGN.md).
 //
 // Releases run left to right (top to bottom on a phone) over the assembly bands; each Ensembl gene is a bar over the
-// releases the path holds it, on a lane; each step is a line in the hue of its kind; the chosen answer is strong, the
-// alternatives the engine considered are light; the answers stand in a column at the end with the deciding criterion.
-// Every element is focusable (one tab stop, then the arrow keys) and shows the exact values the api returned.
+// releases the path holds it, on a lane named by its id; each step is its glyph (a tick for a new version or a
+// replacement, a dot for a split or merge, an arc for a re-mapping, a diamond for a handoff between assemblies) and,
+// between releases or lanes apart, a line in its hue; a crossing through an external database is dashed. The chosen
+// answer is strong, the alternatives the engine considered light; the answers stand in a column at the end; the
+// score of each strong step of Ensembl's history is a stem on one track under the lanes. Labels are placed by one
+// deterministic rule and never overlap (figure/labels.ts). Every element is focusable (one tab stop, then the arrow
+// keys) and shows the exact values the api returned.
 import { scaleLinear } from "d3-scale";
 import { select } from "d3-selection";
 import "d3-transition";
 import { zoom as d3zoom, zoomIdentity, type ZoomBehavior, type ZoomTransform } from "d3-zoom";
-import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
-import type { GraphDescription } from "../api/types";
-import { assemblyBands, tickStep } from "../lib/bands";
-import { databaseLabel } from "../lib/databases";
-import { shortFloat } from "../lib/numbers";
 import {
+  useCallback,
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  type KeyboardEvent,
+  type PointerEvent,
+  type ReactNode,
+} from "react";
+import type { GraphDescription } from "../api/types";
+import { databaseLabel } from "../lib/databases";
+import type { Highlight } from "../lib/highlight";
+import {
+  curve,
   fitLabel,
   HORIZONTAL_METRICS,
+  laneLabel,
+  laneNames,
   layoutPath,
+  pathLabels,
+  presentMarks,
+  scoreSteps,
+  shownCandidates,
   VERTICAL_METRICS,
   type EdgePlace,
   type NodePlace,
   type PathLayout,
 } from "../lib/pathLayout";
-import type { ModelCandidate, ModelStep, PathModel } from "../lib/pathModel";
-import { candidateTitle, nodeFacts, stepFacts, type AssemblyNames } from "../lib/pathReading";
+import type { ModelCandidate, ModelNode, ModelStep, PathModel } from "../lib/pathModel";
+import { candidateTitle, nodeFacts, nodeKindWords, stepFacts, type AssemblyNames } from "../lib/pathReading";
 import { criterionValue, yesNo } from "../lib/values";
 import { spaced, type Vocabulary } from "../lib/vocabulary";
 import { useVocabulary } from "../lib/vocabularyContext";
+import { Bands } from "./figure/axis";
+import { GeneBar, GlyphSwatch, StepGlyph } from "./figure/glyphs";
+import { isEvent, type Glyph } from "./figure/glyph";
+import { FigureLegend, type LegendEntry } from "./figure/Legend";
+import { middleCut, stackLabels, textWidth, wrapWords, type PlacedLabel } from "./figure/labels";
+import { assemblyBands, bandRange, scaleOf, shortNames, type Band } from "./figure/releases";
+import { useDismiss, useHover } from "./figure/roving";
+import { ScoreTrack } from "./figure/ScoreTrack";
+import { useWidth } from "./figure/useWidth";
 
 import { Button } from "./ui";
 
@@ -44,10 +76,20 @@ const RECORD = [
 ].map((code) => ({ code, meaning: null, fields: [] }));
 
 const PHONE_WIDTH = 640;
-const CHAR = 6.7; // width of a character of the 11px monospaced face
-const AXIS = 60; // the release axis and the band names (horizontal), or the axis's width (vertical)
-const LIMIT_WIDE = 10;
+const CHAR = textWidth("0"); // the 11 px monospaced face, one character
+const TOP = 44; // the band names (two rows) and the answer column's head (horizontal)
+const BOTTOM = 50; // the release axis and its title (horizontal)
+const SCORE_TRACK = 58; // the score track under the lanes (horizontal)
+export const LIMIT_WIDE = 10;
 const LIMIT_PHONE = 4;
+/** Answers drawn per lane before the rest of that gene's targets are counted (one gene can have hundreds). */
+const ROWS_WIDE = 6;
+const ROWS_PHONE = 3;
+/** The rows of labels of a lane: two above its bars (the genes' ids), offsets from the lane. */
+const ROW_OFFSET: Record<string, number> = { a0: -12, a1: -25 };
+/** Half the gap between two gene bars that meet at a step. */
+const JOINT = 2;
+const REVEAL_MS = 650;
 
 type ItemKey = `n:${string}` | `s:${number}` | `a:${number}`;
 
@@ -90,47 +132,65 @@ function stepClass(step: ModelStep): string {
   return `pv-step pv-step--${step.hue} pv-kind--${step.kind}`;
 }
 
+/** The glyph of a drawn step, by the figure grammar's rule (the node it reads from says whether an entry is a read
+ *  through an external database). */
+function stepGlyph(step: ModelStep, model: PathModel): Glyph {
+  if (step.handoff) return "handoff";
+  if (step.kind === "self_loop") return "loop";
+  if (step.kind === "split_merge") return "event";
+  if (step.kind === "history") return "version";
+  if (step.kind === "bridge_near" || step.kind === "bridge_far") return "bridge";
+  if (step.kind === "final") return "final";
+  if (step.kind === "identity") return "identity";
+  const source = step.api.source === null ? undefined : model.nodeById.get(step.api.source);
+  return source && (source.api.kind === "external" || source.api.kind === "synonym") ? "read" : "form";
+}
+
+/** A step drawn as a mark at its middle (Ensembl's history), not only as a line. */
+function marksMiddle(step: ModelStep): boolean {
+  return step.kind === "history" || step.kind === "split_merge" || step.kind === "self_loop";
+}
+
 export interface PathViewProps {
   model: PathModel;
   description: GraphDescription;
   names: AssemblyNames;
-  /** A candidate to show strongly (from the table of candidates), or null. */
-  highlight: number | null;
+  /** What the reader points at elsewhere in the answer: a candidate to draw strongly (a row of the candidates'
+   *  table), a step to ring (a row of the path in words); the step shown in the drawing is told back. */
+  highlight: Highlight;
   /** The id of the text reading beside the drawing (its accessible description). */
   readingId: string;
   /** The database the conversion asked for (`null`: Ensembl genes). */
   requestedDatabase: string | null;
 }
 
-export function PathView({ model, description, names, highlight, readingId, requestedDatabase }: PathViewProps) {
-  const wrapper = useRef<HTMLDivElement>(null);
-  const [width, setWidth] = useState(0);
-  useLayoutEffect(() => {
-    const element = wrapper.current;
-    if (!element) return;
-    setWidth(element.clientWidth);
-    const observer = new ResizeObserver(([entry]) => {
-      if (entry) setWidth(Math.round(entry.contentRect.width));
-    });
-    observer.observe(element);
-    return () => {
-      observer.disconnect();
-    };
-  }, []);
+export function PathView({ model, description, names, highlight: store, readingId, requestedDatabase }: PathViewProps) {
+  const { ref: wrapper, width } = useWidth<HTMLDivElement>(0);
+  const highlight = useSyncExternalStore(store.subscribe, store.candidate);
+  const litStep = useSyncExternalStore(store.subscribe, store.step);
   const vertical = width > 0 && width < PHONE_WIDTH;
   const [showAll, setShowAll] = useState(false);
   const limit = showAll ? Number.POSITIVE_INFINITY : vertical ? LIMIT_PHONE : LIMIT_WIDE;
+  const rowsPerLane = showAll ? Number.POSITIVE_INFINITY : vertical ? ROWS_PHONE : ROWS_WIDE;
+  const [drawn, setDrawn] = useState<number | null>(null);
+  const present = useMemo(() => presentMarks(model, limit), [model, limit]);
 
   return (
-    <div className="pv" ref={wrapper}>
-      {width === 0 ? null : vertical ? (
+    <div className="pv fig" ref={wrapper}>
+      {width === 0 ? (
+        <div className="pv-frame pv-frame--waiting" aria-hidden="true" />
+      ) : vertical ? (
         <VerticalPath
           model={model}
           description={description}
           names={names}
           width={width}
           limit={limit}
+          rowsPerLane={rowsPerLane}
+          onDrawn={setDrawn}
           highlight={highlight}
+          litStep={litStep}
+          onStepShown={store.setStep}
           readingId={readingId}
           requestedDatabase={requestedDatabase}
         />
@@ -141,22 +201,26 @@ export function PathView({ model, description, names, highlight, readingId, requ
           names={names}
           width={width}
           limit={limit}
+          rowsPerLane={rowsPerLane}
+          onDrawn={setDrawn}
           highlight={highlight}
+          litStep={litStep}
+          onStepShown={store.setStep}
           readingId={readingId}
           requestedDatabase={requestedDatabase}
         />
       )}
-      {model.candidates.length > (vertical ? LIMIT_PHONE : LIMIT_WIDE) ? (
+      {showAll || (drawn !== null && drawn < model.candidates.length) ? (
         <p className="pv__more">
           {showAll
             ? `All ${model.candidates.length} candidates are drawn.`
-            : `${Math.min(model.candidates.length, vertical ? LIMIT_PHONE : LIMIT_WIDE)} of ${model.candidates.length} candidates are drawn (the best and the next in rank); the reading and the table list all.`}{" "}
+            : `${drawn ?? 0} of ${model.candidates.length} candidates are drawn (the best and the next in rank, at most ${rowsPerLane} targets per gene); the reading and the table list all.`}{" "}
           <Button variant="quiet" onClick={() => setShowAll((v) => !v)}>
             {showAll ? "Draw fewer" : `Draw all ${model.candidates.length}`}
           </Button>
         </p>
       ) : null}
-      <PathLegend />
+      <PathLegend present={present} />
     </div>
   );
 }
@@ -167,7 +231,13 @@ interface DrawingProps {
   names: AssemblyNames;
   width: number;
   limit: number;
+  rowsPerLane: number;
+  onDrawn: (count: number) => void;
   highlight: number | null;
+  /** A step to ring (pointed at in the path in words). */
+  litStep: number | null;
+  /** Tell the step the drawing shows (pointed at or focused), so its row in the words is marked. */
+  onStepShown: (index: number | null) => void;
   readingId: string;
   requestedDatabase: string | null;
 }
@@ -196,7 +266,7 @@ function useItems(
         y,
         title: place.node.api.label,
         facts,
-        label: `${place.node.api.label}: ${facts.map(([k, v]) => `${k} ${v}`).join("; ")}`,
+        label: spoken(place.node.api.label, facts, ["Kind", "Active", "On the path", "Place"]),
       });
     };
     const edgeOf = new Map(layout.edges.map((e) => [e.step.index, e]));
@@ -216,7 +286,15 @@ function useItems(
             y,
             title: stepLabel(edge.step),
             facts,
-            label: `Step ${index}: ${facts.map(([k, v]) => `${k} ${v}`).join("; ")}`,
+            label: spoken(`Step ${index + 1}: ${stepLabel(edge.step)}`, facts, [
+              "Ensembl event",
+              "From",
+              "To",
+              "Release",
+              "Score",
+              "Assembly handoff",
+              "Places",
+            ]),
           });
         }
         addNode(edge.step.api.target);
@@ -232,7 +310,7 @@ function useItems(
         y,
         title: candidateTitle(answer.candidate),
         facts,
-        label: `${candidateTitle(answer.candidate)}: ${facts.map(([k, v]) => `${k} ${v}`).join("; ")}`,
+        label: spoken(candidateTitle(answer.candidate), facts, ["Score", "Decided by"]),
       });
     }
     return list;
@@ -240,11 +318,61 @@ function useItems(
   return items;
 }
 
-function Tooltip({ item, width, id, pinned }: { item: Item | null; width: number; id: string; pinned: boolean }) {
+/** What a screen reader says of an element: its title and the facts a reader needs first (the note, linked as its
+ *  description, holds every fact). */
+function spoken(title: string, facts: [string, string][], wanted: string[]): string {
+  const said = facts.filter(([k]) => wanted.includes(k)).map(([k, v]) => `${k.toLowerCase()} ${v}`);
+  return said.length ? `${title}; ${said.join("; ")}` : title;
+}
+
+function Tooltip({
+  item,
+  width,
+  id,
+  pinned,
+  pointer,
+}: {
+  item: Item | null;
+  width: number;
+  id: string;
+  pinned: boolean;
+  pointer: { onPointerEnter: () => void; onPointerLeave: () => void };
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  // Below the element where the window has room for the whole note, else above it, else on the side with more room
+  // and scrolled inside itself; never cut by the figure's frame (the note stands over what follows the figure).
+  const [place, setPlace] = useState<{ key: string; top: number; max: number | null } | null>(null);
+  useLayoutEffect(() => {
+    const element = ref.current;
+    const canvas = element?.offsetParent;
+    if (!element || !canvas || !item) return;
+    const y = canvas.getBoundingClientRect().top + item.y;
+    const height = element.scrollHeight;
+    const below = window.innerHeight - (y + 16) - 8;
+    const over = y - 16 - 8;
+    let next: { key: string; top: number; max: number | null };
+    if (height <= below || below >= over)
+      next = { key: item.key, top: item.y + 16, max: height <= below ? null : below };
+    else next = { key: item.key, top: item.y - 16 - Math.min(height, over), max: height <= over ? null : over };
+    if (place?.key !== next.key || place.top !== next.top || place.max !== next.max) setPlace(next);
+  }, [item, place]);
   if (!item) return null;
-  const left = Math.min(Math.max(8, item.x + 14), Math.max(8, width - 336));
+  // Over the element's column (it starts 20 px before the element), so that the pointer reaches the note by moving
+  // straight up or down from the element.
+  const left = Math.min(Math.max(8, item.x - 20), Math.max(8, width - 352));
   return (
-    <div className="pv-tip" id={id} role="tooltip" style={{ left, top: item.y + 16 }}>
+    <div
+      className="pv-tip"
+      id={id}
+      role="tooltip"
+      ref={ref}
+      style={{
+        left,
+        top: place?.key === item.key ? place.top : item.y + 16,
+        maxHeight: place?.key === item.key && place.max !== null ? Math.max(120, place.max) : undefined,
+      }}
+      {...pointer}
+    >
       <p className="pv-tip__title">{item.title}</p>
       <dl className="pv-tip__facts">
         {item.facts.map(([k, v]) => (
@@ -254,21 +382,24 @@ function Tooltip({ item, width, id, pinned }: { item: Item | null; width: number
           </div>
         ))}
       </dl>
-      {pinned ? <p className="pv-tip__hint">Pinned · Esc to close</p> : null}
+      <p className="pv-tip__hint">{pinned ? "Pinned · Esc to close" : "Enter pins · arrows move · Esc hides"}</p>
     </div>
   );
 }
 
-/** Keyboard and pointer focus over the items: one tab stop, arrows move, Enter pins, Escape closes. */
-function useFocus(items: Item[]) {
+/** Keyboard and pointer focus over the items: one tab stop, arrows move, Enter pins, Escape hides the tip (focus stays
+ *  where it is); the tip can be pointed at without vanishing. */
+function useFocus(items: Item[], tipId: string) {
   const [active, setActive] = useState<ItemKey | null>(null);
-  const [hover, setHover] = useState<ItemKey | null>(null);
+  const pointer = useHover<ItemKey>();
   const [focused, setFocused] = useState(false);
   const [pinned, setPinned] = useState(false);
   const refs = useRef(new Map<string, SVGGElement>());
   // The tab stop: the element last focused while it is still drawn, else the first (a zoom or "draw all" can remove it).
   const current = active !== null && items.some((i) => i.key === active) ? active : (items[0]?.key ?? null);
-  const shown = hover ?? (focused || pinned ? current : null);
+  const visible = pointer.hover ?? (focused || pinned ? current : null);
+  const dismiss = useDismiss(visible !== null);
+  const shown = dismiss.dismissed ? null : visible;
   const move = useCallback(
     (to: number) => {
       const item = items[Math.max(0, Math.min(items.length - 1, to))];
@@ -292,18 +423,24 @@ function useFocus(items: Item[]) {
         " ": () => setPinned((p) => !p),
         Escape: () => {
           setPinned(false);
-          setHover(null);
+          pointer.drop();
         },
       };
       const action = keys[event.key];
       if (action) {
         event.preventDefault();
+        if (event.key !== "Escape") dismiss.reset();
         action();
       }
     },
-    [items, current, move],
+    [items, current, move, pointer, dismiss],
   );
+  const labels = useMemo(() => new Map(items.map((i) => [i.key, i.label])), [items]);
   const bind = (key: ItemKey) => ({
+    role: "button" as const,
+    "aria-label": labels.get(key) ?? key,
+    "aria-pressed": pinned && key === current,
+    "aria-describedby": shown === key ? tipId : undefined,
     ref: (element: SVGGElement | null) => {
       if (element) refs.current.set(key, element);
       else refs.current.delete(key);
@@ -312,28 +449,33 @@ function useFocus(items: Item[]) {
     onFocus: () => {
       setActive(key);
       setFocused(true);
+      dismiss.reset();
     },
     onBlur: () => setFocused(false),
-    onMouseEnter: () => setHover(key),
-    onMouseLeave: () => setHover(null),
+    onMouseEnter: () => {
+      pointer.enter(key);
+      dismiss.reset();
+    },
+    onMouseLeave: () => pointer.leave(key),
     onClick: () => {
       setActive(key);
       setPinned(true);
+      dismiss.reset();
       refs.current.get(key)?.focus();
     },
     onKeyDown,
   });
-  return { shown, pinned, onKeyDown, bind, current };
+  return { shown, pinned, onKeyDown, bind, current, focusedKey: focused ? current : null, note: pointer.note };
 }
 
 /** The label of the identifier or a form it is read through, with the identifier's databases where they fit. */
 function upperLabel(place: NodePlace, room: number) {
-  const label = fitLabel(place.node.label, null, room, CHAR) ?? "…";
+  const label = fitLabel(place.node.label, room / CHAR) ?? "…";
   const databases = place.node.isQuery ? place.node.api.databases.map(databaseLabel) : [];
-  let left = room - label.length * CHAR - 16;
+  let left = room - textWidth(label) - 16;
   const shown: string[] = [];
   for (const database of databases) {
-    const cost = (database.length + 2) * 5.6;
+    const cost = textWidth(`${database}, `, 11, "sans");
     if (left - cost < 60 && shown.length < databases.length - 1) break;
     if (left < cost) break;
     shown.push(database);
@@ -354,40 +496,56 @@ function upperLabel(place: NodePlace, room: number) {
   );
 }
 
-function edgeMarks(edge: EdgePlace, toXY: (t: number, s: number) => [number, number], strong: boolean) {
-  const step = edge.step;
-  const [mx, my] = toXY(edge.mid.t, edge.mid.s);
-  const marks = [];
-  if (step.handoff) {
-    marks.push(
-      <path
-        key="handoff"
-        className="pv-handoff"
-        d={`M${mx},${my - 5}L${mx + 5},${my}L${mx},${my + 5}L${mx - 5},${my}Z`}
-      />,
-    );
+/** How many forms of the identifier (rows above the lanes) the drawn candidates' paths pass through. */
+function drawnUpper(model: PathModel, limit: number): number {
+  const ids = new Set<string>();
+  for (const candidate of shownCandidates(model, limit)) {
+    for (const index of candidate.steps) {
+      const step = model.steps[index];
+      if (!step) continue;
+      for (const id of [step.api.source, step.api.target]) if (id !== null) ids.add(id);
+    }
   }
-  if (step.kind === "split_merge") {
-    marks.push(<circle key="event" className="pv-event-dot" cx={mx} cy={my} r={strong ? 3 : 2.5} />);
-  }
-  return marks;
+  if (model.result.graph_id !== null) ids.add(model.result.graph_id);
+  return model.nodes.filter((n) => n.role === "upper" && ids.has(n.id)).length;
 }
 
-/** The score written on a step where it fits (shortened; the exact value is in the step's facts), or null. */
-function weightText(edge: EdgePlace, room: number): string | null {
-  const weight = edge.step.api.weight;
-  if (weight === null || weight === 1) return null;
-  const short = shortFloat(weight, 3);
-  return short.text.length * CHAR * 0.9 > room ? null : short.text;
+/** The releases a view opened on an event shows, at least. */
+const EVENT_WINDOW = 12;
+
+/** The first event of the best answer's path a reader comes to see: a split or merge of Ensembl's history, or a
+ *  bridge (where Ensembl's history gives no successor); its releases and its name. */
+function eventOf(model: PathModel): { span: [number, number]; words: string } | null {
+  const best = model.candidates.find((c) => c.best);
+  if (!best) return null;
+  for (const index of best.steps) {
+    const step = model.steps[index];
+    if (!step) continue;
+    if (step.kind === "split_merge" || step.kind === "bridge_near") {
+      const span: [number, number] = [
+        Math.min(step.sourceRelease, step.targetRelease),
+        Math.max(step.sourceRelease, step.targetRelease),
+      ];
+      const words = step.kind === "bridge_near" ? "bridge" : step.api.reason.replace(/_/g, " ");
+      return { span, words };
+    }
+  }
+  return null;
 }
 
-function weightLabel(edge: EdgePlace, toXY: (t: number, s: number) => [number, number], text: string) {
-  const [x, y] = toXY(edge.mid.t, edge.mid.s);
-  return (
-    <text className="pv-weight" x={x} y={y - 8} textAnchor="middle">
-      {text}
-    </text>
-  );
+/** The releases the drawn candidates' paths touch: the view is fitted to them, not to every candidate's. */
+function drawnSpan(model: PathModel, limit: number): [number, number] | null {
+  const shown = shownCandidates(model, limit);
+  const releases: number[] = [];
+  for (const candidate of shown) {
+    for (const index of candidate.steps) {
+      const step = model.steps[index];
+      if (step) releases.push(step.sourceRelease, step.targetRelease);
+    }
+  }
+  if (model.result.from_release !== null) releases.push(model.result.from_release);
+  releases.push(model.result.to_release);
+  return releases.length ? [Math.min(...releases), Math.max(...releases)] : model.span;
 }
 
 function HorizontalPath({
@@ -396,23 +554,41 @@ function HorizontalPath({
   names,
   width,
   limit,
+  rowsPerLane,
+  onDrawn,
   highlight,
+  litStep,
+  onStepShown,
   readingId,
   requestedDatabase,
 }: DrawingProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const zoomRef = useRef<ZoomBehavior<SVGSVGElement, unknown> | null>(null);
   const [transform, setTransform] = useState<ZoomTransform>(zoomIdentity);
+  // The view the toolbar last set (pressed), until a zoom or pan by hand.
+  const [preset, setPreset] = useState<"fit" | "event" | "all" | null>("fit");
   const tipId = useId();
   const clipId = useId().replace(/:/g, "");
   const releases = description.releases;
   const r0 = releases[0] ?? 0;
   const rN = releases[releases.length - 1] ?? 0;
-  const answerWidth = Math.min(300, Math.max(210, width * 0.22));
+  const answerWidth = Math.min(280, Math.max(200, width * 0.18));
   const metrics = HORIZONTAL_METRICS;
-  const upperRoom = (model.nodes.filter((n) => n.role === "upper").length + 1) * metrics.indent;
-  const plotL = 24 + upperRoom;
-  const plotR = width - answerWidth - 28;
+  // Room left of the plot for the identifier and the forms it is read through, which stand in a staircase before the
+  // release they are read at: as many steps as the drawn candidates' paths hold such forms (at most four).
+  const upperRoom = (Math.min(4, drawnUpper(model, limit)) + 1) * metrics.indent;
+  // The gutter names the rows: where each identifier lives (its database or kind), then the genes' lanes by their id.
+  const gutter = useMemo(() => {
+    if (width < 900) return 28;
+    const titles = model.nodes
+      .filter((n) => n.role === "upper" || n.role === "bridge")
+      .map((n) => (n.role === "bridge" ? `via ${spaceOf(n)}` : spaceOf(n, model.result.from_databases)).length);
+    const ids = model.nodes.filter((n) => n.role === "gene").map((n) => n.label.length);
+    return Math.min(196, Math.max(124, Math.max("Ensembl gene".length, ...titles, ...ids) * 6.2 + 46));
+  }, [model.nodes, model.result.from_databases, width]);
+  const plotL = gutter + upperRoom;
+  const plotR = width - answerWidth - 60;
+  const left = plotL - upperRoom;
   const base = useMemo(
     () =>
       scaleLinear()
@@ -423,14 +599,26 @@ function HorizontalPath({
   const scale = useMemo(() => transform.rescaleX(base), [transform, base]);
   const answerT = width - answerWidth;
   const layout = useMemo(
-    () => layoutPath(model, { scale: (r) => scale(r), answerT, metrics, limit }),
-    [model, scale, answerT, metrics, limit],
+    () => layoutPath(model, { scale: (r) => scale(r), answerT, metrics, limit, rowsPerLane }),
+    [model, scale, answerT, metrics, limit, rowsPerLane],
   );
-  const height = AXIS + layout.stackSize + 8;
-  const toXY = useCallback((t: number, s: number): [number, number] => [t, s + AXIS], []);
+  useEffect(() => {
+    onDrawn(layout.shown.length);
+  }, [layout.shown.length, onDrawn]);
+  const isStrong = useCallback(
+    (candidates: number[], best: boolean) => (highlight === null ? best : candidates.includes(highlight)),
+    [highlight],
+  );
+  const scored = useMemo(() => scoreSteps(layout, isStrong), [layout, isStrong]);
+  const lanesBottom = TOP + layout.stackSize;
+  const trackTop = lanesBottom + 12;
+  const plotBottom = scored.length ? lanesBottom + SCORE_TRACK : lanesBottom;
+  const height = plotBottom + BOTTOM;
+  const toXY = useCallback((t: number, s: number): [number, number] => [t, s + TOP], []);
   const items = useItems(layout, model, names, toXY);
-  const focus = useFocus(items);
+  const focus = useFocus(items, tipId);
   const shownItem = items.find((i) => i.key === focus.shown) ?? null;
+  useStepShown(focus.shown, onStepShown);
 
   // Zoom along the releases: drag to pan, ctrl or shift with the wheel (or a pinch) to zoom, buttons for both.
   useEffect(() => {
@@ -451,7 +639,11 @@ function HorizontalPath({
         if (event.type === "dblclick") return false;
         return !(event as MouseEvent).button;
       })
-      .on("zoom", (event: { transform: ZoomTransform }) => setTransform(event.transform));
+      .on("zoom", (event: { transform: ZoomTransform; sourceEvent: unknown }) => {
+        setTransform(event.transform);
+        // A zoom or pan by hand leaves the view of every preset.
+        if (event.sourceEvent) setPreset(null);
+      });
     zoomRef.current = behavior;
     select(svg).call(behavior);
     return () => {
@@ -459,31 +651,59 @@ function HorizontalPath({
     };
   }, [plotL, plotR, height, r0, rN]);
 
-  const fit = useCallback(
-    (animate: boolean) => {
+  const reduced = useMemo(() => {
+    // A browser has matchMedia; a test's DOM may not.
+    const media = (window as { matchMedia?: Window["matchMedia"] }).matchMedia;
+    return typeof media === "function" && media.call(window, "(prefers-reduced-motion: reduce)").matches;
+  }, []);
+  // The path draws itself once, from its first release to its last (none under reduced motion).
+  const [revealed, setRevealed] = useState(reduced);
+  useEffect(() => {
+    if (revealed) return;
+    const timer = window.setTimeout(() => setRevealed(true), REVEAL_MS + 50);
+    return () => window.clearTimeout(timer);
+  }, [revealed]);
+  const revealId = useId().replace(/:/g, "");
+  const duration = (ms: number) => (reduced ? 0 : ms);
+
+  const fitSpan = useMemo(() => drawnSpan(model, limit), [model, limit]);
+  const event = useMemo(() => eventOf(model), [model]);
+  /** Zoom to a window over `span` with a release of room on each side, at least `least` releases wide, inside the
+   *  graph's releases (d3's programmatic transform does not keep it inside by itself). */
+  const zoomToSpan = useCallback(
+    (span: [number, number], least: number, animate: boolean) => {
       const svg = svgRef.current;
       const behavior = zoomRef.current;
       if (!svg || !behavior) return;
-      // A window over the path's releases with a release of room on each side, at least ten releases wide, inside
-      // the graph's releases (d3's programmatic transform does not keep it inside by itself).
-      const span = model.span ?? [r0, rN];
       const full = rN - r0 + 1;
-      const width = Math.min(full, Math.max(10, span[1] - span[0] + 3));
-      let a = (span[0] + span[1]) / 2 - width / 2;
-      a = Math.min(Math.max(a, r0 - 0.5), rN + 0.5 - width);
-      const k = full / width;
-      // The zoomed position of a release is k * base(release) + x: put the path's first release at the plot's left.
+      const wide = Math.min(full, Math.max(least, span[1] - span[0] + 3));
+      let a = (span[0] + span[1]) / 2 - wide / 2;
+      a = Math.min(Math.max(a, r0 - 0.5), rN + 0.5 - wide);
+      const k = full / wide;
+      // The zoomed position of a release is k * base(release) + x: put the window's first release at the plot's left.
       const target = zoomIdentity.translate(plotL - k * base(a), 0).scale(k);
       const selection = select(svg);
-      if (animate)
+      if (animate && !reduced)
         selection
           .transition()
-          .duration(350)
+          .duration(400)
           .call((t) => behavior.transform(t, target));
       else behavior.transform(selection, target);
     },
-    [model.span, r0, rN, base, plotL],
+    [r0, rN, base, plotL, reduced],
   );
+  const fit = useCallback(
+    (animate: boolean) => zoomToSpan(fitSpan ?? [r0, rN], 10, animate),
+    [zoomToSpan, fitSpan, r0, rN],
+  );
+  const showEvent = useCallback(
+    (animate: boolean) => {
+      if (event) zoomToSpan(event.span, EVENT_WINDOW, animate);
+    },
+    [zoomToSpan, event],
+  );
+  // The view opens on the whole path (its event, a split, a merge or a bridge, is a button of the toolbar and a band
+  // in the drawing).
   useEffect(() => {
     fit(false);
   }, [fit]);
@@ -494,7 +714,7 @@ function HorizontalPath({
     if (svg && behavior)
       select(svg)
         .transition()
-        .duration(250)
+        .duration(duration(250))
         .call((t) => behavior.scaleBy(t, factor));
   };
   const showEverything = () => {
@@ -503,80 +723,135 @@ function HorizontalPath({
     if (svg && behavior)
       select(svg)
         .transition()
-        .duration(350)
+        .duration(duration(350))
         .call((t) => behavior.transform(t, zoomIdentity));
+  };
+  /** Centre the view on a release (the overview strip). */
+  const centreOn = (release: number) => {
+    const svg = svgRef.current;
+    const behavior = zoomRef.current;
+    if (svg && behavior) behavior.translateTo(select(svg), base(release), height / 2);
   };
 
   const ppr = Math.abs(scale(1) - scale(0));
-  const step = tickStep(ppr);
+  const step = ppr >= 30 ? 1 : ppr >= 12 ? 5 : 10;
   const bands = useMemo(() => assemblyBands(description), [description]);
-  const isStrong = (candidates: number[], best: boolean) =>
-    highlight === null ? best : candidates.includes(highlight);
+  const view: [number, number] = [
+    Math.max(r0, Math.ceil(scale.invert(plotL) - 0.01)),
+    Math.min(rN, Math.floor(scale.invert(plotR) + 0.01)),
+  ];
+  const figureScale = useMemo(() => scaleOf(releases, (r) => scale(r), plotL, plotR), [releases, scale, plotL, plotR]);
 
-  // Labels of genes: above the bar, or below it where the label before still takes the room above; cut in the middle
-  // only when neither side has room (the full id is always on focus).
-  const geneLabels = useMemo(() => {
-    const byLane = new Map<number, NodePlace[]>();
+  // Labels: the genes' ids in the two rows above each lane, the chosen path's first, then in time order; a gene after
+  // a gene of the same id on its lane (or under the lane's name) by its version.
+  const laneTitles = useMemo(() => (gutter > 40 ? laneNames(layout) : new Map<number, string>()), [layout, gutter]);
+  const labels = useMemo(() => pathLabels(layout, [left, plotR + 4], laneTitles), [layout, left, plotR, laneTitles]);
+
+  const laneY = useMemo(() => {
+    const map = new Map<number, number>();
     for (const place of layout.nodes.values()) {
-      // Genes, and the ids a bridge passes through (on the lane of the gene it leaves), share a lane's label room.
-      if ((place.node.role !== "gene" && place.node.role !== "bridge") || place.lane === null) continue;
-      byLane.set(place.lane, [...(byLane.get(place.lane) ?? []), place]);
+      if (place.node.role === "gene" && place.lane !== null && !map.has(place.lane)) map.set(place.lane, place.s);
     }
-    const labels: { place: NodePlace; text: string | null; below: boolean; before: boolean }[] = [];
-    const left = plotL - upperRoom;
-    for (const places of byLane.values()) {
-      places.sort((a, b) => a.t0 - b.t0);
-      let aboveEnd = -Infinity;
-      let belowEnd = -Infinity;
-      places.forEach((place, i) => {
-        const x = place.t0 - 3;
-        const limit = plotR + 4;
-        const full = place.node.label;
-        const previous = places[i - 1]?.node.label ?? null;
-        if (i === 0 && x + full.length * CHAR > limit && x - full.length * CHAR - 8 >= left) {
-          // The first gene of a lane, near the end of the releases: its label before it, where the lane is empty.
-          labels.push({ place, text: full, below: false, before: true });
-        } else if (x >= aboveEnd && x + full.length * CHAR <= limit) {
-          labels.push({ place, text: full, below: false, before: false });
-          aboveEnd = x + full.length * CHAR + 8;
-        } else if (x >= belowEnd && x + full.length * CHAR <= limit) {
-          labels.push({ place, text: full, below: true, before: false });
-          belowEnd = x + full.length * CHAR + 8;
-        } else {
-          // A label is never drawn over another: the free side, cut to the room before the next gene; where both
-          // sides are taken, the id is on focus and in the reading.
-          const below = x < aboveEnd;
-          const next = places[i + 1];
-          const room = Math.min(limit, next ? next.t0 : limit) - x - 6;
-          const text = x < aboveEnd && x < belowEnd ? null : fitLabel(full, previous, room, CHAR);
-          labels.push({ place, text, below, before: false });
-          if (text) {
-            if (below) belowEnd = x + text.length * CHAR + 8;
-            else aboveEnd = x + text.length * CHAR + 8;
-          }
-        }
-      });
-    }
-    return labels;
-  }, [layout, plotR, plotL, upperRoom]);
+    return map;
+  }, [layout]);
+  const rowY = (row: string) => {
+    const [laneText = "0", offset = "a0"] = row.split(":");
+    return (laneY.get(Number(laneText)) ?? 0) + (ROW_OFFSET[offset] ?? 0) + TOP;
+  };
+  const candidatesOfNode = useNodeCandidates(model);
+
+  // The axis's labelled releases: every `step`-th, with light grid lines behind the drawing.
+  const ticks = releases.filter((r) => {
+    const x = scale(r);
+    return x >= left - 2 && x <= plotR + 2;
+  });
 
   return (
     <div className="pv-frame">
-      <div className="pv-toolbar" role="toolbar" aria-label="Zoom of the path">
-        <Button variant="quiet" onClick={() => zoomBy(1.6)} aria-label="Zoom in">
-          ＋
-        </Button>
-        <Button variant="quiet" onClick={() => zoomBy(1 / 1.6)} aria-label="Zoom out">
-          −
-        </Button>
-        <Button variant="quiet" onClick={() => fit(true)}>
+      <div className="pv-toolbar" role="group" aria-label="Zoom of the path">
+        <div className="pv-toolbar__group">
+          <Button
+            variant="quiet"
+            className="pv-tool"
+            onClick={() => {
+              setPreset(null);
+              zoomBy(1 / 1.6);
+            }}
+            aria-label="Zoom out"
+          >
+            −
+          </Button>
+          <Button
+            variant="quiet"
+            className="pv-tool"
+            onClick={() => {
+              setPreset(null);
+              zoomBy(1.6);
+            }}
+            aria-label="Zoom in"
+          >
+            +
+          </Button>
+        </div>
+        <Button
+          variant="quiet"
+          className="pv-tool pv-preset"
+          aria-pressed={preset === "fit"}
+          onClick={() => {
+            setPreset("fit");
+            fit(true);
+          }}
+        >
           Fit the path
         </Button>
-        <Button variant="quiet" onClick={showEverything}>
+        {event ? (
+          <Button
+            variant="quiet"
+            className="pv-tool pv-preset"
+            aria-pressed={preset === "event"}
+            onClick={() => {
+              setPreset("event");
+              showEvent(true);
+            }}
+          >
+            The {event.words} at{" "}
+            {event.span[0] === event.span[1] ? event.span[0] : `${event.span[0]} → ${event.span[1]}`}
+          </Button>
+        ) : null}
+        <Button
+          variant="quiet"
+          className="pv-tool pv-preset"
+          aria-pressed={preset === "all"}
+          onClick={() => {
+            setPreset("all");
+            showEverything();
+          }}
+        >
           All releases
         </Button>
+        <span className="pv-toolbar__view">
+          In view: releases{" "}
+          <span className="mono">
+            {view[0]}–{view[1]}
+          </span>{" "}
+          of{" "}
+          <span className="mono">
+            {r0}–{rN}
+          </span>
+        </span>
         <span className="pv-toolbar__hint">Drag to pan · ctrl or shift + wheel to zoom</span>
       </div>
+      <Overview
+        bands={bands}
+        base={base}
+        width={width}
+        left={left}
+        plotR={plotR}
+        span={fitSpan}
+        view={[scale.invert(plotL), scale.invert(plotR)]}
+        onCentre={centreOn}
+        range={[r0, rN]}
+      />
       <div className="pv-canvas">
         <svg
           ref={svgRef}
@@ -589,57 +864,136 @@ function HorizontalPath({
         >
           <defs>
             <clipPath id={clipId}>
-              <rect x={plotL - upperRoom} y={0} width={plotR - plotL + upperRoom + 6} height={height} />
+              <rect x={left} y={0} width={plotR - left + 6} height={height} />
             </clipPath>
+            {!revealed ? (
+              <clipPath id={revealId}>
+                <rect x={0} y={0} width={width} height={height}>
+                  <animate
+                    attributeName="width"
+                    from={String(left)}
+                    to={String(width)}
+                    dur={`${REVEAL_MS}ms`}
+                    fill="freeze"
+                    calcMode="spline"
+                    keySplines="0.2 0.7 0.2 1"
+                    keyTimes="0;1"
+                  />
+                </rect>
+              </clipPath>
+            ) : null}
           </defs>
           <g clipPath={`url(#${clipId})`}>
-            {bands.map((band, i) => {
-              const x0 = scale(band.first - 0.5);
-              const x1 = scale(band.last + 0.5);
-              const label = `${band.name} · ${band.first}–${band.last}`;
-              const visible = Math.min(x1, plotR) - Math.max(x0, plotL - upperRoom);
-              const text =
-                label.length * 6.6 < visible - 12 ? label : band.name.length * 6.6 < visible - 12 ? band.name : null;
-              return (
-                <g key={band.assembly} className={`pv-band ${i % 2 ? "pv-band--b" : "pv-band--a"}`}>
-                  <rect x={x0} y={0} width={Math.max(0, x1 - x0)} height={height} />
-                  {i > 0 ? <line className="pv-band__edge" x1={x0} x2={x0} y1={0} y2={height} /> : null}
-                  {text ? (
-                    <text className="pv-band__label" x={Math.max(x0, plotL - upperRoom) + 6} y={14}>
-                      {text}
-                    </text>
-                  ) : null}
-                </g>
-              );
-            })}
-            <g className="pv-axis" aria-hidden="true">
-              <line x1={plotL - upperRoom} x2={plotR} y1={AXIS - 22} y2={AXIS - 22} />
-              {releases.map((r) => {
-                const x = scale(r);
-                if (x < plotL - upperRoom - 2 || x > plotR + 2) return null;
-                const labelled = r % step === 0 || step === 1;
-                return (
-                  <g key={r}>
-                    <line x1={x} x2={x} y1={AXIS - 22} y2={AXIS - (labelled ? 28 : 25)} />
-                    {labelled ? (
-                      <text x={x} y={AXIS - 32} textAnchor="middle">
-                        {r}
-                      </text>
-                    ) : null}
-                  </g>
-                );
-              })}
+            <Bands
+              bands={bands}
+              scale={figureScale}
+              top={0}
+              bottom={plotBottom}
+              labelY={13}
+              outerY={27}
+              view={[left, plotR]}
+            />
+            <g className="pv-grid" aria-hidden="true">
+              {ticks
+                .filter((r) => r % step === 0 || step === 1)
+                .map((r) => (
+                  <line key={r} x1={scale(r)} x2={scale(r)} y1={TOP - 8} y2={plotBottom} />
+                ))}
             </g>
+            <RowTracks layout={layout} left={left} right={plotR} top={TOP} />
+            <g clipPath={revealed ? undefined : `url(#${revealId})`}>
+              <PathMarks
+                layout={layout}
+                model={model}
+                toXY={toXY}
+                scale={scale}
+                isStrong={isStrong}
+                lit={litStep}
+                focus={focus}
+                range={[r0, rN]}
+                part="main"
+                plot={[left, plotR]}
+              />
+              <g className="pv-labels" aria-hidden="true">
+                {[...labels.values()].map((label) => (
+                  <GeneLabel
+                    key={label.key}
+                    label={label}
+                    y={rowY(label.row)}
+                    strong={(() => {
+                      const place = layout.nodes.get(label.key.slice(2));
+                      return place ? isStrong(candidatesOfNode.get(place.node.id) ?? [], place.best) : false;
+                    })()}
+                    bridge={layout.nodes.get(label.key.slice(2))?.node.role === "bridge"}
+                  />
+                ))}
+              </g>
+            </g>
+          </g>
+          {scored.length ? (
+            <g clipPath={revealed ? undefined : `url(#${revealId})`}>
+              <ScoreTrack
+                items={scored
+                  .map(({ edge, weight, hue }) => ({
+                    key: String(edge.step.index),
+                    x: toXY(edge.mid.t, edge.mid.s)[0],
+                    weight,
+                    hue,
+                  }))
+                  .filter((item) => item.x >= left && item.x <= plotR)}
+                x0={left}
+                x1={plotR}
+                top={trackTop + 8}
+                bottom={trackTop + 40}
+                labelX={left - 6}
+                name={null}
+              />
+            </g>
+          ) : null}
+          {scored.length && gutter > 40 ? (
+            <g className="pv-rows" aria-hidden="true">
+              <text className="pv-rows__score" x={12} y={trackTop + 12}>
+                Ensembl&apos;s score
+              </text>
+            </g>
+          ) : null}
+          <g clipPath={revealed ? undefined : `url(#${revealId})`}>
             <PathMarks
               layout={layout}
               model={model}
               toXY={toXY}
               scale={scale}
               isStrong={isStrong}
+              lit={litStep}
               focus={focus}
               range={[r0, rN]}
-              geneLabels={geneLabels}
+              part="final"
+              plot={[left, plotR]}
             />
+          </g>
+          {gutter > 40 ? (
+            <RowTitles layout={layout} model={model} width={gutter} top={TOP} isStrong={isStrong} titles={laneTitles} />
+          ) : null}
+          <g className="pv-axis" aria-hidden="true">
+            <line className="pv-axis__base" x1={left} x2={plotR} y1={plotBottom} y2={plotBottom} />
+            {ticks.map((r) => {
+              const x = scale(r);
+              const labelled = r % step === 0 || step === 1;
+              if (!labelled && ppr < 4) return null;
+              return (
+                <g key={r}>
+                  <line x1={x} x2={x} y1={plotBottom} y2={plotBottom + (labelled ? 6 : 3)} />
+                  {labelled ? (
+                    <text x={x} y={plotBottom + 18} textAnchor="middle">
+                      {r}
+                    </text>
+                  ) : null}
+                </g>
+              );
+            })}
+            <text className="pv-axis__title" x={(left + plotR) / 2} y={plotBottom + 40} textAnchor="middle">
+              Ensembl release
+            </text>
           </g>
           <AnswerColumn
             layout={layout}
@@ -652,20 +1006,211 @@ function HorizontalPath({
             requestedDatabase={requestedDatabase}
           />
         </svg>
-        <Tooltip item={shownItem} width={width} id={tipId} pinned={focus.pinned} />
+        <Tooltip item={shownItem} width={width} id={tipId} pinned={focus.pinned} pointer={focus.note} />
       </div>
     </div>
   );
 }
 
-function VerticalPath({ model, description, names, width, limit, highlight, readingId }: DrawingProps) {
+/** Where an identifier lives, for the name of its row: its database (or the first of them), or its kind. */
+/** The row of an identifier, by the databases it is read through: for the identifier as read, those that read it at
+ *  the release read (`from_databases`, as the Read card says); for any other id, those that attach it at any release. */
+function spaceOf(node: ModelNode, read: readonly string[] = []): string {
+  const kind = node.api.kind;
+  if (kind === "external" || kind === "synonym") {
+    const databases = (node.isQuery && read.length ? read : node.api.databases).map(databaseLabel);
+    const first = databases[0] ?? (kind === "synonym" ? "synonym" : "external id");
+    const more = databases.length > 1 ? ` +${databases.length - 1}` : "";
+    return `${kind === "synonym" ? "synonym · " : ""}${first}${more}`;
+  }
+  return kind === "base_ensembl_gene" ? "Ensembl id, no version" : nodeKindWords(kind);
+}
+
+/** A hairline along each row and lane, so that the rows read as the identifier spaces the path moves between. */
+function RowTracks({ layout, left, right, top }: { layout: PathLayout; left: number; right: number; top: number }) {
+  return (
+    <g className="pv-tracks" aria-hidden="true">
+      {layout.rows.map((row) => (
+        <line key={row.id} x1={left} x2={right} y1={row.s + top} y2={row.s + top} />
+      ))}
+      {layout.laneS.map((s, lane) => (
+        <line key={`lane:${lane}`} className="pv-tracks__lane" x1={left} x2={right} y1={s + top} y2={s + top} />
+      ))}
+    </g>
+  );
+}
+
+/** The names of the rows in the gutter: the database or kind of each identifier above the lanes, then each lane of
+ *  genes by the id its genes share (its versions are written on its bars). */
+function RowTitles({
+  layout,
+  model,
+  width,
+  top,
+  isStrong,
+  titles,
+}: {
+  layout: PathLayout;
+  model: PathModel;
+  width: number;
+  top: number;
+  isStrong: (candidates: number[], best: boolean) => boolean;
+  titles: Map<number, string>;
+}) {
+  const room = (width - 34) / CHAR;
+  return (
+    <g className="pv-rows" aria-hidden="true">
+      <text className="pv-rows__head" x={12} y={top - 12}>
+        DATABASE
+      </text>
+      {layout.rows.map((row) => {
+        const place = layout.nodes.get(row.id);
+        if (!place) return null;
+        const y = row.s + top;
+        const text =
+          row.kind === "bridge" ? `via ${spaceOf(place.node)}` : spaceOf(place.node, model.result.from_databases);
+        const external = place.node.api.kind === "external" || place.node.api.kind === "synonym";
+        return (
+          <g key={row.id} className={`pv-rows__row ${place.best ? "pv-rows__row--strong" : ""}`}>
+            <StepGlyph
+              glyph={row.kind === "bridge" ? "bridge" : external ? "read" : "form"}
+              x={16}
+              y={y}
+              size="thin"
+              strong={place.best}
+            />
+            <text x={28} y={y + 3.5}>
+              {fitLabel(text, room * 1.08) ?? "…"}
+            </text>
+          </g>
+        );
+      })}
+      {layout.laneS.map((s, lane) => {
+        // A lane is named strongly where it holds a gene of a best answer (every best of a tie alike).
+        const strong = (layout.laneBest[lane] ?? false) && model.candidates.some((c) => isStrong([c.index], c.best));
+        const id = titles.get(lane);
+        return (
+          <g key={`lane:${lane}`} className={`pv-rows__row ${strong ? "pv-rows__row--strong" : ""}`}>
+            <GeneBar x0={10} x1={22} y={s + top} size="thick" strong={strong} />
+            <text x={28} y={s + top + (id ? -2 : 3.5)}>
+              Ensembl gene
+            </text>
+            {id ? (
+              <text className="pv-rows__id" x={28} y={s + top + 11}>
+                {fitLabel(id, room) ?? "…"}
+              </text>
+            ) : null}
+          </g>
+        );
+      })}
+    </g>
+  );
+}
+
+function GeneLabel({ label, y, strong, bridge }: { label: PlacedLabel; y: number; strong: boolean; bridge: boolean }) {
+  return (
+    <text
+      className={`pv-label ${strong ? "pv-label--strong" : ""} ${bridge ? "pv-label--bridge" : ""}`}
+      x={label.x}
+      y={y}
+      textAnchor={label.anchor}
+    >
+      {label.text}
+    </text>
+  );
+}
+
+/** The graph's whole release range in miniature: the assembly bands, the drawn path's releases and the window in
+ *  view. Pressing or dragging on it centres the view there (the toolbar's buttons do the same by keyboard). */
+function Overview({
+  bands,
+  base,
+  width,
+  left,
+  plotR,
+  span,
+  view,
+  onCentre,
+  range,
+}: {
+  bands: Band[];
+  base: (release: number) => number;
+  width: number;
+  left: number;
+  plotR: number;
+  span: [number, number] | null;
+  view: [number, number];
+  onCentre: (release: number) => void;
+  range: [number, number];
+}) {
+  const [dragging, setDragging] = useState(false);
+  const toRelease = (event: PointerEvent<SVGSVGElement>) => {
+    const box = event.currentTarget.getBoundingClientRect();
+    const x = event.clientX - box.left;
+    const fraction = (x - base(range[0] - 0.5)) / (base(range[1] + 0.5) - base(range[0] - 0.5));
+    return range[0] - 0.5 + fraction * (range[1] - range[0] + 1);
+  };
+  const v0 = Math.max(base(view[0]), left);
+  const v1 = Math.min(base(view[1]), plotR);
+  return (
+    <svg
+      className={`pv-overview ${dragging ? "is-dragging" : ""}`}
+      width={width}
+      height={30}
+      aria-hidden="true"
+      onPointerDown={(event) => {
+        event.currentTarget.setPointerCapture(event.pointerId);
+        setDragging(true);
+        onCentre(toRelease(event));
+      }}
+      onPointerMove={(event) => {
+        if (dragging) onCentre(toRelease(event));
+      }}
+      onPointerUp={() => setDragging(false)}
+      onPointerCancel={() => setDragging(false)}
+    >
+      {bands.map((band, i) => (
+        <rect
+          key={band.assembly}
+          className={`pv-overview__band ${i % 2 ? "pv-overview__band--b" : ""}`}
+          x={base(band.first - 0.5)}
+          y={9}
+          width={Math.max(0, base(band.last + 0.5) - base(band.first - 0.5))}
+          height={12}
+        />
+      ))}
+      {span ? <line className="pv-overview__span" x1={base(span[0])} x2={base(span[1])} y1={15} y2={15} /> : null}
+      <rect className="pv-overview__window" x={v0} y={4} width={Math.max(4, v1 - v0)} height={22} rx={3} />
+      <text className="pv-overview__label" x={left - 8} y={19} textAnchor="end">
+        {range[0]}
+      </text>
+      <text className="pv-overview__label" x={plotR + 8} y={19}>
+        {range[1]}
+      </text>
+    </svg>
+  );
+}
+
+function VerticalPath({
+  model,
+  description,
+  names,
+  width,
+  limit,
+  rowsPerLane,
+  onDrawn,
+  highlight,
+  litStep,
+  onStepShown,
+  readingId,
+}: DrawingProps) {
   const releases = description.releases;
   const r0 = releases[0] ?? 0;
   const rN = releases[releases.length - 1] ?? 0;
   const [pixels, setPixels] = useState(26);
   const [all, setAll] = useState(false);
   const tipId = useId();
-  const span = model.span ?? [r0, rN];
+  const span = drawnSpan(model, limit) ?? [r0, rN];
   const a = all ? r0 : Math.max(r0, span[0] - 1);
   const b = all ? rN : Math.min(rN, span[1] + 1);
   const metrics = VERTICAL_METRICS;
@@ -680,34 +1225,53 @@ function VerticalPath({ model, description, names, width, limit, highlight, read
   );
   const answerT = top + (b - a + 1) * pixels + 30;
   const layout = useMemo(
-    () => layoutPath(model, { scale: (r) => scale(r), answerT, metrics, limit }),
-    [model, scale, answerT, metrics, limit],
+    () => layoutPath(model, { scale: (r) => scale(r), answerT, metrics, limit, rowsPerLane }),
+    [model, scale, answerT, metrics, limit, rowsPerLane],
   );
+  useEffect(() => {
+    onDrawn(layout.shown.length);
+  }, [layout.shown.length, onDrawn]);
   const left = 46;
   const toXY = useCallback((t: number, s: number): [number, number] => [s + left, t], []);
-  const gutter = left + layout.stackSize + 6;
+  const isStrong = useCallback(
+    (candidates: number[], best: boolean) => (highlight === null ? best : candidates.includes(highlight)),
+    [highlight],
+  );
+  const allScored = useMemo(() => scoreSteps(layout, isStrong), [layout, isStrong]);
+  // The score track runs down beside the lanes, the labels in a column to its right; where the column would leave a
+  // label fewer than sixteen characters, the track gives way (the scores stay in each step's note and the reading).
+  const trackX = left + layout.stackSize + 4;
+  const scored = (width - trackX - 44) / CHAR >= 16 ? allScored : [];
+  const gutter = trackX + (scored.length ? 44 : 4);
   const height = answerT + layout.answers.length * 4 + 40;
   const items = useItems(layout, model, names, toXY);
-  const focus = useFocus(items);
+  const focus = useFocus(items, tipId);
   const shownItem = items.find((i) => i.key === focus.shown) ?? null;
+  useStepShown(focus.shown, onStepShown);
   const bands = useMemo(() => assemblyBands(description), [description]);
-  const isStrong = (candidates: number[], best: boolean) =>
-    highlight === null ? best : candidates.includes(highlight);
 
-  // Labels in a column to the right of the lanes, pushed apart where they would overlap, joined by a leader line.
+  // Labels in a column to the right of the lanes, pushed apart where they would overlap, joined by a leader line; a
+  // gene after a gene of the same id on its lane is labelled by its version; an id with no room is cut in its middle.
   const labels = useMemo(() => {
-    const wanted: { key: string; y: number; x: number; text: string; strong: boolean; kind: string }[] = [];
-    for (const place of layout.nodes.values()) {
+    const wanted: { key: string; at: number; x: number; text: string; strong: boolean; kind: string }[] = [];
+    const previousOnLane = new Map<number, string>();
+    const places = [...layout.nodes.values()].sort((p, q) => p.t0 - q.t0);
+    for (const place of places) {
       if (place.node.role === "target") continue;
       const [x, y] = toXY(place.t0, place.s);
-      wanted.push({ key: place.node.id, x, y, text: place.node.label, strong: place.best, kind: place.node.role });
+      let text = place.node.label;
+      if (place.node.role === "gene" && place.lane !== null) {
+        text = laneLabel(place.node.label, previousOnLane.get(place.lane) ?? null);
+        previousOnLane.set(place.lane, place.node.label);
+      }
+      wanted.push({ key: place.node.id, x, at: y, text, strong: place.best, kind: place.node.role });
     }
     for (const answer of layout.answers) {
       const [x, y] = toXY(layout.answerT, answer.s);
       wanted.push({
         key: `answer:${answer.candidate.index}`,
         x,
-        y,
+        at: y,
         text: `${answer.candidate.index + 1}  ${answer.candidate.api.target}`,
         strong: answer.candidate.best,
         kind: "answer",
@@ -717,39 +1281,65 @@ function VerticalPath({ model, description, names, width, limit, highlight, read
     for (const band of bands) {
       if (band.last < a || band.first > b) continue;
       const y = scale(Math.max(band.first, a) - 0.5) + 10;
-      wanted.push({ key: `band:${band.assembly}`, x: gutter, y, text: band.name, strong: false, kind: "band" });
+      wanted.push({
+        key: `band:${band.assembly}`,
+        x: gutter,
+        at: y,
+        text: `${band.name} ${bandRange(band)}`,
+        strong: false,
+        kind: "band",
+      });
     }
-    wanted.sort((p, q) => p.y - q.y || (p.kind === "band" ? -1 : q.kind === "band" ? 1 : p.x - q.x));
-    let floor = -Infinity;
-    const room = width - gutter - 8;
-    return wanted.map((w) => {
-      const y = Math.max(w.y, floor + 15);
-      floor = y;
-      return { ...w, labelY: y, text: fitLabel(w.text, null, room, 6.3) ?? "…" };
+    const room = (width - gutter - 4) / CHAR;
+    const shorts = shortNames(bands.map((band) => band.name));
+    const bandText = (band: Band) =>
+      [`${band.name} ${bandRange(band)}`, band.name, `${shorts.get(band.name) ?? band.name} ${bandRange(band)}`].find(
+        (t) => t.length <= room,
+      ) ??
+      shorts.get(band.name) ??
+      band.name;
+    for (const w of wanted) {
+      const band = w.kind === "band" ? bands.find((b) => `band:${b.assembly}` === w.key) : undefined;
+      if (band) w.text = bandText(band);
+    }
+    return stackLabels(
+      wanted.sort((p, q) => p.at - q.at || (p.kind === "band" ? -1 : q.kind === "band" ? 1 : p.x - q.x)),
+      15,
+    ).flatMap((w) => {
+      const text = middleCut(w.text, Math.floor(room));
+      return text === null ? [] : [{ ...w, text }];
     });
   }, [layout, toXY, gutter, width, bands, scale, a, b]);
-  const totalHeight = Math.max(height, (labels[labels.length - 1]?.labelY ?? 0) + 30);
+  const totalHeight = Math.max(height, (labels[labels.length - 1]?.placed ?? 0) + 30);
 
   return (
     <div className="pv-frame">
-      <div className="pv-toolbar" role="toolbar" aria-label="Scale of the path">
-        <Button variant="quiet" onClick={() => setPixels((p) => Math.min(60, p + 8))} aria-label="Spread the releases">
-          ＋
-        </Button>
-        <Button
-          variant="quiet"
-          onClick={() => setPixels((p) => Math.max(10, p - 8))}
-          aria-label="Close up the releases"
-        >
-          −
-        </Button>
-        <Button variant="quiet" onClick={() => setAll((v) => !v)}>
-          {all ? "The path's releases" : "All releases"}
+      <div className="pv-toolbar" role="group" aria-label="Scale of the path">
+        <div className="pv-toolbar__group">
+          <Button
+            variant="quiet"
+            className="pv-tool"
+            onClick={() => setPixels((p) => Math.max(10, p - 8))}
+            aria-label="Close up the releases"
+          >
+            −
+          </Button>
+          <Button
+            variant="quiet"
+            className="pv-tool"
+            onClick={() => setPixels((p) => Math.min(60, p + 8))}
+            aria-label="Spread the releases"
+          >
+            +
+          </Button>
+        </div>
+        <Button variant="quiet" className="pv-tool pv-preset" aria-pressed={all} onClick={() => setAll((v) => !v)}>
+          All releases
         </Button>
       </div>
       <div className="pv-canvas">
         <svg
-          className="pv-svg"
+          className="pv-svg pv-svg--vertical"
           width={width}
           height={totalHeight}
           role="group"
@@ -761,14 +1351,20 @@ function VerticalPath({ model, description, names, width, limit, highlight, read
             const y0 = scale(Math.max(band.first, a) - 0.5);
             const y1 = scale(Math.min(band.last, b) + 0.5);
             return (
-              <g key={band.assembly} className={`pv-band ${i % 2 ? "pv-band--b" : "pv-band--a"}`}>
-                <rect x={0} y={y0} width={width} height={Math.max(0, y1 - y0)} />
-                <line className="pv-band__edge" x1={0} x2={width} y1={y0} y2={y0} />
+              <g key={band.assembly}>
+                <rect
+                  className={i % 2 ? "fig-band fig-band--b" : "fig-band"}
+                  x={0}
+                  y={y0}
+                  width={width}
+                  height={Math.max(0, y1 - y0)}
+                />
+                <line className="fig-band__edge" x1={0} x2={width} y1={y0} y2={y0} />
               </g>
             );
           })}
           <g className="pv-axis" aria-hidden="true">
-            <line x1={left - 14} x2={left - 14} y1={scale(a - 0.5)} y2={scale(b + 0.5)} />
+            <line className="pv-axis__base" x1={left - 14} x2={left - 14} y1={scale(a - 0.5)} y2={scale(b + 0.5)} />
             {releases.map((r) => {
               if (r < a || r > b) return null;
               const y = scale(r);
@@ -791,25 +1387,41 @@ function VerticalPath({ model, description, names, width, limit, highlight, read
             toXY={toXY}
             scale={(r) => scale(r)}
             isStrong={isStrong}
+            lit={litStep}
             focus={focus}
             range={[a, b]}
-            geneLabels={[]}
             vertical
           />
+          {scored.length ? (
+            <ScoreTrack
+              vertical
+              items={scored.map(({ edge, weight, hue }) => ({
+                key: String(edge.step.index),
+                x: toXY(edge.mid.t, edge.mid.s)[1],
+                weight,
+                hue,
+              }))}
+              x0={scale(a - 0.5)}
+              x1={scale(b + 0.5)}
+              top={trackX}
+              bottom={trackX + 26}
+              labelX={scale(a - 0.5) - 6}
+            />
+          ) : null}
           <g className="pv-labels" aria-hidden="true">
             {labels.map((l) => (
               <g key={l.key}>
-                {l.kind !== "band" && (Math.abs(l.labelY - l.y) > 2 || l.x + 8 < gutter) ? (
-                  <path className="pv-leader" d={`M${l.x + 6},${l.y}L${gutter - 4},${l.labelY}`} />
+                {l.kind !== "band" && (Math.abs(l.placed - l.at) > 2 || l.x + 8 < gutter) ? (
+                  <path className="pv-leader" d={`M${l.x + 6},${l.at}L${gutter - 4},${l.placed}`} />
                 ) : null}
                 <text
                   className={
                     l.kind === "band"
-                      ? "pv-band__label"
+                      ? "fig-band__name pv-band__label"
                       : `pv-label ${l.strong ? "pv-label--strong" : ""} ${l.kind === "answer" ? "pv-label--answer" : ""}`
                   }
                   x={gutter}
-                  y={l.labelY + 4}
+                  y={l.placed + 4}
                 >
                   {l.text}
                 </text>
@@ -827,10 +1439,33 @@ function VerticalPath({ model, description, names, width, limit, highlight, read
             vertical
           />
         </svg>
-        <Tooltip item={shownItem} width={width} id={tipId} pinned={focus.pinned} />
+        <Tooltip item={shownItem} width={width} id={tipId} pinned={focus.pinned} pointer={focus.note} />
       </div>
     </div>
   );
+}
+
+/** The candidates whose paths hold each node (a node is drawn strongly with any of them). */
+function useNodeCandidates(model: PathModel): Map<string, number[]> {
+  return useMemo(() => {
+    const map = new Map<string, number[]>();
+    for (const candidate of model.candidates) {
+      for (const index of candidate.steps) {
+        const step = model.steps[index];
+        if (!step) continue;
+        for (const id of [step.api.source, step.api.target]) {
+          if (id === null) continue;
+          const list = map.get(id);
+          if (!list) map.set(id, [candidate.index]);
+          else if (list[list.length - 1] !== candidate.index) list.push(candidate.index);
+        }
+      }
+      const genes = map.get(candidate.api.gene);
+      if (!genes) map.set(candidate.api.gene, [candidate.index]);
+      else if (genes[genes.length - 1] !== candidate.index) genes.push(candidate.index);
+    }
+    return map;
+  }, [model]);
 }
 
 interface MarksProps {
@@ -841,28 +1476,141 @@ interface MarksProps {
   isStrong: (candidates: number[], best: boolean) => boolean;
   focus: ReturnType<typeof useFocus>;
   range: [number, number];
-  geneLabels: { place: NodePlace; text: string | null; below: boolean; before: boolean }[];
   vertical?: boolean;
+  /** `main`: everything but the final steps; `final`: the final steps and the ids they pass through, drawn outside the
+   *  plot's clip (from the plot's edge where the gene's end is out of view); `all` (the phone's timeline). */
+  part?: "main" | "final" | "all";
+  /** The plot's extent along time, for the start of a final step whose gene end is out of view. */
+  plot?: [number, number];
+  /** A step pointed at in the path in words: ringed. */
+  lit?: number | null;
 }
 
-function PathMarks({ layout, model, toXY, scale, isStrong, focus, range, geneLabels, vertical = false }: MarksProps) {
-  const swap = vertical ? `translate(${toXY(0, 0)[0]},0) matrix(0,1,1,0,0,0)` : `translate(0,${toXY(0, 0)[1]})`;
-  const candidatesOfNode = useMemo(() => {
-    const map = new Map<string, number[]>();
-    for (const candidate of model.candidates) {
-      for (const index of candidate.steps) {
-        const step = model.steps[index];
-        if (!step) continue;
-        for (const id of [step.api.source, step.api.target]) {
-          if (id !== null) map.set(id, [...(map.get(id) ?? []), candidate.index]);
-        }
-      }
-      map.set(candidate.api.gene, [...(map.get(candidate.api.gene) ?? []), candidate.index]);
+/** Tell the step the drawing shows (pointed at or focused), and that none is shown when it goes. */
+function useStepShown(shown: string | null, onStepShown: (index: number | null) => void) {
+  const told = useRef(false);
+  useEffect(() => {
+    if (shown?.startsWith("s:")) {
+      told.current = true;
+      onStepShown(Number(shown.slice(2)));
+    } else if (told.current) {
+      told.current = false;
+      onStepShown(null);
     }
-    return map;
-  }, [model]);
-  const nodeStrong = (place: NodePlace) => isStrong(candidatesOfNode.get(place.node.id) ?? [], place.best);
+  }, [shown, onStepShown]);
+}
 
+/** The other ids of a split or a merge, counted by the api and not named: a short stub per id (at most three) leaving
+ *  the event's glyph toward the later releases (a split: the earlier id passed to them too) or entering it from the
+ *  earlier ones (a merge: they passed to the later id too). Drawn in the step's hue, light. */
+function EventStubs({ step, x, y, vertical }: { step: ModelStep; x: number; y: number; vertical: boolean }) {
+  const { splits, merges } = step.api;
+  if (!splits && !merges) return null;
+  // Along time: +1 toward later releases. The walk's direction does not change Ensembl's event.
+  const along = (dt: number, ds: number): [number, number] => (vertical ? [x + ds, y + dt] : [x + dt, y + ds]);
+  const stubs: string[] = [];
+  const fan = (n: number, side: 1 | -1) => {
+    const shown = Math.min(3, n);
+    for (let i = 0; i < shown; i++) {
+      const spread = (Math.floor(i / 2) + 1) * 10;
+      const [x1, y1] = along(side * 6, 0);
+      const [x2, y2] = along(side * 22, (i % 2 ? 1 : -1) * spread);
+      stubs.push(`M${x1},${y1}L${x2},${y2}`);
+    }
+  };
+  fan(splits, 1);
+  fan(merges, -1);
+  return (
+    <g className="pv-stubs" aria-hidden="true">
+      {stubs.map((d) => (
+        <path key={d} d={d} />
+      ))}
+    </g>
+  );
+}
+
+/** A gene's bar along time: from the left edge of its first release's column to the right edge of its last, less
+ *  the joint where a step meets it. */
+function barExtent(place: NodePlace, scale: (r: number) => number): [number, number] {
+  const half = Math.abs(scale(place.node.first + 0.5) - scale(place.node.first)) || 0;
+  return [place.t0 - half + JOINT, place.t1 + half - JOINT];
+}
+
+/** A step's line, from the end of the bar it leaves to the start of the bar it enters (a step between two genes), or
+ *  between the points the layout gives (any other node). */
+function edgePath(edge: EdgePlace, layout: PathLayout, scale: (r: number) => number): string {
+  const source = edge.step.api.source === null ? undefined : layout.nodes.get(edge.step.api.source);
+  const target = layout.nodes.get(edge.step.api.target);
+  const half = Math.abs(scale(1) - scale(0.5));
+  const from = { ...edge.from };
+  const to = { ...edge.to };
+  const forward = to.t >= from.t;
+  if (source?.node.role === "gene") from.t += (forward ? 1 : -1) * Math.max(0, half - JOINT);
+  if (target?.node.role === "gene") to.t -= (forward ? 1 : -1) * Math.max(0, half - JOINT);
+  return curve(from, to);
+}
+
+function PathMarks({
+  layout,
+  model,
+  toXY,
+  scale,
+  isStrong,
+  focus,
+  range,
+  vertical = false,
+  part = "all",
+  plot,
+  lit = null,
+}: MarksProps) {
+  const swap = vertical ? `translate(${toXY(0, 0)[0]},0) matrix(0,1,1,0,0,0)` : `translate(0,${toXY(0, 0)[1]})`;
+  const candidatesOfNode = useNodeCandidates(model);
+  const nodeStrong = (place: NodePlace) => isStrong(candidatesOfNode.get(place.node.id) ?? [], place.best);
+  const answerNodes = new Set(layout.answers.map((a) => a.nodeId));
+
+  if (part === "final") {
+    return (
+      <g className="pv-marks pv-marks--final">
+        {layout.edges
+          .filter((edge) => edge.step.api.kind === "final")
+          .map((edge) => {
+            const step = edge.step;
+            const strong = isStrong(step.candidates, step.best);
+            const key = `s:${step.index}` as const;
+            const source = step.api.source === null ? undefined : layout.nodes.get(step.api.source);
+            const from =
+              source?.node.role === "gene" && plot
+                ? { t: Math.max(plot[0], Math.min(edge.from.t, plot[1])), s: edge.from.s }
+                : edge.from;
+            const d = curve(from, edge.to);
+            return (
+              <g
+                key={key}
+                {...focus.bind(key)}
+                className={`${stepClass(step)} ${strong ? "pv-strong" : "pv-weak"} ${focus.shown === key ? "pv-active" : ""}`}
+              >
+                <g transform={swap}>
+                  <path className="pv-hit" d={d} />
+                  <path className="pv-line" d={d} />
+                </g>
+              </g>
+            );
+          })}
+        {[...layout.nodes.values()]
+          .filter((place) => place.node.role === "target" && !answerNodes.has(place.node.id))
+          .map((place) => {
+            const [x, y] = toXY(place.t0, place.s);
+            return (
+              <g key={place.node.id} aria-hidden="true">
+                <StepGlyph glyph="form" x={x} y={y} size="thin" strong={nodeStrong(place)} />
+              </g>
+            );
+          })}
+      </g>
+    );
+  }
+
+  const edges = layout.edges.filter((edge) => !(part === "main" && edge.step.api.kind === "final"));
   return (
     <g className="pv-marks">
       {/* Life of each gene (the releases it exists, from the api's `active`): a faint track with a cap where it ends. */}
@@ -878,100 +1626,182 @@ function PathMarks({ layout, model, toXY, scale, isStrong, focus, range, geneLab
               return (
                 <g key={`${place.node.id}:${i}`} className="pv-life">
                   <line x1={t0} x2={t1} y1={place.s} y2={place.s} />
-                  {last !== null && last <= range[1] ? (
-                    <line className="pv-life__end" x1={t1} x2={t1} y1={place.s - 5} y2={place.s + 5} />
+                  {last !== null && last <= range[1] && last > place.node.last ? (
+                    <line className="pv-life__end" x1={t1} x2={t1} y1={place.s - 6} y2={place.s + 6} />
                   ) : null}
                 </g>
               );
             }),
           )}
-        {[...layout.nodes.values()]
-          .filter((p) => p.node.role === "gene")
-          .map((place) => (
-            <line
-              key={place.node.id}
-              className={`pv-bar ${nodeStrong(place) ? "pv-strong" : "pv-weak"}`}
-              x1={place.t0}
-              x2={place.t1}
-              y1={place.s}
-              y2={place.s}
+        {/* A leader from each drawn gene that is its own target to its row in the answer column. */}
+        {!vertical
+          ? layout.answers.map((answer) => {
+              if (answer.candidate.api.final_path.length) return null;
+              const place = layout.nodes.get(answer.candidate.api.gene);
+              if (!place) return null;
+              const end = barExtent(place, scale)[1];
+              return (
+                <path
+                  key={`leader:${answer.candidate.index}`}
+                  className={`pv-answer-leader ${isStrong([answer.candidate.index], answer.candidate.best) ? "pv-strong" : "pv-weak"}`}
+                  d={`M${end + 4},${place.s}C${(end + layout.answerT) / 2},${place.s} ${(end + layout.answerT) / 2},${answer.s} ${layout.answerT - 8},${answer.s}`}
+                />
+              );
+            })
+          : null}
+        {/* The lines of the steps that join releases or lanes apart, under the bars. */}
+        {edges.map((edge) => {
+          if (!edge.d || edge.step.api.kind === "self_loop" || edge.step.api.kind === "identity") return null;
+          const strong = isStrong(edge.step.candidates, edge.step.best);
+          return (
+            <path
+              key={`line:${edge.step.index}`}
+              className={`${stepClass(edge.step)} pv-line ${strong ? "pv-strong" : "pv-weak"}`}
+              d={edgePath(edge, layout, scale)}
             />
-          ))}
+          );
+        })}
       </g>
-      {/* Steps */}
-      {layout.edges.map((edge) => {
+      {/* Genes: a bar each, focusable with its exact values. */}
+      {[...layout.nodes.values()]
+        .filter((p) => p.node.role === "gene")
+        .map((place) => {
+          const key = `n:${place.node.id}` as const;
+          const strong = nodeStrong(place);
+          const [b0, b1] = barExtent(place, scale);
+          return (
+            <g
+              key={key}
+              {...focus.bind(key)}
+              className={`pv-node-group ${strong ? "pv-strong" : "pv-weak"} ${focus.shown === key ? "pv-active" : ""}`}
+            >
+              <g transform={swap}>
+                <rect className="pv-hit-node" x={b0} y={place.s - 12} width={Math.max(12, b1 - b0)} height={24} />
+                <GeneBar x0={b0} x1={b1} y={place.s} size={strong ? "thick" : "thin"} strong={strong} />
+                {focus.focusedKey === key ? (
+                  <rect
+                    className="fig-focus"
+                    x={b0 - 3}
+                    y={place.s - 8}
+                    width={Math.max(6, b1 - b0 + 6)}
+                    height={16}
+                    rx={4}
+                  />
+                ) : null}
+              </g>
+            </g>
+          );
+        })}
+      {/* Steps: the glyph of each, over the bars, and its target for focus and pointer (24 px or more). */}
+      {edges.map((edge) => {
         const step = edge.step;
         const strong = isStrong(step.candidates, step.best);
         const key = `s:${step.index}` as const;
         const bind = focus.bind(key);
         const active = focus.shown === key;
-        const [x, y] = toXY(edge.to.t, edge.to.s);
+        const ringed = focus.focusedKey === key;
+        const pointed = lit === step.index && !ringed;
+        const [mx, my] = toXY(edge.mid.t, edge.mid.s);
+        const glyph = stepGlyph(step, model);
         if (step.api.kind === "identity" || !edge.d) {
+          const [x, y] = toXY(edge.to.t, edge.to.s);
           return (
             <g
               key={key}
               {...bind}
-              role="button"
-              aria-label={`${stepLabel(step)}: ${step.api.target} exists at release ${model.result.to_release}`}
               className={`${stepClass(step)} ${strong ? "pv-strong" : "pv-weak"} ${active ? "pv-active" : ""}`}
             >
-              <circle className="pv-identity" cx={x} cy={y} r={8} />
+              <circle className="pv-hit-node" cx={x} cy={y} r={12} />
+              <StepGlyph glyph="identity" x={x} y={y} strong={strong} />
+              {ringed ? <circle className="fig-focus" cx={x} cy={y} r={13} /> : null}
+              {pointed ? <circle className="pv-lit" cx={x} cy={y} r={13} /> : null}
             </g>
           );
         }
-        const room = Math.abs(edge.to.t - edge.from.t);
-        // The score written on the line is part of the step's name, as it is part of what is seen.
-        const written = !vertical && strong ? weightText(edge, room) : null;
+        const middle = marksMiddle(step);
         return (
           <g
             key={key}
             {...bind}
-            role="button"
-            aria-label={`Step ${step.index + 1}: ${stepLabel(step)}, ${step.api.source ?? ""} to ${step.api.target}${written ? `, score ${written}` : ""}`}
             className={`${stepClass(step)} ${strong ? "pv-strong" : "pv-weak"} ${active ? "pv-active" : ""}`}
           >
             <g transform={swap}>
-              <path className="pv-hit" d={edge.d} />
-              <path className="pv-line" d={edge.d} />
+              <path className="pv-hit" d={edgePath(edge, layout, scale)} />
             </g>
-            {edgeMarks(edge, toXY, strong)}
-            {written ? weightLabel(edge, toXY, written) : null}
+            <rect className="pv-hit-node" x={mx - 12} y={my - 12} width={24} height={24} />
+            {middle ? (
+              vertical ? (
+                <g transform={`rotate(90 ${mx} ${my})`}>
+                  <StepGlyph
+                    glyph={glyph}
+                    x={mx}
+                    y={my}
+                    size={strong ? "thick" : "thin"}
+                    strong={strong}
+                    event={glyph === "handoff" && isEvent(step.api)}
+                  />
+                </g>
+              ) : (
+                <StepGlyph
+                  glyph={glyph}
+                  x={mx}
+                  y={my}
+                  size={strong ? "thick" : "thin"}
+                  strong={strong}
+                  event={glyph === "handoff" && isEvent(step.api)}
+                />
+              )
+            ) : null}
+            {middle && strong && step.kind === "split_merge" ? (
+              <EventStubs step={step} x={mx} y={my} vertical={vertical} />
+            ) : null}
+            {ringed ? <circle className="fig-focus" cx={mx} cy={my} r={12} /> : null}
+            {pointed ? <circle className="pv-lit" cx={mx} cy={my} r={12} /> : null}
           </g>
         );
       })}
-      {/* Nodes */}
+      {/* The identifier, the forms it is read through and the ids bridges pass through. */}
       {[...layout.nodes.values()].map((place) => {
-        if (place.node.role === "target") return null;
+        if (place.node.role === "gene") return null;
+        if (place.node.role === "target") {
+          // An id a final path passes through (the phone's timeline; the wide drawing draws it with the final steps).
+          if (part === "main" || answerNodes.has(place.node.id)) return null;
+          const [x, y] = toXY(place.t0, place.s);
+          return (
+            <g key={place.node.id} aria-hidden="true">
+              <StepGlyph glyph="form" x={x} y={y} size="thin" strong={nodeStrong(place)} />
+            </g>
+          );
+        }
         const key = `n:${place.node.id}` as const;
         const [x, y] = toXY(place.t0, place.s);
         const strong = nodeStrong(place);
-        const shape =
-          place.node.role === "gene" ? (
-            <circle className="pv-node pv-node--gene" cx={x} cy={y} r={4.5} />
-          ) : place.node.role === "bridge" ? (
-            <path className="pv-node pv-node--bridge" d={`M${x},${y - 6}L${x + 6},${y}L${x},${y + 6}L${x - 6},${y}Z`} />
-          ) : place.node.api.kind === "external" || place.node.api.kind === "synonym" ? (
-            <rect className="pv-node pv-node--external" x={x - 4.5} y={y - 4.5} width={9} height={9} />
-          ) : (
-            <circle className="pv-node pv-node--form" cx={x} cy={y} r={4} />
-          );
+        const glyph: Glyph =
+          place.node.role === "bridge"
+            ? "bridge"
+            : place.node.api.kind === "external" || place.node.api.kind === "synonym"
+              ? "read"
+              : "form";
         return (
           <g key={key}>
             <g
               {...focus.bind(key)}
-              role="button"
-              aria-label={`${place.node.api.label} (${place.node.api.kind})${place.node.isQuery ? ", the identifier as read" : ""}`}
               className={`pv-node-group ${strong ? "pv-strong" : "pv-weak"} ${focus.shown === key ? "pv-active" : ""} ${place.node.isQuery ? "pv-query" : ""}`}
             >
-              <circle className="pv-hit-node" cx={x} cy={y} r={11} />
-              {shape}
+              <circle className="pv-hit-node" cx={x} cy={y} r={12} />
+              <StepGlyph glyph={glyph} x={x} y={y} strong={strong} />
+              {focus.focusedKey === key ? <circle className="fig-focus" cx={x} cy={y} r={11} /> : null}
             </g>
-            {!vertical && place.node.role === "upper"
+            {!vertical
               ? (() => {
-                  // To the right of the mark where there is room; else to its left (a path read late in time).
-                  const right = layout.answerT - x - 24;
+                  // A mark out of the view at this zoom has no label (it is on focus, in the note and the words).
+                  if (plot && (x < plot[0] || x > plot[1])) return null;
+                  // To the right of the mark where there is room in the plot; else to its left (a path read late in
+                  // time).
+                  const right = (plot?.[1] ?? layout.answerT - 24) - x - 12;
                   const databases = place.node.isQuery ? place.node.api.databases.map(databaseLabel).join(", ") : "";
-                  const needed = (place.node.label.length + 2) * CHAR + (databases ? (databases.length + 3) * 5.6 : 0);
+                  const needed =
+                    textWidth(`${place.node.label}  `) + (databases ? textWidth(` · ${databases}`, 11, "sans") : 0);
                   const before = right < Math.min(needed, 260) && x - 40 > right;
                   return (
                     <text
@@ -989,24 +1819,6 @@ function PathMarks({ layout, model, toXY, scale, isStrong, focus, range, geneLab
           </g>
         );
       })}
-      {!vertical
-        ? geneLabels.map(({ place, text, below, before }) => {
-            if (text === null) return null;
-            const [x, y] = toXY(place.t0, place.s);
-            return (
-              <text
-                key={`label:${place.node.id}`}
-                className={`pv-label ${nodeStrong(place) ? "pv-label--strong" : ""}`}
-                x={before ? x - 10 : x - 3}
-                y={below ? y + 17 : before ? y + 4 : y - 9}
-                textAnchor={before ? "end" : "start"}
-                aria-hidden="true"
-              >
-                {text}
-              </text>
-            );
-          })
-        : null}
     </g>
   );
 }
@@ -1037,39 +1849,56 @@ function AnswerColumn({
     <g className="pv-answers">
       {!vertical ? (
         <>
-          <text className="pv-answers__head" x={x + 6} y={AXIS - 34}>
-            {model.result.no_target ? "REACHED" : "ANSWERS"}
+          <line className="pv-answers__rule" x1={x - 14} x2={x - 14} y1={6} y2={TOP + layout.stackSize} />
+          <text className="pv-answers__head" x={x + 6} y={TOP - 26}>
+            {`${model.result.no_target ? "REACHED" : "ANSWER"} AT ${model.result.to_release}`}
           </text>
-          <text className="pv-answers__db" x={x + 6} y={AXIS - 20}>
-            {fitLabel(
+          <text className="pv-answers__db" x={x + 6} y={TOP - 12}>
+            {wrapWords(
               model.result.no_target
                 ? `no ${databaseLabel(requestedDatabase ?? "ensembl_gene")} for the best`
                 : databaseLabel(model.result.final_database ?? "ensembl_gene"),
-              null,
-              width - 12,
-              6.2,
-            ) ?? ""}
+              width - 16,
+            ).map((line, i) => (
+              <tspan key={i} x={x + 6} dy={i ? 13 : 0}>
+                {line}
+              </tspan>
+            ))}
           </text>
         </>
       ) : null}
+      {layout.folded.map((fold) => {
+        const [fx, fy] = toXY(layout.answerT, fold.s);
+        return (
+          <text
+            key={`fold:${fold.lane}`}
+            className="pv-folded"
+            x={vertical ? fx - 6 : fx + 12}
+            y={vertical ? fy + 4 : fy + 4}
+            aria-hidden="true"
+          >
+            {vertical ? `+${fold.count}` : `+ ${fold.count} more of this gene (table)`}
+          </text>
+        );
+      })}
       {layout.answers.map((answer) => {
         const c = answer.candidate;
         const key = `a:${c.index}` as const;
         const [ax, ay] = toXY(layout.answerT, answer.s);
         const strong = isStrong([c.index], c.best);
-        const room = Math.max(0, width - 46);
-        const text = vertical ? null : (fitLabel(c.api.target, null, room, CHAR) ?? "…");
+        const room = Math.max(0, width - 46) / CHAR;
+        const text = vertical ? null : (fitLabel(c.api.target, room) ?? "…");
         const decided = decision?.best === c;
+        const tied = c.best && model.result.tie;
         return (
           <g key={key}>
             <g
               {...focus.bind(key)}
-              role="button"
-              aria-label={`${candidateTitle(c)}${decided ? `, decided by ${decision.key}` : ""}`}
               className={`pv-answer ${strong ? "pv-strong" : "pv-weak"} ${c.best ? "pv-answer--best" : ""} ${focus.shown === key ? "pv-active" : ""}`}
             >
-              <rect className="pv-hit-answer" x={ax - 8} y={ay - 10} width={vertical ? 16 : width - 4} height={20} />
-              <rect className="pv-node pv-node--target" x={ax - 4.5} y={ay - 4.5} width={9} height={9} />
+              <rect className="pv-hit-answer" x={ax - 12} y={ay - 12} width={vertical ? 24 : width - 4} height={24} />
+              <StepGlyph glyph="final" x={ax} y={ay} strong={c.best} />
+              {focus.focusedKey === key ? <circle className="fig-focus" cx={ax} cy={ay} r={10} /> : null}
             </g>
             {!vertical ? (
               <g className="pv-answer__text" aria-hidden="true">
@@ -1081,7 +1910,11 @@ function AnswerColumn({
                 </text>
                 {decided ? (
                   <text className="pv-decided" x={ax + 32} y={ay + 18}>
-                    {`decided by ${spaced(decision.key)}`}
+                    {`best · decided by ${spaced(decision.key)}`}
+                  </text>
+                ) : tied ? (
+                  <text className="pv-decided" x={ax + 32} y={ay + 18}>
+                    {`best · tied with ${model.candidates.filter((x) => x.best).length - 1}`}
                   </text>
                 ) : null}
               </g>
@@ -1093,43 +1926,79 @@ function AnswerColumn({
   );
 }
 
-export function PathLegend() {
-  const swatch = (className: string, mark?: "dot" | "diamond") => (
-    <svg width="36" height="14" aria-hidden="true" className="legend__swatch">
-      <path className={`pv-line ${className}`} d="M2,7L34,7" />
-      {mark === "dot" ? <circle className="pv-event-dot" cx="18" cy="7" r="3" /> : null}
-      {mark === "diamond" ? <path className="pv-handoff" d="M18,2L23,7L18,12L13,7Z" /> : null}
+/** The legend of the path view: the figure grammar's glyphs, as drawn; the marks this drawing holds, the key to every
+ *  mark of the path view on request. */
+function PathLegend({ present }: { present?: Set<string> }) {
+  const life: ReactNode = (
+    <svg width="30" height="16" aria-hidden="true" className="fig-swatch">
+      <g className="pv-life">
+        <path d="M2,8L26,8" />
+        <path className="pv-life__end" d="M26,2L26,14" />
+      </g>
     </svg>
   );
-  return (
-    <ul className="legend" aria-label="Legend of the path">
-      <li className="pv-step--history">{swatch("")}History: a new version, a replacement, a re-mapping</li>
-      <li className="pv-step--event">{swatch("", "dot")}History: a split or a merge (score above the line)</li>
-      <li className="pv-step--external pv-kind--entry_external">
-        {swatch("")}Through an external database: read as, a bridge, the target id
-      </li>
-      <li className="pv-step--history">{swatch("", "diamond")}Assembly handoff on the step</li>
-      <li className="legend__plain">
-        <svg width="36" height="14" aria-hidden="true" className="legend__swatch">
-          <path className="pv-bar pv-strong" d="M2,7L34,7" />
-        </svg>
-        Chosen path
-      </li>
-      <li className="legend__plain">
-        <svg width="36" height="14" aria-hidden="true" className="legend__swatch">
-          <path className="pv-bar pv-weak" d="M2,7L34,7" />
-        </svg>
-        Alternatives considered
-      </li>
-      <li className="legend__plain">
-        <svg width="36" height="14" aria-hidden="true" className="legend__swatch">
-          <g className="pv-life">
-            <path d="M2,7L30,7" />
-            <path className="pv-life__end" d="M30,2L30,12" />
+  const score: ReactNode = (
+    <svg width="30" height="16" aria-hidden="true" className="fig-swatch">
+      <line className="fig-score__line" x1={2} x2={28} y1={3} y2={3} />
+      <g className="fig-score__stem fig-hue--history">
+        <line x1={10} x2={10} y1={3} y2={12} />
+        <circle cx={10} cy={12} r={2.4} />
+      </g>
+      <circle className="fig-score__none" cx={21} cy={3} r={2.6} />
+    </svg>
+  );
+  const dashed: ReactNode = (
+    <svg width="30" height="16" aria-hidden="true" className="fig-swatch">
+      <path className="pv-line pv-step--external pv-kind--entry_external" d="M2,8L28,8" />
+    </svg>
+  );
+  const entries: LegendEntry[] = [
+    { key: "gene", glyph: "gene", text: "An Ensembl gene over the releases the path holds it (chosen path)" },
+    {
+      key: "weak",
+      swatch: (
+        <span className="pv-legend-weak">
+          <GlyphSwatch glyph="gene-thin" />
+        </span>
+      ),
+      text: "Alternatives considered",
+    },
+    { key: "version", glyph: "version", text: "A new version or a replacement" },
+    { key: "event", glyph: "event", text: "A split or a merge" },
+    {
+      key: "stubs",
+      swatch: (
+        <svg width="30" height="16" aria-hidden="true" className="fig-swatch">
+          <g className="pv-step--event">
+            <g className="pv-stubs">
+              <path d="M12,8L24,2" />
+              <path d="M12,8L24,14" />
+            </g>
+            <circle className="pv-legend-dot" cx={10} cy={8} r={3} />
           </g>
         </svg>
-        Releases the gene exists; the cap is its last, read from its active releases (not a retirement step)
-      </li>
-    </ul>
+      ),
+      text: "Other ids of the same split or merge (counted by the api; named in the words, on a press)",
+    },
+    { key: "loop", glyph: "loop", text: "A re-mapping of a gene to itself" },
+    { key: "handoff", glyph: "handoff", text: "A step across an assembly change" },
+    { key: "cross", swatch: dashed, text: "Through an external database: read as, a bridge, the target id" },
+    { key: "read", glyph: "read", text: "An external id; with a dot: one a bridge passes through" },
+    { key: "final", glyph: "final", text: "The answer" },
+    { key: "score", swatch: score, text: "Ensembl's score of a step, on the track (open: no score)" },
+    { key: "life", swatch: life, text: "Releases the gene exists; the cap is its last" },
+  ];
+  if (!present) return <FigureLegend label="Legend of the path" entries={entries} />;
+  const local = entries.filter((e) => present.has(e.key));
+  return (
+    <div className="pv-legend">
+      <FigureLegend label="Legend of this path" entries={local} />
+      {local.length < entries.length ? (
+        <details className="pv-legend__all">
+          <summary>Key to every mark of the path view</summary>
+          <FigureLegend label="Key to every mark of the path view" entries={entries} />
+        </details>
+      ) : null}
+    </div>
   );
 }

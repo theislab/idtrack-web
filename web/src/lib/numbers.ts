@@ -39,9 +39,13 @@ export function shortFloat(value: number, significant = 3): { text: string; shor
   return { text: `${sign}${whole}.${fraction.slice(0, keep)}…`, shortened: true };
 }
 
+/** One formatter for every count: making an ICU formatter per call (`toLocaleString`) costs about 15 µs, and a page of
+ *  figures formats thousands of counts. */
+const GROUPED = new Intl.NumberFormat("en-US");
+
 /** An integer with thin separators for reading (counts, sizes); the exact value is the digits without them. */
 export function groupedInteger(value: number): string {
-  return value.toLocaleString("en-US").replace(/,/g, " ");
+  return GROUPED.format(value).replace(/,/g, " ");
 }
 
 /** A byte size in words beside its exact number of bytes. */

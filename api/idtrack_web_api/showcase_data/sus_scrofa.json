@@ -1,0 +1,128 @@
+{
+  "checked_on": "80bda9b3bb224243664e8b35d2ea602255b02b4dd39abb22e982f7aa2aff62df",
+  "journeys": [
+    {
+      "identifier": "ENSSSCG00000017950",
+      "from_release": 56,
+      "to_release": null,
+      "final_database": "VGNC Symbol"
+    },
+    {
+      "identifier": "ENSSSCG00000005965",
+      "from_release": 56,
+      "to_release": null,
+      "final_database": "VGNC Symbol"
+    },
+    {
+      "identifier": "ENSSSCG00000016626",
+      "from_release": 56,
+      "to_release": null,
+      "final_database": "VGNC Symbol"
+    },
+    {
+      "identifier": "ENSSSCG00000008842",
+      "from_release": 56,
+      "to_release": null,
+      "final_database": "VGNC Symbol"
+    },
+    {
+      "identifier": "FAM123B",
+      "from_release": 56,
+      "to_release": null,
+      "final_database": "VGNC Symbol"
+    },
+    {
+      "identifier": "FAM46C",
+      "from_release": 56,
+      "to_release": null,
+      "final_database": "VGNC Symbol"
+    },
+    {
+      "identifier": "NM_214250",
+      "from_release": null,
+      "to_release": null,
+      "final_database": "VGNC Symbol"
+    },
+    {
+      "identifier": "ENSSSCG00000032537.1",
+      "from_release": null,
+      "to_release": null,
+      "final_database": null
+    },
+    {
+      "identifier": "ENSSSCG00000035803",
+      "from_release": null,
+      "to_release": null,
+      "final_database": null
+    },
+    {
+      "identifier": "ENSSSCG00000011758",
+      "from_release": null,
+      "to_release": null,
+      "final_database": null
+    },
+    {
+      "identifier": "ENSSSCG00000016830",
+      "from_release": 115,
+      "to_release": 56,
+      "final_database": null
+    },
+    {
+      "identifier": "ENSSSCG00000007585",
+      "from_release": 115,
+      "to_release": 56,
+      "final_database": null
+    }
+  ],
+  "cases": [
+    {
+      "kind": "lineage",
+      "identifier": "ENSSSCG00000008047.1",
+      "from_release": 56,
+      "to_release": null,
+      "final_database": null
+    },
+    {
+      "kind": "renamed",
+      "identifier": "FAM123B",
+      "from_release": 56,
+      "to_release": null,
+      "final_database": "HGNC Symbol"
+    },
+    {
+      "kind": "replaced",
+      "identifier": "ENSSSCG00000011758",
+      "from_release": 112,
+      "to_release": null,
+      "final_database": null
+    },
+    {
+      "kind": "split",
+      "identifier": "ENSSSCG00000032537.1",
+      "from_release": null,
+      "to_release": null,
+      "final_database": null
+    },
+    {
+      "kind": "merge",
+      "identifier": "ENSSSCG00000035803",
+      "from_release": 97,
+      "to_release": null,
+      "final_database": null
+    },
+    {
+      "kind": "handoff",
+      "identifier": "ENSSSCG00000016626",
+      "from_release": 56,
+      "to_release": null,
+      "final_database": null
+    },
+    {
+      "kind": "final",
+      "identifier": "NM_214250",
+      "from_release": null,
+      "to_release": null,
+      "final_database": "VGNC Symbol"
+    }
+  ]
+}

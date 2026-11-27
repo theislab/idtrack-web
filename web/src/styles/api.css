@@ -1,0 +1,1437 @@
+/* The api page: a reference to trust. A contents column, then the conventions, the rules for programs, every endpoint
+   (its description beside its request and console), the error codes and the package. Ink only: the four hues are the
+   path view's, and the states colour only an answer's status. */
+
+.api-head {
+  margin-bottom: var(--space-5);
+}
+
+/* The facts of this server, as one ruled band. */
+.api-facts {
+  display: grid;
+  grid-template-columns: minmax(0, 2.2fr) repeat(4, minmax(0, 1fr));
+  margin: 0;
+  border-top: 1px solid var(--line-strong);
+  border-bottom: 1px solid var(--line);
+}
+
+.api-facts__item {
+  padding: var(--space-3) var(--space-4);
+  border-left: 1px solid var(--line);
+  min-width: 0;
+}
+
+.api-facts__item:first-child {
+  border-left: 0;
+  padding-left: 0;
+}
+
+.api-facts dt {
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--ink-3);
+}
+
+/* Every fact holds the room of its value from the first paint (two lines for the rate's words), so nothing moves
+   when the facts arrive. */
+.api-facts dd {
+  margin: 4px 0 0;
+  font-size: var(--text-sm);
+  color: var(--ink-1);
+  min-height: calc(2 * 1.6em);
+}
+
+.api-facts__pending {
+  color: var(--ink-3);
+}
+
+/* The base address is one long word: it wraps inside its cell on the narrowest screens rather than widen the page. */
+.api-facts__item--base dd {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+  flex-wrap: wrap;
+}
+
+.api-facts__item--base .mono {
+  font-size: var(--text-md);
+  font-size-adjust: none;
+  overflow-wrap: anywhere;
+}
+
+.api-links {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-2) var(--space-5);
+  margin: var(--space-4) 0 0;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+}
+
+.api-links__source {
+  margin-left: auto;
+  font-weight: var(--weight-regular);
+  font-size: var(--text-xs);
+  color: var(--ink-3);
+}
+
+/* Contents beside the reference. */
+.api-layout {
+  display: grid;
+  grid-template-columns: 210px minmax(0, 1fr);
+  gap: var(--space-7);
+  margin-top: var(--space-7);
+  align-items: start;
+}
+
+.api-toc {
+  position: sticky;
+  top: calc(var(--masthead-height) + var(--space-5));
+  max-height: calc(100vh - var(--masthead-height) - var(--space-7));
+  overflow-y: auto;
+  display: grid;
+  gap: 1px;
+  font-size: var(--text-sm);
+  padding-right: var(--space-2);
+  scrollbar-width: thin;
+}
+
+.api-toc__head {
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--ink-3);
+  margin-bottom: var(--space-2);
+}
+
+.api-toc__group {
+  display: grid;
+  gap: 0;
+  margin: var(--space-2) 0;
+}
+
+.api-toc__link {
+  display: flex;
+  gap: var(--space-2);
+  align-items: baseline;
+  padding: 3px var(--space-2);
+  border-left: 2px solid transparent;
+  color: var(--ink-2);
+  text-decoration: none;
+  border-radius: 0;
+  line-height: 1.35;
+}
+
+.api-toc__link:hover {
+  color: var(--ink-1);
+  background: var(--surface-sunk);
+}
+
+.api-toc__link[aria-current="location"] {
+  color: var(--ink-1);
+  border-left-color: var(--ink-1);
+  font-weight: var(--weight-strong);
+}
+
+.api-toc__link--endpoint {
+  min-height: 24px;
+  align-items: center;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  padding-left: var(--space-4);
+  font-weight: var(--weight-regular);
+}
+
+.api-toc__link--endpoint[aria-current="location"] {
+  font-weight: var(--weight-strong);
+}
+
+/* A method is one word: never broken, in a column as wide as POST, so the paths align. */
+.api-toc__method {
+  flex: none;
+  min-width: 4.6ch;
+  white-space: nowrap;
+  color: var(--ink-3);
+  font-size: var(--text-2xs);
+  letter-spacing: 0.04em;
+}
+
+/* A path breaks only after a slash (each segment is whole). */
+.api-toc__path {
+  min-width: 0;
+  overflow-wrap: normal;
+  word-break: keep-all;
+}
+
+.api-main {
+  min-width: 0;
+  display: grid;
+  gap: var(--space-8);
+}
+
+/* A section of the page. */
+.api-section {
+  display: grid;
+  gap: var(--space-5);
+  min-width: 0;
+}
+
+.api-section__head {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+  padding-bottom: var(--space-3);
+  border-bottom: 1px solid var(--line-strong);
+}
+
+.api-section__aside {
+  color: var(--ink-3);
+  font-size: var(--text-sm);
+}
+
+.api-section__count {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  margin-left: var(--space-2);
+}
+
+/* The conventions: four panels, lettered. */
+.api-conventions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-4);
+}
+
+.api-card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  padding: var(--space-5);
+  display: grid;
+  gap: var(--space-3);
+  align-content: start;
+  min-width: 0;
+}
+
+.api-card--wide {
+  grid-column: 1 / -1;
+}
+
+.api-card--wide .api-timing {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  column-gap: var(--space-6);
+}
+
+.api-card__ask {
+  justify-self: start;
+}
+
+.api-card__title {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  font-size: var(--heading-panel);
+  font-weight: var(--weight-strong);
+}
+
+.api-card__text,
+.api-list {
+  font-size: var(--text-sm);
+  color: var(--ink-2);
+  line-height: 1.6;
+}
+
+.api-list {
+  margin: 0;
+  padding-left: var(--space-4);
+  display: grid;
+  gap: var(--space-2);
+}
+
+.api-card__request {
+  font-size: var(--text-xs);
+  color: var(--ink-2);
+  overflow-wrap: anywhere;
+}
+
+.api-card__source {
+  font-size: var(--text-xs);
+  color: var(--ink-3);
+}
+
+.api-raw {
+  margin: 0;
+  max-height: 220px;
+  font-size: var(--text-xs);
+}
+
+/* The bounds: each a block of its own size (no shared row heights): the name and the value on one line, the value
+   at the right; the meaning under them at the full width. Two columns where there is room, filled top to bottom. */
+.api-bounds {
+  margin: 0;
+}
+
+.api-card--wide .api-bounds {
+  columns: 2 300px;
+  column-gap: var(--space-6);
+}
+
+.api-bounds__row {
+  break-inside: avoid;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    "name value"
+    "meaning meaning";
+  gap: 2px var(--space-3);
+  padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--line);
+  align-items: baseline;
+}
+
+.api-bounds dt {
+  grid-area: name;
+  min-width: 0;
+  font-size: var(--text-xs);
+}
+
+.api-bounds dt > .mono {
+  font-size: var(--text-xs);
+  font-size-adjust: none;
+  font-weight: var(--weight-strong);
+  white-space: nowrap;
+}
+
+.api-bounds__value {
+  grid-area: value;
+  margin: 0;
+  text-align: right;
+  font-size: var(--text-xs);
+}
+
+.api-bounds__value .mono {
+  white-space: nowrap;
+}
+
+.api-bounds__meaning {
+  grid-area: meaning;
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--ink-3);
+  line-height: 1.45;
+}
+
+.api-bounds__state {
+  color: var(--ink-2);
+  font-weight: var(--weight-medium);
+}
+
+/* An allowance this server does not apply: its name and value quiet, the reason said. */
+.api-bounds__row--off dt > .mono,
+.api-bounds__row--off .api-bounds__value .mono {
+  color: var(--ink-3);
+  text-decoration: line-through;
+  text-decoration-color: var(--line-strong);
+}
+
+.api-timing {
+  margin: 0;
+  display: grid;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+  color: var(--ink-2);
+}
+
+.api-timing > div {
+  display: grid;
+  grid-template-columns: 5.5ch minmax(0, 1fr);
+  gap: var(--space-3);
+}
+
+.api-timing dd {
+  margin: 0;
+}
+
+/* The rules for programs. */
+.api-rules {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: rule;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 0 var(--space-6);
+  font-size: var(--text-sm);
+  color: var(--ink-2);
+  line-height: 1.6;
+}
+
+.api-rules li {
+  counter-increment: rule;
+  position: relative;
+  padding: var(--space-3) 0 var(--space-3) 2.4em;
+  border-top: 1px solid var(--line);
+}
+
+.api-rules li::before {
+  content: counter(rule);
+  position: absolute;
+  left: 0;
+  top: var(--space-3);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+}
+
+.api-rules strong {
+  color: var(--ink-1);
+  font-weight: var(--weight-strong);
+}
+
+/* An endpoint. */
+.endpoint {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  padding: var(--space-5) var(--space-5) var(--space-5);
+  display: grid;
+  gap: var(--space-3);
+  min-width: 0;
+  scroll-margin-top: calc(var(--masthead-height) + var(--space-4));
+}
+
+.endpoint__head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.endpoint__title {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-3);
+  min-width: 0;
+  font-weight: var(--weight-medium);
+}
+
+.method {
+  flex: none;
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  font-weight: var(--weight-strong);
+  letter-spacing: 0.08em;
+  line-height: 1;
+  padding: 5px 7px 4px;
+  border-radius: 3px;
+  border: 1px solid var(--ink-1);
+  color: var(--ink-1);
+}
+
+.method--post {
+  background: var(--ink-1);
+  color: var(--paper);
+}
+
+.endpoint__path {
+  font-family: var(--font-mono);
+  font-size: var(--text-md);
+  font-weight: var(--weight-medium);
+  letter-spacing: -0.01em;
+  overflow-wrap: break-word;
+  color: var(--ink-1);
+}
+
+.endpoint__param {
+  color: var(--ink-3);
+  font-weight: var(--weight-regular);
+}
+
+.endpoint__anchor {
+  margin-left: auto;
+  flex: none;
+  font-family: var(--font-mono);
+  color: var(--ink-3);
+  text-decoration: none;
+  padding: 0 var(--space-1);
+}
+
+.endpoint__anchor:hover {
+  color: var(--ink-1);
+}
+
+.endpoint__summary {
+  font-size: var(--text-lg);
+  color: var(--ink-1);
+  line-height: 1.45;
+  max-width: 70ch;
+}
+
+.endpoint__description {
+  color: var(--ink-2);
+  font-size: var(--text-sm);
+}
+
+.endpoint__grid {
+  display: grid;
+  grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr);
+  gap: var(--space-6);
+  margin-top: var(--space-2);
+  align-items: start;
+}
+
+.endpoint__spec,
+.endpoint__run {
+  display: grid;
+  gap: var(--space-3);
+  min-width: 0;
+  align-content: start;
+}
+
+/* The request stays in view beside a long description. */
+.endpoint__run {
+  position: sticky;
+  top: calc(var(--masthead-height) + var(--space-4));
+}
+
+/* With the console open the column is taller than the window: it scrolls with the page. */
+.endpoint__run--console {
+  position: static;
+}
+
+.endpoint__label {
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  font-weight: var(--weight-medium);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--ink-3);
+  margin: var(--space-2) 0 0;
+  padding-bottom: var(--space-1);
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  gap: var(--space-2);
+}
+
+.endpoint__label:first-child {
+  margin-top: 0;
+}
+
+.endpoint__label-aside {
+  margin-left: auto;
+  text-transform: none;
+  letter-spacing: 0;
+  font-family: var(--font-sans);
+  font-size: var(--text-xs);
+}
+
+.endpoint__none {
+  color: var(--ink-3);
+  font-size: var(--text-sm);
+}
+
+.endpoint__schema-name {
+  font-size: var(--text-sm);
+  color: var(--ink-2);
+}
+
+.endpoint__try {
+  justify-self: start;
+}
+
+/* Parameters. */
+.params {
+  margin: 0;
+  display: grid;
+}
+
+.params__row {
+  padding: var(--space-2) 0 var(--space-3);
+  border-bottom: 1px solid var(--line);
+}
+
+.params__row:last-child {
+  border-bottom: 0;
+}
+
+.params__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px var(--space-3);
+}
+
+.params__head > .mono {
+  font-size: var(--text-sm);
+  font-size-adjust: none;
+}
+
+.params__type .mono {
+  font-size: var(--text-xs);
+  font-size-adjust: none;
+  color: var(--ink-2);
+}
+
+.params__flag {
+  font-size: var(--text-2xs);
+  color: var(--ink-3);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-family: var(--font-mono);
+}
+
+.params__flag--required {
+  color: var(--ink-1);
+  font-weight: var(--weight-strong);
+}
+
+.params__in {
+  margin-left: auto;
+  font-size: var(--text-xs);
+  color: var(--ink-3);
+}
+
+.params__text {
+  margin: 3px 0 0;
+  font-size: var(--text-sm);
+  color: var(--ink-2);
+  line-height: 1.55;
+}
+
+.params__meta {
+  display: block;
+  color: var(--ink-3);
+  font-size: var(--text-xs);
+  margin-top: 2px;
+}
+
+/* Answers and their fields. */
+.answers {
+  margin: 0;
+  display: grid;
+  font-size: var(--text-sm);
+}
+
+.answers__row {
+  display: grid;
+  grid-template-columns: 3.6ch minmax(0, 1fr);
+  gap: var(--space-3);
+  padding: 4px 0;
+  color: var(--ink-2);
+}
+
+.answers__row dd {
+  margin: 0;
+}
+
+.answers__note {
+  font-size: var(--text-xs);
+  color: var(--ink-3);
+}
+
+.answers__types {
+  color: var(--ink-3);
+  font-size: var(--text-xs);
+}
+
+.schema__nested {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  margin-top: var(--space-2);
+}
+
+.schema__nested > summary {
+  cursor: pointer;
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--text-sm);
+  color: var(--ink-2);
+}
+
+.schema__nested[open] > summary {
+  border-bottom: 1px solid var(--line);
+}
+
+.schema__nested--top {
+  background: var(--surface-sunk);
+}
+
+.schema__nested .schema {
+  padding: 0 var(--space-3) var(--space-3);
+}
+
+.schema__count {
+  color: var(--ink-3);
+  font-size: var(--text-xs);
+  font-family: var(--font-mono);
+  margin-left: var(--space-1);
+}
+
+.schema__about {
+  padding: var(--space-2) var(--space-3) 0;
+  font-size: var(--text-xs);
+  color: var(--ink-3);
+}
+
+.schema__fields {
+  margin: 0;
+  display: grid;
+}
+
+.schema__row {
+  padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--line);
+  font-size: var(--text-sm);
+}
+
+.schema__row:last-child {
+  border-bottom: 0;
+}
+
+.schema__row dt .mono {
+  font-size: var(--text-xs);
+  font-size-adjust: none;
+}
+
+.schema__type {
+  color: var(--ink-3);
+  font-size: var(--text-xs);
+  font-size-adjust: none;
+  margin-left: var(--space-2);
+}
+
+.schema__optional {
+  margin-left: var(--space-2);
+  font-size: var(--text-2xs);
+  color: var(--ink-3);
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.schema__row dd {
+  margin: 2px 0 0;
+  color: var(--ink-2);
+  font-size: var(--text-xs);
+  line-height: 1.55;
+}
+
+/* Code in four languages. */
+.code-tabs {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface-sunk);
+  min-width: 0;
+}
+
+.code-tabs__bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  border-bottom: 1px solid var(--line);
+  padding: 0 var(--space-1) 0 var(--space-2);
+}
+
+.code-tabs__list {
+  display: flex;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.code-tabs__tab {
+  position: relative;
+  font: inherit;
+  font-size: var(--text-xs);
+  font-size-adjust: none;
+  font-weight: var(--weight-medium);
+  color: var(--ink-3);
+  background: none;
+  border: 0;
+  padding: 9px var(--space-2) 8px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.code-tabs__tab:hover {
+  color: var(--ink-1);
+}
+
+.code-tabs__tab[aria-selected="true"] {
+  color: var(--ink-1);
+}
+
+.code-tabs__tab[aria-selected="true"]::after {
+  content: "";
+  position: absolute;
+  left: var(--space-2);
+  right: var(--space-2);
+  bottom: -1px;
+  height: 2px;
+  background: var(--ink-1);
+}
+
+.code-block__pre {
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-size-adjust: none;
+  line-height: 1.65;
+  color: var(--ink-1);
+  overflow-x: auto;
+  white-space: pre;
+  tab-size: 4;
+  border-radius: 0 0 var(--radius) var(--radius);
+}
+
+.code-block {
+  position: relative;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface-sunk);
+  min-width: 0;
+}
+
+.code-block__label {
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  font-size-adjust: none;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--ink-3);
+  padding: var(--space-2) var(--space-4) 0;
+}
+
+.code-block__copy {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+}
+
+/* Code never breaks inside a word: a long line scrolls sideways in its own box (the page itself never does). */
+.code-tabs .code-block__pre {
+  white-space: pre;
+  overflow-wrap: normal;
+  overflow-x: auto;
+}
+
+/* The console. */
+.tryit {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.tryit__fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  gap: var(--space-3);
+}
+
+.tryit__field {
+  display: grid;
+  gap: 4px;
+  align-content: start;
+  min-width: 0;
+}
+
+.tryit__field--wide {
+  grid-column: 1 / -1;
+}
+
+.tryit__label {
+  font-size: var(--text-xs);
+  color: var(--ink-2);
+}
+
+.tryit__label .mono {
+  font-weight: var(--weight-strong);
+}
+
+.tryit__required {
+  color: var(--ink-3);
+  font-size: var(--text-2xs);
+}
+
+.tryit__control,
+.tryit .select__control {
+  min-height: 36px;
+  padding-top: 6px;
+  padding-bottom: 6px;
+  font-size: var(--text-sm);
+}
+
+.tryit__body {
+  font-size: var(--text-xs);
+  min-height: 72px;
+}
+
+.tryit__none {
+  color: var(--ink-3);
+  font-size: var(--text-sm);
+}
+
+.tryit__actions {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.tryit__answer:empty {
+  display: none;
+}
+
+/* An answer as it came. */
+.exchange {
+  display: grid;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.exchange__facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: var(--space-2) var(--space-4);
+  margin: 0;
+  padding: var(--space-3) 0;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+
+.exchange__fact {
+  min-width: 0;
+}
+
+.exchange__fact--wide {
+  grid-column: span 2;
+}
+
+.exchange__fact dt {
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--ink-3);
+}
+
+.exchange__fact dd {
+  margin: 2px 0 0;
+  font-size: var(--text-sm);
+  overflow-wrap: anywhere;
+}
+
+.exchange__status--ok {
+  color: var(--state-ok);
+}
+
+.exchange__status--error {
+  color: var(--state-danger);
+}
+
+.exchange__timing {
+  display: block;
+  white-space: nowrap;
+  color: var(--ink-2);
+  font-size: var(--text-xs);
+}
+
+.exchange__meaning {
+  font-size: var(--text-sm);
+  color: var(--ink-2);
+}
+
+.exchange__bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.exchange__type {
+  margin-left: auto;
+  font-size: var(--text-xs);
+  color: var(--ink-3);
+}
+
+.exchange__body {
+  margin: 0;
+  padding: var(--space-3);
+  max-height: 440px;
+  overflow: auto;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  line-height: 1.6;
+  background: var(--surface-sunk);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.exchange__body--indented,
+.exchange__body--tsv {
+  white-space: pre;
+  overflow-wrap: normal;
+}
+
+/* A tab-separated answer as a table: its own scroll box, the cells as sent. */
+.exchange__table {
+  max-height: 440px;
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface-sunk);
+}
+
+.exchange__table table {
+  width: max-content;
+}
+
+.exchange__table th,
+.exchange__table td {
+  white-space: nowrap;
+  font-size: var(--text-2xs);
+}
+
+/* The error codes of a status, each a link to its meaning in the table of error codes. */
+.answers__codes {
+  font-size: var(--text-xs);
+  line-height: 1.7;
+}
+
+.answers__code {
+  color: inherit;
+  text-decoration-color: var(--line-strong);
+}
+
+.endpoint__recorded {
+  margin-top: var(--space-3);
+}
+
+.endpoint__recorded-body {
+  max-height: 360px;
+}
+
+.api-local__title {
+  font-family: var(--font-display);
+  font-weight: var(--weight-medium);
+  font-size: var(--text-lg);
+  margin-top: var(--space-4);
+}
+
+/* In the cards of a phone, a cell's prose is one block that wraps as a paragraph (its code spans inside it). */
+.cell-value {
+  display: block;
+  flex: 1;
+  text-align: left;
+  min-width: 0;
+}
+
+.exchange__note {
+  font-size: var(--text-xs);
+  color: var(--ink-3);
+}
+
+.json-key {
+  color: var(--ink-2);
+}
+
+.json-string {
+  color: var(--ink-1);
+}
+
+.json-number,
+.json-literal {
+  color: var(--ink-1);
+  font-weight: var(--weight-strong);
+}
+
+.json-punctuation {
+  color: var(--ink-3);
+}
+
+/* Two choices as one control. */
+.segmented {
+  display: inline-flex;
+  padding: 2px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface-sunk);
+}
+
+.segmented__option {
+  position: relative;
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+  color: var(--ink-3);
+  cursor: pointer;
+}
+
+.segmented__option input {
+  position: absolute;
+  opacity: 0;
+  inset: 0;
+  margin: 0;
+  cursor: pointer;
+}
+
+.segmented__option span {
+  display: block;
+  padding: 3px 10px;
+  border-radius: 3px;
+}
+
+.segmented__option input:checked + span {
+  background: var(--surface);
+  color: var(--ink-1);
+  box-shadow: 0 0 0 1px var(--line);
+}
+
+.segmented__option input:focus-visible + span {
+  outline: var(--focus-width) solid var(--focus-color);
+  outline-offset: var(--focus-offset);
+}
+
+.segmented__option input:disabled + span {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* The error codes and the package. */
+.api-errors td:first-child {
+  white-space: nowrap;
+}
+
+.api-local {
+  display: grid;
+  gap: var(--space-3);
+  max-width: 880px;
+}
+
+@media (max-width: 1180px) {
+  .endpoint__grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .endpoint__run {
+    position: static;
+  }
+}
+
+@media (max-width: 1000px) {
+  .api-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .api-toc {
+    display: none;
+  }
+
+  .api-facts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .api-facts__item--base {
+    grid-column: 1 / -1;
+    padding-left: 0;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .api-facts__item:nth-child(2n) {
+    border-left: 0;
+    padding-left: 0;
+  }
+}
+
+@media (max-width: 760px) {
+  .api-conventions,
+  .api-card--wide .api-timing {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .api-links__source {
+    margin-left: 0;
+  }
+}
+
+@media (max-width: 640px) {
+  .endpoint,
+  .api-card {
+    padding: var(--space-4);
+  }
+
+  .api-main {
+    gap: var(--space-7);
+  }
+
+  .endpoint__summary {
+    font-size: var(--text-md);
+  }
+
+  .exchange__fact--wide {
+    grid-column: 1 / -1;
+  }
+
+  .params__in {
+    margin-left: 0;
+  }
+}
+
+.tryit__answer-title {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-strong);
+  margin: 0 0 var(--space-2);
+}
+
+.api-facts__item--base dd .mono {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* A curl line wraps in place (its address is long); copying takes it as written. */
+.code-tabs .code-block__pre--wrap {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* A first request: the words and the button beside the request, at the head of the reference. */
+.api-first {
+  display: grid;
+  grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
+  gap: var(--space-5) var(--space-6);
+  align-items: start;
+  padding: var(--space-5);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  scroll-margin-top: calc(var(--masthead-height) + var(--space-4));
+}
+
+.api-first__text {
+  display: grid;
+  gap: var(--space-3);
+  align-content: start;
+}
+
+.api-first__title {
+  font-family: var(--font-sans);
+  font-size: var(--heading-panel);
+  font-weight: var(--weight-strong);
+  letter-spacing: -0.01em;
+}
+
+.api-first__run {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-4);
+}
+
+.api-first__summary {
+  font-size: var(--text-sm);
+  color: var(--ink-1);
+}
+
+.api-first__code {
+  display: grid;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+/* Reading an answer: the rules beside a recorded answer, annotated. */
+.api-reading {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: var(--space-6);
+  align-items: start;
+}
+
+.api-reading__rules {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.api-reading__list {
+  gap: var(--space-3);
+}
+
+.api-reading__list strong {
+  color: var(--ink-1);
+  font-weight: var(--weight-strong);
+}
+
+.api-reading__figure {
+  margin: 0;
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-5);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+}
+
+.api-reading__head {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.api-reading__query {
+  font-size: var(--text-sm);
+  color: var(--ink-2);
+}
+
+.api-annotated {
+  margin: 0;
+  display: grid;
+}
+
+.api-annotated__row {
+  display: grid;
+  gap: 2px;
+  padding: var(--space-2) 0;
+  border-top: 1px solid var(--line);
+}
+
+.api-annotated dt {
+  font-size: var(--text-xs);
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0 var(--space-3);
+}
+
+.api-annotated dt .mono {
+  font-size-adjust: none;
+}
+
+.api-annotated dd {
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--ink-3);
+  line-height: 1.5;
+}
+
+/* The console's statement of a refusal: the server's message, the values allowed, the code's meaning. */
+.exchange__error {
+  margin: 0;
+  display: grid;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+}
+
+.exchange__error dt {
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  text-transform: uppercase;
+  letter-spacing: var(--track-label);
+  color: var(--ink-3);
+}
+
+.exchange__error dt .mono {
+  text-transform: none;
+}
+
+.exchange__error dd {
+  margin: 0;
+  color: var(--ink-1);
+  overflow-wrap: anywhere;
+}
+
+/* The contents on a screen too narrow for the side column: a list to open under the head, and a way back to it. */
+.api-contents {
+  display: none;
+  margin-top: var(--space-5);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.api-contents > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 44px;
+  padding: 0 var(--space-4);
+  font-weight: var(--weight-medium);
+  cursor: pointer;
+}
+
+.api-contents__count {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-regular);
+  color: var(--ink-3);
+}
+
+.api-contents__list {
+  display: grid;
+  padding: 0 var(--space-2) var(--space-3);
+  font-size: var(--text-sm);
+}
+
+.api-contents__list .api-toc__link {
+  min-height: 44px;
+  align-items: center;
+}
+
+.api-contents__back {
+  display: none;
+}
+
+@media (max-width: 1000px) {
+  .api-contents {
+    display: block;
+    scroll-margin-top: var(--space-4);
+  }
+
+  .api-contents__back {
+    position: fixed;
+    right: var(--space-4);
+    bottom: var(--space-4);
+    z-index: 15;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    min-height: 44px;
+    padding: 0 var(--space-4);
+    border: 1px solid var(--line-strong);
+    border-radius: 999px;
+    background: var(--surface-raised);
+    color: var(--ink-1);
+    box-shadow: var(--shadow);
+    font-size: var(--text-sm);
+    font-weight: var(--weight-medium);
+    text-decoration: none;
+  }
+
+  .api-contents__back svg {
+    width: 12px;
+    height: 12px;
+  }
+}
+
+@media (max-width: 1180px) {
+  .api-first,
+  .api-reading {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .api-first,
+  .api-reading__figure {
+    padding: var(--space-4);
+  }
+}

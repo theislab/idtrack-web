@@ -8,10 +8,9 @@ from __future__ import annotations
 
 import json
 import os
-from collections.abc import Callable, Iterator
 from dataclasses import replace
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import jsonschema
 import pytest
@@ -19,13 +18,21 @@ from fastapi.testclient import TestClient
 from idtrack.api import API
 from referencing import Registry as SchemaRegistry
 from referencing.jsonschema import DRAFT202012
-from starlette.types import ASGIApp
+from starlette.routing import Match
 
 from idtrack_web_api.app import asgi_app
 from idtrack_web_api.config import Settings
+from idtrack_web_api.contract import ENDPOINT_ERRORS
 from idtrack_web_api.data import default_manifest_key, prepare, store_of
 from idtrack_web_api.graphs import Registry, load_registry
 from idtrack_web_api.publish import DirectoryTarget, publish
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Iterator
+
+    from starlette.types import ASGIApp, Message, Receive, Scope, Send
+
+    from idtrack_web_api.monitor import LoadMonitor
 
 TESTS = Path(__file__).resolve().parent
 API_ROOT = TESTS.parent
@@ -70,13 +77,67 @@ def cut_idtrack() -> API:
     return API.load(str(CUT_GRAPH))
 
 
+#: Every refusal an endpoint gave in the tests: (operationId, code), each checked to be listed for its endpoint.
+REFUSALS_SEEN: set[tuple[str, str]] = set()
+
+
+class ListedCodes:
+    """The application, checking every refusal of an endpoint: its code must be one the endpoint lists.
+
+    So the per-endpoint lists of error codes (``contract.ENDPOINT_ERRORS``, the OpenAPI document's ``x-error-codes``)
+    are never missing a code that any test makes an endpoint answer.
+    """
+
+    def __init__(self, guard: Any) -> None:
+        self.guard = guard
+        self.app = guard.app  # the FastAPI application inside the outer layer, as a test reaches it through `app`
+        self.routes = guard.app.routes
+
+    def operation(self, scope: Scope) -> str | None:
+        for route in self.routes:
+            operation = getattr(route, "operation_id", None)
+            if operation is not None and route.matches(scope)[0] == Match.FULL:
+                return str(operation)
+        return None
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] != "http":
+            await self.guard(scope, receive, send)
+            return
+        seen: dict[str, Any] = {"status": 0, "body": b""}
+
+        async def watched(message: Message) -> None:
+            if message["type"] == "http.response.start":
+                seen["status"] = message["status"]
+            elif message["type"] == "http.response.body":
+                seen["body"] += message.get("body", b"")
+            await send(message)
+
+        await self.guard(scope, receive, watched)
+        if seen["status"] < 400 or not scope["path"].startswith("/api/v1"):
+            return
+        operation = self.operation({**scope, "method": "GET" if scope["method"] == "HEAD" else scope["method"]})
+        if operation is None:
+            return
+        try:
+            import gzip as _gzip
+
+            body = seen["body"]
+            code = json.loads(_gzip.decompress(body) if body[:2] == b"\x1f\x8b" else body)["error"]["code"]
+        except (ValueError, KeyError, OSError):
+            return
+        REFUSALS_SEEN.add((operation, code))
+        assert code in ENDPOINT_ERRORS[operation], f"{operation} answered {code}, which it does not list"
+
+
 @pytest.fixture
 def make_client(cut_settings: Settings, cut_registry: Registry) -> Iterator[Callable[..., TestClient]]:
-    """Return ``make(**settings changes)``: a client of a fresh app over the cut graph (its lifespan running)."""
+    """Return ``make(registry, monitor, **settings changes)``: a client of a fresh app over the cut graph (its lifespan
+    running), whose every refusal is checked to be listed for its endpoint (:py:class:`ListedCodes`)."""
     clients: list[TestClient] = []
 
-    def make(registry: Registry | None = None, **changes: Any) -> TestClient:
-        app: ASGIApp = asgi_app(replace(cut_settings, **changes), registry or cut_registry)
+    def make(registry: Registry | None = None, monitor: LoadMonitor | None = None, **changes: Any) -> TestClient:
+        app: ASGIApp = ListedCodes(asgi_app(replace(cut_settings, **changes), registry or cut_registry, monitor))
         client = TestClient(app, raise_server_exceptions=True)
         client.__enter__()
         clients.append(client)
@@ -145,6 +206,20 @@ def real_pig(tmp_path_factory: pytest.TempPathFactory) -> tuple[Registry, API, P
 # The OpenAPI document as the judge of every answer
 
 
+def resolved(document: dict[str, Any], node: Any) -> Any:
+    """Return a part of the document with its references to ``components/responses`` and ``components/examples``
+    replaced by what they name (a refusal and an error example are written once there)."""
+    if isinstance(node, dict):
+        ref = node.get("$ref")
+        if isinstance(ref, str) and ref.startswith(("#/components/responses/", "#/components/examples/")):
+            kind, name = ref.split("/")[2:4]
+            return resolved(document, document["components"][kind][name])
+        return {k: resolved(document, v) for k, v in node.items()}
+    if isinstance(node, list):
+        return [resolved(document, v) for v in node]
+    return node
+
+
 @pytest.fixture(scope="session")
 def openapi() -> dict[str, Any]:
     """The checked-in OpenAPI document."""
@@ -164,7 +239,8 @@ def check_schema(openapi: dict[str, Any]) -> Callable[[Any, str], None]:
         )
         errors = sorted(validator.iter_errors(data), key=lambda e: list(e.absolute_path))
         if errors:
-            raise AssertionError(f"{len(errors)} schema errors against {name}: {[e.message for e in errors[:5]]}")
+            msg = f"{len(errors)} schema errors against {name}: {[e.message for e in errors[:5]]}"
+            raise AssertionError(msg)
 
     return check
 
@@ -174,7 +250,7 @@ def check_response(openapi: dict[str, Any], check_schema: Callable[[Any, str], N
     """Return ``check(response, path, method)``: the answer's status and body must be what the document declares."""
 
     def check(response: Any, path: str, method: str = "get") -> Any:
-        operation = openapi["paths"][path][method]
+        operation = resolved(openapi, openapi["paths"][path][method])
         declared = operation["responses"].get(str(response.status_code))
         assert declared is not None, (
             f"{method.upper()} {path} answered {response.status_code}, which it does not declare"

@@ -1,0 +1,14 @@
+# The weekly window for a reboot that an update requires: Thursday night, 03:00 to 03:30 Berlin time (SETUP.md,
+# section 10.8):
+#   sudo install -m 644 deploy/vm/reboot-if-required.service deploy/vm/reboot-if-required.timer /etc/systemd/system/
+#   sudo systemctl daemon-reload && sudo systemctl enable --now reboot-if-required.timer
+[Unit]
+Description=Weekly window for a reboot that an installed update requires
+
+[Timer]
+OnCalendar=Thu *-*-* 03:00:00 Europe/Berlin
+RandomizedDelaySec=30min
+Persistent=false
+
+[Install]
+WantedBy=timers.target

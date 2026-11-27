@@ -1,0 +1,61 @@
+/* The page of an address that is not a page of idtrack (components/NotFound.tsx). */
+
+/* The head is every page's (app.css, .page-head); the figure follows close under it. */
+.notfound__head {
+  margin-bottom: 0;
+}
+
+.notfound__figure {
+  display: block;
+  width: min(100%, 320px);
+  height: auto;
+  margin: var(--space-6) 0;
+}
+
+.notfound__cap {
+  stroke: var(--ink-1);
+  stroke-width: 1.5;
+}
+
+.notfound__after {
+  stroke: var(--line-strong);
+  stroke-width: 1;
+  stroke-dasharray: 1 4;
+}
+
+.notfound__sections {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr));
+  border-top: 1px solid var(--ink-1);
+}
+
+.notfound__sections li {
+  display: grid;
+  gap: var(--space-1);
+  align-content: start;
+  padding: var(--space-4) var(--space-4) var(--space-5) 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.notfound__link {
+  font-weight: var(--weight-strong);
+  font-size: var(--text-lg);
+  width: fit-content;
+}
+
+.notfound__sections p {
+  color: var(--ink-2);
+  font-size: var(--text-sm);
+  line-height: var(--leading-caption);
+  max-width: 40ch;
+}
+
+@media (forced-colors: active) {
+  .notfound__cap,
+  .notfound__after {
+    stroke: CanvasText;
+  }
+}

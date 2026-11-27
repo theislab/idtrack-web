@@ -17,7 +17,7 @@ import { databaseLabel } from "./databases";
 export type StepHue = "history" | "event" | "external" | "ink";
 
 /** The kind of a step for drawing. */
-export type DrawKind =
+type DrawKind =
   | "identity" // the gene is its own answer: a ring, no line
   | "entry_external" // an external id or synonym read as an Ensembl id: crossing from an external database
   | "entry_ensembl" // an Ensembl form (transcript, translation, id without version) read as its gene
@@ -29,7 +29,7 @@ export type DrawKind =
   | "final" // the gene's id in the target database
   | "other"; // a kind this page does not know: drawn plainly, its values shown as sent
 
-export const HUE_OF: Record<DrawKind, StepHue> = {
+const HUE_OF: Record<DrawKind, StepHue> = {
   identity: "ink",
   entry_external: "external",
   entry_ensembl: "ink",
@@ -42,7 +42,7 @@ export const HUE_OF: Record<DrawKind, StepHue> = {
   other: "ink",
 };
 
-export type NodeRole = "gene" | "upper" | "bridge" | "target";
+type NodeRole = "gene" | "upper" | "bridge" | "target";
 
 export interface ModelNode {
   id: string;
@@ -170,7 +170,11 @@ function drawKind(step: PathStep, source: PathNode | undefined): DrawKind {
 }
 
 /** The direction of a history step: forward when the source lives on the old side of Ensembl's event. */
-function historyDirection(step: PathStep, nodes: Map<string, PathNode>, result: ConversionResult) {
+export function historyDirection(
+  step: PathStep,
+  nodes: Map<string, PathNode>,
+  result: ConversionResult,
+): "forward" | "backward" | null {
   const source = step.source === null ? undefined : nodes.get(step.source);
   const target = nodes.get(step.target);
   const { old_release: oldRelease, new_release: newRelease } = step;
@@ -201,7 +205,7 @@ function stepReleases(
 }
 
 /** The decision between the best answer and the runner-up, as the api states it (`decided_by`). */
-export function decisionOf(result: ConversionResult, candidates: ModelCandidate[]): Decision | null {
+function decisionOf(result: ConversionResult, candidates: ModelCandidate[]): Decision | null {
   if (!result.decided_by) return null;
   const runnerUp = candidates.find((c) => !c.best) ?? null;
   if (!runnerUp) return null;
@@ -322,7 +326,26 @@ export function buildModel(result: ConversionResult): PathModel {
   };
 }
 
+/** A history step in Ensembl's direction: the event's earlier id (at its last release, `old_release`) and its later
+ *  id (at its first, `new_release`), whichever way the walk went. */
+export function ensemblPair(
+  step: PathStep,
+  direction: "forward" | "backward" | null,
+): { earlier: string | null; later: string | null } {
+  return direction === "backward"
+    ? { earlier: step.target, later: step.source }
+    : { earlier: step.source, later: step.target };
+}
+
 /** The databases of a step or node for reading (a synonym database marked as such). */
 export function databaseList(databases: readonly string[]): string {
   return databases.map(databaseLabel).join(", ");
+}
+
+/** The answer's path holds no history step and every step holds at one release. */
+export function atOneRelease(model: PathModel): number | null {
+  if (!model.steps.length) return null;
+  if (model.steps.some((s) => s.api.kind === "history" || s.api.kind === "self_loop")) return null;
+  const releases = new Set(model.steps.flatMap((s) => [s.sourceRelease, s.targetRelease]));
+  return releases.size === 1 ? ([...releases][0] ?? null) : null;
 }

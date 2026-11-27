@@ -34,11 +34,27 @@ jobs:
       - run: npm ci --no-audit --no-fund
       # src/api/schema.ts must be what api/openapi.json gives.
       - run: npm run types:check
-      # src/generated/limitations.json must be idtrack's Limitations (docs/limitations.rst) at api/uv.lock's commit.
+      # src/generated/limitations.json must be idtrack's Limitations (docs/limitations.rst) at the documentation commit
+      # of idtrack_docs.json (api/uv.lock's commit, or a later one that changes documentation only).
       - run: npm run limitations:check
-      - run: npm run lint
-      - run: npm run typecheck
-      - run: npm test
+      # src/generated/idtrack_docs.json must be what idtrack's documentation says at that commit (the citation, the
+      # databases, the assembly mappings, the mapping score), and src/generated/benchmarks.json what the benchmark
+      # repository's published results give at the commit the file names.
+      - run: npm run idtrack-docs:check
+      - run: npm run benchmarks:check
+      # The checks of `npm run check` (SETUP.md, "Checks and tests"), each a step of its own so that a failure is named.
+      - name: prettier
+        run: npx prettier --check .
+      - name: eslint
+        run: npx eslint .
+      - name: stylelint
+        run: npm run lint:css
+      - name: typecheck (app, tests and configs, scripts)
+        run: npm run typecheck
+      - name: knip (unused files, exports, dependencies)
+        run: npm run knip
+      - name: unit tests
+        run: npm test
       - run: npm run build
       - run: npm run size
 

@@ -91,7 +91,12 @@ describe("api", () => {
       "fetch",
       respond(200, recorded.raw, { "content-type": "text/tab-separated-values; charset=utf-8", "x-request-id": "t" }),
     );
-    const answer = await api.batchTsv("sus_scrofa", { identifiers: ["INS"], explain: false, allow_bridges: true });
+    const answer = await api.batchTsv("sus_scrofa", {
+      identifiers: ["INS"],
+      explain: false,
+      allow_bridges: true,
+      read_copies: true,
+    });
     expect(answer.raw).toBe(recorded.raw);
     expect(answer.data).toBe(recorded.raw);
   });

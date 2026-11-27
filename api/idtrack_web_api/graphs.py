@@ -9,11 +9,13 @@ from __future__ import annotations
 import logging
 import time
 from dataclasses import dataclass
-from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from idtrack_web_api.adapter import FORMAT_VERSION, Graph, GraphLoadError, organism_of
 from idtrack_web_api.data import DataError, ManifestFile, ManifestGraph, VerifiedData
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 log = logging.getLogger(__name__)
 
@@ -85,7 +87,8 @@ def load_graph(
     try:
         graph = Graph.load(str(path), budget_states, budget_seconds)
     except GraphLoadError as error:
-        raise DataError(f"{entry.file.key} cannot be loaded as a graph: {error}") from None
+        msg = f"{entry.file.key} cannot be loaded as a graph: {error}"
+        raise DataError(msg) from None
     seconds = time.monotonic() - start
     identity = graph.identity()
     found = {
@@ -102,7 +105,8 @@ def load_graph(
     }
     if found != expected:
         differing = {k: (found[k], expected[k]) for k in found if found[k] != expected[k]}
-        raise DataError(f"{entry.file.key} is not the graph the manifest names: {differing} (file, manifest).")
+        msg = f"{entry.file.key} is not the graph the manifest names: {differing} (file, manifest)."
+        raise DataError(msg)
     log.info("%s: loaded in %.1f s.", identity.organism, seconds)
     return LoadedGraph(
         organism=identity.organism,
@@ -150,8 +154,10 @@ def resolve_organisms(names: tuple[str, ...]) -> tuple[str, ...]:
     for name in names:
         organism = organism_of(name)
         if organism is None:
-            raise DataError(f"IDTRACK_WEB_ORGANISMS: idtrack knows no organism {name!r}.")
+            msg = f"IDTRACK_WEB_ORGANISMS: idtrack knows no organism {name!r}."
+            raise DataError(msg)
         organisms.append(organism)
     if len(set(organisms)) != len(organisms):
-        raise DataError(f"IDTRACK_WEB_ORGANISMS names an organism twice: {list(names)}.")
+        msg = f"IDTRACK_WEB_ORGANISMS names an organism twice: {list(names)}."
+        raise DataError(msg)
     return tuple(organisms)

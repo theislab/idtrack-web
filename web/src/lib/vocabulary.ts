@@ -28,7 +28,7 @@ export interface Vocabulary {
   readingReasons: Map<string, string | null>;
   placeRelations: Map<string, string | null>;
   bridgeRules: Map<string, { meaning: string | null; taken: boolean }>;
-  errors: Map<string, { status: number; meaning: string }>;
+  errors: Map<string, { status: number; title: string; meaning: string; retryable: boolean }>;
 }
 
 export const NO_VOCABULARY: Vocabulary = {
@@ -60,7 +60,12 @@ export function readVocabulary(data: VocabularyResponse): Vocabulary {
     readingReasons: terms(data.reading_reasons),
     placeRelations: terms(data.place_relations),
     bridgeRules: new Map(data.bridge_rules.map((t) => [t.code, { meaning: t.meaning, taken: t.taken }])),
-    errors: new Map(data.errors.map((t) => [t.code, { status: t.status, meaning: t.meaning }])),
+    errors: new Map(
+      data.errors.map((t) => [
+        t.code,
+        { status: t.status, title: t.title, meaning: t.meaning, retryable: t.retryable },
+      ]),
+    ),
   };
 }
 

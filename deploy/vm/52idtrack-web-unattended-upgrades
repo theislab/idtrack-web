@@ -1,0 +1,15 @@
+// Security updates on the virtual machine (SETUP.md, section 10.8):
+//   sudo install -m 644 deploy/vm/52idtrack-web-unattended-upgrades /etc/apt/apt.conf.d/
+// Ubuntu's unattended-upgrades installs the security updates of Ubuntu every day (apt-daily-upgrade.timer, between
+// 06:00 and 07:00 UTC), and with this file Docker's packages too (with "live-restore" of deploy/vm/docker-daemon.json
+// the containers keep running while the daemon is replaced). A reboot that an update needs is not taken at once: it
+// waits for the weekly window of reboot-if-required.timer (Thursday night).
+APT::Periodic::Update-Package-Lists "1";
+APT::Periodic::Unattended-Upgrade "1";
+APT::Periodic::AutocleanInterval "7";
+Unattended-Upgrade::Origins-Pattern {
+	"origin=Docker,label=Docker CE,a=${distro_codename}";
+};
+Unattended-Upgrade::Automatic-Reboot "false";
+Unattended-Upgrade::Remove-Unused-Kernel-Packages "true";
+Unattended-Upgrade::Remove-Unused-Dependencies "true";

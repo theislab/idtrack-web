@@ -8,19 +8,48 @@
       content="Convert gene identifiers through Ensembl releases, genome assemblies and external databases with idtrack, in the browser."
     />
     <meta name="color-scheme" content="light dark" />
+    <meta name="theme-color" content="#fafaf8" />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <!-- The three faces of the first screen, asked for at once (not after the stylesheet that names them). -->
+    <link
+      rel="preload"
+      as="font"
+      type="font/woff2"
+      crossorigin
+      href="/node_modules/@fontsource-variable/inter/files/inter-latin-wght-normal.woff2"
+    />
+    <link
+      rel="preload"
+      as="font"
+      type="font/woff2"
+      crossorigin
+      href="/node_modules/@fontsource-variable/source-serif-4/files/source-serif-4-latin-wght-normal.woff2"
+    />
+    <link
+      rel="preload"
+      as="font"
+      type="font/woff2"
+      crossorigin
+      href="/node_modules/@fontsource-variable/jetbrains-mono/files/jetbrains-mono-latin-wght-normal.woff2"
+    />
+    <link rel="service-desc" href="/api/v1/openapi.json" type="application/json" />
+    <link rel="alternate" href="/llms.txt" type="text/markdown" title="The api, for language models" />
     <title>idtrack</title>
     <script>
-      // The theme chosen earlier, before the first paint (no flash of the other theme).
+      // The theme chosen earlier (light unless dark or the system's was chosen), before the first paint.
+      var theme = "light";
       try {
-        var theme = localStorage.getItem("idtrack-theme");
-        if (theme === "light" || theme === "dark") document.documentElement.setAttribute("data-theme", theme);
+        var kept = localStorage.getItem("idtrack-theme");
+        if (kept === "dark" || kept === "system") theme = kept;
       } catch (e) {}
+      document.documentElement.setAttribute("data-theme", theme);
     </script>
   </head>
   <body>
     <div id="root"></div>
-    <noscript>idtrack's web page needs JavaScript. The api works without it: /api/v1/docs.</noscript>
+    <noscript
+      >idtrack's web page needs JavaScript. The api works without it: /llms.txt and /llms-full.txt say how.</noscript
+    >
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

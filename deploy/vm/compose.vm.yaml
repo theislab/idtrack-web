@@ -1,0 +1,11 @@
+# The Helmholtz virtual machine (8 vCPU, 16 GB): added to deploy/compose.yaml through COMPOSE_FILE in deploy/.env
+# (SETUP.md, section 10).
+services:
+  api:
+    # The api's container may use at most 12 GiB (12.9 GB, about three quarters of the machine), whatever it is
+    # asked: past it the kernel stops a process of this container (a worker, which the server replaces at once, or
+    # the server itself, which Docker then starts again), never the system, Docker, Caddy or an administrator's
+    # shell. Three workers on the five graphs measured 11.1 GB in use on the whole machine after 15 minutes of load
+    # (SETUP.md, section 10.7).
+    mem_limit: 12g
+    memswap_limit: 12g

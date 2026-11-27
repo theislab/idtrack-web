@@ -97,7 +97,7 @@ describe.each(Object.entries(themes))("the %s theme", (_, text) => {
     for (const hue of hues) expect(contrast(hue, surface), hue).toBeGreaterThanOrEqual(3);
   });
   it("sets the text inks off from the surface at 4.5:1 or more", () => {
-    for (const ink of ["ink-1", "ink-2", "ink-3", "state-danger"]) {
+    for (const ink of ["ink-1", "ink-2", "ink-3", "state-danger", "state-ok", "state-warn"]) {
       expect(contrast(token(text, ink), surface), ink).toBeGreaterThanOrEqual(4.5);
       expect(contrast(token(text, ink), token(text, "paper")), ink).toBeGreaterThanOrEqual(4.5);
       expect(contrast(token(text, ink), token(text, "band")), ink).toBeGreaterThanOrEqual(4.5);
@@ -107,7 +107,7 @@ describe.each(Object.entries(themes))("the %s theme", (_, text) => {
 
 describe("the two dark blocks", () => {
   it("are the same (system dark and the chosen dark theme)", () => {
-    const system = block(/:root:not\(\[data-theme="light"\]\)\s*\{/);
+    const system = block(/:root\[data-theme="system"\]\s*\{/);
     const chosen = themes.dark;
     const tokens = (t: string) =>
       [...t.matchAll(/--([\w-]+):\s*([^;]+);/g)].map((m) => `${m[1] ?? ""}=${m[2] ?? ""}`).sort();

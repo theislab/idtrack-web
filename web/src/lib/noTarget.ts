@@ -15,7 +15,7 @@ export interface NoTarget {
 }
 
 /** The words idtrack's limitation on splits begins with, by which its item of the generated list is found. */
-export const SPLIT_LIMITATION_START = "A gene whose history splits";
+const SPLIT_LIMITATION_START = "A gene whose history splits";
 
 export function splitLimitation(): string | null {
   return limitations.items.find((item) => item.startsWith(SPLIT_LIMITATION_START)) ?? null;

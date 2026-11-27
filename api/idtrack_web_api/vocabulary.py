@@ -27,10 +27,11 @@ from idtrack_web_api.adapter import (
     READING_REASONS,
     REASONS,
     RESULT_CLASSES,
+    SOURCE_MODES,
     STATUSES,
     STEP_REASONS,
 )
-from idtrack_web_api.errors import CODES
+from idtrack_web_api.errors import ALLOWANCES, CODES, RETRYABLE, TITLES
 
 #: The meaning of each value of ``ConversionResult.status``, in the api's words: idtrack's table ``STATUSES`` holds the
 #: codes only. Each restates idtrack's documentation of the status (its usage guide, "Outcome", and the attributes of
@@ -73,6 +74,32 @@ CRITERION_FIELDS: dict[str, tuple[tuple[str, First, tuple[str, ...] | None], ...
     "score": (("unscored_steps", "lower", None), ("score", "higher", None)),
     "same_as_query": (("same_as_query", "yes", None),),
     "annotation": (("annotation", "lower", ("external ids", "transcripts", "translations")),),
+}
+
+#: The kinds of database of ``GET /organisms/{organism}/databases`` (the api's reading of the graph's own record: its
+#: ``label_databases`` and idtrack's two gene namespaces), in the api's words.
+DATABASE_KINDS: dict[str, str] = {
+    "ensembl": (
+        "One of idtrack's two Ensembl gene namespaces: `ensembl_gene`, the gene id with its version, and "
+        "`base_ensembl_gene`, without (`versioned` says which)."
+    ),
+    "accession": (
+        "An external database whose ids are accessions (NCBI's gene numbers in `EntrezGene`, RefSeq's and UniProt's "
+        "accessions); where the graph holds its labels apart, `labels` names their database."
+    ),
+    "label": (
+        "An external database whose ids are labels (display names, symbols) rather than accessions (the graph's "
+        "`label_databases`): a name authority's symbols, NCBI's official symbols, UniProt's gene names; `labels_of` "
+        "names the accession databases whose labels it holds."
+    ),
+}
+
+#: The modes of idtrack's ``API.source_inference`` and what an origin is in each (its text of the argument ``mode``).
+SOURCE_MODE_MEANINGS: dict[str, str] = {
+    "assembly_release": "An origin is `[assembly, release]`: the release and the genome assembly it was read on.",
+    "release": "An origin is a release (counted only on the assembly that serves it).",
+    "assembly": "An origin is a genome assembly (its number in idtrack's organism table).",
+    "complete": "An origin is `[database, assembly, release]`.",
 }
 
 #: The names of the parts of ``Candidate.annotation`` as idtrack's text of that field writes them (a test reads them
@@ -121,8 +148,30 @@ def vocabulary() -> dict[str, Any]:
             }
             for code, text in BRIDGE_RULES.items()
         ],
-        "errors": [{"code": code, "status": status, "meaning": text} for code, (status, text) in CODES.items()],
+        "errors": [
+            {
+                "code": code,
+                "status": status,
+                "title": TITLES[code],
+                "meaning": text,
+                "retryable": code in RETRYABLE,
+                "source": "idtrack-web",
+            }
+            for code, (status, text) in CODES.items()
+        ],
+        "database_kinds": [{"code": c, "meaning": t, "source": "idtrack-web"} for c, t in DATABASE_KINDS.items()],
+        "allowances": [{"code": c, "meaning": t, "source": "idtrack-web"} for c, t in ALLOWANCES.items()],
+        "source_modes": [
+            {"code": mode, "meaning": SOURCE_MODE_MEANINGS[mode], "source": "idtrack-web"} for mode in SOURCE_MODES
+        ],
     }
 
 
-__all__ = ["ANNOTATION_TEXT", "CRITERION_FIELDS", "STATUS_MEANINGS", "vocabulary"]
+__all__ = [
+    "ANNOTATION_TEXT",
+    "CRITERION_FIELDS",
+    "DATABASE_KINDS",
+    "SOURCE_MODE_MEANINGS",
+    "STATUS_MEANINGS",
+    "vocabulary",
+]

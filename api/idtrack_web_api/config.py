@@ -10,12 +10,16 @@ from __future__ import annotations
 import ipaddress
 import math
 import os
-from collections.abc import Mapping
 from dataclasses import dataclass, field, fields
 from pathlib import Path
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping
 
 PREFIX = "IDTRACK_WEB_"
+#: idtrack's documentation, where it is published by default (Read the Docs, the stable version).
+DOCS_URL = "https://idtrack.readthedocs.io/en/stable/"
 SOURCES = ("directory", "s3")
 LOG_LEVELS = ("DEBUG", "INFO", "WARNING", "ERROR")
 
@@ -51,11 +55,26 @@ class Settings:
         identifier_max_length: The longest identifier (characters).
         body_max_bytes: The largest request body.
         response_max_bytes: The largest response body; a larger result is refused, never cut.
-        rate_per_minute: Requests per minute per client (0: no limit).
-        rate_burst: Requests a client may make at once before the rate applies.
+        rate_per_minute: Searching requests per minute per client (0: no per-client allowance of any kind).
+        rate_burst: Searching requests a client may make at once before the rate applies.
+        rate_search_seconds: Seconds of search per minute per client (0: search time not limited).
+        rate_search_burst_seconds: The most seconds of search a client's balance holds.
+        rate_concurrent_searches: Searching requests a client may have in progress at once (0: not limited).
         queue_max: Requests one worker holds, running or waiting for its search thread, before answering 503.
+        head_seconds: The longest a taken connection may take to send its request's head before it is closed.
+        body_seconds: The longest a request's body may take to arrive (``408 request_timeout`` after).
+        send_seconds: The longest a client may leave an answer untaken before its connection is closed (and the
+            grace before the slowest rate the server waits for applies: :py:data:`idtrack_web_api.guard.SEND_MIN_RATE`).
+        sending_max_bytes: The most bytes of answers one worker holds for clients that have not taken them yet; an
+            answer beyond is refused with ``503 server_busy``.
+        answer_cache_bytes: The answers each worker keeps in memory to send again (0: none kept).
         static_dir: A folder of the built frontend to serve at ``/``; ``None``: the api alone.
-        cors_origins: Origins allowed to call the api from a browser (for a frontend served elsewhere).
+        public_url: The address the site is reached at (``https://<domain>``), for the absolute links of
+            ``/llms.txt``; ``None``: the address of each request.
+        docs_url: The address of idtrack's documentation that the site links to (its root, ending in ``/``):
+            Read the Docs' stable version unless the documentation is served under another name.
+        cors_origins: Origins allowed to call the api from a browser: ``*`` (any page: the api is keyless and
+            read-only, and sends no credential), or a list.
         log_level: The level of the server's log.
     """
 
@@ -82,15 +101,26 @@ class Settings:
     response_max_bytes: int = 33_554_432
     rate_per_minute: int = 120
     rate_burst: int = 30
+    rate_search_seconds: float = 30.0
+    rate_search_burst_seconds: float = 60.0
+    rate_concurrent_searches: int = 2
     queue_max: int = 64
+    head_seconds: float = 5.0
+    body_seconds: float = 30.0
+    send_seconds: float = 30.0
+    sending_max_bytes: int = 268_435_456
+    answer_cache_bytes: int = 67_108_864
     static_dir: Path | None = None
-    cors_origins: tuple[str, ...] = ()
+    public_url: str | None = None
+    docs_url: str = DOCS_URL
+    cors_origins: tuple[str, ...] = ("*",)
     log_level: str = "INFO"
 
     def __post_init__(self) -> None:
         """Check what one value alone cannot say."""
         if self.source == "directory" and self.directory is None:
-            raise ConfigError(f"{PREFIX}SOURCE=directory needs {PREFIX}DIRECTORY (the folder of the published files).")
+            msg = f"{PREFIX}SOURCE=directory needs {PREFIX}DIRECTORY (the folder of the published files)."
+            raise ConfigError(msg)
         if self.source == "s3":
             missing = [
                 name
@@ -104,12 +134,14 @@ class Settings:
                 if value is None
             ]
             if missing:
-                raise ConfigError(f"{PREFIX}SOURCE=s3 needs {', '.join(PREFIX + m for m in missing)}.")
+                msg = f"{PREFIX}SOURCE=s3 needs {', '.join(PREFIX + m for m in missing)}."
+                raise ConfigError(msg)
         if self.search_seconds > self.request_seconds:
-            raise ConfigError(
+            msg = (
                 f"{PREFIX}SEARCH_SECONDS ({self.search_seconds}) is more than {PREFIX}REQUEST_SECONDS "
                 f"({self.request_seconds}): one identifier's search cannot take longer than its request."
             )
+            raise ConfigError(msg)
 
     def public(self) -> dict[str, object]:
         """Return the settings without the secrets (for the log).
@@ -128,23 +160,26 @@ class Settings:
         return shown
 
 
-def _raw(environ: Mapping[str, str], name: str, secret: bool = False) -> str | None:
+def _raw(environ: Mapping[str, str], name: str, *, secret: bool = False) -> str | None:
     """Return a variable's value (or, for a secret, the content of the file its ``_FILE`` variable names)."""
     value = environ.get(PREFIX + name)
     if secret:
         path = environ.get(PREFIX + name + "_FILE")
         if path is not None:
             if value is not None:
-                raise ConfigError(f"Give {PREFIX}{name} or {PREFIX}{name}_FILE, not both.")
+                msg = f"Give {PREFIX}{name} or {PREFIX}{name}_FILE, not both."
+                raise ConfigError(msg)
             try:
                 value = Path(path).read_text(encoding="utf-8").rstrip("\r\n")
             except OSError as error:
-                raise ConfigError(f"{PREFIX}{name}_FILE={path!r} cannot be read: {error.strerror}.") from None
+                msg = f"{PREFIX}{name}_FILE={path!r} cannot be read: {error.strerror}."
+                raise ConfigError(msg) from None
     if value is None:
         return None
     value = value.strip()
     if not value:
-        raise ConfigError(f"{PREFIX}{name} is set but empty; unset it for the default.")
+        msg = f"{PREFIX}{name} is set but empty; unset it for the default."
+        raise ConfigError(msg)
     return value
 
 
@@ -155,22 +190,27 @@ def _integer(environ: Mapping[str, str], name: str, default: int, minimum: int, 
     try:
         value = int(raw, 10)
     except ValueError:
-        raise ConfigError(f"{PREFIX}{name}={raw!r} is not a whole number.") from None
+        msg = f"{PREFIX}{name}={raw!r} is not a whole number."
+        raise ConfigError(msg) from None
     if not minimum <= value <= maximum:
-        raise ConfigError(f"{PREFIX}{name}={value} is outside {minimum} to {maximum}.")
+        msg = f"{PREFIX}{name}={value} is outside {minimum} to {maximum}."
+        raise ConfigError(msg)
     return value
 
 
-def _seconds(environ: Mapping[str, str], name: str, default: float, maximum: float) -> float:
+def _seconds(environ: Mapping[str, str], name: str, default: float, maximum: float, *, zero: bool = False) -> float:
     raw = _raw(environ, name)
     if raw is None:
         return default
     try:
         value = float(raw)
     except ValueError:
-        raise ConfigError(f"{PREFIX}{name}={raw!r} is not a number of seconds.") from None
-    if not (math.isfinite(value) and 0 < value <= maximum):
-        raise ConfigError(f"{PREFIX}{name}={raw!r} must be more than 0 and at most {maximum} seconds.")
+        msg = f"{PREFIX}{name}={raw!r} is not a number of seconds."
+        raise ConfigError(msg) from None
+    least = "at least 0" if zero else "more than 0"
+    if not (math.isfinite(value) and (value >= 0 if zero else value > 0) and value <= maximum):
+        msg = f"{PREFIX}{name}={raw!r} must be {least} and at most {maximum} seconds."
+        raise ConfigError(msg)
     return value
 
 
@@ -180,29 +220,71 @@ def _words(environ: Mapping[str, str], name: str) -> tuple[str, ...]:
         return ()
     words = tuple(w.strip() for w in raw.split(","))
     if any(not w for w in words):
-        raise ConfigError(f"{PREFIX}{name}={raw!r} holds an empty item; separate items by single commas.")
+        msg = f"{PREFIX}{name}={raw!r} holds an empty item; separate items by single commas."
+        raise ConfigError(msg)
     if len(set(words)) != len(words):
-        raise ConfigError(f"{PREFIX}{name}={raw!r} names an item twice.")
+        msg = f"{PREFIX}{name}={raw!r} names an item twice."
+        raise ConfigError(msg)
     return words
 
 
-def _folder(environ: Mapping[str, str], name: str, must_exist: bool) -> Path | None:
+def _folder(environ: Mapping[str, str], name: str, *, must_exist: bool) -> Path | None:
     raw = _raw(environ, name)
     if raw is None:
         return None
     path = Path(raw)
     if not path.is_absolute():
-        raise ConfigError(f"{PREFIX}{name}={raw!r} must be an absolute path.")
+        msg = f"{PREFIX}{name}={raw!r} must be an absolute path."
+        raise ConfigError(msg)
     if must_exist and not path.is_dir():
-        raise ConfigError(f"{PREFIX}{name}={raw!r} is not an existing folder.")
+        msg = f"{PREFIX}{name}={raw!r} is not an existing folder."
+        raise ConfigError(msg)
     return path
 
 
 def _https_url(environ: Mapping[str, str], name: str) -> str | None:
     raw = _raw(environ, name)
     if raw is not None and not raw.startswith(("https://", "http://")):
-        raise ConfigError(f"{PREFIX}{name}={raw!r} must be a URL starting with https:// (or http:// for a local test).")
+        msg = f"{PREFIX}{name}={raw!r} must be a URL starting with https:// (or http:// for a local test)."
+        raise ConfigError(msg)
     return raw
+
+
+def _docs_url(environ: Mapping[str, str], name: str) -> str:
+    raw = _https_url(environ, name)
+    if raw is None:
+        return DOCS_URL
+    if any(ch in raw for ch in "?#@ "):
+        msg = f"{PREFIX}{name}={raw!r} must be the documentation's root: https://<domain>[/<path>]/."
+        raise ConfigError(msg)
+    return raw.rstrip("/") + "/"
+
+
+def _public_url(environ: Mapping[str, str], name: str) -> str | None:
+    raw = _https_url(environ, name)
+    if raw is None:
+        return None
+    rest = raw.split("://", 1)[1]
+    if not rest or "/" in rest.rstrip("/") or any(ch in rest for ch in "?#@ "):
+        msg = f"{PREFIX}{name}={raw!r} must be an origin only: https://<domain>[:<port>]."
+        raise ConfigError(msg)
+    return raw.rstrip("/")
+
+
+def _origins(environ: Mapping[str, str], name: str) -> tuple[str, ...]:
+    words = _words(environ, name)
+    if not words:
+        return ("*",)
+    if words == ("none",):
+        return ()
+    for word in words:
+        if word != "*" and not word.startswith(("https://", "http://")):
+            msg = f"{PREFIX}{name}: {word!r} is not an origin (https://<domain>), '*' (any page) or 'none' (alone)."
+            raise ConfigError(msg)
+    if "*" in words and len(words) > 1:
+        msg = f"{PREFIX}{name}: '*' already allows every origin; give it alone."
+        raise ConfigError(msg)
+    return words
 
 
 def _addresses(environ: Mapping[str, str], name: str, default: tuple[str, ...]) -> tuple[str, ...]:
@@ -213,7 +295,8 @@ def _addresses(environ: Mapping[str, str], name: str, default: tuple[str, ...]) 
         try:
             ipaddress.ip_network(word, strict=False)
         except ValueError:
-            raise ConfigError(f"{PREFIX}{name}: {word!r} is not an IP address or network (or '*').") from None
+            msg = f"{PREFIX}{name}: {word!r} is not an IP address or network (or '*')."
+            raise ConfigError(msg) from None
     return words
 
 
@@ -234,18 +317,20 @@ def load_settings(environ: Mapping[str, str] | None = None) -> Settings:
     known |= {PREFIX + "S3_ACCESS_KEY_ID_FILE", PREFIX + "S3_SECRET_ACCESS_KEY_FILE"}
     unknown = sorted(k for k in env if k.startswith(PREFIX) and k not in known)
     if unknown:
-        raise ConfigError(
-            f"Unknown variables (a misspelling?): {', '.join(unknown)}. Known: {', '.join(sorted(known))}."
-        )
+        msg = f"Unknown variables (a misspelling?): {', '.join(unknown)}. Known: {', '.join(sorted(known))}."
+        raise ConfigError(msg)
     source = _raw(env, "SOURCE")
     if source not in SOURCES:
-        raise ConfigError(f"{PREFIX}SOURCE={source!r}; set it to one of {', '.join(SOURCES)}.")
+        msg = f"{PREFIX}SOURCE={source!r}; set it to one of {', '.join(SOURCES)}."
+        raise ConfigError(msg)
     log_level = (_raw(env, "LOG_LEVEL") or "INFO").upper()
     if log_level not in LOG_LEVELS:
-        raise ConfigError(f"{PREFIX}LOG_LEVEL={log_level!r}; one of {', '.join(LOG_LEVELS)}.")
+        msg = f"{PREFIX}LOG_LEVEL={log_level!r}; one of {', '.join(LOG_LEVELS)}."
+        raise ConfigError(msg)
     manifest_key = _raw(env, "MANIFEST_KEY")
     if manifest_key is not None and (manifest_key.startswith("/") or ".." in manifest_key.split("/")):
-        raise ConfigError(f"{PREFIX}MANIFEST_KEY={manifest_key!r} must be a relative key without '..'.")
+        msg = f"{PREFIX}MANIFEST_KEY={manifest_key!r} must be a relative key without '..'."
+        raise ConfigError(msg)
     request_seconds = _seconds(env, "REQUEST_SECONDS", 20.0, 600.0)
     return Settings(
         source=source,  # type: ignore[arg-type]  # checked against SOURCES above
@@ -271,9 +356,19 @@ def load_settings(environ: Mapping[str, str] | None = None) -> Settings:
         response_max_bytes=_integer(env, "RESPONSE_MAX_BYTES", 33_554_432, 65_536, 1_073_741_824),
         rate_per_minute=_integer(env, "RATE_PER_MINUTE", 120, 0, 1_000_000),
         rate_burst=_integer(env, "RATE_BURST", 30, 1, 1_000_000),
+        rate_search_seconds=_seconds(env, "RATE_SEARCH_SECONDS", 30.0, 3600.0, zero=True),
+        rate_search_burst_seconds=_seconds(env, "RATE_SEARCH_BURST_SECONDS", 60.0, 3600.0, zero=True),
+        rate_concurrent_searches=_integer(env, "RATE_CONCURRENT_SEARCHES", 2, 0, 1_000_000),
         queue_max=_integer(env, "QUEUE_MAX", 64, 1, 100_000),
+        head_seconds=_seconds(env, "HEAD_SECONDS", 5.0, 600.0),
+        body_seconds=_seconds(env, "BODY_SECONDS", 30.0, 600.0),
+        send_seconds=_seconds(env, "SEND_SECONDS", 30.0, 3600.0),
+        sending_max_bytes=_integer(env, "SENDING_MAX_BYTES", 268_435_456, 1_048_576, 17_179_869_184),
+        answer_cache_bytes=_integer(env, "ANSWER_CACHE_BYTES", 67_108_864, 0, 17_179_869_184),
         static_dir=_folder(env, "STATIC_DIR", must_exist=True),
-        cors_origins=_words(env, "CORS_ORIGINS"),
+        public_url=_public_url(env, "PUBLIC_URL"),
+        docs_url=_docs_url(env, "DOCS_URL"),
+        cors_origins=_origins(env, "CORS_ORIGINS"),
         log_level=log_level,
     )
 
@@ -318,7 +413,8 @@ def load_s3_access(environ: Mapping[str, str] | None = None) -> S3Access:
     }
     missing = [PREFIX + k for k, v in values.items() if v is None]
     if missing:
-        raise ConfigError(f"Publishing to a bucket needs {', '.join(missing)}.")
+        msg = f"Publishing to a bucket needs {', '.join(missing)}."
+        raise ConfigError(msg)
     return S3Access(
         endpoint=str(values["S3_ENDPOINT"]),
         bucket=str(values["S3_BUCKET"]),

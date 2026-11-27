@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import time
 import unicodedata
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from idtrack_web_api.adapter import (
     SEARCH_BUDGET_ERROR_TYPE,
@@ -19,13 +19,16 @@ from idtrack_web_api.adapter import (
     InputRefusedError,
     SearchBudgetError,
     batch_groups,
+    item_error_code,
 )
-from idtrack_web_api.config import Settings
-from idtrack_web_api.errors import ApiError
-from idtrack_web_api.graphs import LoadedGraph
+from idtrack_web_api.errors import ApiError, listed
+from idtrack_web_api.schemas import DATABASE_MAX_LENGTH
 
-#: The longest database name the api passes on (the longest of Ensembl's is under 50 characters).
-DATABASE_MAX_LENGTH = 200
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from idtrack_web_api.config import Settings
+    from idtrack_web_api.graphs import LoadedGraph
 
 
 def _control_characters(text: str) -> list[int]:
@@ -36,8 +39,11 @@ def _control_characters(text: str) -> list[int]:
 def check_text(value: str, name: str, settings: Settings, location: list[str | int] | None = None) -> str | None:
     """Return what is wrong with an identifier or name for HTTP, or ``None`` when it may be passed to idtrack.
 
-    Only the server's bounds: its length and characters a table or a log cannot hold. An empty string is idtrack's to
-    answer (a refusal, ``missing_value``; in a batch, that item's error; for a name, no match), as it answers it.
+    Only the server's bounds: its length, and characters a table or a log cannot hold inside the identifier. White space
+    at either end (spaces, tabs, line breaks: what a list cut from a table often keeps) is no part of an identifier:
+    idtrack reads the identifier without it (``str.strip``) and records nothing for it, and the result's ``query_id``
+    keeps the string as it was sent; so only the characters between the ends are checked. An empty string is idtrack's
+    to answer (a refusal, ``missing_value``; in a batch, that item's error; for a name, no match), as it answers it.
 
     Args:
         value: The text.
@@ -50,10 +56,15 @@ def check_text(value: str, name: str, settings: Settings, location: list[str | i
     """
     where = name if location is None else ".".join(str(p) for p in location)
     if len(value) > settings.identifier_max_length:
-        return f"`{where}` has {len(value)} characters; at most {settings.identifier_max_length} are accepted."
-    bad = _control_characters(value)
+        return f"`{where}` has {len(value)} characters; at most {settings.identifier_max_length} are accepted"
+    inner = value.strip()
+    lead = len(value) - len(value.lstrip())
+    bad = [lead + i for i in _control_characters(inner)]
     if bad:
-        return f"`{where}` holds control or unassigned characters at positions {bad[:10]}."
+        shown = ", ".join(str(i) for i in bad[:10]) + (f" and {len(bad) - 10} more" if len(bad) > 10 else "")
+        one = len(bad) == 1
+        what = "a control or unassigned character" if one else "control or unassigned characters"
+        return f"`{where}` holds {what} inside it, at {'character' if one else 'characters'} {shown} (counted from 0)"
     return None
 
 
@@ -73,7 +84,8 @@ def require_text(value: str, name: str, settings: Settings) -> str:
     """
     problem = check_text(value, name, settings)
     if problem is not None:
-        raise ApiError("invalid_identifier", problem, argument=name)
+        msg = "invalid_identifier"
+        raise ApiError(msg, problem + ".", argument=name)
     return value
 
 
@@ -88,8 +100,9 @@ def check_database_text(value: str | None, name: str) -> None:
         ApiError: ``invalid_argument``.
     """
     if value is not None and (not value.strip() or len(value) > DATABASE_MAX_LENGTH):
+        msg = "invalid_argument"
         raise ApiError(
-            "invalid_argument",
+            msg,
             f"`{name}` must be a database name of 1 to {DATABASE_MAX_LENGTH} characters.",
             argument=name,
         )
@@ -100,6 +113,7 @@ def conversion_arguments(
     to_release: int | None,
     final_database: str | None,
     from_database: str | None,
+    *,
     explain: bool,
     allow_bridges: bool,
 ) -> ConversionArguments:
@@ -118,7 +132,14 @@ def conversion_arguments(
     """
     check_database_text(final_database, "final_database")
     check_database_text(from_database, "from_database")
-    return ConversionArguments(from_release, to_release, final_database, from_database, explain, allow_bridges)
+    return ConversionArguments(
+        from_release=from_release,
+        to_release=to_release,
+        final_database=final_database,
+        from_database=from_database,
+        explain=explain,
+        allow_bridges=allow_bridges,
+    )
 
 
 def answered(problem: InputRefusedError) -> ApiError:
@@ -137,19 +158,45 @@ def _remaining(deadline: float) -> float:
     return deadline - time.monotonic()
 
 
+def waited_out(settings: Settings) -> ApiError:
+    """Return the refusal of a request that waited its whole time budget before its search began.
+
+    Args:
+        settings: The budgets.
+
+    Returns:
+        ApiError: ``request_budget_exceeded``.
+    """
+    return _busy(settings)
+
+
 def _busy(settings: Settings) -> ApiError:
     return ApiError(
-        "server_busy",
-        f"The request waited its whole time budget ({settings.request_seconds} s) for the server; retry later.",
+        "request_budget_exceeded",
+        f"The request waited its whole time budget ({settings.request_seconds:g} s) for the server before its search "
+        "began; retry later.",
         headers={"Retry-After": "5"},
     )
 
 
-def _out_of_time(settings: Settings, converted: int, total: int) -> ApiError:
+def out_of_time(settings: Settings, converted: int, total: int, *, explain: bool) -> ApiError:
+    """Return the refusal of a batch whose time budget ran out after *converted* of its *total* identifiers.
+
+    Args:
+        settings: The server's settings (its request budget).
+        converted: The distinct identifiers converted in time.
+        total: The batch's distinct identifiers.
+        explain: Whether the batch asked for the paths (the advice then names `explain`).
+
+    Returns:
+        ApiError: The ``request_budget_exceeded`` refusal, with ``Retry-After``.
+    """
     return ApiError(
         "request_budget_exceeded",
         f"{converted} of the {total} distinct identifiers were converted within the request's time budget "
-        f"({settings.request_seconds} s); send fewer identifiers per request (or ask without `explain`).",
+        f"({settings.request_seconds:g} s); send fewer identifiers per request"
+        + (" (or ask without `explain`)." if explain else "."),
+        headers={"Retry-After": "5"},
     )
 
 
@@ -181,13 +228,16 @@ def convert_one(
         raise answered(problem) from None
     except SearchBudgetError as error:
         if budget < settings.search_seconds and not error.states_exhausted:
+            msg = "request_budget_exceeded"
             raise ApiError(
-                "request_budget_exceeded",
-                f"The request ran out of its time budget ({settings.request_seconds} s, most of it spent waiting for "
+                msg,
+                f"The request ran out of its time budget ({settings.request_seconds:g} s, most of it spent waiting for "
                 "the server) during the search; retry later.",
+                headers={"Retry-After": "5"},
             ) from None
+        msg = "search_budget_exceeded"
         raise ApiError(
-            "search_budget_exceeded",
+            msg,
             f"{error.message} The server's budget of one search is {settings.search_states} states and "
             f"{settings.search_seconds} s; ask with `allow_bridges=false`, or with the release the identifier is read "
             "at.",
@@ -195,7 +245,14 @@ def convert_one(
 
 
 def convert_batch(
-    graph: LoadedGraph, identifiers: list[str], arguments: ConversionArguments, settings: Settings, deadline: float
+    graph: LoadedGraph,
+    identifiers: list[str],
+    arguments: ConversionArguments,
+    settings: Settings,
+    deadline: float,
+    *,
+    read_copies: bool = True,
+    abandoned: Callable[[], bool] = lambda: False,
 ) -> list[dict[str, Any]]:
     """Convert a batch: what idtrack's ``API.convert_many(identifiers, ...)`` returns, each ``to_dict()``, in order.
 
@@ -203,7 +260,9 @@ def convert_batch(
     (:py:func:`idtrack_web_api.adapter.batch_groups`: an item and the items that extend it by a numbered suffix, which
     idtrack may answer as its copies; every other item alone), one ``convert_many`` call per group, so that every
     item gets the answer of one call over the whole batch and the request's time budget is checked between groups;
-    an error of one identifier is that item's ``error``, as idtrack records it.
+    an error of one identifier is that item's ``error``, as idtrack records it, with the api's ``code`` of its kind
+    added (:py:func:`idtrack_web_api.adapter.item_error_code`). Without *read_copies* every distinct item is a group
+    of its own, so that each is answered as ``convert`` answers it alone.
 
     Args:
         graph: The graph.
@@ -211,6 +270,8 @@ def convert_batch(
         arguments: The arguments.
         settings: The budgets.
         deadline: The request's deadline.
+        read_copies: Read an item that extends another by a numbered suffix as its copy (idtrack's reading).
+        abandoned: Whether the client has gone (checked between groups: the rest is not searched).
 
     Returns:
         list[dict[str, Any]]: One result per identifier.
@@ -219,22 +280,28 @@ def convert_batch(
         ApiError: For an input idtrack refuses, or a request out of time (``request_budget_exceeded``; also when an
             identifier ran out of time only because the request had less time left than a search's budget).
     """
-    groups = batch_groups(identifiers)
+    groups = batch_groups(identifiers) if read_copies else [[item] for item in dict.fromkeys(identifiers)]
     total = sum(len(group) for group in groups)
     done: dict[str, dict[str, Any]] = {}
     for group in groups:
+        if abandoned():
+            msg = "request_timeout"
+            raise ApiError(msg, "The client closed its connection during the batch; the rest was not searched.")
         remaining = _remaining(deadline)
         if remaining <= 0:
-            raise _out_of_time(settings, len(done), total) if done else _busy(settings)
+            raise out_of_time(settings, len(done), total, explain=arguments.explain) if done else _busy(settings)
         budget = min(settings.search_seconds, remaining)
         try:
             results = graph.graph.convert_many(group, arguments, budget)
         except InputRefusedError as problem:
             raise answered(problem) from None
         for result in results:
-            error = result.get("error") or {}
+            error = result.get("error")
+            if error is None:
+                continue
             if error.get("type") == SEARCH_BUDGET_ERROR_TYPE and budget < settings.search_seconds:
-                raise _out_of_time(settings, len(done), total)
+                raise out_of_time(settings, len(done), total, explain=arguments.explain)
+            error["code"] = item_error_code(str(error.get("type")))
         done.update(zip(group, results, strict=True))
     return [done[identifier] for identifier in identifiers]
 
@@ -258,24 +325,53 @@ def final_databases(graph: LoadedGraph, to_release: int | None) -> list[str]:
         raise answered(problem) from None
 
 
-def genes_named(graph: LoadedGraph, name: str, fold_case: bool) -> list[dict[str, Any]]:
-    """Return idtrack's ``API.genes_named(name, fold_case)``, each ``to_dict()``.
+def check_release(graph: LoadedGraph, release: int | None, name: str) -> None:
+    """Refuse a release the graph does not cover (as idtrack refuses one: ``unknown_release``, the releases allowed).
+
+    Args:
+        graph: The graph.
+        release: The release (``None``: nothing to check).
+        name: The argument's name.
+
+    Raises:
+        ApiError: ``unknown_release``.
+    """
+    releases = graph.graph.releases()
+    if release is not None and release not in releases:
+        msg = "unknown_release"
+        raise ApiError(
+            msg,
+            f"`{name}`={release} is not a release of this graph, which covers the Ensembl releases {releases[0]} to "
+            f"{releases[-1]}.",
+            argument=name,
+            allowed=list(releases),
+        )
+
+
+def genes_named(graph: LoadedGraph, name: str, *, fold_case: bool, release: int | None = None) -> list[dict[str, Any]]:
+    """Return idtrack's ``API.genes_named(name, fold_case)``, each ``to_dict()``, those that hold at *release* only.
+
+    idtrack's call answers for every release, each match listing its ``releases``; with *release*, the api keeps the
+    matches whose ``releases`` hold it, unchanged and in idtrack's order (the meaning of the name at that release).
 
     Args:
         graph: The graph.
         name: The name (checked by :py:func:`require_text`).
         fold_case: Match without letter case.
+        release: Only the matches that hold at this release (``None``: every match).
 
     Returns:
         list[dict[str, Any]]: The matches.
 
     Raises:
-        ApiError: For an input idtrack refuses.
+        ApiError: For an input idtrack refuses, or a release the graph does not cover.
     """
+    check_release(graph, release, "release")
     try:
-        return graph.graph.genes_named(name, fold_case)
+        matches = graph.graph.genes_named(name, fold_case=fold_case)
     except InputRefusedError as problem:
         raise answered(problem) from None
+    return matches if release is None else [m for m in matches if release in m.get("releases", ())]
 
 
 def names_of(graph: LoadedGraph, gene: str, release: int | None) -> list[dict[str, Any]]:
@@ -295,4 +391,81 @@ def names_of(graph: LoadedGraph, gene: str, release: int | None) -> list[dict[st
     try:
         return graph.graph.names_of(gene, release)
     except InputRefusedError as problem:
+        versions = graph.graph.gene_versions(gene.strip()) if problem.code == "unknown_identifier" else ()
+        if versions:
+            msg = "invalid_argument"
+            raise ApiError(
+                msg,
+                f"{gene.strip()!r} is an Ensembl id without its version; `gene` takes a gene id with version, and this "
+                f"graph holds {listed(versions, 5)} (every one in `allowed`; `GET .../convert` reads an id without "
+                "version at a release).",
+                argument="gene",
+                allowed=list(versions),
+            ) from None
         raise answered(problem) from None
+
+
+def source_inference(graph: LoadedGraph, identifiers: list[str], mode: str) -> dict[str, Any]:
+    """Return idtrack's ``API.source_inference(identifiers, mode).to_dict()``.
+
+    Args:
+        graph: The graph.
+        identifiers: The identifiers (each checked by :py:func:`check_text`).
+        mode: What an origin is.
+
+    Returns:
+        dict[str, Any]: The inference.
+
+    Raises:
+        ApiError: For an input idtrack refuses (``unknown_identifier`` when none of the identifiers is in the graph).
+    """
+    try:
+        return graph.graph.source_inference(identifiers, mode)
+    except InputRefusedError as problem:
+        raise answered(problem) from None
+
+
+def convert_each_database(
+    graph: LoadedGraph, identifier: str, arguments: ConversionArguments, settings: Settings, deadline: float
+) -> tuple[int, list[dict[str, Any]]]:
+    """Convert one identifier into every database a conversion to the target release can end in.
+
+    One idtrack ``API.convert`` per database of ``API.final_databases(to_release)``, in that order, each exactly as
+    :py:func:`convert_one` with that ``final_database`` (the request's time budget checked before each).
+
+    Args:
+        graph: The graph.
+        identifier: The identifier (checked by :py:func:`require_text`).
+        arguments: The arguments (``final_database`` is set per database; ``explain`` is not taken).
+        settings: The budgets.
+        deadline: The request's deadline.
+
+    Returns:
+        tuple[int, list[dict[str, Any]]]: The target release, and ``{"database", "result"}`` per database.
+
+    Raises:
+        ApiError: As :py:func:`convert_one`; ``request_budget_exceeded`` when the databases do not all fit in the
+            request's time budget.
+    """
+    to_release = graph.graph.identity().snapshot_release if arguments.to_release is None else arguments.to_release
+    databases = final_databases(graph, to_release)
+    found: list[dict[str, Any]] = []
+    for database in databases:
+        if _remaining(deadline) <= 0:
+            msg = "request_budget_exceeded"
+            raise ApiError(
+                msg,
+                f"{len(found)} of the {len(databases)} databases were answered within the request's time budget "
+                f"({settings.request_seconds:g} s); ask `GET .../convert` for the databases you need.",
+                headers={"Retry-After": "5"},
+            )
+        each = ConversionArguments(
+            from_release=arguments.from_release,
+            to_release=to_release,
+            final_database=database,
+            from_database=arguments.from_database,
+            explain=False,
+            allow_bridges=arguments.allow_bridges,
+        )
+        found.append({"database": database, "result": convert_one(graph, identifier, each, settings, deadline)})
+    return to_release, found

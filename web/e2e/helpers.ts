@@ -1,5 +1,5 @@
 // What the end-to-end tests share: the graph's test data, screenshots of each flow, the accessibility check.
-import AxeBuilder from "@axe-core/playwright";
+import { AxeBuilder } from "@axe-core/playwright";
 import { expect, type Page, type TestInfo } from "@playwright/test";
 import { mkdirSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
@@ -38,7 +38,7 @@ export interface Data {
 }
 
 export const data = JSON.parse(
-  readFileSync(join(import.meta.dirname, "data", `${process.env.E2E_DATA ?? "pig"}.json`), "utf8"),
+  readFileSync(join(import.meta.dirname, "data", `${process.env["E2E_DATA"] ?? "pig"}.json`), "utf8"),
 ) as Data;
 
 /** The address of a conversion. */
@@ -59,18 +59,24 @@ export function apiConvertUrl(query: Query): string {
   return `/api/v1/organisms/${data.organism}/convert?${parameters.toString()}`;
 }
 
-const folder = resolve(process.env.E2E_SCREENSHOTS ?? join(import.meta.dirname, "..", "test-results", "screenshots"));
+const folder = resolve(
+  process.env["E2E_SCREENSHOTS"] ?? join(import.meta.dirname, "..", "test-results", "screenshots"),
+);
 
 /** What the page shows is whole and typed: no value cut by its box, a table wider than its frame announces that it
- *  scrolls, the page itself never scrolls sideways, and no value is written in a programming language's spelling. */
-export async function expectWholeAndTyped(page: Page): Promise<void> {
-  const problems = await page.evaluate(() => {
+ *  scrolls, the page itself never scrolls sideways, no figure's text runs out of its figure or overlaps another, and
+ *  no value is written in a programming language's spelling (not checked with `typed` false: the api's reference
+ *  names JSON's own values). */
+export async function expectWholeAndTyped(page: Page, typed = true): Promise<void> {
+  const problems = await page.evaluate((typed) => {
     const found: string[] = [];
     const width = document.documentElement.clientWidth;
     if (document.documentElement.scrollWidth > width + 1) {
       found.push(`the page is ${document.documentElement.scrollWidth} px wide in a ${width} px window`);
     }
     for (const wrap of document.querySelectorAll<HTMLElement>(".table-wrap")) {
+      // A table not shown (inside a closed disclosure) is laid out by no one: nothing of it can be cut.
+      if (!wrap.checkVisibility({ contentVisibilityAuto: true })) continue;
       const outer = wrap.closest(".table-frame-outer");
       if (wrap.scrollWidth > wrap.clientWidth + 1 && !outer?.querySelector(".table-frame__cue")) {
         found.push(`table ${wrap.getAttribute("aria-label") ?? ""} is wider than its frame without the cue`);
@@ -86,6 +92,34 @@ export async function expectWholeAndTyped(page: Page): Promise<void> {
         found.push(`a value is wider than its cell: ${value.textContent}`);
       }
     }
+    // Every figure's text stands inside its figure and touches no other text of it (the figure grammar's rule).
+    for (const svg of document.querySelectorAll<SVGSVGElement>("svg")) {
+      const frame = svg.getBoundingClientRect();
+      if (frame.width < 40 || frame.height < 20) continue;
+      const texts = [...svg.querySelectorAll<SVGTextElement>("text")].filter((t) => {
+        const box = t.getBoundingClientRect();
+        const style = getComputedStyle(t);
+        return box.width > 0 && style.visibility !== "hidden" && style.display !== "none" && Number(style.opacity) > 0;
+      });
+      const boxes = texts.map((t) => t.getBoundingClientRect());
+      boxes.forEach((box, i) => {
+        if (box.left < frame.left - 1 || box.right > frame.right + 1) {
+          found.push(`a figure's text runs out of its figure: ${texts[i]?.textContent ?? ""}`);
+        }
+        for (let j = i + 1; j < boxes.length; j++) {
+          const other = boxes[j];
+          if (!other) continue;
+          const x = Math.min(box.right, other.right) - Math.max(box.left, other.left);
+          const y = Math.min(box.bottom, other.bottom) - Math.max(box.top, other.top);
+          if (x > 1 && y > 3) {
+            found.push(
+              `two texts of a figure overlap: ${texts[i]?.textContent ?? ""} / ${texts[j]?.textContent ?? ""}`,
+            );
+          }
+        }
+      });
+    }
+    if (!typed) return found;
     const clone = document.body.cloneNode(true) as HTMLElement;
     clone.querySelectorAll("pre.raw, script, style").forEach((e) => {
       e.remove();
@@ -98,7 +132,7 @@ export async function expectWholeAndTyped(page: Page): Promise<void> {
     const spelling = /\b(None|True|False|null|undefined|NaN)\b/.exec(text);
     if (spelling) found.push(`a value is spelt "${spelling[0]}"`);
     return found;
-  });
+  }, typed);
   expect(problems, problems.join("\n")).toEqual([]);
 }
 
@@ -142,3 +176,18 @@ export async function waitForResult(page: Page): Promise<void> {
 }
 
 export const isPhone = (info: TestInfo) => info.project.name.startsWith("phone");
+
+/** Serve the page without the answers the server writes into it (`#idtrack-preload`), as a server or proxy that
+ *  sends the built page as it is would: so that a test can see how the page asks those answers, and states their
+ *  failures. */
+export async function withoutPreload(page: Page): Promise<void> {
+  await page.route("**/*", async (route) => {
+    if (route.request().resourceType() !== "document") return route.continue();
+    const response = await route.fetch();
+    const body = (await response.text()).replace(
+      /<script type="application\/json" id="idtrack-preload">[\s\S]*?<\/script>/,
+      "",
+    );
+    return route.fulfill({ response, body });
+  });
+}

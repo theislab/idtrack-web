@@ -1,6 +1,24 @@
-// A request's state for a view: idle, loading, done or failed; a newer request cancels the one before it.
+// A request's state for a view: idle, loading, done or failed; a newer request cancels the one before it. A read that
+// failed because nothing answered is asked again by itself when the browser is back online or the tab is shown again;
+// a refusal that names its wait (`Retry-After`, a rate limit or a busy server) is asked again once after that wait.
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
-import { isAbort, isRequestError, UnexpectedAnswerError, type AnyRequestError, type Answer } from "../api/client";
+import {
+  ApiError,
+  isAbort,
+  isRequestError,
+  UnexpectedAnswerError,
+  UnreachableError,
+  type AnyRequestError,
+  type Answer,
+} from "../api/client";
+
+/** The longest wait of `Retry-After` after which a read is asked again by itself (longer: the person decides). */
+const AUTO_RETRY_MAX_SECONDS = 120;
+
+/** A refusal the api asks to repeat after a wait it names. */
+export function waitsToRetry(error: AnyRequestError): error is ApiError {
+  return error instanceof ApiError && (error.status === 429 || error.status === 503) && error.retryAfter !== null;
+}
 
 export type RequestState<T> =
   | { state: "idle" }
@@ -22,18 +40,22 @@ function useLatest<T>(value: T) {
   return ref;
 }
 
-/** Run `load` whenever `key` changes (null: nothing to load). The state is the answer of the current key only. */
+/** Run `load` whenever `key` changes (null: nothing to load). The state is the answer of the current key only.
+ *  `fresh` is true on a retry: the answer is asked of the api again even when one is held (api/client.ts). */
 export function useRequest<T>(
   key: string | null,
-  load: (signal: AbortSignal) => Promise<Answer<T>>,
+  load: (signal: AbortSignal, fresh: boolean) => Promise<Answer<T>>,
 ): RequestState<T> & { retry: () => void } {
   const [settled, setSettled] = useState<{ key: string; attempt: number; state: RequestState<T> } | null>(null);
-  const [attempt, setAttempt] = useState(0);
+  // The retries of the current key: a new key starts again at its first attempt (asked without `fresh`).
+  const [tries, setTries] = useState<{ key: string | null; n: number }>({ key, n: 0 });
+  if (tries.key !== key) setTries({ key, n: 0 });
+  const attempt = tries.key === key ? tries.n : 0;
   const latest = useLatest(load);
   useEffect(() => {
     if (key === null) return;
     const controller = new AbortController();
-    latest.current(controller.signal).then(
+    latest.current(controller.signal, attempt > 0).then(
       (answer) => {
         if (!controller.signal.aborted) setSettled({ key, attempt, state: { state: "done", answer } });
       },
@@ -47,20 +69,70 @@ export function useRequest<T>(
     };
   }, [key, attempt, latest]);
   const retry = useCallback(() => {
-    setAttempt((a) => a + 1);
-  }, []);
+    setTries((t) => ({ key, n: (t.key === key ? t.n : 0) + 1 }));
+  }, [key]);
   const state: RequestState<T> =
     key === null
       ? { state: "idle" }
       : settled?.key === key && settled.attempt === attempt
         ? settled.state
         : { state: "loading" };
+  const failure = state.state === "failed" ? state.error : null;
+  useRecovery(key, state.state, failure, retry);
   return { ...state, retry };
 }
 
-/** A request started by an action (a batch, an export): the last one wins, the earlier is cancelled. */
-export function useAction<T, A extends unknown[]>(run: (signal: AbortSignal, ...args: A) => Promise<Answer<T>>) {
-  const [state, setState] = useState<RequestState<T>>({ state: "idle" });
+/** Ask again by itself where waiting is the remedy: back online or shown again after nothing answered; once (per key,
+ *  until an answer comes) after the wait a refusal names. */
+function useRecovery(
+  key: string | null,
+  phase: RequestState<unknown>["state"],
+  failure: AnyRequestError | null,
+  retry: () => void,
+): void {
+  const waited = useRef<string | null>(null);
+  useEffect(() => {
+    if (phase === "done") waited.current = null;
+  }, [phase]);
+  useEffect(() => {
+    if (failure instanceof UnreachableError) {
+      const again = () => {
+        if (document.visibilityState === "visible" && navigator.onLine) retry();
+      };
+      window.addEventListener("online", again);
+      document.addEventListener("visibilitychange", again);
+      return () => {
+        window.removeEventListener("online", again);
+        document.removeEventListener("visibilitychange", again);
+      };
+    }
+    if (
+      failure &&
+      key !== null &&
+      waitsToRetry(failure) &&
+      waited.current !== key &&
+      (failure.retryAfter ?? 0) <= AUTO_RETRY_MAX_SECONDS
+    ) {
+      const left = Math.max(0, failure.receivedAt + (failure.retryAfter ?? 0) * 1000 - Date.now());
+      const timer = window.setTimeout(() => {
+        waited.current = key;
+        retry();
+      }, left);
+      return () => {
+        window.clearTimeout(timer);
+      };
+    }
+    return undefined;
+  }, [key, failure, retry]);
+}
+
+/** A request started by an action (a batch, an export): the last one wins, the earlier is cancelled. `initial` is
+ *  the state to start in (an answer kept from an earlier visit of the page). */
+export function useAction<T, A extends unknown[]>(
+  run: (signal: AbortSignal, ...args: A) => Promise<Answer<T>>,
+  initial: RequestState<T> = { state: "idle" },
+) {
+  const [state, setState] = useState<RequestState<T>>(initial);
   const controller = useRef<AbortController | null>(null);
   const latest = useLatest(run);
   useEffect(

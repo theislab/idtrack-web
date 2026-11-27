@@ -88,5 +88,84 @@
     "body": {
       "identifiers": ["INS", "INS-1", "TP53", "TP53.2", "TP53.2_1", "PDX1"]
     }
+  },
+  {
+    "kind": "convert",
+    "name": "convert_number_other_scheme",
+    "identifier": "1898"
+  },
+  {
+    "kind": "convert",
+    "name": "convert_lrg_gene_listed_as_copy",
+    "identifier": "LRG_7_g1"
+  },
+  {
+    "kind": "convert",
+    "name": "convert_no_conversion_retired",
+    "identifier": "ENSG00000180725.4",
+    "arguments": {
+      "from_release": 67,
+      "to_release": 115
+    }
+  },
+  {
+    "kind": "convert",
+    "name": "convert_not_found_authority_id",
+    "identifier": "HGNC:11998"
+  },
+  {
+    "kind": "convert",
+    "name": "convert_split_and_merge_peers",
+    "identifier": "ENSG00000228654.1",
+    "arguments": {
+      "from_release": 67,
+      "to_release": 115
+    }
+  },
+  {
+    "kind": "convert",
+    "name": "convert_retired_at_its_release",
+    "identifier": "ENSG00000180725.4",
+    "arguments": {
+      "from_release": 67,
+      "to_release": 67,
+      "allow_bridges": false
+    }
+  },
+  {
+    "kind": "get",
+    "name": "names_of_retired",
+    "path": "/organisms/{organism}/names-of",
+    "query": {
+      "gene": "ENSG00000180725.4",
+      "release": 67
+    }
+  },
+  {
+    "kind": "convert_plain",
+    "name": "convert_split_peers_forward",
+    "identifier": "ENSG00000228654.1",
+    "arguments": {
+      "from_release": 69,
+      "to_release": 70,
+      "explain": "false",
+      "allow_bridges": "false"
+    }
+  },
+  {
+    "kind": "convert_plain",
+    "name": "convert_split_peers_back",
+    "identifier": "ENSG00000268074.1",
+    "arguments": {
+      "from_release": 70,
+      "to_release": 69,
+      "explain": "false",
+      "allow_bridges": "false"
+    }
+  },
+  {
+    "kind": "get",
+    "name": "databases",
+    "path": "/organisms/{organism}/databases"
   }
 ]

@@ -29,16 +29,20 @@ export function Link({
   children,
   className,
   current,
+  label,
 }: {
   to: string;
   children: ReactNode;
   className?: string;
   current?: boolean;
+  /** The link's accessible name, when its content is not text (a logo). */
+  label?: string;
 }) {
   return (
     <a
       href={to}
       className={className}
+      aria-label={label}
       aria-current={current ? "page" : undefined}
       onClick={(event) => {
         if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey) return;
@@ -157,7 +161,16 @@ export function Mono({
   );
 }
 
-export function CopyButton({ text, label = "Copy", what }: { text: string; label?: string; what: string }) {
+export function CopyButton({
+  text,
+  label = "Copy",
+  what,
+}: {
+  /** The text copied, or a function that writes it when the button is pressed (a long text is not kept in the page). */
+  text: string | (() => string);
+  label?: string;
+  what: string;
+}) {
   const [state, setState] = useState<"idle" | "copied" | "failed">("idle");
   return (
     <Button
@@ -165,7 +178,15 @@ export function CopyButton({ text, label = "Copy", what }: { text: string; label
       className="copy"
       aria-label={`${label} ${what}`}
       onClick={() => {
-        navigator.clipboard.writeText(text).then(
+        // The clipboard is given only to secure pages (https, localhost); elsewhere the copy is said to fail.
+        if (
+          !("clipboard" in navigator) ||
+          typeof (navigator.clipboard as Clipboard | undefined)?.writeText !== "function"
+        ) {
+          setState("failed");
+          return;
+        }
+        navigator.clipboard.writeText(typeof text === "function" ? text() : text).then(
           () => {
             setState("copied");
             window.setTimeout(() => {
@@ -213,30 +234,38 @@ const STATUS_TONE: Record<string, string> = {
   error: "bad",
 };
 
-export function StatusBadge({ status }: { status: string }) {
-  const meaning = useVocabulary().statuses.get(status);
+export function StatusBadge({ status, said = false }: { status: string; said?: boolean }) {
+  // `said`: a sentence beside the badge says what the status means for this result (the answer's panel a).
+  const known = useVocabulary().statuses.get(status);
+  const meaning = said ? null : known;
   return (
     <span className={`status status--${STATUS_TONE[status] ?? "none"}`} title={meaning ? prose(meaning) : undefined}>
       <span aria-hidden="true" className="status__glyph">
         {STATUS_GLYPH[status] ?? "·"}
       </span>
       {statusTitle(status)}
+      {/* The status's meaning is read after its word, not left to a hover. */}
+      {meaning ? <span className="visually-hidden">: {prose(meaning)}</span> : null}
     </span>
   );
 }
 
-/** An absent value: a dash, with what its absence means on focus and hover. */
+/** An absent value: a dash, with what its absence means: in the text itself for assistive technology (read in place
+ *  of the dash), and on a mouse's hover. */
 export function Absent({ meaning }: { meaning: string }) {
   return (
-    <span className="absent" title={meaning} aria-label={meaning}>
-      —
+    <span className="absent" title={meaning}>
+      <span aria-hidden="true">—</span>
+      <span className="visually-hidden">{meaning}</span>
     </span>
   );
 }
 
-/** A text of idtrack or the api: its code spans set in the monospaced face. */
-export function Prose({ text }: { text: string }) {
-  const parts = prose(text).split("`");
+/** A text of idtrack or the api: its code spans set in the monospaced face. For reading, `null`, `true` and `false`
+ *  in code are written as words ("none", "yes", "no"); `literal` keeps every code span as written (the api's reference,
+ *  where a value is the one the contract takes and returns). */
+export function Prose({ text, literal = false }: { text: string; literal?: boolean }) {
+  const parts = (literal ? text : prose(text)).split("`");
   return (
     <>
       {parts.map((part, i) =>
@@ -272,16 +301,27 @@ export function TableFrame({
     const right = element.scrollLeft + element.clientWidth < element.scrollWidth - 1;
     setMore((m) => (m.left === left && m.right === right ? m : { left, right }));
   }, []);
+  // Measured where layout is already done: in the observer's callback (which also reports at once when it starts
+  // observing) and in a frame after a scroll, never in the middle of a commit.
+  const frameRequest = useRef(0);
+  const onScroll = useCallback(() => {
+    if (!frameRequest.current)
+      frameRequest.current = window.requestAnimationFrame(() => {
+        frameRequest.current = 0;
+        measure();
+      });
+  }, [measure]);
   useEffect(() => {
     const element = frame.current;
-    if (!element) return;
-    measure();
+    if (!element || typeof ResizeObserver === "undefined") return;
     const observer = new ResizeObserver(measure);
     observer.observe(element);
     const table = element.firstElementChild;
     if (table) observer.observe(table);
     return () => {
       observer.disconnect();
+      if (frameRequest.current) window.cancelAnimationFrame(frameRequest.current);
+      frameRequest.current = 0;
     };
   }, [measure]);
   return (
@@ -292,7 +332,7 @@ export function TableFrame({
         </p>
       ) : null}
       <div className={`table-frame ${more.left ? "table-frame--left" : ""} ${more.right ? "table-frame--right" : ""}`}>
-        <div className="table-wrap" role="region" aria-label={label} tabIndex={0} ref={frame} onScroll={measure}>
+        <div className="table-wrap" role="region" aria-label={label} tabIndex={0} ref={frame} onScroll={onScroll}>
           {children}
         </div>
       </div>

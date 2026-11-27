@@ -11,13 +11,11 @@ while a release is being published reads either the previous manifest or the new
 from __future__ import annotations
 
 import base64
-import datetime
+import datetime as dt
 import hashlib
 import logging
-import os
 import shutil
 from dataclasses import dataclass
-from pathlib import Path
 from typing import TYPE_CHECKING, Protocol
 
 import idtrack_web_api
@@ -37,6 +35,8 @@ from idtrack_web_api.data import (
 )
 
 if TYPE_CHECKING:
+    from pathlib import Path
+
     from mypy_boto3_s3 import S3Client
 
 log = logging.getLogger(__name__)
@@ -97,16 +97,17 @@ class DirectoryTarget:
             try:
                 verify_file(path, file)
             except DataError as error:
-                raise DataError(
+                msg = (
                     f"{file.key} exists in the {self.describe()} with other bytes; keys named by content "
                     f"are never replaced ({error})."
-                ) from None
+                )
+                raise DataError(msg) from None
             return "kept"
         path.parent.mkdir(parents=True, exist_ok=True)
         with temporary_beside(path) as temporary:
             if self.link:
                 temporary.symlink_to(source.resolve())
-                os.replace(temporary, path)
+                temporary.replace(path)
             else:
                 shutil.copyfile(source, temporary)
                 verify_file(temporary, file)
@@ -178,15 +179,16 @@ class S3Target:
         found = self._head(file.key)
         if found is not None:
             if found != {"size": file.size, "sha256": file.sha256}:
-                raise DataError(
+                msg = (
                     f"{file.key} exists in the {self.describe()} as {found}; keys named by content are never replaced."
                 )
+                raise DataError(msg)
             return "kept"
         md5 = hashlib.md5(usedforsecurity=False)
-        with open(source, "rb") as handle:
+        with source.open("rb") as handle:
             while chunk := handle.read(8 * 1024 * 1024):
                 md5.update(chunk)
-        with open(source, "rb") as handle:
+        with source.open("rb") as handle:
             self.client.put_object(
                 Bucket=self.bucket,
                 Key=file.key,
@@ -198,7 +200,8 @@ class S3Target:
             )
         stored = self._head(file.key)
         if stored != {"size": file.size, "sha256": file.sha256}:
-            raise DataError(f"{file.key} was uploaded to the {self.describe()} but reads back as {stored}.")
+            msg = f"{file.key} was uploaded to the {self.describe()} but reads back as {stored}."
+            raise DataError(msg)
         return "uploaded"
 
     def put_bytes(self, key: str, content: bytes) -> None:
@@ -233,9 +236,11 @@ def graph_entry(path: Path) -> ManifestGraph:
     try:
         identity = Graph.load(str(path)).identity()
     except GraphLoadError as error:
-        raise DataError(f"{path} is not a graph this idtrack reads: {error}") from None
+        msg = f"{path} is not a graph this idtrack reads: {error}"
+        raise DataError(msg) from None
     if identity.content_digest is None or identity.format_version != FORMAT_VERSION:
-        raise DataError(f"{path} records no content digest or another format; build it with this idtrack.")
+        msg = f"{path} records no content digest or another format; build it with this idtrack."
+        raise DataError(msg)
     sha256, size = file_digest(path)
     return ManifestGraph(
         organism=identity.organism,
@@ -269,7 +274,8 @@ def publish(paths: list[Path], target: Target, manifest_key: str | None = None) 
         entries.append(entry)
     organisms = [e.organism for e in entries]
     if len(set(organisms)) != len(organisms):
-        raise DataError(f"Two graph files are of one organism: {organisms}; a release holds one graph per organism.")
+        msg = f"Two graph files are of one organism: {organisms}; a release holds one graph per organism."
+        raise DataError(msg)
     done: dict[str, str] = {}
     for path, entry in zip(paths, entries, strict=True):
         done[entry.file.key] = target.put_file(path, entry.file)
@@ -277,7 +283,7 @@ def publish(paths: list[Path], target: Target, manifest_key: str | None = None) 
     manifest = Manifest(
         schema_version=1,
         format_version=FORMAT_VERSION,
-        published=datetime.datetime.now(datetime.UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        published=dt.datetime.now(dt.UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
         publisher=f"idtrack-web-api {idtrack_web_api.__version__}, idtrack {idtrack_version()}",
         graphs=tuple(sorted(entries, key=lambda e: e.organism)),
     )

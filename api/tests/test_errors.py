@@ -3,17 +3,20 @@
 from __future__ import annotations
 
 import logging
-from collections.abc import Callable
 from dataclasses import replace
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import pytest
-from fastapi.testclient import TestClient
-from idtrack.api import API
 
 from idtrack_web_api import service
 from idtrack_web_api.errors import CODES
 from idtrack_web_api.graphs import LoadedGraph, Registry, load_graph
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from fastapi.testclient import TestClient
+    from idtrack.api import API
 
 P = "/api/v1"
 CONVERT = f"{P}/organisms/{{organism}}/convert"
@@ -35,10 +38,16 @@ def error_of(response: Any, check_response: Callable[..., Any], path: str, metho
     [
         ({"identifier": GENE, "to_release": "999"}, 400, "unknown_release", "to_release"),
         ({"identifier": GENE, "from_release": "55"}, 400, "unknown_release", "from_release"),
-        ({"identifier": GENE, "to_release": "0"}, 400, "invalid_request", None),
-        ({"identifier": GENE, "to_release": "80.5"}, 400, "invalid_request", None),
-        ({"identifier": GENE, "to_release": "eighty"}, 400, "invalid_request", None),
-        ({"identifier": GENE, "explain": "maybe"}, 400, "invalid_request", None),
+        ({"identifier": GENE, "to_release": "0"}, 400, "unknown_release", "to_release"),
+        ({"identifier": GENE, "to_release": "80.5"}, 400, "invalid_request", "to_release"),
+        ({"identifier": GENE, "to_release": "eighty"}, 400, "invalid_request", "to_release"),
+        ({"identifier": GENE, "to_release": "115.0"}, 400, "invalid_request", "to_release"),
+        ({"identifier": GENE, "to_release": " 115"}, 400, "invalid_request", "to_release"),
+        ({"identifier": GENE, "to_release": "+115"}, 400, "invalid_request", "to_release"),
+        ({"identifier": GENE, "to_release": "1" * 12}, 400, "invalid_request", "to_release"),
+        ({"identifier": GENE, "explain": "maybe"}, 400, "invalid_request", "explain"),
+        ({"identifier": GENE, "explain": "yes"}, 400, "invalid_request", "explain"),
+        ({"identifier": GENE, "explain": "1"}, 400, "invalid_request", "explain"),
         ({"identifier": GENE, "final_database": "NOT A DATABASE"}, 400, "unknown_database", "final_database"),
         (
             {"identifier": GENE, "final_database": "VGNC Symbol", "to_release": "60"},
@@ -49,13 +58,13 @@ def error_of(response: Any, check_response: Callable[..., Any], path: str, metho
         ({"identifier": GENE, "final_database": ""}, 400, "invalid_argument", "final_database"),
         ({"identifier": GENE, "final_database": "x" * 201}, 400, "invalid_argument", "final_database"),
         ({"identifier": GENE, "from_database": "ensembl_gene"}, 400, "unknown_database", "from_database"),
-        ({}, 400, "invalid_request", None),
+        ({}, 400, "invalid_request", "identifier"),
         ({"identifier": ""}, 400, "missing_value", "identifier"),
         ({"identifier": "   "}, 400, "missing_value", "identifier"),
         ({"identifier": "A" * 257}, 400, "invalid_identifier", "identifier"),
         ({"identifier": "TP53\x00"}, 400, "invalid_identifier", "identifier"),
         ({"identifier": "TP\u000753"}, 400, "invalid_identifier", "identifier"),
-        ({"identifier": GENE, "to_releas": "80"}, 400, "unknown_parameter", None),
+        ({"identifier": GENE, "to_releas": "80"}, 400, "unknown_parameter", "to_releas"),
     ],
 )
 def test_convert_input_errors(
@@ -170,8 +179,13 @@ def test_batch_empty_and_missing_items_are_idtracks_to_answer(
     identifiers = ["HSPB1", "", "NA", "  ", "nan"]
     response = client.post(f"{P}/organisms/pig/convert/batch", json={"identifiers": identifiers})
     data = check_response(response, BATCH, "post")
-    assert data["results"] == [r.to_dict() for r in cut_idtrack.convert_many(identifiers)]
+    reference = [r.to_dict() for r in cut_idtrack.convert_many(identifiers)]
+    for item in reference:  # the api adds the stable code of an item's error
+        if item["error"] is not None:
+            item["error"]["code"] = "missing_value"
+    assert data["results"] == reference
     assert [r["status"] for r in data["results"]] == ["converted", "error", "error", "error", "error"]
+    assert data["results"][1]["error"]["code"] == "missing_value"
 
 
 def test_batch_body_errors(make_client: Callable[..., TestClient], check_response: Callable[..., Any]) -> None:
@@ -201,7 +215,6 @@ def test_batch_body_errors(make_client: Callable[..., TestClient], check_respons
 
 
 def test_search_budget_exceeded(
-    cut_settings: Any,
     cut_registry: Registry,
     make_client: Callable[..., TestClient],
     check_response: Callable[..., Any],
@@ -230,21 +243,24 @@ def test_request_budget(
     client = make_client(rate_per_minute=0)
     calls = {"n": 0}
 
-    def remaining(deadline: float) -> float:
+    def remaining(_deadline: float) -> float:
         calls["n"] += 1
         return 5.0 if calls["n"] <= 2 else -1.0
 
     monkeypatch.setattr(service, "_remaining", remaining)
     response = client.post(f"{P}/organisms/pig/convert/batch", json={"identifiers": ["A", "B", "C"]})
-    assert response.status_code == 408
+    assert response.status_code == 503
     error = error_of(response, check_response, BATCH, "post")
     assert error["code"] == "request_budget_exceeded"
     assert "2 of the 3" in error["message"]
-    # Out of time before the first search (the request waited for the server): busy, with a time to retry.
-    monkeypatch.setattr(service, "_remaining", lambda deadline: -1.0)
+    assert response.headers["retry-after"] == "5"
+    # Out of time before the first search (the request waited for the server): the same code, with a time to retry.
+    monkeypatch.setattr(service, "_remaining", lambda _deadline: -1.0)
     response = client.get(f"{P}/organisms/pig/convert", params={"identifier": GENE})
     assert response.status_code == 503
-    assert error_of(response, check_response, CONVERT)["code"] == "server_busy"
+    error = error_of(response, check_response, CONVERT)
+    assert error["code"] == "request_budget_exceeded"
+    assert "before its search began" in error["message"]
     assert response.headers["retry-after"] == "5"
 
 
@@ -271,15 +287,38 @@ def test_response_too_large(make_client: Callable[..., TestClient], check_respon
 
 
 def test_rate_limit(make_client: Callable[..., TestClient], check_response: Callable[..., Any]) -> None:
-    client = make_client(rate_per_minute=60, rate_burst=3)
-    for _ in range(3):
-        assert client.get(f"{P}/organisms").status_code == 200
-    response = client.get(f"{P}/organisms")
+    """Searches draw on one allowance, reads on one ten times as large; the health check on none."""
+    client = make_client(rate_per_minute=6, rate_burst=3, rate_search_seconds=0.0)
+    for i in range(3):
+        params = {"identifier": f"{GENE}", "to_release": str(60 + i)}  # distinct: never an answer kept in memory
+        assert client.get(f"{P}/organisms/pig/convert", params=params).status_code == 200
+    response = client.get(f"{P}/organisms/pig/convert", params={"identifier": GENE, "to_release": "70"})
     assert response.status_code == 429
-    assert error_of(response, check_response, f"{P}/organisms")["code"] == "rate_limited"
-    assert 1 <= int(response.headers["retry-after"]) <= 2
+    error = error_of(response, check_response, CONVERT)
+    assert error["code"] == "rate_limited"
+    assert "searching requests" in error["message"]
+    assert 1 <= int(response.headers["retry-after"]) <= 10
+    # The page's reads still go through: their allowance is ten times as large (30 here).
+    codes = [client.get(f"{P}/vocabulary").status_code for _ in range(30)]
+    assert codes == [200] * 30
+    assert client.get(f"{P}/vocabulary").status_code == 429
     # The health check is never limited.
     assert client.get(f"{P}/health").status_code == 200
+
+
+def test_search_time_is_charged(make_client: Callable[..., TestClient], check_response: Callable[..., Any]) -> None:
+    """A client whose searches used more than its search seconds waits until its balance is back to zero."""
+    client = make_client(
+        rate_per_minute=1000, rate_burst=1000, rate_search_seconds=0.6, rate_search_burst_seconds=0.001
+    )
+    first = client.post(f"{P}/organisms/pig/convert/batch", json={"identifiers": [GENE, "HSPB1"], "explain": True})
+    assert first.status_code == 200
+    response = client.get(f"{P}/organisms/pig/convert", params={"identifier": GENE, "to_release": "80"})
+    assert response.status_code == 429, response.text
+    error = error_of(response, check_response, CONVERT)
+    assert error["code"] == "rate_limited"
+    assert "s of search per minute" in error["message"]
+    assert int(response.headers["retry-after"]) >= 1
 
 
 def test_internal_error_is_a_500_with_an_id(
@@ -291,8 +330,9 @@ def test_internal_error_is_a_500_with_an_id(
 ) -> None:
     graph: LoadedGraph = cut_registry.graphs["sus_scrofa"]
 
-    def broken(*args: Any, **kwargs: Any) -> Any:
-        raise RuntimeError("secret internal detail")
+    def broken(*_args: Any, **_kwargs: Any) -> Any:
+        msg = "secret internal detail"
+        raise RuntimeError(msg)
 
     monkeypatch.setattr(graph.graph.api, "convert", broken)
     with caplog.at_level(logging.ERROR, logger="idtrack_web_api"):
@@ -313,7 +353,7 @@ def test_a_result_that_is_not_strict_json_is_never_sent(
     result = cut_idtrack.convert(GENE)
     assert result.candidates
     nan = replace(result, candidates=(replace(result.candidates[0], score=float("nan")),))
-    monkeypatch.setattr(graph.graph.api, "convert", lambda *a, **k: nan)
+    monkeypatch.setattr(graph.graph.api, "convert", lambda *_a, **_k: nan)
     response = client.get(f"{P}/organisms/pig/convert", params={"identifier": GENE})
     assert response.status_code == 500
     assert "NaN" not in response.text

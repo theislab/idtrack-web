@@ -20,6 +20,7 @@ import random
 import sys
 import time
 from pathlib import Path
+from typing import Any
 
 from idtrack.api import API
 from idtrack.ids import public_name
@@ -35,10 +36,10 @@ rng = random.Random(7)  # noqa: S311 - a fixed sample, not a secret
 rng.shuffle(nodes)
 nodes = nodes[:sample]
 
-features: dict[str, list[dict]] = collections.defaultdict(list)
+features: dict[str, list[dict[str, Any]]] = collections.defaultdict(list)
 counts: collections.Counter[str] = collections.Counter()
 mid = releases[len(releases) // 2]
-variants = [
+variants: list[dict[str, Any]] = [
     {},
     {"to_release": first},
     {"from_release": first},
@@ -49,7 +50,7 @@ variants = [
 ]
 
 
-def note(name: str, ident: str, args: dict, size: int) -> None:
+def note(name: str, ident: str, args: dict[str, Any], size: int) -> None:
     """Count a feature and keep up to four examples (the shortest paths, and one long)."""
     counts[name] += 1
     bucket = features[name]

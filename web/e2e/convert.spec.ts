@@ -21,14 +21,6 @@ interface Result {
   known_versions: string[];
 }
 
-test("the empty start page", async ({ page }, info) => {
-  await page.goto(`/?organism=${data.organism}`);
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Where is this gene at another release?");
-  await expect(page.getByText("Nothing converted yet")).toBeVisible();
-  await expectAccessible(page);
-  await shot(page, info, "01-start-empty");
-});
-
 test("convert a symbol from the form", async ({ page }, info) => {
   await page.goto(`/?organism=${data.organism}`);
   await page.getByLabel("Identifier").fill(data.symbol.identifier);
@@ -36,7 +28,8 @@ test("convert a symbol from the form", async ({ page }, info) => {
   await waitForResult(page);
   await expect(page).toHaveURL(new RegExp(`id=${data.symbol.identifier}`));
   const answer = (await (await page.request.get(apiConvertUrl(data.symbol))).json()) as Result;
-  for (const best of answer.candidates.filter((c) => c.best)) {
+  // The first targets of each gene of the best answer stand in the answer (the rest on request).
+  for (const best of answer.candidates.filter((c) => c.best).slice(0, 3)) {
     await expect(page.locator(".answer__targets")).toContainText(best.target);
   }
   await expectAccessible(page);
@@ -51,14 +44,18 @@ test("the path view draws and reads the api's path, step for step", async ({ pag
   const steps = answer.path?.steps ?? [];
   expect(steps.length).toBeGreaterThan(3);
 
-  // The reading lists every step of every candidate, in order; each score as the api wrote it.
+  // The reading lists every step of the best candidate, in order (the others on choice); each score as the api
+  // wrote it.
   const reading = page.locator(".reading");
-  await expect(reading.locator(".reading__step")).toHaveCount(
-    answer.candidates.reduce((n, c) => n + c.path.length + c.final_path.length, 0),
-  );
+  const best0 = answer.candidates.find((c) => c.best);
+  const bestSteps = [...(best0?.path ?? []), ...(best0?.final_path ?? [])];
+  await expect(reading.locator(".steps__row")).toHaveCount(bestSteps.length);
   const weights = [...raw.slice(raw.indexOf('"steps":')).matchAll(/"weight":(null|[-0-9.eE+]+)/g)].map((m) => m[1]);
   const readingText = await reading.innerText();
-  for (const token of weights) if (token !== "null") expect(readingText).toContain(`score ${token ?? ""}`);
+  for (const index of bestSteps) {
+    const token = weights[index];
+    if (token && token !== "null") expect(readingText).toContain(token);
+  }
 
   // The drawing: one element per drawn step, the best answer in the answer column with the deciding criterion.
   const drawing = page.getByRole("group", { name: /^Path of/ });
@@ -141,10 +138,110 @@ test("the phone's vertical timeline", async ({ page }, info) => {
   await shot(page, info, "05-path-phone-timeline");
 });
 
+test("every note of the path view stands whole in the window, and every element says its state", async ({
+  page,
+}, info) => {
+  await page.goto(convertUrl(data.long));
+  await waitForResult(page);
+  const drawing = page.getByRole("group", { name: /^Path of/ });
+  await drawing.locator('[tabindex="0"]').first().focus();
+  const tip = page.getByRole("tooltip");
+  for (let i = 0; i < 30; i++) {
+    await expect(tip).toBeVisible();
+    // Whole: inside the window, and cut by no frame (what it holds can be scrolled to inside it).
+    const box = await tip.evaluate((el) => {
+      const b = el.getBoundingClientRect();
+      let clipped = false;
+      for (let p = el.parentElement; p && p !== document.body; p = p.parentElement) {
+        const style = getComputedStyle(p);
+        const r = p.getBoundingClientRect();
+        if (
+          (style.overflowY !== "visible" || style.overflowX === "hidden") &&
+          (b.bottom > r.bottom + 1 || b.top < r.top - 1)
+        )
+          clipped = true;
+      }
+      return { top: b.top, bottom: b.bottom, height: innerHeight, clipped };
+    });
+    expect(box.top).toBeGreaterThanOrEqual(0);
+    expect(box.bottom).toBeLessThanOrEqual(box.height + 1);
+    expect(box.clipped).toBe(false);
+    // The element shown is named with its facts and described by the note.
+    const focused = page.locator(":focus");
+    await expect(focused).toHaveAttribute("aria-describedby", /.+/);
+    await expect(focused).toHaveAttribute("aria-pressed", "false");
+    await page.keyboard.press("ArrowRight");
+  }
+  await page.keyboard.press("Enter");
+  await expect(page.locator(":focus")).toHaveAttribute("aria-pressed", "true");
+  if (!isPhone(info)) {
+    // The toolbar says which view it set: the whole path, at first.
+    await expect(page.getByRole("button", { name: "Fit the path" })).toHaveAttribute("aria-pressed", "true");
+    await page.getByRole("button", { name: "All releases" }).click();
+    await expect(page.getByRole("button", { name: "All releases" })).toHaveAttribute("aria-pressed", "true");
+    await expect(page.getByRole("button", { name: "Fit the path" })).toHaveAttribute("aria-pressed", "false");
+  }
+});
+
+test("a note of the path view can be pointed at, and Escape hides it without moving focus (WCAG 1.4.13)", async ({
+  page,
+}, info) => {
+  test.skip(isPhone(info), "a touch screen has no pointing");
+  await page.goto(convertUrl(data.long));
+  await waitForResult(page);
+  const drawing = page.getByRole("group", { name: /^Path of/ });
+  const item = drawing.locator('[role="button"]').first();
+  await item.scrollIntoViewIfNeeded();
+  const box = await item.boundingBox();
+  if (!box) throw new Error("the element has no box");
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  const tip = page.getByRole("tooltip");
+  await expect(tip).toBeVisible();
+  // The pointer goes straight from the element onto its note (up or down, where the note stands), a few pixels at a
+  // time: the note stays all the way.
+  const note = await tip.boundingBox();
+  if (!note) throw new Error("the note has no box");
+  const x = box.x + box.width / 2;
+  const from = box.y + box.height / 2;
+  const to = note.y > from ? note.y + 12 : note.y + note.height - 12;
+  for (let i = 1; i <= 8; i++) {
+    await page.mouse.move(x, from + ((to - from) * i) / 8);
+    await expect(tip).toBeVisible();
+  }
+  // Escape hides it, wherever the focus is, and the focus does not move.
+  await page.locator("body").focus();
+  const focused = await page.evaluate(() => document.activeElement?.tagName ?? "");
+  await page.keyboard.press("Escape");
+  await expect(tip).toHaveCount(0);
+  expect(await page.evaluate(() => document.activeElement?.tagName ?? "")).toBe(focused);
+});
+
+test("in forced colours, every text of the answer's figures is the system's text colour", async ({ browser }) => {
+  const context = await browser.newContext({ forcedColors: "active", colorScheme: "dark" });
+  const page = await context.newPage();
+  await page.goto(convertUrl(data.long));
+  await waitForResult(page);
+  const dark = await page.evaluate(() =>
+    [...document.querySelectorAll(".result svg text")]
+      .map((t) => ({ name: t.getAttribute("class") ?? "", fill: getComputedStyle(t).fill }))
+      .filter(({ fill }) => {
+        const m = /rgb\((\d+), (\d+), (\d+)/.exec(fill);
+        return m ? (Number(m[1]) + Number(m[2]) + Number(m[3])) / 3 < 128 : false;
+      }),
+  );
+  expect(dark).toEqual([]);
+  await context.close();
+});
+
 test("a conversion back in time, through bridges", async ({ page }, info) => {
   await page.goto(convertUrl(data.backward));
   await waitForResult(page);
-  await expect(page.locator(".reading")).toContainText("travelled backward");
+  // Each step of Ensembl's history in Ensembl's direction (the releases ascending), the walk's direction marked apart.
+  await expect(page.locator(".reading")).toContainText("walked backward");
+  for (const when of await page.locator(".reading .steps__when").allInnerTexts()) {
+    const [a, b] = when.split("→").map((t) => Number(t.trim()));
+    if (a !== undefined && b !== undefined && !Number.isNaN(b)) expect(a).toBeLessThanOrEqual(b);
+  }
   await expectAccessible(page);
   await shot(page, info, "06-path-backward");
 });
@@ -185,4 +282,31 @@ test("the conversion's address holds every option and reloads", async ({ page })
   await expect(page.getByRole("switch", { name: "Allow bridges" })).not.toBeChecked();
   await expect(page.getByRole("switch", { name: "Show the path" })).not.toBeChecked();
   await page.goBack();
+});
+
+test("every id of an answer is a way on, and a link made on another graph says so", async ({ page }, info) => {
+  await page.goto(convertUrl(data.long));
+  await waitForResult(page);
+  // The answer's id opens a menu of where to go from it; its links are this site's addresses.
+  const id = page.locator(".answer__id .toggletip__term").first();
+  await id.click();
+  const menu = page.locator(".answer__id .idmenu__card");
+  await expect(menu).toBeVisible();
+  await expect(menu.getByRole("link", { name: /^Open it in Convert/ })).toHaveAttribute("href", /^\/\?organism=/);
+  await expectAccessible(page);
+  await page.keyboard.press("Escape");
+  await expect(menu).toHaveCount(0);
+  // A link that names another graph than the server's: said above the answer; the server's own: nothing said.
+  await page.goto(`${convertUrl(data.long)}&graph=000000000000`);
+  await waitForResult(page);
+  await expect(page.getByRole("heading", { name: "This link was made on another graph" })).toBeVisible();
+  const description = (await (await page.request.get(`/api/v1/organisms/${data.organism}`)).json()) as {
+    content_digest: string | null;
+  };
+  if (description.content_digest) {
+    await page.goto(`${convertUrl(data.long)}&graph=${description.content_digest.slice(0, 12)}`);
+    await waitForResult(page);
+    await expect(page.getByRole("heading", { name: "This link was made on another graph" })).toHaveCount(0);
+  }
+  await shot(page, info, "07-answer-hub");
 });

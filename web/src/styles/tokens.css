@@ -1,21 +1,30 @@
-/* The design tokens: one neutral ink scale, and colour only where it carries meaning (DESIGN.md).
+/* The design tokens (DESIGN.md). One neutral ink scale on paper; colour only where it carries meaning.
+   The light theme is the default; the dark theme is chosen, or follows the system when "system" is chosen
+   (`data-theme` on the root: "light", "dark" or "system", set before the first paint by index.html).
    The four step hues are checked by tests/palette.test.ts: every pair apart under protan and deutan vision
-   (OKLab ΔE ≥ 8), apart in full colour (ΔE ≥ 15), and at least 3:1 against the drawing's surface, in both themes. */
+   (OKLab ΔE ≥ 8), apart in full colour (ΔE ≥ 15), and at least 3:1 against the drawing's surface, in both themes;
+   every text ink at 4.5:1 or more against the paper, the surface and the bands. */
 
 :root {
   color-scheme: light;
 
-  /* Ink and paper (light) */
-  --paper: #f7f7f4;
+  /* Paper and ink (light) */
+  --paper: #fafaf8;
   --surface: #ffffff;
-  --surface-sunk: #f0f0ec;
-  --band: #efefea;
-  --ink-1: #14171b;
-  --ink-2: #464c55;
-  --ink-3: #626873;
-  --line: #dcdcd6;
-  --line-strong: #b4b7bd;
-  --shadow: 0 1px 2px rgb(20 23 27 / 6%), 0 8px 24px rgb(20 23 27 / 6%);
+  --surface-sunk: #f3f3f0;
+  --surface-raised: #ffffff;
+  --band: #efefeb;
+  --ink-1: #0e1116;
+  --ink-2: #3b424c;
+  --ink-3: #484e58;
+  --line: #e3e3de;
+  --line-strong: #c3c5c9;
+  --line-control: #80868f;
+  --grid: rgb(14 17 22 / 4.5%);
+  --shadow: 0 1px 2px rgb(14 17 22 / 5%), 0 6px 20px rgb(14 17 22 / 5%);
+  --shadow-pop: 0 2px 6px rgb(14 17 22 / 8%), 0 18px 48px rgb(14 17 22 / 14%);
+  --inverse-paper: #0e1116;
+  --inverse-ink: #fafaf8;
 
   /* Meaning: one hue per kind of step (light) */
   --hue-history: #2f5fd0;
@@ -23,20 +32,58 @@
   --hue-external: #00805d;
   --hue-handoff: #c0399a;
 
-  /* States of a result or a request: text colours with at least 4.5:1 on the paper and the surface */
+  /* States of a result, a request or the server: text colours with at least 4.5:1 on the paper and the surface */
+  --state-ok: #19734a;
+  --state-warn: #8a5a00;
   --state-danger: #a8261b;
+  --state-ok-surface: #ebf5ef;
   --state-danger-surface: #fbeeec;
   --state-warn-surface: #fbf3e6;
 
-  /* Type */
-  --font-sans: "Source Sans 3 Variable", "Source Sans 3", "Segoe UI", system-ui, sans-serif;
-  --font-mono: "JetBrains Mono Variable", "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  /* Type: Inter for the interface and prose, Source Serif 4 for display headings, JetBrains Mono for data. One scale
+     of eight steps; nothing is set outside it (no em-derived or fluid sizes). 11 px is the floor, in figures too. */
+  --font-sans: "Inter Variable", "Inter", "Inter Fallback", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --font-display:
+    "Source Serif 4 Variable", "Source Serif 4", "Source Serif 4 Fallback", "Iowan Old Style", Georgia, serif;
+  --font-mono:
+    "JetBrains Mono Variable", "JetBrains Mono", "JetBrains Mono Fallback", "JetBrains Mono Fallback Consolas",
+    "JetBrains Mono Fallback Courier", ui-monospace, monospace;
+  --text-2xs: 0.6875rem;
   --text-xs: 0.75rem;
-  --text-sm: 0.875rem;
-  --text-md: 1rem;
-  --text-lg: 1.1875rem;
-  --text-xl: 1.5rem;
-  --text-2xl: 2rem;
+  --text-sm: 0.84375rem;
+  --text-md: 0.9375rem;
+  --text-lg: 1.0625rem;
+  --text-xl: 1.3125rem;
+  --text-2xl: 1.75rem;
+  --text-3xl: 2.5rem;
+
+  /* Three weights, for every face: text, the voice of a control or a label, and what is strong (a heading, a status,
+     an answer). Nothing is set in a weight of its own (tests/typescale.test.ts reads every stylesheet). */
+  --weight-regular: 400;
+  --weight-medium: 520;
+  --weight-strong: 640;
+
+  /* The headings' tiers (app.css, "Type"): the page's title, a section of the page (the serif, as a journal sets a
+     section), a panel's title inside a section (the sans); the title and the section a step smaller below 720 px. */
+  --heading-title: var(--text-3xl);
+  --heading-section: var(--text-2xl);
+  --heading-panel: var(--text-lg);
+
+  /* Identifiers inside running text keep the text's size and are fitted to its x-height (JetBrains Mono is wider and
+     taller than Inter at one size): the size stays on the scale, the face reads as one line with the text. */
+  --mono-fit: 0.5;
+  --leading-tight: 1.15;
+  --leading-head: 1.25;
+  --leading-text: 1.6;
+  --leading-caption: 1.55;
+
+  /* Tracking of the small uppercase monospaced labels (eyebrows, column heads, axis titles). */
+  --track-label: 0.08em;
+  --track-eyebrow: 0.12em;
+
+  /* Line lengths: prose and ledes; captions and legends (about 75 characters a line). */
+  --measure: 68ch;
+  --measure-caption: 62ch;
 
   /* Space and shape */
   --space-1: 4px;
@@ -47,51 +94,90 @@
   --space-6: 32px;
   --space-7: 48px;
   --space-8: 64px;
-  --radius: 3px;
-  --content: 1240px;
-  --focus: 0 0 0 2px var(--surface), 0 0 0 4px var(--ink-1);
+  --space-9: 96px;
+  --radius: 4px;
+  --radius-lg: 8px;
+  --content: 1280px;
+
+  /* The masthead's height at each width (app.css sets it per breakpoint); what scrolls into view stops below it. */
+  --masthead-height: 60px;
+
+  /* Focus: an outline (kept, as Highlight, in forced colours), 2 px of ink 2 px off the element. */
+  --focus-width: 2px;
+  --focus-offset: 2px;
+  --focus-color: var(--ink-1);
+  --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    color-scheme: dark;
-    --paper: #0f1114;
-    --surface: #14161a;
-    --surface-sunk: #1a1d22;
-    --band: #1c1f24;
-    --ink-1: #eceef1;
-    --ink-2: #b9bec6;
-    --ink-3: #959ba5;
-    --line: #2b2f36;
-    --line-strong: #4a505a;
-    --shadow: 0 1px 2px rgb(0 0 0 / 40%), 0 8px 24px rgb(0 0 0 / 30%);
-    --hue-history: #5b8def;
-    --hue-event: #e0702a;
-    --hue-external: #1f9e78;
-    --hue-handoff: #d45cb8;
-    --state-danger: #ff8a7a;
-    --state-danger-surface: #2a1714;
-    --state-warn-surface: #2a2113;
+/* Below 720 px the page's title and the sections take the next step down (the panels keep theirs). */
+@media (max-width: 719px) {
+  :root {
+    --heading-title: var(--text-2xl);
+    --heading-section: var(--text-xl);
   }
 }
 
+/* The dark theme: its own steps of the same hues, checked separately (not an inversion). */
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --paper: #0f1114;
-  --surface: #14161a;
-  --surface-sunk: #1a1d22;
-  --band: #1c1f24;
+
+  --paper: #0b0d10;
+  --surface: #111418;
+  --surface-sunk: #161a1f;
+  --surface-raised: #181c22;
+  --band: #1a1e24;
   --ink-1: #eceef1;
   --ink-2: #b9bec6;
-  --ink-3: #959ba5;
-  --line: #2b2f36;
-  --line-strong: #4a505a;
+  --ink-3: #a5abb4;
+  --line: #262b32;
+  --line-strong: #434a54;
+  --line-control: #737b87;
+  --grid: rgb(236 238 241 / 4%);
   --shadow: 0 1px 2px rgb(0 0 0 / 40%), 0 8px 24px rgb(0 0 0 / 30%);
+  --shadow-pop: 0 2px 6px rgb(0 0 0 / 50%), 0 18px 48px rgb(0 0 0 / 55%);
+  --inverse-paper: #eceef1;
+  --inverse-ink: #0b0d10;
   --hue-history: #5b8def;
   --hue-event: #e0702a;
   --hue-external: #1f9e78;
   --hue-handoff: #d45cb8;
+  --state-ok: #5cc28f;
+  --state-warn: #e3b25a;
   --state-danger: #ff8a7a;
+  --state-ok-surface: #13241b;
   --state-danger-surface: #2a1714;
   --state-warn-surface: #2a2113;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root[data-theme="system"] {
+    color-scheme: dark;
+
+    --paper: #0b0d10;
+    --surface: #111418;
+    --surface-sunk: #161a1f;
+    --surface-raised: #181c22;
+    --band: #1a1e24;
+    --ink-1: #eceef1;
+    --ink-2: #b9bec6;
+    --ink-3: #a5abb4;
+    --line: #262b32;
+    --line-strong: #434a54;
+    --line-control: #737b87;
+    --grid: rgb(236 238 241 / 4%);
+    --shadow: 0 1px 2px rgb(0 0 0 / 40%), 0 8px 24px rgb(0 0 0 / 30%);
+    --shadow-pop: 0 2px 6px rgb(0 0 0 / 50%), 0 18px 48px rgb(0 0 0 / 55%);
+    --inverse-paper: #eceef1;
+    --inverse-ink: #0b0d10;
+    --hue-history: #5b8def;
+    --hue-event: #e0702a;
+    --hue-external: #1f9e78;
+    --hue-handoff: #d45cb8;
+    --state-ok: #5cc28f;
+    --state-warn: #e3b25a;
+    --state-danger: #ff8a7a;
+    --state-ok-surface: #13241b;
+    --state-danger-surface: #2a1714;
+    --state-warn-surface: #2a2113;
+  }
 }

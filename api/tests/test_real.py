@@ -3,19 +3,23 @@
 from __future__ import annotations
 
 import json
-from collections.abc import Callable, Iterator
 from dataclasses import replace
-from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import pytest
 from fastapi.testclient import TestClient
-from idtrack.api import API
 
 from idtrack_web_api.app import asgi_app
-from idtrack_web_api.graphs import Registry
 from tests.conftest import settings_of
 from tests.test_endpoints import floats_of, same_json, sample_identifiers
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Iterator
+    from pathlib import Path
+
+    from idtrack.api import API
+
+    from idtrack_web_api.graphs import Registry
 
 pytestmark = pytest.mark.real
 P = "/api/v1"

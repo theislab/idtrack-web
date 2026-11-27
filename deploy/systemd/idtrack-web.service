@@ -1,6 +1,6 @@
-# idtrack-web as a systemd service on the node, without containers (SETUP.md, "Deploying without containers").
-# The api runs from the environment built in /opt/idtrack-web/venv; Caddy (installed from its package) proxies to it
-# with deploy/Caddyfile (`reverse_proxy 127.0.0.1:8000`).
+# idtrack-web as a systemd service, without containers (SETUP.md, section 12). The api runs from the environment
+# built in /opt/idtrack-web/venv and serves the frontend built into /opt/idtrack-web/web; Caddy (installed from
+# Caddy's own package repository) proxies to it with deploy/Caddyfile and deploy/systemd/caddy-idtrack-web.conf.
 [Unit]
 Description=idtrack-web api
 After=network-online.target
@@ -10,14 +10,19 @@ Wants=network-online.target
 Type=simple
 User=idtrack-web
 Group=idtrack-web
+# The configuration, with IDTRACK_WEB_PUBLIC_URL=https://<domain> among it (deploy/idtrack-web.env.example).
 EnvironmentFile=/etc/idtrack-web/idtrack-web.env
 Environment=IDTRACK_WEB_HOST=127.0.0.1
 Environment=IDTRACK_WEB_PORT=8000
 Environment=IDTRACK_WEB_CACHE_DIR=/var/cache/idtrack-web
 Environment=IDTRACK_WEB_FORWARDED_ALLOW_IPS=127.0.0.1
+Environment=IDTRACK_WEB_STATIC_DIR=/opt/idtrack-web/web
 ExecStart=/opt/idtrack-web/venv/bin/idtrack-web serve
-Restart=on-failure
+# Restarted after any exit but a stop by systemctl, and after a reboot (enabled); a worker the kernel stops for want
+# of memory is replaced by the server itself (OOMPolicy=continue), the server stopped is restarted.
+Restart=always
 RestartSec=10
+OOMPolicy=continue
 TimeoutStartSec=600
 TimeoutStopSec=40
 CacheDirectory=idtrack-web

@@ -1,36 +1,53 @@
-// Convert many identifiers at once: paste or upload a list, read the results in order, export them as the api gave them.
-import { useMemo, useRef, useState, type ChangeEvent, type SyntheticEvent } from "react";
-import { api } from "../api/client";
-import type { BatchRequest, ConversionResult, GraphDescription } from "../api/types";
-import { ErrorPanel } from "../components/ErrorPanel";
+// Convert many identifiers at once: paste or upload a list, read the answer as a figure (what came back, then the
+// results one row per identifier), export it exactly as the api returned it.
 import {
-  Button,
-  Field,
-  Link,
-  Mono,
-  Prose,
-  Select,
-  Skeleton,
-  StatusBadge,
-  Switch,
-  TableFrame,
-  TextInput,
-} from "../components/ui";
+  useCallback,
+  useDeferredValue,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ChangeEvent,
+  type SyntheticEvent,
+} from "react";
+import { api } from "../api/client";
+import type { BatchRequest, GraphDescription } from "../api/types";
+import { BatchResults } from "../components/BatchResults";
+import { ErrorPanel } from "../components/ErrorPanel";
+import { Button, Field, Link, Mono, Select, Skeleton, Switch, TextInput } from "../components/ui";
+import { announce } from "../lib/announce";
+import {
+  BATCH_TEXT_DRAFT,
+  decodeFile,
+  linesWithControls,
+  normalizeLines,
+  parseTable,
+  SEPARATOR_WORDS,
+  type TableChoice,
+} from "../lib/batchList";
+import { exampleSets, exampleWords, type ExampleSet } from "../lib/batchExamples";
+import { markSeen, retryBatch, startBatch, useBatchRun, useOtherRuns } from "../lib/batchRun";
+import { useShowcase } from "../lib/showcase";
 import { databaseLabel, sortDatabases } from "../lib/databases";
-import { bestWords, noTargetOf } from "../lib/noTarget";
+import { limitationAt, LIMITATION_OF } from "../lib/evidence";
+import { isRecord, isText, readDraft, writeDraft } from "../lib/drafts";
+import { revealArea, useFocusMove } from "../lib/focus";
 import { groupedInteger } from "../lib/numbers";
+import { batchSentence } from "../lib/outcomes";
+import { organismName } from "../lib/organismNames";
 import { useOrganisms } from "../lib/organisms";
-import { parseList } from "../lib/batchList";
-import { convertHref } from "../lib/convertParameters";
-import { saveText } from "../lib/save";
-import { useAction, useRequest } from "../lib/useRequest";
-import { ABSENT } from "../lib/values";
-import { statusTitle } from "../lib/vocabulary";
-import { useLimits, useVocabulary } from "../lib/vocabularyContext";
+import { useRequest } from "../lib/useRequest";
+import { useLimits } from "../lib/vocabularyContext";
+import { href } from "../lib/router";
+import "../styles/tables.css";
 
-function stamp(): string {
-  return new Date().toISOString().slice(0, 19).replace(/[-:]/g, "").replace("T", "-");
-}
+/** A list longer than this many characters is read only once typing pauses (a few hundred ms), and kept for the
+ *  session then too: reading a list of tens of thousands of lines at every key would hold the page. */
+const LARGE_TEXT = 60_000;
+/** An insertion of more lines than this at once (a dictated or dropped list) is put in by the page: the browser's own
+ *  editing of a text area takes seconds over a thousand lines inserted as typed text. */
+const LARGE_INSERT_LINES = 200;
 
 export function BatchPage() {
   const { current } = useOrganisms();
@@ -38,55 +55,229 @@ export function BatchPage() {
   return <BatchForOrganism key={current.organism} description={current} />;
 }
 
+/** The setting of a batch on one graph, kept per organism (releases and databases belong to a graph). */
+interface Settings {
+  fromRelease: string;
+  toRelease: string;
+  finalDatabase: string;
+  fromDatabase: string;
+  allowBridges: boolean;
+}
+const NO_SETTINGS: Settings = {
+  fromRelease: "",
+  toRelease: "",
+  finalDatabase: "",
+  fromDatabase: "",
+  allowBridges: true,
+};
+
+const isSettings = (value: unknown): value is Settings =>
+  isRecord(value) &&
+  ["fromRelease", "toRelease", "finalDatabase", "fromDatabase"].every((k) => typeof value[k] === "string") &&
+  typeof value["allowBridges"] === "boolean";
+
+/** The text as typed, and the text read: the same text a render later (typing never waits on reading), or for a
+ *  very long text once typing pauses. */
+function useSettledText(text: string): string {
+  const deferred = useDeferredValue(text);
+  const [settled, setSettled] = useState(text);
+  const large = text.length > LARGE_TEXT;
+  useEffect(() => {
+    if (!large) return;
+    const timer = window.setTimeout(() => {
+      setSettled(text);
+    }, 300);
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [text, large]);
+  return large ? settled : deferred;
+}
+
 function BatchForOrganism({ description }: { description: GraphDescription }) {
   const organism = description.organism;
   const limits = useLimits();
-  const [text, setText] = useState("");
+  const settingsKey = `batch.settings.${organism}`;
+  const [text, setTextState] = useState(() => readDraft(BATCH_TEXT_DRAFT, isText) ?? "");
+  const [choice, setChoice] = useState<TableChoice>(() => readDraft("batch.table", isChoice) ?? {});
   const [fileNote, setFileNote] = useState<string | null>(null);
-  const [toRelease, setToRelease] = useState("");
-  const [fromRelease, setFromRelease] = useState("");
-  const [finalDatabase, setFinalDatabase] = useState("");
-  const [fromDatabase, setFromDatabase] = useState("");
-  const [allowBridges, setAllowBridges] = useState(true);
+  const [settings, setSettings] = useState<Settings>(() => readDraft(settingsKey, isSettings) ?? NO_SETTINGS);
   const [problem, setProblem] = useState<string | null>(null);
-  const [request, setRequest] = useState<BatchRequest | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
-  const identifiers = useMemo(() => parseList(text), [text]);
+  const area = useRef<HTMLElement>(null);
+  const listField = useRef<HTMLTextAreaElement>(null);
+  // The list is kept for the session as it is typed; a very long one once typing pauses (and when the page goes).
+  const pendingDraft = useRef<string | null>(null);
+  const keepText = useCallback(() => {
+    if (pendingDraft.current === null) return;
+    writeDraft(BATCH_TEXT_DRAFT, pendingDraft.current === "" ? undefined : pendingDraft.current);
+    pendingDraft.current = null;
+  }, []);
+  useEffect(() => keepText, [keepText]);
+  const setText = (value: string) => {
+    setTextState(value);
+    pendingDraft.current = value;
+    if (value.length <= LARGE_TEXT) keepText();
+  };
+  useEffect(() => {
+    if (text.length <= LARGE_TEXT) return;
+    const timer = window.setTimeout(keepText, 400);
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [text, keepText]);
+  // A large insertion as typed text (dictation, a drop, an automated fill) is put in by the page, at the selection.
+  const caret = useRef<number | null>(null);
+  useLayoutEffect(() => {
+    const field = listField.current;
+    if (caret.current === null || !field) return;
+    field.setSelectionRange(caret.current, caret.current);
+    caret.current = null;
+  });
+  useEffect(() => {
+    const field = listField.current;
+    if (!field) return;
+    const insert = (event: InputEvent) => {
+      if (!["insertText", "insertReplacementText", "insertFromDrop"].includes(event.inputType)) return;
+      const data = event.data ?? event.dataTransfer?.getData("text/plain") ?? "";
+      let lines = 0;
+      for (let i = data.indexOf("\n"); i >= 0 && lines <= LARGE_INSERT_LINES; i = data.indexOf("\n", i + 1)) lines++;
+      if (lines <= LARGE_INSERT_LINES) return;
+      event.preventDefault();
+      const value = field.value;
+      const next = value.slice(0, field.selectionStart) + data + value.slice(field.selectionEnd);
+      caret.current = field.selectionStart + data.length;
+      setTextState(next);
+      pendingDraft.current = next;
+      setProblem(null);
+    };
+    field.addEventListener("beforeinput", insert);
+    return () => {
+      field.removeEventListener("beforeinput", insert);
+    };
+  }, []);
+  const choose = (next: TableChoice) => {
+    setChoice(next);
+    writeDraft("batch.table", next);
+  };
+  const setting =
+    <K extends keyof Settings>(name: K) =>
+    (value: Settings[K]) => {
+      setSettings((current) => {
+        const next = { ...current, [name]: value };
+        writeDraft(settingsKey, next);
+        return next;
+      });
+    };
+  const { fromRelease, toRelease, finalDatabase, fromDatabase, allowBridges } = settings;
+  const setFromRelease = setting("fromRelease");
+  const setToRelease = setting("toRelease");
+  const setFinalDatabase = setting("finalDatabase");
+  const setFromDatabase = setting("fromDatabase");
+  const setAllowBridges = setting("allowBridges");
+  // The list is read from the text in a render of its own, so that typing and pasting never wait on it.
+  const typed = useSettledText(text);
+  const table = useMemo(() => parseTable(typed, choice), [typed, choice]);
+  const identifiers = table.identifiers;
+  const distinct = useMemo(() => new Set(identifiers).size, [identifiers]);
   const toNumber = /^\d+$/.test(toRelease.trim()) ? Number(toRelease.trim()) : null;
-  const finals = useRequest(`${organism}:${toNumber ?? "snapshot"}`, (signal) =>
-    api.finalDatabases(organism, toNumber, signal),
+  const finals = useRequest(`${organism}:${toNumber ?? "snapshot"}`, (signal, fresh) =>
+    api.finalDatabases(organism, toNumber, { signal, fresh }),
   );
   const finalOptions =
     finals.state === "done"
       ? sortDatabases(finals.answer.data.final_databases)
       : sortDatabases(description.final_databases);
+  const showcase = useShowcase(organism);
+  const shown = showcase.state === "done" ? showcase.answer.data : null;
+  const examples = useMemo(() => exampleSets(shown), [shown]);
 
-  const batch = useAction((signal, body: BatchRequest) => api.batch(organism, body, signal));
-  const tsv = useAction((signal, body: BatchRequest) => api.batchTsv(organism, body, signal));
+  // The organism's batch: held by lib/batchRun.ts, so that it goes on while another page is shown and is kept for the
+  // session once, when its answer comes.
+  const batch = useBatchRun(organism);
+  const run = batch.run;
+  const others = useOtherRuns(organism);
+  // A batch the person started on this page: said in one sentence, its results brought into view and focused.
+  const followed = useRef<number | null>(null);
+  const moveFocus = useFocusMove();
+  useEffect(() => {
+    if (run.state === "done") markSeen(organism);
+    if (followed.current !== batch.id || (run.state !== "done" && run.state !== "failed")) return;
+    followed.current = null;
+    if (run.state === "done") announce(batchSentence(run.answer.data.results));
+    moveFocus(() => area.current, '.batch-figure-head__title, [role="alert"] .notice__title');
+  }, [batch.id, run, organism, moveFocus]);
 
   const onFile = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
+    event.target.value = "";
     if (file.size > 4 * 1024 * 1024) {
       setFileNote(
         `${file.name} is ${groupedInteger(file.size)} bytes; a list of identifiers is far smaller. Choose a text file with one identifier per line.`,
       );
       return;
     }
-    file.text().then(
-      (content) => {
+    file.arrayBuffer().then(
+      (buffer) => {
+        const decoded = decodeFile(buffer);
+        if (!decoded.ok) {
+          setFileNote(`${file.name} ${decoded.problem}`);
+          return;
+        }
+        const content = normalizeLines(decoded.text);
         setText(content);
-        setFileNote(`Read ${file.name}: ${groupedInteger(parseList(content).length)} identifiers.`);
+        choose({});
+        const read = parseTable(content);
+        const n = read.identifiers.length;
+        const garbled =
+          decoded.encoding === "windows-1252" ? read.identifiers.filter((id) => /[^\x20-\x7e]/.test(id)).length : 0;
+        const encoding =
+          decoded.encoding === "windows-1252"
+            ? garbled
+              ? ` It is not UTF-8, so it was read as Windows-1252, and ${groupedInteger(garbled)} identifier${garbled === 1 ? " holds" : "s hold"} letters outside plain ASCII: if they look garbled, the file is in another encoding. Save it as UTF-8 and upload it again.`
+              : " It is not UTF-8, so it was read as Windows-1252."
+            : decoded.encoding === "UTF-8"
+              ? ""
+              : ` It was read as ${decoded.encoding}, as its first bytes say.`;
+        const header = read.header ? ` Its first line was taken as the header (${read.header.join(", ")}).` : "";
+        setFileNote(`Read ${file.name}: ${groupedInteger(n)} identifier${n === 1 ? "" : "s"}.${header}${encoding}`);
       },
-      () => setFileNote(`${file.name} could not be read.`),
+      () => {
+        setFileNote(`${file.name} could not be read.`);
+      },
     );
-    event.target.value = "";
   };
 
+  const over = limits !== null && identifiers.length > limits.batch_max;
+  const overWords = limits
+    ? `The list has ${groupedInteger(identifiers.length)} identifiers; this server converts at most ${groupedInteger(limits.batch_max)} per request. The page does not split a list: a batch's answers can depend on its members (an item that is another item with -1, .1 or _1 appended is read as that item's copy). To convert more, use idtrack's convert_many in Python, which takes a list of any length, or the http api in requests of at most ${groupedInteger(limits.batch_max)}, keeping such names in one request (API page).`
+    : "";
   const submit = (event: SyntheticEvent) => {
     event.preventDefault();
-    if (!identifiers.length) {
+    if (run.state === "loading") return;
+    // The list as typed now (the reading may be a render behind).
+    const now = parseTable(text, choice);
+    if (!now.identifiers.length) {
       setProblem("Paste or upload at least one identifier.");
+      listField.current?.focus();
+      return;
+    }
+    if (limits && now.identifiers.length > limits.batch_max) {
+      setProblem(overWords);
+      listField.current?.focus();
+      return;
+    }
+    const lines = linesWithControls(now.identifiers);
+    if (lines.length) {
+      const shownLines = lines
+        .slice(0, 10)
+        .map((k) => now.rows[k - 1]?.line ?? k)
+        .join(", ");
+      setProblem(
+        `${groupedInteger(lines.length)} line${lines.length === 1 ? " holds" : "s hold"} a control character, which the api refuses for the whole batch: line${lines.length === 1 ? "" : "s"} ${shownLines}${lines.length > 10 ? " …" : ""} of the list. Remove ${lines.length === 1 ? "it" : "them"} and convert again.`,
+      );
+      listField.current?.focus();
       return;
     }
     for (const value of [fromRelease, toRelease]) {
@@ -96,30 +287,48 @@ function BatchForOrganism({ description }: { description: GraphDescription }) {
       }
     }
     setProblem(null);
-    const body: BatchRequest = {
-      identifiers,
+    keepText();
+    const body: Required<BatchRequest> = {
+      identifiers: now.identifiers,
       from_release: fromRelease.trim() ? Number(fromRelease.trim()) : null,
       to_release: toRelease.trim() ? Number(toRelease.trim()) : null,
       final_database: finalDatabase || null,
       from_database: fromDatabase || null,
-      explain: false,
+      explain: true,
       allow_bridges: allowBridges,
+      read_copies: true,
     };
-    setRequest(body);
-    tsv.reset();
-    void batch.start(body);
-  };
-
-  const exportJson = () => {
-    if (batch.state !== "done") return;
-    saveText(batch.answer.raw, `idtrack_${organism}_batch_${stamp()}.json`, "application/json");
-  };
-  const exportTsv = () => {
-    if (!request) return;
-    void tsv.start(request).then((answer) => {
-      if (answer) saveText(answer.raw, `idtrack_${organism}_batch_${stamp()}.tsv`, "text/tab-separated-values");
+    announce(`Converting ${groupedInteger(now.identifiers.length)} identifiers…`);
+    followed.current = startBatch(organism, body, {
+      separator: now.separator,
+      header: now.header,
+      column: now.column,
+      rows: now.rows,
+    });
+    window.requestAnimationFrame(() => {
+      revealArea(area.current);
     });
   };
+  const takeExample = (set: ExampleSet) => {
+    setText(set.identifiers.join("\n"));
+    choose({});
+    setSettings((current) => {
+      const next = {
+        ...current,
+        fromRelease: set.from === null ? "" : String(set.from),
+        toRelease: set.to === null ? "" : String(set.to),
+        finalDatabase: set.database ?? "",
+      };
+      writeDraft(settingsKey, next);
+      return next;
+    });
+    setFileNote(
+      `An example: ${groupedInteger(set.identifiers.length)} identifiers of the Convert page's first figure, with its settings (${exampleWords(set, description.snapshot_release)}).`,
+    );
+  };
+  const synonyms = new Set(description.synonym_databases);
+  const sources = description.external_databases;
+  const inferred = limitationAt(LIMITATION_OF.other_release);
 
   return (
     <div className="page page--batch">
@@ -127,117 +336,269 @@ function BatchForOrganism({ description }: { description: GraphDescription }) {
         <p className="eyebrow">Convert a list</p>
         <h1>Many identifiers, one setting</h1>
         <p className="lede">
-          Each identifier is converted with the same releases and databases; the results come back in the order given,
-          each with its own status. Export them as TSV (one row per candidate) or JSON, exactly as the api returns them.
+          Each identifier is converted with the same releases and databases, by the same rules as a single conversion;
+          the results come back in the order given, each with its own status, the gene it leads to, how it was read and
+          the evidence the answer rests on, and open to every candidate and the path behind it. Export a table of one
+          row per identifier, or the api&rsquo;s own JSON and TSV.
         </p>
       </header>
       <form className="panel batch-form" onSubmit={submit} noValidate aria-label="Batch conversion">
-        <Field
-          label="Identifiers"
-          error={problem}
-          hint={
-            <>
-              One per line (the first cell of a table's line).{" "}
-              {identifiers.length ? <strong>{groupedInteger(identifiers.length)} identifiers.</strong> : null}{" "}
-              {limits ? (
-                <>
-                  This server takes at most {groupedInteger(limits.batch_max)} per request, each of at most{" "}
-                  {groupedInteger(limits.identifier_max_length)} characters.
-                </>
+        <div className="batch-form__list">
+          <Field
+            label="Identifiers"
+            error={problem}
+            hint={
+              <>
+                One per line, or a table pasted from a spreadsheet (tab, comma or semicolon between its cells).{" "}
+                {limits ? (
+                  <>
+                    This server takes at most {groupedInteger(limits.batch_max)} per request, each of at most{" "}
+                    {groupedInteger(limits.identifier_max_length)} characters.
+                  </>
+                ) : null}
+              </>
+            }
+          >
+            {({ id, describedBy }) => (
+              <textarea
+                id={id}
+                ref={listField}
+                className="input input--mono textarea batch-form__textarea"
+                rows={12}
+                value={text}
+                spellCheck={false}
+                aria-describedby={describedBy}
+                aria-invalid={Boolean(problem)}
+                aria-required="true"
+                placeholder={"INS\nPDX1\nENSG00000139618\nNM_000207"}
+                onChange={(e) => {
+                  setText(e.target.value);
+                  if (problem) setProblem(null);
+                }}
+              />
+            )}
+          </Field>
+          <div className="batch-form__meter" aria-hidden={identifiers.length === 0}>
+            <span className={`batch-form__count ${over ? "is-over" : ""}`}>
+              <span className="mono">{groupedInteger(identifiers.length)}</span>
+              {limits ? <span className="muted"> / {groupedInteger(limits.batch_max)}</span> : null}{" "}
+              {identifiers.length === 1 ? "identifier" : "identifiers"}
+              {identifiers.length && distinct !== identifiers.length ? (
+                <span className="muted">
+                  {" "}
+                  · <span className="mono">{groupedInteger(distinct)}</span> distinct
+                </span>
               ) : null}
-            </>
-          }
-        >
-          {({ id, describedBy }) => (
-            <textarea
-              id={id}
-              className="input input--mono textarea"
-              rows={9}
-              value={text}
-              spellCheck={false}
-              aria-describedby={describedBy}
-              aria-invalid={Boolean(problem)}
-              placeholder={"INS\nPDX1\nENSG00000139618\nNM_000207"}
-              onChange={(e) => setText(e.target.value)}
+            </span>
+            {limits ? (
+              <span className="batch-form__gauge" aria-hidden="true">
+                <span
+                  className={`batch-form__gauge-fill ${over ? "is-over" : ""}`}
+                  style={{ width: `${Math.min(100, (identifiers.length / limits.batch_max) * 100)}%` }}
+                />
+              </span>
+            ) : null}
+          </div>
+          {over && !problem ? <p className="batch-form__over">{overWords}</p> : null}
+          {table.separator !== null || table.header ? (
+            <div className="batch-form__table" role="group" aria-label="How the table is read">
+              <p className="batch-form__table-note">
+                {table.separator !== null ? (
+                  <>
+                    A {SEPARATOR_WORDS[table.separator]}-separated table of {table.columns} column
+                    {table.columns === 1 ? "" : "s"}: column <Mono>{table.column + 1}</Mono>
+                    {table.header?.[table.column] ? (
+                      <>
+                        {" "}
+                        (<Mono>{table.header[table.column]}</Mono>)
+                      </>
+                    ) : null}{" "}
+                    is read
+                  </>
+                ) : (
+                  <>One identifier per line</>
+                )}
+                {table.header ? (
+                  <>
+                    ; its first line is taken as the header
+                    {choice.header === undefined || choice.header === null
+                      ? table.detected?.kind === "space"
+                        ? " (its cell holds a space, which no other line's does)"
+                        : ` (the other lines of column ${String((table.detected?.column ?? 0) + 1)} hold ${table.detected?.kind === "ensembl" ? "Ensembl ids" : "numbers"}, it does not)`
+                      : ""}
+                  </>
+                ) : null}
+                . The table of one row per identifier keeps every column.
+                {table.skipped.length ? (
+                  <>
+                    {" "}
+                    {groupedInteger(table.skipped.length)} line{table.skipped.length === 1 ? " has" : "s have"} an empty
+                    cell there and {table.skipped.length === 1 ? "is" : "are"} left out.
+                  </>
+                ) : null}
+              </p>
+              <div className="batch-form__table-controls">
+                <Switch
+                  checked={table.header !== null}
+                  onChange={(value) => {
+                    choose({ ...choice, header: value });
+                  }}
+                  label="First line is a header"
+                />
+                {table.columns > 1 ? (
+                  <Field label="Column read" className="batch-form__column">
+                    {({ id }) => (
+                      <Select
+                        id={id}
+                        value={String(table.column)}
+                        onChange={(e) => {
+                          choose({ ...choice, column: Number(e.target.value) });
+                        }}
+                      >
+                        {Array.from({ length: table.columns }, (_, c) => (
+                          <option key={c} value={c}>
+                            {`Column ${String(c + 1)}${table.header?.[c] ? `: ${table.header[c]}` : ""}`}
+                          </option>
+                        ))}
+                      </Select>
+                    )}
+                  </Field>
+                ) : null}
+              </div>
+            </div>
+          ) : null}
+          <div className="batch-form__file">
+            <input
+              ref={fileInput}
+              type="file"
+              accept=".txt,.tsv,.csv,text/plain,text/csv,text/tab-separated-values"
+              className="visually-hidden"
+              id="batch-file"
+              aria-label="A file of identifiers"
+              onChange={onFile}
+              tabIndex={-1}
             />
-          )}
-        </Field>
-        <div className="batch-form__file">
-          <input
-            ref={fileInput}
-            type="file"
-            accept=".txt,.tsv,.csv,text/plain,text/csv,text/tab-separated-values"
-            className="visually-hidden"
-            id="batch-file"
-            aria-label="A file of identifiers"
-            onChange={onFile}
-            tabIndex={-1}
-          />
-          <Button onClick={() => fileInput.current?.click()}>Upload a file…</Button>
-          <span className="muted" role="status">
-            {fileNote ?? "A text, TSV or CSV file; its first column is read."}
-          </span>
+            <Button onClick={() => fileInput.current?.click()}>Upload a file…</Button>
+            <span className="muted batch-form__file-note" role="status">
+              {fileNote ?? "A text, TSV or CSV file; a table's header and columns are read as above."}
+            </span>
+          </div>
+          {examples.length ? (
+            <div className="batch-examples" role="group" aria-labelledby="batch-examples-label">
+              <span className="batch-examples__label" id="batch-examples-label">
+                Examples, with their settings
+              </span>
+              <ul className="batch-examples__list">
+                {examples.map((set) => (
+                  <li key={set.identifiers.join("|")}>
+                    <button
+                      type="button"
+                      className="chip chip--example batch-examples__set"
+                      onClick={() => {
+                        takeExample(set);
+                      }}
+                    >
+                      <span className="batch-examples__count mono">{groupedInteger(set.identifiers.length)}</span>
+                      <span className="batch-examples__first mono">
+                        {set.identifiers.slice(0, 2).join(", ")}
+                        {set.identifiers.length > 2 ? ", …" : ""}
+                      </span>
+                      <span className="batch-examples__words">{exampleWords(set, description.snapshot_release)}</span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
         </div>
-        <div className="convert-form__grid">
-          <Field label="From release" hint="Empty: inferred for each identifier.">
-            {({ id, describedBy }) => (
-              <TextInput
-                id={id}
-                inputMode="numeric"
-                className="input--mono"
-                value={fromRelease}
-                placeholder="inferred"
-                aria-describedby={describedBy}
-                onChange={(e) => setFromRelease(e.target.value)}
-              />
-            )}
-          </Field>
-          <Field label="To release" hint={`Empty: the graph's last release, ${description.snapshot_release}.`}>
-            {({ id, describedBy }) => (
-              <TextInput
-                id={id}
-                inputMode="numeric"
-                className="input--mono"
-                value={toRelease}
-                placeholder={String(description.snapshot_release)}
-                aria-describedby={describedBy}
-                onChange={(e) => setToRelease(e.target.value)}
-              />
-            )}
-          </Field>
-          <Field label="Target database" hint="The database of the answers.">
+        <fieldset className="batch-form__settings">
+          <legend className="batch-form__legend">Setting for every identifier</legend>
+          <div className="batch-form__pair">
+            <Field
+              label="From release"
+              hint={
+                <>
+                  For a dataset, the Ensembl release of its annotation (the release of its GTF, for instance). Empty:
+                  each identifier is read at the release idtrack infers, a symbol with its meaning there
+                  {inferred ? (
+                    <>
+                      {" "}
+                      (
+                      <a href={inferred.href} target="_blank" rel="noreferrer">
+                        {inferred.title}
+                        <span className="visually-hidden"> (idtrack&apos;s documentation, opens in a new tab)</span>
+                        <span aria-hidden="true"> ↗</span>
+                      </a>
+                      )
+                    </>
+                  ) : null}
+                  .
+                </>
+              }
+            >
+              {({ id, describedBy }) => (
+                <TextInput
+                  id={id}
+                  inputMode="numeric"
+                  className="input--mono"
+                  value={fromRelease}
+                  placeholder="inferred"
+                  aria-describedby={describedBy}
+                  onChange={(e) => {
+                    setFromRelease(e.target.value);
+                  }}
+                />
+              )}
+            </Field>
+            <Field label="To release" hint={`Empty: the graph's last, ${description.snapshot_release}.`}>
+              {({ id, describedBy }) => (
+                <TextInput
+                  id={id}
+                  inputMode="numeric"
+                  className="input--mono"
+                  value={toRelease}
+                  placeholder={String(description.snapshot_release)}
+                  aria-describedby={describedBy}
+                  onChange={(e) => {
+                    setToRelease(e.target.value);
+                  }}
+                />
+              )}
+            </Field>
+          </div>
+          <Field
+            label="Target database"
+            hint="The database of the answers, among those of the target release. Every row also gives the Ensembl gene at that release."
+          >
             {({ id, describedBy }) => (
               <Select
                 id={id}
                 value={finalDatabase}
                 aria-describedby={describedBy}
-                onChange={(e) => setFinalDatabase(e.target.value)}
+                onChange={(e) => {
+                  setFinalDatabase(e.target.value);
+                }}
               >
                 <option value="">Ensembl gene (with version), the default</option>
-                {finalOptions
-                  .filter((d) => d !== "ensembl_gene")
-                  .map((d) => (
-                    <option key={d} value={d}>
-                      {databaseLabel(d)}
-                    </option>
-                  ))}
+                <DatabaseGroups databases={finalOptions.filter((d) => d !== "ensembl_gene")} synonyms={synonyms} />
               </Select>
             )}
           </Field>
-          <Field label="Source database" hint="Empty: any database.">
+          <Field
+            label="Source database"
+            hint="The database the identifiers are meant in. Empty: any. Ensembl lists some sources under two names (Vega gene and Vega_gene, for instance): each is a database of its own in Ensembl's tables."
+          >
             {({ id, describedBy }) => (
               <Select
                 id={id}
                 value={fromDatabase}
                 aria-describedby={describedBy}
-                onChange={(e) => setFromDatabase(e.target.value)}
+                onChange={(e) => {
+                  setFromDatabase(e.target.value);
+                }}
               >
                 <option value="">Any database</option>
-                {description.external_databases.map((d) => (
-                  <option key={d} value={d}>
-                    {databaseLabel(d)}
-                  </option>
-                ))}
+                <DatabaseGroups databases={sources} synonyms={synonyms} />
               </Select>
             )}
           </Field>
@@ -245,203 +606,149 @@ function BatchForOrganism({ description }: { description: GraphDescription }) {
             checked={allowBridges}
             onChange={setAllowBridges}
             label="Allow bridges"
-            hint="Continue through an id two genes share when history ends."
+            hint="Where Ensembl's history of a gene ends, continue to another gene through an id both carried: idtrack's inference, not a record of Ensembl, marked in the results."
           />
-        </div>
+        </fieldset>
         <div className="batch-form__actions">
-          <Button type="submit" variant="primary" disabled={batch.state === "loading"}>
-            {batch.state === "loading"
+          <Button type="submit" variant="primary" disabled={run.state === "loading"}>
+            {run.state === "loading"
               ? "Converting…"
               : `Convert ${identifiers.length ? groupedInteger(identifiers.length) : ""}`}
           </Button>
         </div>
       </form>
 
-      <section className="result-area" aria-live="polite" aria-busy={batch.state === "loading"}>
-        {batch.state === "idle" ? (
-          <div className="empty">
-            <p className="empty__title">No list converted yet</p>
-            <p>Paste identifiers above, or upload a file. The results appear here in your order.</p>
-          </div>
-        ) : null}
-        {batch.state === "loading" ? (
+      {others.length ? (
+        <ul className="batch-elsewhere" aria-label="Batches of other organisms">
+          {others.map(({ organism: other, run: r }) => (
+            <li key={other}>
+              {r.run.state === "loading" ? (
+                <>
+                  A batch of <Mono>{groupedInteger(r.run.request.identifiers.length)}</Mono> identifiers of{" "}
+                  <i>{organismName(other)}</i> is being converted; it is kept for that organism.{" "}
+                </>
+              ) : (
+                <>
+                  The batch of <i>{organismName(other)}</i> is done.{" "}
+                </>
+              )}
+              <Link to={href("/batch", { organism: other })}>
+                See it on the page of <i>{organismName(other)}</i>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+
+      <section className="result-area" aria-busy={run.state === "loading"} aria-label="The results" ref={area}>
+        {run.state === "idle" ? <EmptyBatch organism={organism} /> : null}
+        {run.state === "loading" ? (
           <div className="result--loading" aria-label="Converting the list">
-            <p className="visually-hidden">Converting the list…</p>
+            <p className="batch-loading">
+              Converting <Mono>{groupedInteger(run.request.identifiers.length)}</Mono> identifiers
+              {run.request.explain ? ", with every path" : ", without the paths (the server would not send them)"}…
+            </p>
+            <Skeleton width="100%" height={36} className="skeleton--row" />
             {Array.from({ length: 6 }, (_, i) => (
               <Skeleton key={i} width="100%" height={28} className="skeleton--row" />
             ))}
           </div>
         ) : null}
-        {batch.state === "failed" ? (
-          <ErrorPanel error={batch.error} context="The batch" onRetry={() => request && void batch.start(request)} />
-        ) : null}
-        {batch.state === "done" ? (
-          <BatchResults
-            organism={organism}
-            results={batch.answer.data.results}
-            request={request}
-            onJson={exportJson}
-            onTsv={exportTsv}
-            tsvState={tsv.state}
+        {run.state === "failed" ? (
+          <ErrorPanel
+            error={run.error}
+            context="The batch"
+            onRetry={() => {
+              followed.current = batch.id + 1;
+              retryBatch(organism);
+            }}
           />
         ) : null}
-        {tsv.state === "failed" ? <ErrorPanel error={tsv.error} context="The TSV export" /> : null}
+        {run.state === "done" ? (
+          <BatchResults
+            key={batch.id}
+            description={description}
+            answer={{
+              results: run.answer.data.results,
+              count: run.answer.data.count,
+              request: run.request,
+              raw: run.answer.raw,
+              serverTiming: run.answer.serverTiming,
+              requestId: run.answer.requestId,
+              answeredAt: run.answeredAt || null,
+              source: batch.source,
+              pathsRefused: batch.pathsRefused,
+            }}
+          />
+        ) : null}
       </section>
     </div>
   );
 }
 
-function BatchResults({
-  organism,
-  results,
-  request,
-  onJson,
-  onTsv,
-  tsvState,
-}: {
-  organism: string;
-  results: ConversionResult[];
-  request: BatchRequest | null;
-  onJson: () => void;
-  onTsv: () => void;
-  tsvState: string;
-}) {
-  const vocabulary = useVocabulary();
-  const asked = request?.final_database ?? null;
-  const counts = new Map<string, number>();
-  for (const r of results) counts.set(r.status, (counts.get(r.status) ?? 0) + 1);
+const isChoice = (value: unknown): value is TableChoice =>
+  isRecord(value) &&
+  (value["header"] === undefined || value["header"] === null || typeof value["header"] === "boolean") &&
+  (value["column"] === undefined || typeof value["column"] === "number");
+
+/** The databases of a select: those that record names and synonyms (the graph's `synonym_databases`) first. */
+function DatabaseGroups({ databases, synonyms }: { databases: readonly string[]; synonyms: ReadonlySet<string> }) {
+  const names = databases.filter((d) => synonyms.has(d));
+  const rest = databases.filter((d) => !synonyms.has(d));
+  const options = (list: readonly string[]) =>
+    list.map((d) => (
+      <option key={d} value={d}>
+        {databaseLabel(d)}
+      </option>
+    ));
+  if (!names.length) return <>{options(rest)}</>;
   return (
-    <div className="batch-results">
-      <div className="batch-results__head">
-        <p className="batch-results__summary">
-          <strong>{groupedInteger(results.length)}</strong> results:{" "}
-          {[...counts.entries()].map(([status, n], i) => (
-            <span key={status}>
-              {i ? " · " : ""}
-              {groupedInteger(n)} {statusTitle(status).toLowerCase()}
+    <>
+      <optgroup label="Databases of names and their synonyms">{options(names)}</optgroup>
+      <optgroup label="Other databases">{options(rest)}</optgroup>
+    </>
+  );
+}
+
+/** Before a list is converted: what the answer will hold, panel by panel, and where to begin. */
+function EmptyBatch({ organism }: { organism: string }) {
+  const parts: [string, string, string][] = [
+    [
+      "a",
+      "What came back",
+      "the statuses in proportion, each with its meaning, and the counts that need a second look",
+    ],
+    [
+      "b",
+      "The results",
+      "one row per identifier in your order: the gene today and its symbol, how it was read, what decided it, its evidence",
+    ],
+    ["c", "Through the releases", "where each identifier was read, and the steps of Ensembl's history its path took"],
+    ["d", "Download", "a table of one row per identifier with its provenance, and the api's own JSON and TSV"],
+  ];
+  return (
+    <div className="batch-empty">
+      <p className="batch-empty__title">No list converted yet</p>
+      <p className="batch-empty__lede">
+        Paste identifiers above, upload a file, or try one of the examples. The answer appears here as a figure of four
+        panels:
+      </p>
+      <ol className="batch-empty__parts">
+        {parts.map(([letter, title, what]) => (
+          <li key={letter}>
+            <span className="panel-letter" aria-hidden="true">
+              {letter}
             </span>
-          ))}
-        </p>
-        <div className="batch-results__export">
-          <Button onClick={onTsv} disabled={tsvState === "loading"}>
-            {tsvState === "loading" ? "Preparing TSV…" : "Export TSV"}
-          </Button>
-          <Button onClick={onJson}>Export JSON</Button>
-        </div>
-      </div>
-      <TableFrame label="Results in input order" className="table-frame--cards">
-        <table className="table table--batch table--cards">
-          <thead>
-            <tr>
-              <th scope="col">#</th>
-              <th scope="col">Identifier</th>
-              <th scope="col">Status</th>
-              <th scope="col">Answer</th>
-              <th scope="col">Read at</th>
-              <th scope="col">Why no answer</th>
-              <th scope="col">
-                <span className="visually-hidden">Open</span>
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {results.map((r, i) => {
-              const bests = r.no_target ? [] : r.candidates.filter((c) => c.best);
-              const absent = noTargetOf(r);
-              const meaning = r.reason ? vocabulary.reasons.get(r.reason) : null;
-              return (
-                <tr key={i}>
-                  <td className="num" data-label="#">
-                    {i + 1}
-                  </td>
-                  <td data-label="Identifier">
-                    <Mono>{r.query_id}</Mono>
-                    {r.graph_id !== null && r.graph_id !== r.query_id ? (
-                      <span className="sub">
-                        read as <Mono>{r.graph_id}</Mono>
-                      </span>
-                    ) : null}
-                  </td>
-                  <td data-label="Status">
-                    <StatusBadge status={r.status} />
-                  </td>
-                  <td data-label="Answer">
-                    {bests.length ? (
-                      bests.map((c) => (
-                        <span key={`${c.gene}|${c.target}`} className="cell-line">
-                          <Mono strong>{c.target}</Mono>
-                        </span>
-                      ))
-                    ) : absent ? (
-                      <span className="cell-line">
-                        No {databaseLabel(asked ?? "ensembl_gene")} for {bestWords(absent.best)}
-                        <span className="sub">
-                          {absent.best.map((gene, k) => (
-                            <span key={gene}>
-                              <Mono>{gene}</Mono>
-                              {k < absent.best.length - 1 ? ", " : ""}
-                            </span>
-                          ))}
-                        </span>
-                        {absent.others.length ? (
-                          <span className="sub">
-                            {absent.others.length} other genes reached, not looked up in the database
-                          </span>
-                        ) : null}
-                      </span>
-                    ) : (
-                      <span className="muted" title="No answer">
-                        {ABSENT}
-                      </span>
-                    )}
-                    {!r.no_target && r.candidates.length > bests.length ? (
-                      <span className="sub">{r.candidates.length - bests.length} other candidates</span>
-                    ) : null}
-                  </td>
-                  <td className="num" data-label="Read at">
-                    {r.from_release === null ? (
-                      <span title="Not read at any release (the status says why)">{ABSENT}</span>
-                    ) : (
-                      <Mono>{r.from_release}</Mono>
-                    )}
-                  </td>
-                  <td data-label="Why no answer">
-                    {r.error ? (
-                      <span>
-                        <Mono>{r.error.type}</Mono>: {r.error.message}
-                      </span>
-                    ) : r.reason && !r.no_target ? (
-                      <span>
-                        {meaning ? <Prose text={meaning} /> : null} <span className="code-quiet">{r.reason}</span>
-                      </span>
-                    ) : r.reason ? (
-                      <span className="code-quiet" title={meaning ?? undefined}>
-                        {r.reason}
-                      </span>
-                    ) : null}
-                  </td>
-                  <td data-label="">
-                    <Link
-                      className="row-link"
-                      to={convertHref(organism, {
-                        identifier: r.query_id,
-                        fromRelease: request?.from_release ?? null,
-                        toRelease: request?.to_release ?? null,
-                        finalDatabase: request?.final_database ?? null,
-                        fromDatabase: request?.from_database ?? null,
-                        allowBridges: request?.allow_bridges ?? true,
-                        explain: true,
-                      })}
-                    >
-                      Path<span className="visually-hidden"> of {r.query_id}</span>
-                    </Link>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </TableFrame>
+            <span className="batch-empty__part">
+              <span className="batch-empty__name">{title}</span>
+              <span className="batch-empty__what">{what}</span>
+            </span>
+          </li>
+        ))}
+      </ol>
+      <p className="batch-empty__foot">
+        For one identifier with its whole path drawn, use <Link to={href("/", { organism })}>Convert</Link>.
+      </p>
     </div>
   );
 }

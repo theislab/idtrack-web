@@ -1,8 +1,9 @@
-// The batch, names, organism and about pages, with real answers; exports equal to the api's own bytes.
+// The batch, names, Explore and Method pages, with real answers; exports equal to the api's own bytes.
 import { expect, test } from "@playwright/test";
 import { readFileSync } from "node:fs";
-import { statusTitle } from "../src/lib/vocabulary";
-import { data, expectAccessible, shot } from "./helpers";
+import { groupedInteger, releaseRanges } from "../src/lib/numbers";
+import { spaced, statusTitle } from "../src/lib/vocabulary";
+import { data, expectAccessible, expectWholeAndTyped, isPhone, shot } from "./helpers";
 
 test("a batch: results in order with each status, exported as the api returned them", async ({ page }, info) => {
   await page.goto(`/batch?organism=${data.organism}`);
@@ -10,13 +11,186 @@ test("a batch: results in order with each status, exported as the api returned t
   await shot(page, info, "20-batch-empty");
   await page.getByLabel("Identifiers", { exact: true }).fill(data.batch.join("\n"));
   await page.getByRole("button", { name: /^Convert/ }).click();
-  const table = page.getByRole("region", { name: "Results in input order" });
+  const table = page.getByRole("region", { name: /^Results: / });
   await expect(table).toBeVisible();
   const rows = table.locator("tbody tr");
   await expect(rows).toHaveCount(data.batch.length);
   for (const [i, identifier] of data.batch.entries())
     await expect(rows.nth(i).locator("td").nth(1)).toContainText(identifier);
 
+  // The page asks with every path; the api's JSON it saves is that answer, byte for byte.
+  const body = {
+    identifiers: data.batch,
+    from_release: null,
+    to_release: null,
+    final_database: null,
+    from_database: null,
+    explain: true,
+    allow_bridges: true,
+  };
+  const json = await page.request.post(`/api/v1/organisms/${data.organism}/convert/batch?format=json`, { data: body });
+  const parsed = (await json.json()) as { results: { status: string }[] };
+  for (const [i, result] of parsed.results.entries()) {
+    await expect(rows.nth(i)).toContainText(statusTitle(result.status));
+  }
+  const downloadJson = page.waitForEvent("download");
+  await page.getByRole("button", { name: /api.s JSON$/ }).click();
+  const savedJson = readFileSync(await (await downloadJson).path(), "utf8");
+  expect(savedJson).toBe(await json.text());
+
+  // The api's TSV (no path in it) is asked again without the paths: the same table of the same graph and settings.
+  const tsv = await page.request.post(`/api/v1/organisms/${data.organism}/convert/batch?format=tsv`, {
+    data: { ...body, explain: false },
+  });
+  const downloadTsv = page.waitForEvent("download");
+  await page.getByRole("button", { name: /api.s TSV$/ }).click();
+  const savedTsv = readFileSync(await (await downloadTsv).path(), "utf8");
+  expect(savedTsv).toBe(await tsv.text());
+  // The table of one row per identifier: its provenance first (the graph's digest, the versions, the request), then
+  // one row per identifier in the order given, each with its status as the api gave it.
+  const version = (await (await page.request.get("/api/v1/version")).json()) as {
+    idtrack_version: string;
+    graphs: { organism: string; content_digest: string }[];
+  };
+  const downloadTable = page.waitForEvent("download");
+  await page.getByRole("button", { name: /^Table, one row per identifier/ }).click();
+  const exported = readFileSync(await (await downloadTable).path(), "utf8")
+    .trimEnd()
+    .split("\n");
+  const comments = exported.filter((l) => l.startsWith("#")).join("\n");
+  const digest = version.graphs.find((g) => g.organism === data.organism)?.content_digest ?? "";
+  expect(comments).toContain(digest);
+  expect(comments).toContain(`idtrack ${version.idtrack_version}`);
+  expect(comments).toContain(`/organisms/${data.organism}/convert/batch`);
+  const rowsOut = exported.filter((l) => !l.startsWith("#"));
+  expect(rowsOut).toHaveLength(data.batch.length + 1);
+  const columns = rowsOut[0]?.split("\t") ?? [];
+  for (const [i, result] of parsed.results.entries()) {
+    const cells = rowsOut[i + 1]?.split("\t") ?? [];
+    expect(cells[0]).toBe(String(i + 1));
+    expect(cells[columns.indexOf("identifier")]).toBe(data.batch[i]);
+    expect(cells[columns.indexOf("status")]).toBe(result.status);
+  }
+  const downloadProvenance = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Provenance (JSON)" }).click();
+  const provenance = JSON.parse(readFileSync(await (await downloadProvenance).path(), "utf8")) as {
+    graph: { content_digest: string };
+    request: { body: { identifiers: string[] } };
+  };
+  expect(provenance.graph.content_digest).toBe(digest);
+  expect(provenance.request.body.identifiers).toEqual(data.batch);
+  // The TSV was a second request: the provenance names it.
+  expect((provenance as unknown as { tsv: { request_id: string | null } | null }).tsv?.request_id).toBeTruthy();
+  await expectAccessible(page);
+  await shot(page, info, "21-batch-results");
+});
+
+test("a batch's figure: the statuses counted, sorted, filtered, opened to every candidate", async ({ page }, info) => {
+  await page.goto(`/batch?organism=${data.organism}`);
+  await page.getByLabel("Identifiers", { exact: true }).fill(data.batch.join("\n"));
+  const answer = page.waitForResponse((r) => r.url().includes("/convert/batch"));
+  await page.getByRole("button", { name: /^Convert/ }).click();
+  const response = await answer;
+  const parsed = (await response.json()) as {
+    results: {
+      query_id: string;
+      status: string;
+      from_release: number | null;
+      from_release_inferred: boolean;
+      to_release: number;
+      no_target: boolean;
+      candidates: { target: string; gene: string; best: boolean; bridges: number }[];
+    }[];
+  };
+  const table = page.getByRole("region", { name: /^Results: / });
+  const rows = table.locator("tbody:not(.batch-spacer) > tr");
+  await expect(rows).toHaveCount(data.batch.length);
+
+  // Panel a: each status's count, as the answer has it; the server's time from its header, as it sent it.
+  const counts = new Map<string, number>();
+  for (const r of parsed.results) counts.set(r.status, (counts.get(r.status) ?? 0) + 1);
+  const legend = page.locator(".slegend");
+  for (const [status, n] of counts) {
+    await expect(legend.locator(".slegend__item", { hasText: statusTitle(status) })).toContainText(String(n));
+  }
+  // The api times every answer (Server-Timing); the page states the header of its own answer, as sent, with the unit
+  // kept beside the number.
+  const timing = /app;dur=([^,;]+)/.exec(response.headers()["server-timing"] ?? "");
+  expect(timing, "the batch's answer carries Server-Timing").not.toBeNull();
+  await expect(page.locator(".batch-figure-head__time")).toContainText(`answered in ${timing?.[1] ?? "-"}\u00a0ms`);
+  // The counts: one numeral face, words for people (no field names), each count of rows from the answer.
+  const inferred = parsed.results.filter((r) => r.from_release !== null && r.from_release_inferred).length;
+  await expect(
+    page.locator(".tile", { hasText: "Read at a release inferred" }).locator(".tile__value .mono"),
+  ).toHaveText(String(inferred));
+  for (const sub of await page.locator(".tile__label, .tile__sub").allInnerTexts())
+    expect(sub, "a count's words name no field of the api").not.toMatch(/[a-z]+_[a-z]+|\[|\]|≠/);
+  const tileFaces = await page
+    .locator(".tile__value .mono")
+    .evaluateAll((els) => [...new Set(els.map((e) => getComputedStyle(e).fontFamily))]);
+  expect(tileFaces).toHaveLength(1);
+  // A count's button keeps its name when pressed (its state is aria-pressed), and shows only its rows.
+  const care = page.getByRole("button", { name: /^Show only these rows: Answers that need care/ });
+  if ((await care.count()) > 0) {
+    const name = await care.getAttribute("aria-label");
+    await care.click();
+    await expect(care).toHaveAttribute("aria-pressed", "true");
+    expect(await care.getAttribute("aria-label")).toBe(name);
+    await care.click();
+  }
+  // Every row gives the gene of its best answer; an answer of several different identifiers says so under it; an
+  // answer through a bridge carries its mark.
+  const byTarget = new Map<string, Set<string>>();
+  for (const r of parsed.results)
+    for (const c of r.candidates.filter((x) => x.best && !r.no_target))
+      byTarget.set(c.target, (byTarget.get(c.target) ?? new Set()).add(r.query_id));
+  for (const [i, r] of parsed.results.entries()) {
+    const best = r.candidates.filter((c) => c.best);
+    for (const c of best.slice(0, 3)) await expect(rows.nth(i).locator(".b-gene")).toContainText(c.gene);
+    const shared = !r.no_target && best.some((c) => (byTarget.get(c.target)?.size ?? 0) > 1);
+    await expect(rows.nth(i).locator(".batch-shared")).toHaveCount(shared ? 1 : 0);
+    const bridged = best.some((c) => c.bridges > 0);
+    await expect(rows.nth(i).locator(".emark", { hasText: /through .*bridge/ })).toHaveCount(bridged ? 1 : 0);
+  }
+
+  // Panel b: a status shows only its rows; the sort by status follows the vocabulary's order.
+  for (const [status, n] of counts) {
+    const chip = page
+      .locator(".batch-tools__filters")
+      .getByRole("button", { name: new RegExp(`^${statusTitle(status)}`) });
+    await chip.click();
+    await expect(rows).toHaveCount(n);
+    await chip.click();
+  }
+  await expect(rows).toHaveCount(data.batch.length);
+  if (isPhone(info)) await page.getByLabel("Sort by").selectOption("identifier|desc");
+  else {
+    await table.getByRole("button", { name: /^Identifier/ }).click();
+    await table.getByRole("button", { name: /^Identifier/ }).click();
+    await expect(table.locator("th[aria-sort=descending]")).toContainText("Identifier");
+  }
+  const sorted = [...data.batch].sort((a, b) => b.localeCompare(a, "en", { numeric: true }));
+  await expect(rows.first().locator("td").nth(1)).toContainText(sorted[0] ?? "");
+  if (isPhone(info)) await page.getByLabel("Sort by").selectOption("order|asc");
+  else await table.getByRole("button", { name: /^#/ }).click();
+
+  // A row opens to every candidate, ranked as the api ranks them, and links to the conversion with its path.
+  const index = parsed.results.findIndex((r) => r.candidates.length > 0);
+  const result = parsed.results[index];
+  expect(result).toBeDefined();
+  await rows.nth(index).getByRole("button", { expanded: false }).click();
+  const detail = page.locator(`#batch-detail-${index}`);
+  await expect(detail).toBeVisible();
+  for (const candidate of result?.candidates ?? []) await expect(detail).toContainText(candidate.target);
+  const link = rows.nth(index).getByRole("link", { name: `Path of ${result?.query_id ?? ""}` });
+  await expect(link).toHaveAttribute("href", new RegExp(`id=${encodeURIComponent(result?.query_id ?? "")}`));
+  await expectAccessible(page);
+  await shot(page, info, "25-batch-opened");
+});
+
+test("a batch of 1000 results draws the rows in view and reaches every row", async ({ page }) => {
+  // The answer of the server's largest batch, made of the graph's real answers repeated (the server's own answer
+  // of 1000 identifiers is checked above for its bound); what is checked here is the page's drawing of them.
   const body = {
     identifiers: data.batch,
     from_release: null,
@@ -26,23 +200,59 @@ test("a batch: results in order with each status, exported as the api returned t
     explain: false,
     allow_bridges: true,
   };
-  const json = await page.request.post(`/api/v1/organisms/${data.organism}/convert/batch?format=json`, { data: body });
-  const parsed = (await json.json()) as { results: { status: string }[] };
-  for (const [i, result] of parsed.results.entries()) {
-    await expect(rows.nth(i)).toContainText(statusTitle(result.status));
-  }
-  const downloadJson = page.waitForEvent("download");
-  await page.getByRole("button", { name: "Export JSON" }).click();
-  const savedJson = readFileSync(await (await downloadJson).path(), "utf8");
-  expect(savedJson).toBe(await json.text());
-
-  const tsv = await page.request.post(`/api/v1/organisms/${data.organism}/convert/batch?format=tsv`, { data: body });
-  const downloadTsv = page.waitForEvent("download");
-  await page.getByRole("button", { name: "Export TSV" }).click();
-  const savedTsv = readFileSync(await (await downloadTsv).path(), "utf8");
-  expect(savedTsv).toBe(await tsv.text());
-  await expectAccessible(page);
-  await shot(page, info, "21-batch-results");
+  const real = (await (
+    await page.request.post(`/api/v1/organisms/${data.organism}/convert/batch?format=json`, { data: body })
+  ).json()) as { results: { query_id: string }[] };
+  const results = Array.from({ length: 1000 }, (_, i) => real.results[i % real.results.length]);
+  await page.route("**/convert/batch?format=json", (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      headers: { "x-request-id": "e2e" },
+      body: JSON.stringify({ count: results.length, results }),
+    }),
+  );
+  await page.goto(`/batch?organism=${data.organism}`);
+  await page.getByLabel("Identifiers", { exact: true }).fill(results.map((r) => r?.query_id ?? "").join("\n"));
+  await page.getByRole("button", { name: /^Convert/ }).click();
+  const table = page.getByRole("region", { name: /^Results: / });
+  const rows = table.locator("tbody:not(.batch-spacer) > tr");
+  await expect(rows.first()).toBeVisible();
+  expect(await rows.count()).toBeLessThan(200);
+  await expect(page.locator(".batch-tools__shown")).toContainText("All 1 000 rows");
+  const last = await page.evaluate(async () => {
+    const wrap = document.querySelector<HTMLElement>(".table-frame--tall .table-wrap");
+    wrap?.scrollIntoView({ block: "end" });
+    for (let k = 0; k < 6; k++) {
+      if (wrap && getComputedStyle(wrap).maxHeight !== "none") wrap.scrollTop = wrap.scrollHeight;
+      else window.scrollTo(0, document.documentElement.scrollHeight);
+      for (let i = 0; i < 6; i++) await new Promise((r) => requestAnimationFrame(r));
+    }
+    const shown = [...document.querySelectorAll(".table--batch tbody:not(.batch-spacer) .batch-index .mono")];
+    return shown.at(-1)?.textContent ?? "";
+  });
+  expect(last).toBe("1000");
+  // Deep in the middle, the rows there are drawn, numbered as in the input, and the columns stand where they stood.
+  const middle = await page.evaluate(async () => {
+    const wrap = document.querySelector<HTMLElement>(".table-frame--tall .table-wrap");
+    const table = document.querySelector<HTMLElement>(".table--batch");
+    const head = [...document.querySelectorAll(".table--batch thead th")].map((th) => th.getBoundingClientRect().width);
+    if (wrap && getComputedStyle(wrap).maxHeight !== "none") wrap.scrollTop = wrap.scrollHeight / 2;
+    else
+      window.scrollTo(0, (table?.getBoundingClientRect().top ?? 0) + window.scrollY + (table?.offsetHeight ?? 0) / 2);
+    for (let i = 0; i < 8; i++) await new Promise((r) => requestAnimationFrame(r));
+    const shown = [...document.querySelectorAll(".table--batch tbody:not(.batch-spacer) .batch-index .mono")].map((e) =>
+      Number(e.textContent),
+    );
+    const after = [...document.querySelectorAll(".table--batch thead th")].map(
+      (th) => th.getBoundingClientRect().width,
+    );
+    return { shown, same: head.every((w, i) => Math.abs(w - (after[i] ?? 0)) < 0.5) };
+  });
+  expect(middle.shown.some((n) => n > 300 && n < 700)).toBe(true);
+  expect(middle.shown).toEqual([...middle.shown].sort((a, b) => a - b));
+  expect(middle.same).toBe(true);
+  await expectWholeAndTyped(page);
 });
 
 test("a batch from a file", async ({ page }) => {
@@ -52,21 +262,85 @@ test("a batch from a file", async ({ page }) => {
     mimeType: "text/csv",
     buffer: Buffer.from(data.batch.map((id) => `${id},x`).join("\n")),
   });
-  await expect(page.getByRole("status")).toContainText(`${data.batch.length} identifiers`);
+  await expect(page.locator(".batch-form__file").getByRole("status")).toContainText(`${data.batch.length} identifiers`);
   await expect(page.getByLabel("Identifiers", { exact: true })).toHaveValue(
     data.batch.map((id) => `${id},x`).join("\n"),
   );
 });
 
-test("a batch over the server's bound is refused with the bound", async ({ page }, info) => {
+test("a pasted table: its header found by the form of its cells, its column read, its columns kept", async ({
+  page,
+}, info) => {
+  await page.goto(`/batch?organism=${data.organism}`);
+  const table = ["identifier\tlog2FC", ...data.batch.map((id, i) => `${id}\t${String(-1.5 + i)}`)].join("\n");
+  await page.getByLabel("Identifiers", { exact: true }).fill(table);
+  const note = page.locator(".batch-form__table-note");
+  await expect(note).toContainText("first line is taken as the header");
+  await expect(note).toContainText("column 1 (identifier) is read");
+  await expect(page.locator(".batch-form__count .mono").first()).toHaveText(String(data.batch.length));
+  await shot(page, info, "26-batch-table-pasted");
+  await page.getByRole("button", { name: /^Convert/ }).click();
+  const rows = page.getByRole("region", { name: /^Results: / }).locator("tbody:not(.batch-spacer) > tr");
+  await expect(rows).toHaveCount(data.batch.length);
+  const download = page.waitForEvent("download");
+  await page.getByRole("button", { name: /^Table, one row per identifier/ }).click();
+  const lines = readFileSync(await (await download).path(), "utf8")
+    .trimEnd()
+    .split("\n")
+    .filter((l) => !l.startsWith("#"));
+  expect(lines[0]?.split("\t").slice(0, 3)).toEqual(["line", "identifier", "log2FC"]);
+  for (const [i, id] of data.batch.entries()) {
+    const cells = lines[i + 1]?.split("\t") ?? [];
+    expect(cells.slice(0, 3)).toEqual([String(i + 2), id, String(-1.5 + i)]);
+  }
+  // The person can say otherwise: with the header switched off, its line is an identifier too.
+  await page.getByRole("switch", { name: "First line is a header" }).uncheck();
+  await expect(page.locator(".batch-form__count .mono").first()).toHaveText(String(data.batch.length + 1));
+  await expectAccessible(page);
+});
+
+test("the batch before a list: what will appear, and an example to try", async ({ page }, info) => {
+  await page.goto(`/batch?organism=${data.organism}`);
+  await expect(page.getByText("No list converted yet")).toBeVisible();
+  // The examples are the Convert page's sets, each with its settings, which fill the form.
+  const examples = page.locator(".batch-examples__set");
+  if ((await examples.count()) === 0) return;
+  const showcase = (await (await page.request.get(`/api/v1/organisms/${data.organism}/showcase`)).json()) as {
+    journeys: { query: { identifier: string; from_release: number | null } }[];
+  };
+  await examples.first().click();
+  const value = await page.getByLabel("Identifiers", { exact: true }).inputValue();
+  const first = showcase.journeys[0]?.query;
+  expect(value.split("\n")[0]).toBe(first?.identifier);
+  await expect(page.getByLabel("From release")).toHaveValue(
+    first?.from_release === null || first === undefined ? "" : String(first.from_release),
+  );
+  await page.getByRole("button", { name: /^Convert/ }).click();
+  await expect(page.getByRole("region", { name: /^Results: / })).toBeVisible();
+  await expectWholeAndTyped(page);
+  await shot(page, info, "27-batch-example");
+});
+
+test("a batch over the server's bound is refused with the bound before it is sent", async ({ page }, info) => {
+  let sent = 0;
+  await page.route("**/convert/batch?*", (route) => {
+    sent += 1;
+    return route.continue();
+  });
+  const limits = (await (await page.request.get("/api/v1/limits")).json()) as { batch_max: number };
   await page.goto(`/batch?organism=${data.organism}`);
   await page
     .getByLabel("Identifiers", { exact: true })
-    .fill(Array.from({ length: 1001 }, (_, i) => `ID${i}`).join("\n"));
+    .fill(Array.from({ length: limits.batch_max + 1 }, (_, i) => `ID${i}`).join("\n"));
   await page.getByRole("button", { name: /^Convert/ }).click();
-  const alert = page.getByRole("alert");
-  await expect(alert).toContainText("too_many_identifiers");
-  await expect(alert).toContainText("at most 1000");
+  // The server's bound, from /limits, said where the list is, with what to do; nothing is sent.
+  const field = page.getByLabel("Identifiers", { exact: true });
+  await expect(field).toHaveAttribute("aria-invalid", "true");
+  const digits = String(limits.batch_max).replace(/\B(?=(\d{3})+$)/g, "\\D?");
+  await expect(page.getByText(/this server converts at most/)).toContainText(
+    new RegExp(`at most ${digits} per request`),
+  );
+  expect(sent).toBe(0);
   await shot(page, info, "22-batch-too-many");
 });
 
@@ -76,10 +350,59 @@ test("names: the genes a name names, then the names of one of them", async ({ pa
   await page.getByRole("button", { name: "Find genes" }).click();
   const matches = page.getByRole("region", { name: "Matches" }).first();
   await expect(matches).toBeVisible();
-  const gene = await matches.locator("tbody tr").first().locator("td").first().innerText();
-  await matches.locator("tbody tr").first().getByRole("link").first().click();
-  await expect(page.getByLabel("Ensembl gene, with version")).toHaveValue(gene);
+  const answer = (await (
+    await page.request.get(`/api/v1/organisms/${data.organism}/genes-named?name=${encodeURIComponent(data.name)}`)
+  ).json()) as { matches: { gene: string; releases: number[] }[] };
+  // Genes are counted by their id, versions apart; each gene is a group with its versions, and links to its names.
+  const ids = [...new Set(answer.matches.map((m) => m.gene.replace(/\.\d+$/, "")))];
+  const versions = new Set(answer.matches.map((m) => m.gene)).size;
+  await expect(page.locator(".names-summary").first()).toContainText(`${String(ids.length)} gene`);
+  await expect(page.locator(".names-summary").first()).toContainText(`${String(versions)} version`);
+  const groups = matches.locator("tbody.names-gene");
+  await expect(groups).toHaveCount(Math.min(ids.length, 12));
+  const firstGene = (await groups.first().locator(".names-gene__id .mono").first().innerText()).trim();
+  const latest = answer.matches
+    .map((m) => m.gene)
+    .filter((g) => g.startsWith(`${firstGene}.`))
+    .sort((a, b) => a.localeCompare(b, "en", { numeric: true }))
+    .at(-1);
+  await groups.first().locator(".names-gene__id").getByRole("link").click();
+  await expect(page.getByLabel("Ensembl gene, with version")).toHaveValue(latest ?? "");
   await expect(page.getByRole("region", { name: "Matches" })).toHaveCount(2);
+  // Every match is its version's exact releases in words on its gene's lane, as the api gives them.
+  const first = page.getByRole("region", { name: "Matches" }).first();
+  if (ids.length <= 12) {
+    // Each lane shows its first versions and the rest on a press.
+    for (const more of await first.locator(".names-exact__more").all()) await more.click();
+    await expect(first.locator(".names-exact__line")).toHaveCount(answer.matches.length);
+    const written = await first.locator(".names-exact__line").allInnerTexts();
+    for (const m of answer.matches) expect(written.some((w) => w.includes(releaseRanges(m.releases)))).toBe(true);
+  }
+  // What the databases call each gene at the graph's last release, asked of the server.
+  await expect(first.locator(".names-today").first()).toContainText("at ");
+  const rows = first.locator("tr.names-lane-row");
+  if (!isPhone(info)) {
+    // The answer asked by the link is brought into view (a smooth scroll): hover once the page stands still.
+    await page.evaluate(
+      () =>
+        new Promise<void>((resolve) => {
+          let last = -1;
+          const check = () => {
+            if (window.scrollY === last) resolve();
+            else {
+              last = window.scrollY;
+              window.setTimeout(check, 120);
+            }
+          };
+          check();
+        }),
+    );
+    // Pointing at the first gene's first lane names the first release of its first run on the scale.
+    await rows.first().hover();
+    const ofGene = answer.matches.filter((m) => m.gene.startsWith(`${firstGene}.`)).flatMap((m) => m.releases);
+    const edge = Number(await first.locator(".rscale__edge").first().innerText());
+    expect(ofGene).toContain(edge);
+  }
   await expectAccessible(page);
   await shot(page, info, "23-names");
 });
@@ -91,7 +414,18 @@ test("names: nothing found, and an unknown gene", async ({ page }, info) => {
   await shot(page, info, "24-names-empty-and-error");
 });
 
-test("the organism's page: releases, assemblies, databases, digest and build", async ({ page }, info) => {
+test("Explore: the graphs side by side, then one graph: assemblies, composition, matrix, build", async ({
+  page,
+}, info) => {
+  await page.goto("/organisms");
+  const all = (await (await page.request.get("/api/v1/organisms")).json()) as {
+    organisms: { organism: string; counts: Record<string, number> }[];
+  };
+  const table = page.getByRole("region", { name: "The graphs' builds" });
+  await expect(table.locator("tbody tr")).toHaveCount(all.organisms.length);
+  await expectAccessible(page);
+  await shot(page, info, "26-organisms");
+
   await page.goto(`/organisms/${data.organism}`);
   const version = (await (await page.request.get("/api/v1/version")).json()) as {
     graphs: { organism: string; content_digest: string; file: { sha256: string } }[];
@@ -101,20 +435,46 @@ test("the organism's page: releases, assemblies, databases, digest and build", a
   await expect(page.getByText(graph?.content_digest ?? "-", { exact: true })).toBeVisible();
   await expect(page.getByText(graph?.file.sha256 ?? "-", { exact: true })).toBeVisible();
   await expect(page.getByRole("region", { name: "Assemblies", exact: true })).toBeVisible();
+  // The composition: every count of the build, exactly.
+  const counts = all.organisms.find((o) => o.organism === data.organism)?.counts ?? {};
+  const rows = page.getByRole("list", { name: "Counts of the build" }).getByRole("listitem");
+  await expect(rows).toHaveCount(Object.keys(counts).length);
+  for (const [key, value] of Object.entries(counts)) {
+    const row = rows.filter({ has: page.locator(".counts__name", { hasText: new RegExp(`^${spaced(key)}`) }) });
+    await expect(row).toContainText(groupedInteger(value));
+  }
+  // The matrix: one row per database of /databases, each with its releases.
+  const matrix = (await (await page.request.get(`/api/v1/organisms/${data.organism}/databases`)).json()) as {
+    databases: { name: string; releases: number[] }[];
+  };
+  const lines = page.getByRole("list", { name: "The matrix, one database a line" }).locator("li");
+  await expect(lines).toHaveCount(matrix.databases.length);
+  const matrixSvg = page.locator(".dbm__svg");
+  await matrixSvg.focus();
+  await page.keyboard.press("ArrowRight");
+  await expect(page.getByRole("tooltip")).toContainText("release");
   await expectAccessible(page);
   await shot(page, info, "25-organism");
-  await page.goto("/organisms");
-  await expectAccessible(page);
-  await shot(page, info, "26-organisms");
 });
 
-test("the about page: what idtrack is, how to cite it, the data and the limits", async ({ page }, info) => {
-  await page.goto("/about");
+test("Method: the five panels in idtrack's words, the citation, the data, the limits", async ({ page }, info) => {
+  await page.goto("/method");
+  for (const name of [
+    "Read the identifier",
+    "Walk Ensembl's history",
+    "Bridge through an id two genes carried",
+    "Rank the candidates",
+    "Answer in the database asked",
+  ])
+    await expect(page.getByRole("heading", { name })).toBeVisible();
+  const vocabulary = (await (await page.request.get("/api/v1/vocabulary")).json()) as { criteria: { code: string }[] };
+  const ladder = page.getByRole("list", { name: "The criteria, in the order they decide" }).locator("li");
+  await expect(ladder).toHaveCount(vocabulary.criteria.length);
   const version = (await (await page.request.get("/api/v1/version")).json()) as { idtrack_version: string };
   await expect(page.locator("pre.raw--cite")).toContainText(`version = {${version.idtrack_version}}`);
   await expect(page.getByRole("heading", { name: "Limits" })).toBeVisible();
   await expectAccessible(page);
-  await shot(page, info, "27-about");
+  await shot(page, info, "27-method");
 });
 
 test("keyboard alone: from the page's start to an answer", async ({ page }) => {

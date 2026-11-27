@@ -4,7 +4,7 @@ import type { ConversionResult } from "../src/api/types";
 import { pythonFloat } from "../src/lib/numbers";
 import { HORIZONTAL_METRICS, layoutPath, shownCandidates } from "../src/lib/pathLayout";
 import { buildModel } from "../src/lib/pathModel";
-import { assemblyNames, readingText, stepFacts, stepSentence } from "../src/lib/pathReading";
+import { assemblyNames, readingOrder, readingText, stepFacts, stepSentence } from "../src/lib/pathReading";
 import { readVocabulary } from "../src/lib/vocabulary";
 import { conversions, description, vocabularyResponse } from "./fixtures";
 
@@ -99,7 +99,9 @@ describe.each(named(withPath))("%s", (_, { entry, result }) => {
         if (previous) expect(step?.api.source).toBe(previous.api.target);
       });
       const first = steps[0];
-      if (first && first.api.kind !== "identity") expect(first.api.source).toBe(result.graph_id);
+      // The path begins at the identifier as read; an LRG record's id read as its gene (`lrg:`) begins at that gene.
+      if (first && first.api.kind !== "identity")
+        expect(first.api.source).toBe(result.match?.startsWith("lrg:") ? candidate.api.entry_gene : result.graph_id);
       const lastOfPath = model.steps[candidate.api.path[candidate.api.path.length - 1] ?? -1];
       if (lastOfPath) expect(lastOfPath.api.target).toBe(candidate.api.gene);
     }
@@ -195,7 +197,7 @@ describe.each(named(withPath))("%s", (_, { entry, result }) => {
       }
       expect(pythonFloat(step.api.weight)).toBe(token);
       const facts = Object.fromEntries(stepFacts(step, model, names, vocabulary));
-      expect(facts.Score).toBe(token);
+      expect(facts["Score"]).toBe(token);
       expect(stepSentence(step, model, names)).toContain(`score ${token ?? ""}`);
     });
   });
@@ -204,7 +206,10 @@ describe.each(named(withPath))("%s", (_, { entry, result }) => {
     const text = readingText(model, names);
     let from = 0;
     for (const candidate of model.candidates) {
-      for (const index of candidate.steps) {
+      // The walk's order (a run of re-mappings of one gene listed in the walk's direction).
+      const order = readingOrder(candidate, model);
+      expect([...order].sort((a, b) => a - b)).toEqual([...candidate.steps].sort((a, b) => a - b));
+      for (const index of order) {
         const step = model.steps[index];
         if (!step) continue;
         const sentence = stepSentence(step, model, names);

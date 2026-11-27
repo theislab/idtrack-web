@@ -1,8 +1,12 @@
-# idtrack-web on the owner's Hetzner node: the api (with the built frontend) behind Caddy, which obtains and renews
-# the TLS certificate. SETUP.md, "Deploying", gives the steps.
+# idtrack-web on a server (the Helmholtz virtual machine, the Hetzner node): the api (with the built frontend) behind
+# Caddy, which obtains and renews the TLS certificate. SETUP.md, sections 10 and 11, gives the steps.
 #
-#   cp deploy/idtrack-web.env.example deploy/idtrack-web.env   # then fill it in (it stays on the node)
-#   IDTRACK_WEB_IMAGE=idtrack-web:<tag> IDTRACK_WEB_DOMAIN=<domain> docker compose -f deploy/compose.yaml up -d
+#   cp deploy/idtrack-web.env.example deploy/idtrack-web.env   # the server's settings; fill in (it stays on the server)
+#   cp deploy/compose.env.example deploy/.env                   # this file's settings: image, domain, store, overrides
+#   cd deploy && sudo docker compose up -d
+#
+# Compose reads deploy/.env for the variables below (and COMPOSE_FILE, the override files of deploy/vm/ to add), so
+# every later command (ps, logs, restart, up -d) is the same short one, run from deploy/.
 
 name: idtrack-web
 
@@ -13,8 +17,11 @@ services:
     env_file:
       - idtrack-web.env
     environment:
-      # Only Caddy, on this compose network, may name the client in X-Forwarded-For.
+      # Only Caddy, on this compose network, may name the client in X-Forwarded-For (and the scheme in
+      # X-Forwarded-Proto).
       IDTRACK_WEB_FORWARDED_ALLOW_IPS: 172.30.80.0/24
+      # The site's address, for the absolute links of /llms.txt.
+      IDTRACK_WEB_PUBLIC_URL: https://${IDTRACK_WEB_DOMAIN:?set IDTRACK_WEB_DOMAIN to the site's domain name}
     volumes:
       # The fetched, verified graph files survive restarts (R2 is read again only for a new release).
       - graph-cache:/var/cache/idtrack-web
@@ -32,8 +39,17 @@ services:
       interval: 30s
       timeout: 5s
       start_period: 300s
+      # During the start period the check runs every 5 s, so the api is seen healthy within 5 s of being ready
+      # (and Caddy started) instead of up to 30 s later.
+      start_interval: 5s
       retries: 3
     stop_grace_period: 40s
+    # The container's log is rotated: at most 5 files of 20 MB (one line per request; SETUP.md, section 10.9).
+    logging: &logging
+      driver: json-file
+      options:
+        max-size: 20m
+        max-file: "5"
 
   caddy:
     image: docker.io/library/caddy:2.11.9
@@ -47,11 +63,20 @@ services:
       - "80:80"
       - "443:443"
       - "443:443/udp"
+    # The api closes every connection after its answer, so Caddy opens one per request, and each leaves a socket
+    # waiting out TCP's TIME_WAIT (60 s) in Caddy's network namespace. With Linux's default 28,232 local ports that
+    # caps the rate at about 470 requests a second, past which Caddy answers 502 ("cannot assign requested address":
+    # measured at 560 a second on the virtual machine). Reusing such sockets for new connections (safe with TCP
+    # timestamps) and the wider port range lift the cap.
+    sysctls:
+      net.ipv4.tcp_tw_reuse: 1
+      net.ipv4.ip_local_port_range: "1024 65535"
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy-data:/data
       - caddy-config:/config
     networks: [web]
+    logging: *logging
 
 networks:
   web:

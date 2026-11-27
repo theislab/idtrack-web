@@ -20,7 +20,7 @@ export function yesNo(value: boolean): string {
 }
 
 /** Which value of a field ranks first, in words. */
-export const FIRST_WORDS: Record<CriterionField["first"], string> = {
+const FIRST_WORDS: Record<CriterionField["first"], string> = {
   yes: "yes ranks first",
   lower: "the lower value ranks first",
   higher: "the higher value ranks first",
@@ -92,10 +92,11 @@ export function criterionValue(
   };
 }
 
-/** A text of idtrack or the api for reading: code spans kept as they are, the absent value written as "none". */
+/** A text of idtrack or the api for reading: code spans kept as they are, the absent value written as "none" and the
+ *  booleans as "yes" and "no" (the api's texts write JSON's `null`, `true`, `false`; idtrack's own Python's). */
 export function prose(text: string): string {
   return text
-    .replace(/`None`/g, "none")
-    .replace(/`True`/g, "yes")
-    .replace(/`False`/g, "no");
+    .replace(/`(None|null)`/g, "none")
+    .replace(/`(True|true)`/g, "yes")
+    .replace(/`(False|false)`/g, "no");
 }

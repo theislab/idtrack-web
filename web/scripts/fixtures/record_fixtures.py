@@ -17,6 +17,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from pathlib import Path
+from typing import Any
 
 parser = argparse.ArgumentParser()
 parser.add_argument("base")
@@ -29,11 +30,11 @@ args = parser.parse_args()
 base = args.base.rstrip("/") + "/api/v1"
 out = Path(args.out)
 out.mkdir(parents=True, exist_ok=True)
-index: list[dict] = []
+index: list[dict[str, Any]] = []
 seen: set[str] = set()
 
 
-def ask(name: str, method: str, path: str, query: dict | None = None, body: object | None = None) -> bytes:
+def ask(name: str, method: str, path: str, query: dict[str, Any] | None = None, body: object | None = None) -> bytes:
     """Send a request; write its answer as sent and list it in the index."""
     url = base + path + ("?" + urllib.parse.urlencode(query) if query else "")
     data = None if body is None else json.dumps(body).encode()
@@ -42,7 +43,7 @@ def ask(name: str, method: str, path: str, query: dict | None = None, body: obje
         request.add_header("Content-Type", "application/json")
     try:
         with urllib.request.urlopen(request, timeout=300) as response:  # noqa: S310
-            status, kind, raw = response.status, response.headers.get("content-type", ""), response.read()
+            status, kind, raw = response.status, response.headers.get("content-type", ""), bytes(response.read())
     except urllib.error.HTTPError as error:
         status, kind, raw = error.code, error.headers.get("content-type", ""), error.read()
     ext = "tsv" if kind.startswith("text/tab-separated-values") else "json"
@@ -69,7 +70,7 @@ def slug(text: str) -> str:
     return re.sub(r"[^A-Za-z0-9]+", "_", text).strip("_").lower()
 
 
-def convert(name: str, identifier: str, arguments: dict) -> None:
+def convert(name: str, identifier: str, arguments: dict[str, Any]) -> None:
     """Record one conversion with its path, once per distinct query."""
     query = {"identifier": identifier, "explain": "true"}
     query.update({k: (str(v).lower() if isinstance(v, bool) else v) for k, v in arguments.items()})

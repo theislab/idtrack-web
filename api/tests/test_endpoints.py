@@ -7,18 +7,22 @@ import dataclasses
 import io
 import json
 import math
-from collections.abc import Callable
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import pytest
-from fastapi.testclient import TestClient
 from idtrack import results
-from idtrack.api import API
 from idtrack.ids import public_name
 
 from idtrack_web_api import tsv
 from idtrack_web_api.adapter import FORMAT_VERSION
-from idtrack_web_api.graphs import Registry
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from fastapi.testclient import TestClient
+    from idtrack.api import API
+
+    from idtrack_web_api.graphs import Registry
 
 P = "/api/v1"
 
@@ -74,7 +78,7 @@ def test_version(client: TestClient, check_response: Callable[..., Any], cut_reg
 def test_vocabulary_is_idtracks_own_tables(client: TestClient, check_response: Callable[..., Any]) -> None:
     from idtrack import results
 
-    from idtrack_web_api.errors import CODES
+    from idtrack_web_api.errors import CODES, RETRYABLE, TITLES
     from idtrack_web_api.schemas import attribute_docs, plain_text
     from idtrack_web_api.vocabulary import STATUS_MEANINGS
 
@@ -107,7 +111,19 @@ def test_vocabulary_is_idtracks_own_tables(client: TestClient, check_response: C
         assert term["meaning"]
         assert term["source"] == "idtrack"
         assert term["fields"]
-    assert data["errors"] == [{"code": k, "status": s, "meaning": m} for k, (s, m) in CODES.items()]
+    assert data["errors"] == [
+        {"code": k, "status": s, "title": TITLES[k], "meaning": m, "retryable": k in RETRYABLE, "source": "idtrack-web"}
+        for k, (s, m) in CODES.items()
+    ]
+    # The api's own tables: the kinds of database, the allowances a 429 names, the modes of source inference.
+    assert [t["code"] for t in data["database_kinds"]] == ["ensembl", "accession", "label"]
+    assert [t["code"] for t in data["allowances"]] == ["searches", "reads", "search_seconds", "concurrent_searches"]
+    from idtrack.engine import SOURCE_MODES
+
+    assert [t["code"] for t in data["source_modes"]] == list(SOURCE_MODES)
+    assert all(
+        t["source"] == "idtrack-web" for key in ("database_kinds", "allowances", "source_modes") for t in data[key]
+    )
 
 
 def test_limits_are_the_settings(make_client: Callable[..., TestClient], check_response: Callable[..., Any]) -> None:
@@ -127,8 +143,20 @@ def test_limits_are_the_settings(make_client: Callable[..., TestClient], check_r
         "search_states",
         "rate_per_minute",
         "rate_burst",
+        "read_share",
+        "rate_search_seconds",
+        "rate_search_burst_seconds",
         "queue_max",
+        "head_seconds",
+        "body_seconds",
+        "answer_cache_bytes",
+        "allowances_enforced",
+        "rate_concurrent_searches",
+        "send_seconds",
+        "send_min_bytes_per_second",
+        "sending_max_bytes",
     }
+    assert data["allowances_enforced"] is False  # rate_per_minute 0 turns every allowance off
     too_many = client.post(f"{P}/organisms/pig/convert/batch", json={"identifiers": ["A"] * 8})
     assert too_many.status_code == 413
     assert "at most 7" in too_many.json()["error"]["message"]
@@ -136,7 +164,10 @@ def test_limits_are_the_settings(make_client: Callable[..., TestClient], check_r
 
 def test_organisms(client: TestClient, check_response: Callable[..., Any], cut_idtrack: API) -> None:
     data = check_response(client.get(f"{P}/organisms"), f"{P}/organisms")
-    assert data == {"organisms": [cut_idtrack.describe().to_dict()]}
+    assert data == {
+        "organisms": [cut_idtrack.describe().to_dict()],
+        "names": [{"organism": "sus_scrofa", "aliases": ["pig"]}],
+    }
     for name in ("sus_scrofa", "pig", "Sus scrofa"):
         response = client.get(f"{P}/organisms/{name}")
         assert check_response(response, f"{P}/organisms/{{organism}}") == cut_idtrack.describe().to_dict()
@@ -154,9 +185,33 @@ def test_final_databases(client: TestClient, check_response: Callable[..., Any],
         }
 
 
+def test_databases_matrix_is_idtracks_own_calls(
+    client: TestClient, check_response: Callable[..., Any], cut_idtrack: API
+) -> None:
+    path = f"{P}/organisms/{{organism}}/databases"
+    data = check_response(client.get(f"{P}/organisms/pig/databases"), path)
+    releases = cut_idtrack.describe().releases
+    assert data["organism"] == "sus_scrofa"
+    assert data["releases"] == list(releases)
+    for release in releases:
+        row = sorted(d["name"] for d in data["databases"] if release in d["releases"])
+        assert row == sorted(cut_idtrack.final_databases(release)), release
+    names = [d["name"] for d in data["databases"]]
+    assert names == sorted({d for r in releases for d in cut_idtrack.final_databases(r)})
+    forms = cut_idtrack.database_forms()
+    assert all(d["form"] == forms.get(d["name"]) for d in data["databases"])
+    assert {d["name"] for d in data["databases"] if d["form"] is None} == {"ensembl_gene", "base_ensembl_gene"}
+    assert data["by_assembly"] == cut_idtrack.databases_by_assembly()
+    # The same answer by any name of the organism; an unknown organism is refused.
+    assert client.get(f"{P}/organisms/sus_scrofa/databases").json() == data
+    response = client.get(f"{P}/organisms/cow/databases")
+    assert response.status_code == 404
+    assert check_response(response, path)["error"]["code"] == "unknown_organism"
+
+
 @pytest.mark.parametrize("explain", [False, True])
 def test_convert_equals_idtrack(
-    client: TestClient, check_response: Callable[..., Any], cut_idtrack: API, explain: bool
+    client: TestClient, check_response: Callable[..., Any], cut_idtrack: API, *, explain: bool
 ) -> None:
     path = f"{P}/organisms/{{organism}}/convert"
     identifiers = sample_identifiers(cut_idtrack, 120)
@@ -316,3 +371,14 @@ def test_names(client: TestClient, check_response: Callable[..., Any], cut_idtra
             )
             data = check_response(response, f"{P}/organisms/{{organism}}/genes-named")
             assert data == {"matches": [m.to_dict() for m in cut_idtrack.genes_named(name.lower(), fold_case)]}
+
+
+def test_the_documentation_address_follows_the_setting(make_client: Callable[..., TestClient]) -> None:
+    default = make_client(rate_per_minute=0)
+    assert default.get(f"{P}/version").json()["docs_url"] == "https://idtrack.readthedocs.io/en/stable/"
+    moved = make_client(rate_per_minute=0, docs_url="https://docs.example.org/")
+    assert moved.get(f"{P}/version").json()["docs_url"] == "https://docs.example.org/"
+    # The texts for programs link the documentation where this server says it is, never the default's address.
+    assert "https://docs.example.org/" in moved.get("/llms.txt").text
+    for path in ("/llms.txt", "/llms-full.txt"):
+        assert "idtrack.readthedocs.io" not in moved.get(path).text

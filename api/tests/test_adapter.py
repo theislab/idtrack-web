@@ -3,8 +3,7 @@
 from __future__ import annotations
 
 import inspect
-from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import pytest
 from idtrack import errors as idtrack_errors
@@ -14,6 +13,9 @@ from idtrack_web_api import adapter
 from idtrack_web_api.errors import CODES
 from tests.conftest import CUT_GRAPH
 from tests.test_endpoints import sample_identifiers
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 GENE = "ENSSSCG00000040076.1"
 
@@ -54,7 +56,9 @@ def test_calls_are_idtracks(graph: adapter.Graph, cut_idtrack: API) -> None:
     assert graph.convert_many(identifiers, arguments(), 10.0) == [
         r.to_dict() for r in cut_idtrack.convert_many(identifiers)
     ]
-    assert graph.genes_named("ins", True) == [m.to_dict() for m in cut_idtrack.genes_named("ins", True)]
+    assert graph.genes_named("ins", fold_case=True) == [
+        m.to_dict() for m in cut_idtrack.genes_named("ins", fold_case=True)
+    ]
     assert graph.names_of(GENE, None) == [m.to_dict() for m in cut_idtrack.names_of(GENE)]
 
 
@@ -101,11 +105,28 @@ def test_every_input_error_of_idtrack_has_a_code_of_the_api() -> None:
         problem = adapter.input_problem(error)
         assert problem is not None
         assert 400 <= CODES[problem.code][0] < 500
-        assert problem.code != "invalid_input" or cls is idtrack_errors.InputError
+        # A refusal the api's own checks make unreachable through its endpoints falls back to its root's code; every
+        # other class has a code of its own.
+        unreachable = {
+            idtrack_errors.InputError,
+            idtrack_errors.ArgumentTypeError,
+            idtrack_errors.UnknownAssemblyError,
+            idtrack_errors.InactiveAtReleaseError,
+            idtrack_errors.UnknownVersionError,
+        }
+        assert (problem.code == "invalid_input") == (cls in unreachable), cls
         codes.add(problem.code)
     assert codes == set(adapter.input_codes())
     assert adapter.input_problem(idtrack_errors.IntegrityError("x")) is None
     assert adapter.input_problem(ValueError("x")) is None
+
+
+def test_item_error_codes() -> None:
+    assert adapter.item_error_code("MissingValueError") == "missing_value"
+    assert adapter.item_error_code("UnknownVersionError") == "invalid_input"
+    assert adapter.item_error_code(adapter.SEARCH_BUDGET_ERROR_TYPE) == "search_budget_exceeded"
+    assert adapter.item_error_code("ZeroDivisionError") == "internal_error"
+    assert adapter.item_error_code("IntegrityError") == "internal_error"
 
 
 def test_load_and_names(tmp_path: Path) -> None:

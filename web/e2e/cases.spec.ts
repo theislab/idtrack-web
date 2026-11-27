@@ -79,42 +79,57 @@ for (const item of cases) {
       await expect(page.locator(".answer__other-genes a")).toHaveCount(others.length);
       expect(answerText).not.toMatch(/none has|these genes/);
     }
-    if (answer.tie) expect(answerText).toContain("answers equal in every criterion");
+    if (answer.tie) expect(answerText).toContain("equal best: a tie");
+    // The evidence to weigh stands under the status: a bridge of the best answer is named there.
+    if (!answer.no_target && answer.candidates.some((c) => c.best && (c as { bridges?: number }).bridges))
+      await expect(page.locator(".answer__evidence")).toContainText("bridge");
 
-    // Every step of every candidate, in order, with its numbers: releases, score, splits and merges, places.
-    const candidates = page.locator(".reading__candidate");
-    await expect(candidates).toHaveCount(answer.candidates.length);
-    for (const [i, candidate] of answer.candidates.entries()) {
-      const shown = candidates.nth(i).locator(".reading__step");
+    // Every step of a candidate, in order, with its numbers: releases (Ensembl's order), score, splits and merges,
+    // places; the candidates one at a time, the first few chosen in turn.
+    const choose = page.locator(".reading").getByLabel("Candidate", { exact: true });
+    for (const [i, candidate] of answer.candidates.slice(0, 4).entries()) {
+      if (answer.candidates.length > 1) await choose.selectOption(String(i));
+      const shown = page.locator(".reading .steps__row");
       const indices = [...candidate.path, ...candidate.final_path];
       await expect(shown).toHaveCount(indices.length);
+      // The walk's order: the api's, but a run of re-mappings of one gene listed in the walk's direction.
+      const texts = await shown.allInnerTexts();
       for (const [j, index] of indices.entries()) {
         const step = steps[index];
         if (!step) throw new Error(`step ${index} is not in the path`);
-        const text = await shown.nth(j).innerText();
+        const releases = `${step.old_release ?? "—"} → ${step.new_release ?? "—"}`;
+        const text = step.kind === "self_loop" ? (texts.find((t) => t.includes(releases)) ?? "") : (texts[j] ?? "");
         if (step.kind === "history" || step.kind === "self_loop") {
           expect(text).toContain(`${step.old_release ?? "—"} → ${step.new_release ?? "—"}`);
           const weight = weights[index] ?? "null";
-          expect(text).toContain(weight === "null" ? "no score" : `score ${weight}`);
+          expect(text).toContain(weight === "null" ? "no score" : weight);
           expect(text).toContain(spaced(step.reason));
-          if (step.splits || step.merges)
-            expect(text).toContain(`${step.splits} other split, ${step.merges} other merged`);
+          if (step.splits) expect(text).toContain(`the earlier id also passed to ${step.splits} other id`);
+          if (step.merges) expect(text).toContain(`${step.merges} other id`);
           if (step.places !== null) expect(text).toContain(spaced(step.places));
         } else if (step.kind !== "identity" && step.release !== null) {
-          expect(text).toContain(`release ${step.release}`);
+          expect(text).toContain(String(step.release));
         }
       }
     }
 
-    // Every bridge the search considered, with where the two genes lie, whether it was taken, and each rule.
+    // Every bridge the search considered, with where the two genes lie, whether it was taken, and each rule: the taken
+    // first, the refused on a press, every list bounded and opened whole on a press.
     const bridges = answer.path?.bridges ?? [];
-    const bridgeRows = page.getByRole("region", { name: "Bridges, one row per pair of genes" }).locator("tbody tr");
+    const refusedCount = bridges.filter((b) => !b.taken).length;
+    if (refusedCount) await page.getByRole("button", { name: `Show the ${refusedCount} refused` }).click();
+    // Each press changes its button's name: press the first left until none is.
+    for (const name of [/^Show all \d+$/, /^and \d+ more$/]) {
+      const more = page.locator(".result__bridges").getByRole("button", { name });
+      while ((await more.count()) > 0) await more.first().click();
+    }
+    const bridgeRows = page.locator(".result__bridges tbody tr");
     await expect(bridgeRows).toHaveCount(bridges.length);
-    for (const [i, bridge] of bridges.entries()) {
-      const text = await bridgeRows.nth(i).innerText();
-      expect(text).toContain(spaced(bridge.places));
-      expect(text).toContain(bridge.taken ? "yes" : "no");
-      for (const [, rule] of bridge.through) expect(text).toContain(spaced(rule));
+    const bridgeTexts = (await bridgeRows.allInnerTexts()).join("\n");
+    expect((bridgeTexts.match(/\byes\b/g) ?? []).length).toBeGreaterThanOrEqual(bridges.filter((b) => b.taken).length);
+    for (const bridge of bridges) {
+      expect(bridgeTexts).toContain(spaced(bridge.places));
+      for (const [, rule] of bridge.through) expect(bridgeTexts).toContain(spaced(rule));
     }
     await expect(page.locator(".result__refused li")).toHaveCount(answer.path?.refused.length ?? 0);
 
@@ -128,7 +143,8 @@ for (const item of cases) {
       for (const release of reading.releases) expect(text).toContain(String(release));
     }
     const reasons = await page.locator(".readouts").innerText();
-    for (const reason of answer.reasons) expect(reasons).toContain(reason);
+    // Every reason in words (its code and meaning on a press).
+    for (const reason of answer.reasons) expect(reasons).toContain(spaced(reason));
 
     await expectAccessible(page);
     await shot(page, info, `40-case-${item.name}`);

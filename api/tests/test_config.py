@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
-from pathlib import Path
+from typing import TYPE_CHECKING
 
 import pytest
 
 from idtrack_web_api.config import ConfigError, Settings, load_s3_access, load_settings
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 def test_defaults(tmp_path: Path) -> None:
@@ -106,3 +109,18 @@ def test_s3_needs_everything(tmp_path: Path) -> None:
         load_s3_access({"IDTRACK_WEB_S3_ACCESS_KEY_ID_FILE": str(tmp_path / "missing")})
     with pytest.raises(ConfigError, match="needs IDTRACK_WEB_S3_ENDPOINT"):
         load_s3_access({})
+
+
+def test_docs_url(tmp_path: Path) -> None:
+    base = {"IDTRACK_WEB_SOURCE": "directory", "IDTRACK_WEB_DIRECTORY": str(tmp_path)}
+    assert load_settings(base).docs_url == "https://idtrack.readthedocs.io/en/stable/"
+    # The documentation's own name, written with or without the closing slash: one root ending in "/".
+    assert load_settings({**base, "IDTRACK_WEB_DOCS_URL": "https://docs.example.org"}).docs_url == (
+        "https://docs.example.org/"
+    )
+    assert load_settings({**base, "IDTRACK_WEB_DOCS_URL": "https://example.org/idtrack/"}).docs_url == (
+        "https://example.org/idtrack/"
+    )
+    for wrong in ("docs.example.org", "https://docs.example.org/?v=1", "ftp://docs.example.org/"):
+        with pytest.raises(ConfigError, match="DOCS_URL"):
+            load_settings({**base, "IDTRACK_WEB_DOCS_URL": wrong})

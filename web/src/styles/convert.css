@@ -1,0 +1,253 @@
+/* The Convert page's form (pages/ConvertPage.tsx; its head over an answer is every page's, app.css "Pages"). On a wide screen the form is one row, the identifier, the releases and the database beside
+   Convert, so the first screen reaches the figures below it; on a phone the releases and the database fold under one
+   line that says them. */
+
+/* ---- The form ------------------------------------------------------------------------------------------------ */
+
+.convert-form .convert-form__main {
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    "id go"
+    "set set";
+  gap: var(--space-4) var(--space-3);
+}
+
+.convert-form .convert-form__main > .field--identifier {
+  grid-area: id;
+}
+
+.convert-form .convert-form__main > .convert-form__go {
+  grid-area: go;
+}
+
+.convert-form .convert-form__settings {
+  grid-area: set;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.6fr);
+  gap: var(--space-4);
+}
+
+.convert-form .convert-form__settings-toggle {
+  display: none;
+  grid-area: toggle;
+  flex-wrap: wrap;
+  gap: 2px var(--space-2);
+  align-items: baseline;
+  align-self: end;
+  width: 100%;
+  min-height: 42px;
+  padding: 5px var(--space-3);
+  border: 1px solid var(--line-control);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--ink-1);
+  font: inherit;
+  font-size: var(--text-sm);
+  line-height: 1.3;
+  text-align: left;
+  cursor: pointer;
+}
+
+.convert-form .convert-form__foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-5);
+}
+
+.convert-form .convert-form__foot .convert-form__range {
+  margin-top: 0;
+}
+
+.convert-form .convert-form__batch {
+  font-size: var(--text-sm);
+  color: var(--ink-3);
+}
+
+.convert-form .convert-form__advanced[open] > summary {
+  margin-bottom: var(--space-3);
+}
+
+/* The folded settings: one line that says the releases and the database, a press away from the fields. */
+.convert-form .convert-form__settings.is-collapsed {
+  display: none;
+}
+
+.convert-form--folded .convert-form__range {
+  display: none;
+}
+
+.convert-form .convert-form__settings-toggle::after {
+  content: "";
+  margin-left: auto;
+  align-self: center;
+  width: 7px;
+  height: 7px;
+  border-right: 1.5px solid var(--ink-2);
+  border-bottom: 1.5px solid var(--ink-2);
+  transform: rotate(45deg);
+}
+
+.convert-form .convert-form__settings-toggle[aria-expanded="true"]::after {
+  transform: rotate(-135deg);
+}
+
+.convert-form .convert-form__settings-label {
+  font-size: var(--text-2xs);
+  font-weight: var(--weight-strong);
+  color: var(--ink-3);
+  flex-basis: 100%;
+}
+
+@media (hover: hover) {
+  .convert-form .convert-form__settings-toggle:hover {
+    border-color: var(--ink-2);
+  }
+}
+
+/* Over an answer, on a wide screen: one row, the identifier, the releases and the database beside Convert. */
+@media (min-width: 1180px) {
+  .convert-form--compact .convert-form__main {
+    grid-template-columns: minmax(0, 1fr) 140px 140px minmax(290px, 340px) auto;
+    grid-template-areas: "id from to db go";
+  }
+
+  .convert-form--compact .convert-form__settings {
+    display: contents;
+  }
+
+  .convert-form--compact .convert-form__settings > .field:nth-child(1) {
+    grid-area: from;
+  }
+
+  .convert-form--compact .convert-form__settings > .field:nth-child(2) {
+    grid-area: to;
+  }
+
+  .convert-form--compact .convert-form__settings > .field--database {
+    grid-area: db;
+  }
+
+  .convert-form--compact .convert-form__settings .input,
+  .convert-form--compact .convert-form__settings .select__control {
+    min-height: 54px;
+  }
+}
+
+/* Over an answer, on a phone: the settings fold under their line. */
+@media (max-width: 640px) {
+  .convert-form--compact .convert-form__main {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "id"
+      "toggle"
+      "set"
+      "go";
+    gap: var(--space-3);
+  }
+
+  .convert-form--compact .convert-form__settings {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+
+  .convert-form--compact .convert-form__settings > .field--database {
+    grid-column: 1 / -1;
+  }
+
+  .convert-form--compact .convert-form__settings-toggle {
+    display: flex;
+  }
+}
+
+/* ---- The form in the hero ----------------------------------------------------------------------------------- */
+
+.convert-form.convert-form--hero {
+  display: grid;
+  gap: var(--space-3);
+  padding: 0;
+  border: 0;
+  background: none;
+}
+
+.convert-form--hero .convert-form__main {
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    "id go"
+    "toggle toggle"
+    "set set";
+  gap: var(--space-3);
+}
+
+.convert-form--hero .field--organism {
+  grid-column: 1 / -1;
+}
+
+.convert-form--hero .convert-form__settings-toggle {
+  display: flex;
+}
+
+.convert-form--hero .convert-form__settings {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  padding: var(--space-3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.convert-form--hero .convert-form__settings > .field--database {
+  grid-column: 1 / -1;
+}
+
+.convert-form--hero .convert-form__batch,
+.convert-form--hero.convert-form--folded .convert-form__foot,
+.convert-form--hero.convert-form--folded .convert-form__advanced {
+  display: none;
+}
+
+.convert-form--hero .input--large {
+  min-height: 56px;
+  font-size: var(--text-lg);
+  box-shadow: 0 1px 0 var(--line);
+}
+
+.convert-form--hero .convert-form__go {
+  min-height: 56px;
+}
+
+/* The examples: quiet chips under the identifier. */
+.convert-form--hero .field--identifier .field__hint {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-2);
+}
+
+.convert-form--hero .field--identifier .example {
+  padding: 1px var(--space-2);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface);
+  text-decoration: none;
+  line-height: 1.6;
+  min-height: 24px;
+}
+
+@media (hover: hover) {
+  .convert-form--hero .field--identifier .example:hover {
+    border-color: var(--ink-2);
+  }
+}
+
+/* On a phone the identifier stays beside Convert, and the examples are one line of the first three. */
+@media (max-width: 640px) {
+  .convert-form--hero .field--identifier .field__hint > span:nth-of-type(n + 4) {
+    display: none;
+  }
+
+  .convert-form.convert-form--hero .convert-form__go {
+    margin-top: 26px;
+    width: auto;
+    padding: 0 var(--space-4);
+  }
+}

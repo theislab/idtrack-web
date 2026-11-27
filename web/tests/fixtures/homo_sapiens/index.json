@@ -1232,5 +1232,145 @@
   "status": 200,
   "content_type": "application/json",
   "file": "final_databases.json"
+ },
+ {
+  "name": "convert_number_other_scheme",
+  "method": "GET",
+  "path": "/organisms/homo_sapiens/convert",
+  "query": {
+   "identifier": "1898",
+   "explain": "true"
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "convert_number_other_scheme.json"
+ },
+ {
+  "name": "convert_lrg_gene_listed_as_copy",
+  "method": "GET",
+  "path": "/organisms/homo_sapiens/convert",
+  "query": {
+   "identifier": "LRG_7_g1",
+   "explain": "true"
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "convert_lrg_gene_listed_as_copy.json"
+ },
+ {
+  "name": "convert_no_conversion_retired",
+  "method": "GET",
+  "path": "/organisms/homo_sapiens/convert",
+  "query": {
+   "identifier": "ENSG00000180725.4",
+   "explain": "true",
+   "from_release": 67,
+   "to_release": 115
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "convert_no_conversion_retired.json"
+ },
+ {
+  "name": "convert_not_found_authority_id",
+  "method": "GET",
+  "path": "/organisms/homo_sapiens/convert",
+  "query": {
+   "identifier": "HGNC:11998",
+   "explain": "true"
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "convert_not_found_authority_id.json"
+ },
+ {
+  "name": "convert_split_and_merge_peers",
+  "method": "GET",
+  "path": "/organisms/homo_sapiens/convert",
+  "query": {
+   "identifier": "ENSG00000228654.1",
+   "explain": "true",
+   "from_release": 67,
+   "to_release": 115
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "convert_split_and_merge_peers.json"
+ },
+ {
+  "name": "convert_retired_at_its_release",
+  "method": "GET",
+  "path": "/organisms/homo_sapiens/convert",
+  "query": {
+   "identifier": "ENSG00000180725.4",
+   "from_release": 67,
+   "to_release": 67,
+   "explain": "true",
+   "allow_bridges": "false"
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "convert_retired_at_its_release.json"
+ },
+ {
+  "name": "names_of_retired",
+  "method": "GET",
+  "path": "/organisms/homo_sapiens/names-of",
+  "query": {
+   "gene": "ENSG00000180725.4",
+   "release": 67
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "names_of_retired.json"
+ },
+ {
+  "name": "convert_split_peers_forward",
+  "method": "GET",
+  "path": "/organisms/homo_sapiens/convert",
+  "query": {
+   "identifier": "ENSG00000228654.1",
+   "from_release": 69,
+   "to_release": 70,
+   "explain": "false",
+   "allow_bridges": "false"
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "convert_split_peers_forward.json"
+ },
+ {
+  "name": "convert_split_peers_back",
+  "method": "GET",
+  "path": "/organisms/homo_sapiens/convert",
+  "query": {
+   "identifier": "ENSG00000268074.1",
+   "from_release": 70,
+   "to_release": 69,
+   "explain": "false",
+   "allow_bridges": "false"
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "convert_split_peers_back.json"
+ },
+ {
+  "name": "databases",
+  "method": "GET",
+  "path": "/organisms/homo_sapiens/databases",
+  "query": {},
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "databases.json"
  }
 ]

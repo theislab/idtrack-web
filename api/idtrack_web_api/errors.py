@@ -2,50 +2,135 @@
 
 idtrack's refusals of an input arrive through the adapter (:py:func:`idtrack_web_api.adapter.input_problem`) with a code
 of their own (a 4xx); a search over its budget is ``422 search_budget_exceeded``; anything else is
-``500 internal_error`` with the request's id to quote, and its traceback goes to the server's log only.
+``500 internal_error`` with the request's id to quote, and its traceback goes to the server's log only. Every code is
+answered by some endpoint: a refusal of idtrack's that the api's own checks make unreachable (a wrong type, a version
+or assembly where the api takes none) is not listed, and would be answered as ``invalid_input``.
 """
 
 from __future__ import annotations
 
 import json
-from collections.abc import Sequence
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-#: Every code the api answers with, its status and when (README.md lists the same table).
+if TYPE_CHECKING:
+    from collections.abc import Sequence
+
+#: Every code the api answers with: its HTTP status and when it is answered. README.md, ``/llms-full.txt`` and the
+#: OpenAPI document are written from this table (``idtrack-web docs``), and ``/vocabulary`` serves it.
 CODES: dict[str, tuple[int, str]] = {
-    "invalid_request": (400, "The request does not have the shape the endpoint takes (`details` lists each problem)."),
-    "unknown_parameter": (400, "A query parameter the endpoint does not take, or one given twice."),
+    "invalid_request": (
+        400,
+        (
+            "The request does not have the shape the endpoint takes: a missing or malformed parameter, a body that is "
+            "not UTF-8 JSON of the documented shape (`details` lists each problem, `argument` names the parameter when "
+            "one is at fault)."
+        ),
+    ),
+    "unknown_parameter": (400, "A query parameter the endpoint does not take, or one given more than once."),
     "invalid_identifier": (
         400,
-        "An identifier or name is longer than this server accepts, or holds control, surrogate, private-use or "
-        "unassigned characters.",
+        (
+            "An identifier or name is longer than this server accepts, or holds control, surrogate, private-use or "
+            "unassigned characters (in a batch: the whole batch is refused, and `details` gives every such item's "
+            "index)."
+        ),
     ),
-    "unknown_release": (400, "A release the graph does not cover."),
-    "unknown_database": (400, "A database the graph does not hold at that release."),
+    "unknown_release": (400, "A release the graph does not cover (`allowed` lists the graph's releases)."),
+    "unknown_database": (400, "A database the graph does not hold at that release (`allowed` lists those it holds)."),
     "unknown_identifier": (
         400,
-        "An identifier the call needs to exist in the graph does not (e.g. the gene of names-of).",
+        "An identifier the call needs to exist in the graph does not (the gene of names-of).",
     ),
-    "unknown_assembly": (400, "An assembly the graph does not hold."),
-    "inactive_at_release": (400, "An Ensembl id at a release where it is not active."),
-    "unknown_version": (400, "An Ensembl id with a version the graph does not hold."),
     "missing_value": (400, "An identifier is empty or a spelling of a missing value (idtrack's refusal)."),
-    "argument_type": (400, "An argument of the wrong type."),
-    "invalid_argument": (400, "An argument whose value is not accepted."),
-    "invalid_input": (400, "Another input idtrack does not accept."),
-    "unknown_organism": (404, "An organism this server does not hold."),
+    "invalid_argument": (400, "An argument whose value is not accepted (an empty or over-long database name)."),
+    "invalid_input": (400, "Another input idtrack refuses (idtrack's message says which)."),
+    "unknown_organism": (404, "An organism this server does not hold (`allowed` lists those it holds)."),
     "not_found": (404, "No such endpoint or file."),
-    "method_not_allowed": (405, "The endpoint does not take this method."),
-    "request_budget_exceeded": (408, "The request needed more time than its budget; send fewer identifiers."),
+    "method_not_allowed": (
+        405,
+        "The endpoint does not take this method (the `Allow` header and `allowed` list the methods it takes).",
+    ),
+    "request_timeout": (
+        408,
+        (
+            "The request's head or body did not arrive within the time the server waits for it, or its client closed "
+            "the connection before its search (which is then not run); send it again."
+        ),
+    ),
     "payload_too_large": (413, "The request body is larger than the server accepts."),
-    "too_many_identifiers": (413, "A batch with more identifiers than the server accepts."),
+    "too_many_identifiers": (413, "A batch with more identifiers than the server accepts (`batch_max` of /limits)."),
+    "uri_too_long": (414, "The request's path and query are longer than the server accepts."),
     "unsupported_media_type": (415, "A request body that is not `application/json`."),
-    "search_budget_exceeded": (422, "One identifier's search needed more than its budget (states or seconds)."),
-    "response_too_large": (422, "The answer is larger than the server sends; ask without `explain` or for fewer ids."),
-    "rate_limited": (429, "Too many requests from this client; wait for `Retry-After` seconds."),
+    "search_budget_exceeded": (
+        422,
+        "One identifier's search needed more than its budget (states or seconds); the same request fails again.",
+    ),
+    "response_too_large": (
+        422,
+        "The answer is larger than the server sends (`response_max_bytes` of /limits); it is refused, never cut.",
+    ),
+    "rate_limited": (
+        429,
+        (
+            "This client sent more requests, or used more search time, than its allowance; wait the `Retry-After` "
+            "header's seconds."
+        ),
+    ),
     "internal_error": (500, "A fault of the server; quote the request id when reporting it."),
-    "server_busy": (503, "The server has more waiting work than it accepts; retry after `Retry-After` seconds."),
+    "server_busy": (
+        503,
+        "The server has more waiting work than it accepts; retry after the `Retry-After` header's seconds.",
+    ),
+    "request_budget_exceeded": (
+        503,
+        (
+            "The request needed more time than its budget (`request_seconds` of /limits), waiting for the server or "
+            "searching; retry after `Retry-After` seconds, with fewer identifiers if it searched."
+        ),
+    ),
 }
+
+#: Each code's title for people: a few plain words for the heading of a refusal shown on a page (no code, no header
+#: name); ``meaning`` says the rest. The keys are those of :py:data:`CODES` (a test compares them).
+TITLES: dict[str, str] = {
+    "invalid_request": "The request is not in the form the endpoint takes.",
+    "unknown_parameter": "The request names a parameter the endpoint does not take, or names one twice.",
+    "invalid_identifier": "An identifier is too long, or holds characters an identifier cannot hold.",
+    "unknown_release": "A release this graph does not cover.",
+    "unknown_database": "A database this graph does not hold at that release.",
+    "unknown_identifier": "An identifier this graph does not hold.",
+    "missing_value": "An identifier is empty, or stands for a missing value.",
+    "invalid_argument": "A value this endpoint does not accept.",
+    "invalid_input": "An input idtrack does not accept.",
+    "unknown_organism": "An organism this server does not hold.",
+    "not_found": "Nothing is at this address.",
+    "method_not_allowed": "This address does not take this kind of request.",
+    "request_timeout": "The request did not arrive in time.",
+    "payload_too_large": "The request is larger than the server accepts.",
+    "too_many_identifiers": "More identifiers than one batch may hold.",
+    "uri_too_long": "The address is longer than the server accepts.",
+    "unsupported_media_type": "The request's body is not JSON.",
+    "search_budget_exceeded": "One identifier's search needed more than its budget.",
+    "response_too_large": "The answer is larger than the server sends.",
+    "rate_limited": "Too many requests from this address for now.",
+    "internal_error": "A fault of the server.",
+    "server_busy": "The server is busy.",
+    "request_budget_exceeded": "The request needed more time than a request may take.",
+}
+
+#: The allowances a ``429 rate_limited`` names (``allowance`` of the error): which of a client's allowances it used up.
+ALLOWANCES: dict[str, str] = {
+    "searches": "Searching requests (`rate_per_minute` per minute, `rate_burst` at once).",
+    "reads": "Every other request of the api (`read_share` times the searches' allowance).",
+    "search_seconds": "Seconds of search (`rate_search_seconds` per minute, a balance of `rate_search_burst_seconds`).",
+    "concurrent_searches": "Searching requests in progress at once (`rate_concurrent_searches`).",
+}
+
+#: The codes after which the same request may succeed when sent again (after ``Retry-After`` where it is given); every
+#: other code answers the same request the same way until it is changed.
+RETRYABLE: frozenset[str] = frozenset(
+    {"request_timeout", "rate_limited", "internal_error", "server_busy", "request_budget_exceeded"}
+)
 
 
 class ApiError(Exception):
@@ -59,6 +144,7 @@ class ApiError(Exception):
         allowed: The accepted values, if they can be listed.
         details: For ``invalid_request``: the problems, as ``{"location": [...], "message": ...}``.
         headers: Extra response headers (``Retry-After``).
+        allowance: For ``rate_limited``: the allowance used up (a key of :py:data:`ALLOWANCES`).
     """
 
     def __init__(
@@ -70,10 +156,12 @@ class ApiError(Exception):
         allowed: Sequence[Any] | None = None,
         details: list[dict[str, Any]] | None = None,
         headers: dict[str, str] | None = None,
+        allowance: str | None = None,
     ) -> None:
         super().__init__(message)
         if code not in CODES:
-            raise ValueError(f"Unknown error code {code!r}")
+            msg = f"Unknown error code {code!r}"
+            raise ValueError(msg)
         self.code = code
         self.status = CODES[code][0]
         self.message = message
@@ -81,6 +169,10 @@ class ApiError(Exception):
         self.allowed = None if allowed is None else [_scalar(v) for v in allowed]
         self.details = details
         self.headers = headers or {}
+        if allowance is not None and allowance not in ALLOWANCES:
+            msg = f"Unknown allowance {allowance!r}"
+            raise ValueError(msg)
+        self.allowance = allowance
 
     def body(self, request_id: str) -> dict[str, Any]:
         """Return the response body.
@@ -99,8 +191,41 @@ class ApiError(Exception):
                 "allowed": self.allowed,
                 "details": self.details,
                 "request_id": request_id,
+                "retry_after": int(self.headers["Retry-After"]) if "Retry-After" in self.headers else None,
+                "allowance": self.allowance,
             }
         }
+
+
+def listed(values: Sequence[Any], most: int = 20) -> str:
+    """Return values as words for a message: each in backticks, joined by commas, at most *most* (then a count).
+
+    Args:
+        values: The values.
+        most: The most values written out.
+
+    Returns:
+        str: ```a`, `b` and `c``` (``and 3 more`` beyond *most*).
+    """
+    shown = [f"`{v}`" for v in list(values)[:most]]
+    more = len(values) - len(shown)
+    if more:
+        shown.append(f"{more} more")
+    if len(shown) <= 1:
+        return "".join(shown)
+    return ", ".join(shown[:-1]) + " and " + shown[-1]
+
+
+def sentences(parts: Sequence[str]) -> str:
+    """Return messages joined into one: each without its final full stop, joined by semicolons, with one at the end.
+
+    Args:
+        parts: Messages, each a sentence.
+
+    Returns:
+        str: One sentence.
+    """
+    return "; ".join(p.rstrip().rstrip(".") for p in parts) + "."
 
 
 def _scalar(value: Any) -> str | int:

@@ -19,7 +19,6 @@ import logging
 import os
 import re
 import secrets
-from collections.abc import Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
@@ -30,6 +29,8 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_valida
 from idtrack_web_api.adapter import FORMAT_VERSION
 
 if TYPE_CHECKING:
+    from collections.abc import Iterator
+
     from mypy_boto3_s3 import S3Client
 
     from idtrack_web_api.config import Settings
@@ -117,11 +118,13 @@ class Manifest(BaseModel):
     def _consistent(self) -> Manifest:
         organisms = [g.organism for g in self.graphs]
         if len(set(organisms)) != len(organisms):
-            raise ValueError(f"an organism is listed twice: {sorted(organisms)}")
+            msg = f"an organism is listed twice: {sorted(organisms)}"
+            raise ValueError(msg)
         for graph in self.graphs:
             expected = object_key(self.format_version, graph.organism, graph.file.sha256)
             if graph.file.key != expected:
-                raise ValueError(f"the key of {graph.organism} is {graph.file.key!r}; a content key is {expected!r}")
+                msg = f"the key of {graph.organism} is {graph.file.key!r}; a content key is {expected!r}"
+                raise ValueError(msg)
         return self
 
     def graph(self, organism: str) -> ManifestGraph:
@@ -139,7 +142,8 @@ class Manifest(BaseModel):
         for graph in self.graphs:
             if graph.organism == organism:
                 return graph
-        raise DataError(f"The manifest lists no graph of {organism!r}; it lists {[g.organism for g in self.graphs]}.")
+        msg = f"The manifest lists no graph of {organism!r}; it lists {[g.organism for g in self.graphs]}."
+        raise DataError(msg)
 
 
 def parse_manifest(content: bytes, where: str) -> Manifest:
@@ -156,11 +160,13 @@ def parse_manifest(content: bytes, where: str) -> Manifest:
         DataError: If it is not one.
     """
     if len(content) > MANIFEST_MAX_BYTES:
-        raise DataError(f"The manifest {where} is {len(content)} bytes; a manifest is at most {MANIFEST_MAX_BYTES}.")
+        msg = f"The manifest {where} is {len(content)} bytes; a manifest is at most {MANIFEST_MAX_BYTES}."
+        raise DataError(msg)
     try:
         return Manifest.model_validate_json(content, strict=True)
     except ValidationError as error:
-        raise DataError(f"The manifest {where} is not a valid manifest: {error}") from None
+        msg = f"The manifest {where} is not a valid manifest: {error}"
+        raise DataError(msg) from None
 
 
 def manifest_bytes(manifest: Manifest) -> bytes:
@@ -190,7 +196,7 @@ def file_digest(path: Path) -> tuple[str, int]:
     """
     digest = hashlib.sha256()
     size = 0
-    with open(path, "rb") as handle:
+    with path.open("rb") as handle:
         while chunk := handle.read(_CHUNK):
             digest.update(chunk)
             size += len(chunk)
@@ -210,12 +216,15 @@ def verify_file(path: Path, expected: ManifestFile) -> None:
     try:
         size = path.stat().st_size
     except OSError as error:
-        raise DataError(f"{expected.key}: the file {path} cannot be read ({error.strerror}).") from None
+        msg = f"{expected.key}: the file {path} cannot be read ({error.strerror})."
+        raise DataError(msg) from None
     if size != expected.size:
-        raise DataError(f"{expected.key}: {path} has {size} bytes; the manifest says {expected.size}.")
+        msg = f"{expected.key}: {path} has {size} bytes; the manifest says {expected.size}."
+        raise DataError(msg)
     sha256, read = file_digest(path)
     if read != expected.size or sha256 != expected.sha256:
-        raise DataError(f"{expected.key}: the SHA-256 of {path} is {sha256}; the manifest says {expected.sha256}.")
+        msg = f"{expected.key}: the SHA-256 of {path} is {sha256}; the manifest says {expected.sha256}."
+        raise DataError(msg)
 
 
 @contextmanager
@@ -237,9 +246,9 @@ def temporary_beside(path: Path) -> Iterator[Path]:
 
 def move_into_place(temporary: Path, path: Path) -> None:
     """Make a written temporary file durable and give it its final name."""
-    with open(temporary, "rb") as handle:
+    with temporary.open("rb") as handle:
         os.fsync(handle.fileno())
-    os.replace(temporary, path)
+    temporary.replace(path)
 
 
 # ------------------------------------------------------------------------------------------------------------------
@@ -279,7 +288,8 @@ class DirectoryStore:
     def _path(self, key: str) -> Path:
         path = self.root / key
         if ".." in Path(key).parts or Path(key).is_absolute():
-            raise DataError(f"The key {key!r} leaves the store.")
+            msg = f"The key {key!r} leaves the store."
+            raise DataError(msg)
         return path
 
     def read_bytes(self, key: str, limit: int) -> bytes:
@@ -297,12 +307,14 @@ class DirectoryStore:
         """
         path = self._path(key)
         try:
-            with open(path, "rb") as handle:
+            with path.open("rb") as handle:
                 content = handle.read(limit + 1)
         except OSError as error:
-            raise DataError(f"{key} cannot be read from the {self.describe()}: {error.strerror}.") from None
+            msg = f"{key} cannot be read from the {self.describe()}: {error.strerror}."
+            raise DataError(msg) from None
         if len(content) > limit:
-            raise DataError(f"{key} in the {self.describe()} is larger than {limit} bytes.")
+            msg = f"{key} in the {self.describe()} is larger than {limit} bytes."
+            raise DataError(msg)
         return content
 
     def local_file(self, file: ManifestFile) -> Path:
@@ -363,9 +375,11 @@ class S3Store:
             response = self.client.get_object(Bucket=self.bucket, Key=key)
             content = response["Body"].read(limit + 1)
         except (BotoCoreError, ClientError) as error:
-            raise DataError(f"{key} cannot be read from the {self.describe()}: {_s3_message(error)}") from None
+            msg = f"{key} cannot be read from the {self.describe()}: {_s3_message(error)}"
+            raise DataError(msg) from None
         if len(content) > limit:
-            raise DataError(f"{key} in the {self.describe()} is larger than {limit} bytes.")
+            msg = f"{key} in the {self.describe()} is larger than {limit} bytes."
+            raise DataError(msg)
         return content
 
     def local_file(self, file: ManifestFile) -> Path:
@@ -403,11 +417,12 @@ class S3Store:
         try:
             response = self.client.get_object(Bucket=self.bucket, Key=file.key)
             body = response["Body"]
-            with open(target, "wb") as handle:
+            with target.open("wb") as handle:
                 while chunk := body.read(_CHUNK):
                     handle.write(chunk)
         except (BotoCoreError, ClientError) as error:
-            raise DataError(f"{file.key} cannot be fetched from the {self.describe()}: {_s3_message(error)}") from None
+            msg = f"{file.key} cannot be fetched from the {self.describe()}: {_s3_message(error)}"
+            raise DataError(msg) from None
 
 
 def _s3_message(error: Exception) -> str:
@@ -465,13 +480,15 @@ def store_of(settings: Settings) -> Store:
     """
     if settings.source == "directory":
         if settings.directory is None:
-            raise DataError("The folder store needs IDTRACK_WEB_DIRECTORY.")
+            msg = "The folder store needs IDTRACK_WEB_DIRECTORY."
+            raise DataError(msg)
         return DirectoryStore(settings.directory)
     needed = (settings.s3_endpoint, settings.s3_bucket, settings.cache_dir, settings.s3_access_key_id)
     if any(v is None for v in needed) or settings.s3_secret_access_key is None:
-        raise DataError(
+        msg = (
             "The bucket store needs IDTRACK_WEB_S3_ENDPOINT, _BUCKET, _ACCESS_KEY_ID, _SECRET_ACCESS_KEY and CACHE_DIR."
         )
+        raise DataError(msg)
     assert settings.s3_endpoint is not None and settings.s3_bucket is not None  # noqa: S101, PT018 - checked above
     assert settings.cache_dir is not None and settings.s3_access_key_id is not None  # noqa: S101, PT018 - checked above
     client = s3_client(
@@ -513,11 +530,12 @@ def prepare(store: Store, manifest_key: str, organisms: tuple[str, ...]) -> Veri
     content = store.read_bytes(manifest_key, MANIFEST_MAX_BYTES)
     manifest = parse_manifest(content, f"{manifest_key} in the {store.describe()}")
     if manifest.format_version != FORMAT_VERSION:
-        raise DataError(
+        msg = (
             f"The manifest {manifest_key} lists graphs of format version {manifest.format_version}; this idtrack reads "
             f"format version {FORMAT_VERSION}. Publish graphs built by this idtrack, or point the server at the "
             f"manifest of format {FORMAT_VERSION} ({default_manifest_key()})."
         )
+        raise DataError(msg)
     wanted = organisms or tuple(g.organism for g in manifest.graphs)
     files: dict[str, Path] = {}
     for organism in wanted:

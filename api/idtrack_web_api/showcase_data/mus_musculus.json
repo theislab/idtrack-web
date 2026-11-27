@@ -1,0 +1,151 @@
+{
+  "checked_on": "a0663af01bd72b7785c06a69de0eadb7cfc4bf5faa27d8a328fec22a9bf963fc",
+  "journeys": [
+    {
+      "identifier": "Trp53",
+      "from_release": 50,
+      "to_release": null,
+      "final_database": "MGI Symbol"
+    },
+    {
+      "identifier": "Brca1",
+      "from_release": 50,
+      "to_release": null,
+      "final_database": "MGI Symbol"
+    },
+    {
+      "identifier": "Sept9",
+      "from_release": 50,
+      "to_release": null,
+      "final_database": "MGI Symbol"
+    },
+    {
+      "identifier": "March1",
+      "from_release": 50,
+      "to_release": null,
+      "final_database": "MGI Symbol"
+    },
+    {
+      "identifier": "Mll1",
+      "from_release": 50,
+      "to_release": null,
+      "final_database": "MGI Symbol"
+    },
+    {
+      "identifier": "Peo1",
+      "from_release": 50,
+      "to_release": null,
+      "final_database": "MGI Symbol"
+    },
+    {
+      "identifier": "Gpr98",
+      "from_release": 50,
+      "to_release": null,
+      "final_database": "MGI Symbol"
+    },
+    {
+      "identifier": "H2afx",
+      "from_release": 50,
+      "to_release": null,
+      "final_database": "MGI Symbol"
+    },
+    {
+      "identifier": "Wars",
+      "from_release": 50,
+      "to_release": null,
+      "final_database": "MGI Symbol"
+    },
+    {
+      "identifier": "2810417H13Rik",
+      "from_release": 50,
+      "to_release": null,
+      "final_database": "MGI Symbol"
+    },
+    {
+      "identifier": "NM_011640",
+      "from_release": 60,
+      "to_release": null,
+      "final_database": "Uniprot/SWISSPROT"
+    },
+    {
+      "identifier": "NM_007393",
+      "from_release": 60,
+      "to_release": null,
+      "final_database": "Uniprot/SWISSPROT"
+    },
+    {
+      "identifier": "NM_010927",
+      "from_release": 60,
+      "to_release": null,
+      "final_database": "Uniprot/SWISSPROT"
+    },
+    {
+      "identifier": "ENSMUSG00000064153.1",
+      "from_release": null,
+      "to_release": null,
+      "final_database": null
+    },
+    {
+      "identifier": "ENSMUSG00000116029",
+      "from_release": null,
+      "to_release": null,
+      "final_database": null
+    },
+    {
+      "identifier": "ENSMUSG00000021874",
+      "from_release": null,
+      "to_release": null,
+      "final_database": null
+    },
+    {
+      "identifier": "ENSMUSG00000059552.14",
+      "from_release": null,
+      "to_release": 48,
+      "final_database": null
+    }
+  ],
+  "cases": [
+    {
+      "kind": "lineage",
+      "identifier": "ENSMUSG00000059552",
+      "from_release": 48,
+      "to_release": null,
+      "final_database": null
+    },
+    {
+      "kind": "renamed",
+      "identifier": "Sept9",
+      "from_release": 50,
+      "to_release": null,
+      "final_database": "MGI Symbol"
+    },
+    {
+      "kind": "split",
+      "identifier": "ENSMUSG00000064153.1",
+      "from_release": null,
+      "to_release": null,
+      "final_database": null
+    },
+    {
+      "kind": "merge",
+      "identifier": "ENSMUSG00000116029",
+      "from_release": 111,
+      "to_release": null,
+      "final_database": null
+    },
+    {
+      "kind": "handoff",
+      "identifier": "ENSMUST00000108658",
+      "from_release": 60,
+      "to_release": null,
+      "final_database": null
+    },
+    {
+      "kind": "final",
+      "identifier": "NM_011640",
+      "from_release": 60,
+      "to_release": null,
+      "final_database": "Uniprot/SWISSPROT"
+    }
+  ]
+}

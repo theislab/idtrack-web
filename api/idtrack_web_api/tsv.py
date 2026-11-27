@@ -1,20 +1,24 @@
 r"""A batch's results as a tab-separated table: one row per candidate (one row for a result without candidates).
 
 The table holds every field of a result and of its candidates except the explained path and the candidates' indices
-into it (``path``, ``final_path``: a graph, not a row; ask for JSON for it). Values are written as JSON writes them,
-so nothing is rounded: numbers as Python's ``repr`` (the shortest text that reads back as the same float),
-``true``/``false``, an empty cell for ``null``, and lists joined by ``;`` (no identifier holds a ``;``, a tab or a line
-break: the api refuses control characters in input, and :py:func:`write` refuses any value that would break the
-table). ``other_readings``, a list of objects, is written as its compact JSON (empty when the list is). The one free
-text, ``error_message``, is written with each backslash, tab, line feed and carriage return as a backslash followed by
-``\\``, ``t``, ``n`` or ``r``.
+into it (``path``, ``final_path``: a graph, not a row; ask for JSON for it), and the api's code of an item's error
+(``error_code``). The first line names the columns (:py:data:`COLUMNS`; :py:data:`COLUMN_TEXTS` says what each holds).
+Values are written as JSON writes them, so nothing is rounded: numbers as Python's ``repr`` (the shortest text that
+reads back as the same float), ``true``/``false``, an empty cell for ``null``, and lists joined by ``;`` (no identifier
+holds a ``;``, a tab or a line break inside it: the api refuses control characters in input, and :py:func:`rows`
+refuses any value that would break the table). ``other_readings``, a list of objects, is written as its compact JSON
+(empty when the list is). The two texts that may hold any character, ``query_id`` (the identifier as sent, which may
+begin or end with white space such as a tab: idtrack reads it without) and ``error_message``, are written with each
+backslash, tab, line feed and carriage return as a backslash followed by ``\\``, ``t``, ``n`` or ``r``.
 """
 
 from __future__ import annotations
 
 import json
-from collections.abc import Iterable, Sequence
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable, Sequence
 
 #: The columns of each result, repeated on each of its rows.
 RESULT_COLUMNS: tuple[str, ...] = (
@@ -40,6 +44,7 @@ RESULT_COLUMNS: tuple[str, ...] = (
     "no_target",
     "no_target_genes",
     "other_readings",
+    "error_code",
     "error_type",
     "error_message",
     "error_input_error",
@@ -70,6 +75,19 @@ CANDIDATE_COLUMNS: tuple[str, ...] = (
 )
 
 COLUMNS: tuple[str, ...] = RESULT_COLUMNS + CANDIDATE_COLUMNS
+
+#: What each column holds: the field of the result (or of the candidate) it is, and how it is written.
+COLUMN_TEXTS: dict[str, str] = {
+    "input_index": "The item's place in the batch, from 0 (the result's place in `results`).",
+    "query_id": "`query_id`: the identifier as sent (escaped: a backslash before `\\`, `t`, `n`, `r`).",
+    "candidate_count": "The number of the result's candidates (its rows; 0 on the one row of a result without any).",
+    "other_readings": "`other_readings` as compact JSON (empty for none).",
+    "error_code": "The api's code of the item's error (`error.code`; `errors` of `GET /api/v1/vocabulary`).",
+    "error_type": "`error.type`: the class of idtrack's error.",
+    "error_message": "`error.message` (escaped as `query_id`).",
+    "error_input_error": "`error.input_error`.",
+    "rank": "The candidate's place in `candidates`, from 1 (empty on the row of a result without candidates).",
+}
 
 
 class TableError(ValueError):
@@ -108,14 +126,17 @@ def cell(value: Any) -> str:
         return repr(value)
     if isinstance(value, str):
         if any(ch in value for ch in "\t\r\n"):
-            raise TableError(f"A value holds a tab or a line break: {value!r}")
+            msg = f"A value holds a tab or a line break: {value!r}"
+            raise TableError(msg)
         return value
     if isinstance(value, list):
         items = [cell(v) for v in value]
         if any(";" in item for item in items):
-            raise TableError(f"A list item holds ';': {value!r}")
+            msg = f"A list item holds ';': {value!r}"
+            raise TableError(msg)
         return ";".join(items)
-    raise TableError(f"A value of type {type(value).__name__} has no cell: {value!r}")
+    msg = f"A value of type {type(value).__name__} has no cell: {value!r}"
+    raise TableError(msg)
 
 
 def rows(results: Sequence[dict[str, Any]]) -> Iterable[list[str]]:
@@ -133,8 +154,10 @@ def rows(results: Sequence[dict[str, Any]]) -> Iterable[list[str]]:
         head = {
             **{k: result[k] for k in RESULT_COLUMNS if k in result},
             "input_index": index,
+            "query_id": _escaped(result.get("query_id")),
             "candidate_count": len(result["candidates"]),
             "other_readings": _json(result["other_readings"]),
+            "error_code": error.get("code"),
             "error_type": error.get("type"),
             "error_message": _escaped(error.get("message")),
             "error_input_error": error.get("input_error"),
@@ -148,6 +171,19 @@ def rows(results: Sequence[dict[str, Any]]) -> Iterable[list[str]]:
             yield start + [cell(values[k]) for k in CANDIDATE_COLUMNS]
 
 
+def lines(results: Sequence[dict[str, Any]]) -> Iterable[str]:
+    """Yield the lines of a batch's results as tab-separated text (the header first), each ending in a newline.
+
+    Args:
+        results: The results.
+
+    Yields:
+        str: A line.
+    """
+    for row in rows(results):
+        yield "\t".join(row) + "\n"
+
+
 def write(results: Sequence[dict[str, Any]]) -> str:
     """Return a batch's results as tab-separated text (a header line, then one line per row, each ending in a newline).
 
@@ -157,4 +193,4 @@ def write(results: Sequence[dict[str, Any]]) -> str:
     Returns:
         str: The table.
     """
-    return "".join("\t".join(row) + "\n" for row in rows(results))
+    return "".join(lines(results))

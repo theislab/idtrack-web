@@ -1,0 +1,9 @@
+# Reboot the virtual machine if an installed update asks for it (Ubuntu then writes /run/reboot-required); started
+# by reboot-if-required.timer in the weekly window (SETUP.md, section 10.8).
+[Unit]
+Description=Reboot if an installed update requires it
+ConditionPathExists=/run/reboot-required
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/systemctl reboot

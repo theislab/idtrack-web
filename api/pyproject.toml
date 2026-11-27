@@ -63,27 +63,62 @@ line-length = 120
 target-version = "py312"
 
 [tool.ruff.lint]
-select = ["E", "W", "F", "I", "B", "UP", "S", "BLE", "C4", "SIM", "RUF", "D", "N", "PT", "RET", "PL", "TRY"]
+# Every rule of ruff, each one left out named here with why (scripts/check.sh runs it; SETUP.md, "Test").
+select = ["ALL"]
 ignore = [
     "D203", "D213",          # one docstring style: summary on the first line, no blank line before the class docstring
+    "D105", "D107",          # magic methods and __init__ are documented by their class's docstring (Args)
+    "COM812",                # trailing commas are the formatter's (ruff format), which this rule would fight
+    "CPY001",                # the licence is the repository's LICENSE, not a header in every file
     "PLR0913", "PLR0917",    # endpoint functions take one argument per query parameter
     "PLC0415",               # imports inside functions keep the light commands (publish, openapi) off the server stack
     "PLR2004",               # numbers in tests and HTTP statuses are their own names
+    "C901",                  # a function's size is guarded by pylint's counts (PLR0911, PLR0912, PLR0915), whose
+                             # exceptions are named on their lines; mccabe's count would repeat them
     "TRY003",                # messages are written where the error is raised: they name the value and the fix
-    "D105", "D107",
+    "ANN401",                # idtrack's answers (to_dict()) and JSON bodies pass through as JSON values (`Any`); their
+                             # shapes are the OpenAPI document's, checked by the tests against every answer
 ]
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = ["S101", "D", "PLR0915", "S603", "S607", "S311", "S105", "PT018"]
+# The command line writes its reports to the terminal.
+"idtrack_web_api/cli.py" = ["T201"]
+# The development scripts are programs run by hand (not a package) that write their report to the terminal.
+"../scripts/**" = ["INP001", "T201"]
+"../web/scripts/fixtures/**" = ["INP001", "T201"]
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"
+
+[tool.ruff.lint.flake8-type-checking]
+# pydantic reads the annotations of its models when the module is imported: their types are needed at run time.
+runtime-evaluated-base-classes = ["pydantic.BaseModel"]
 
 [tool.mypy]
 python_version = "3.12"
 strict = true
 warn_unreachable = true
-packages = ["idtrack_web_api", "tests"]
+# A `type: ignore` names its error code; an expression always true or always false, an `if` on a value that is always
+# truthy, and a name that may be unbound are errors.
+enable_error_code = ["ignore-without-code", "redundant-expr", "truthy-bool", "possibly-undefined"]
+# The package, its tests, and the development scripts of the repository (each a program of its own).
+files = ["idtrack_web_api", "tests", "../scripts", "../web/scripts/fixtures"]
+# `Any` written out is an error in every module that does without it (the settings, the built frontend's files, the
+# publisher, new modules); the modules below carry JSON values (idtrack's answers, request bodies, the OpenAPI
+# document, ASGI messages) as `Any`, their shapes checked against the OpenAPI document by the tests.
+disallow_any_explicit = true
+
+[[tool.mypy.overrides]]
+module = [
+    "idtrack_web_api.adapter", "idtrack_web_api.app", "idtrack_web_api.cli", "idtrack_web_api.contract",
+    "idtrack_web_api.data", "idtrack_web_api.docs", "idtrack_web_api.errors", "idtrack_web_api.graphs",
+    "idtrack_web_api.guard", "idtrack_web_api.history", "idtrack_web_api.limits", "idtrack_web_api.monitor",
+    "idtrack_web_api.openapi", "idtrack_web_api.schemas", "idtrack_web_api.server", "idtrack_web_api.service",
+    "idtrack_web_api.showcase", "idtrack_web_api.tsv", "idtrack_web_api.vocabulary", "idtrack_web_api.writing",
+    "tests.*", "check_endpoints", "record_examples", "record_fixtures", "scan_features",
+]
+disallow_any_explicit = false
 
 [[tool.mypy.overrides]]
 module = ["moto", "moto.*", "jsonschema", "jsonschema.*", "referencing", "referencing.*", "gunicorn", "gunicorn.*", "uvicorn_worker"]

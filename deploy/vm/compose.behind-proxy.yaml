@@ -1,0 +1,11 @@
+# Behind the institute's reverse proxy, which holds the certificate and passes requests to this machine on plain
+# http, port 80: added after vm/compose.vm.yaml through COMPOSE_FILE in deploy/.env (SETUP.md, section 10.5, way c).
+# IDTRACK_WEB_TRUSTED_PROXIES names the proxy's addresses.
+services:
+  caddy:
+    environment:
+      IDTRACK_WEB_TRUSTED_PROXIES: ${IDTRACK_WEB_TRUSTED_PROXIES:?set IDTRACK_WEB_TRUSTED_PROXIES in deploy/.env to the proxy's addresses}
+    ports: !override
+      - "80:80"
+    volumes:
+      - ./vm/Caddyfile.behind-proxy:/etc/caddy/Caddyfile:ro

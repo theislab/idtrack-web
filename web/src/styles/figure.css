@@ -1,0 +1,461 @@
+/* The figure grammar (DESIGN.md, "The figure grammar"; components/figure/): one release axis, one set of assembly
+   bands, one glyph for each kind of step, one gene bar, one score track, labels that never collide and are never
+   crossed (a halo of the figure's ground cuts any line behind them), one note, one legend and one caption. Every
+   figure of every page draws with these classes; a page's stylesheet adds only its layout. */
+
+/* The ground a figure is drawn on (its halos take it): a panel's surface, or the paper where a figure stands on it. */
+.fig,
+.panel {
+  --fig-ground: var(--surface);
+}
+
+/* ---- Text: the figures' one size (11 px, the floor), in the monospaced face for data ----------------------------- */
+
+.fig-text,
+.fig-band__name,
+.fig-axis__label,
+.fig-label,
+.fig-score__tick {
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  font-variant-numeric: tabular-nums slashed-zero;
+  fill: var(--ink-2);
+  paint-order: stroke;
+  stroke: var(--fig-ground);
+  stroke-width: 3px;
+  stroke-linejoin: round;
+}
+
+.fig-text--sans {
+  font-family: var(--font-sans);
+}
+
+.fig-text--strong,
+.fig-label--first {
+  fill: var(--ink-1);
+  font-weight: var(--weight-strong);
+}
+
+/* ---- Axis and bands ------------------------------------------------------------------------------------------- */
+
+.fig-band {
+  fill: transparent;
+}
+
+.fig-band--b {
+  fill: var(--band);
+}
+
+.fig-band__edge {
+  stroke: var(--line-strong);
+  stroke-width: 1;
+  stroke-dasharray: 2 3;
+}
+
+.fig-band__name {
+  font-weight: var(--weight-strong);
+  letter-spacing: 0.01em;
+  stroke: none;
+}
+
+/* A band's name centred on a band too narrow for it crosses the band's edge: the halo cuts the edge's line. */
+.fig-band__name--out {
+  stroke: var(--fig-ground);
+}
+
+.fig-band__range {
+  font-weight: var(--weight-regular);
+  fill: var(--ink-3);
+}
+
+.fig-axis__line,
+.fig-axis__tick {
+  stroke: var(--ink-3);
+  stroke-width: 1;
+}
+
+.fig-axis__label {
+  fill: var(--ink-3);
+}
+
+/* ---- Marks: the hue of each family of step --------------------------------------------------------------------- */
+
+.fig-hue--history {
+  --hue: var(--hue-history);
+}
+
+.fig-hue--event {
+  --hue: var(--hue-event);
+}
+
+.fig-hue--external {
+  --hue: var(--hue-external);
+}
+
+.fig-hue--handoff {
+  --hue: var(--hue-handoff);
+}
+
+.fig-hue--ink {
+  --hue: var(--ink-1);
+}
+
+/* A gene over the releases the path holds it: ink; an alternative the engine considered, lighter. */
+.fig-gene {
+  fill: var(--ink-1);
+}
+
+.fig-gene--weak {
+  fill: var(--ink-3);
+  opacity: 0.55;
+}
+
+.fig-glyph--version {
+  stroke: var(--hue);
+  stroke-width: 2.2;
+  stroke-linecap: round;
+}
+
+.fig-glyph--event {
+  fill: var(--hue);
+  stroke: var(--fig-ground);
+  stroke-width: 1.5;
+}
+
+.fig-glyph--loop {
+  fill: none;
+  stroke: var(--hue);
+  stroke-width: 1.6;
+  stroke-linecap: round;
+}
+
+.fig-glyph--handoff .fig-glyph__shape {
+  fill: var(--hue);
+  stroke: var(--fig-ground);
+  stroke-width: 1.5;
+}
+
+.fig-glyph--handoff.fig-glyph--weak .fig-glyph__shape {
+  fill: var(--fig-ground);
+  stroke: var(--hue);
+}
+
+.fig-glyph--handoff .fig-glyph__inner {
+  fill: var(--hue-event);
+  stroke: var(--fig-ground);
+  stroke-width: 1;
+}
+
+.fig-glyph--read .fig-glyph__shape,
+.fig-glyph--bridge .fig-glyph__shape {
+  fill: var(--fig-ground);
+  stroke: var(--hue);
+  stroke-width: 1.5;
+}
+
+.fig-glyph--bridge .fig-glyph__inner {
+  fill: var(--hue);
+}
+
+.fig-glyph--final .fig-glyph__shape {
+  fill: var(--hue);
+  stroke: var(--fig-ground);
+  stroke-width: 1;
+}
+
+.fig-glyph--identity {
+  fill: none;
+  stroke: var(--ink-1);
+  stroke-width: 1.5;
+}
+
+.fig-glyph--form {
+  fill: var(--fig-ground);
+  stroke: var(--ink-1);
+  stroke-width: 1.4;
+}
+
+.fig-glyph--weak {
+  opacity: 0.55;
+}
+
+/* A step that joins two releases apart, in its hue; a crossing through an external database, dashed. */
+.fig-link {
+  stroke: var(--hue, var(--hue-history));
+  stroke-width: 2;
+  fill: none;
+}
+
+.fig-cross {
+  stroke: var(--hue-external);
+  stroke-width: 1.5;
+  stroke-dasharray: 3 2;
+  fill: none;
+}
+
+/* ---- The score track ------------------------------------------------------------------------------------------ */
+
+.fig-score__line {
+  stroke: var(--line-strong);
+  stroke-width: 1;
+}
+
+.fig-score__floor {
+  stroke: var(--line-strong);
+  stroke-width: 1;
+  stroke-dasharray: 2 3;
+}
+
+.fig-score__tick {
+  fill: var(--ink-3);
+  stroke: none;
+}
+
+.fig-score__name {
+  font-family: var(--font-sans);
+  fill: var(--ink-2);
+}
+
+.fig-score__stem line {
+  stroke: var(--hue);
+  stroke-width: 1.5;
+}
+
+.fig-score__stem circle {
+  fill: var(--hue);
+}
+
+.fig-score__none {
+  fill: var(--fig-ground);
+  stroke: var(--ink-3);
+  stroke-width: 1.2;
+}
+
+.fig-score--weak {
+  opacity: 0.45;
+}
+
+/* ---- Focus and the note --------------------------------------------------------------------------------------- */
+
+/* The figure is one tab stop; the element in focus is ringed by the drawing itself, its note shown. */
+.fig-target {
+  cursor: default;
+  outline: none;
+}
+
+.fig-target:focus-visible {
+  outline: none;
+}
+
+.fig-hit {
+  fill: transparent;
+}
+
+.fig-focus {
+  fill: none;
+  stroke: var(--focus-color);
+  stroke-width: 1.5;
+  pointer-events: none;
+}
+
+.fig-note {
+  position: absolute;
+  z-index: 5;
+  background: var(--surface-raised);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-pop);
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--text-xs);
+  line-height: var(--leading-caption);
+  color: var(--ink-1);
+  display: grid;
+  gap: 2px;
+}
+
+.fig-note .mono {
+  overflow-wrap: anywhere;
+}
+
+.fig-note__title {
+  font-weight: var(--weight-strong);
+}
+
+.fig-note__quiet {
+  color: var(--ink-2);
+}
+
+/* ---- Legend and caption --------------------------------------------------------------------------------------- */
+
+.fig-legend {
+  list-style: none;
+  margin: var(--space-3) 0 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-5);
+  font-size: var(--text-xs);
+  line-height: var(--leading-caption);
+  color: var(--ink-2);
+  max-width: calc(2 * var(--measure-caption) + var(--space-7));
+}
+
+.fig-legend li {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.fig-swatch {
+  flex: none;
+  overflow: visible;
+}
+
+/* A journal's caption: small type, about 75 characters a line; under a wide figure, two columns. */
+.fig-caption {
+  margin-top: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--line);
+  font-size: var(--text-sm);
+  line-height: var(--leading-caption);
+  color: var(--ink-2);
+  max-width: var(--measure-caption);
+}
+
+.fig-caption--wide {
+  max-width: none;
+}
+
+@media (min-width: 1100px) {
+  .fig-caption--wide {
+    columns: 2;
+    column-gap: var(--space-7);
+    max-width: calc(2 * var(--measure-caption) + var(--space-7));
+  }
+}
+
+.fig-caption strong,
+.fig-caption__letter {
+  color: var(--ink-1);
+  font-weight: var(--weight-strong);
+}
+
+/* ---- Motion: a path draws itself once, left to right; nothing moves under reduced motion. ---------------------- */
+
+@keyframes fig-in {
+  from {
+    opacity: 0;
+  }
+}
+
+/* A figure drawn when it arrives is revealed once from left to right, the way time runs on its axis: a cover of the
+   ground slides off (a transform, which the compositor runs without repainting the drawing). */
+.fig-wipe::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(--cover, var(--paper));
+  transform-origin: right center;
+  animation: fig-wipe 640ms var(--ease) 60ms both;
+  pointer-events: none;
+}
+
+@keyframes fig-wipe {
+  from {
+    transform: scaleX(1);
+  }
+
+  to {
+    transform: scaleX(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fig-wipe::after {
+    animation: none;
+    content: none;
+  }
+}
+
+/* ---- Forced colours: every mark that carries meaning in the system's text colour, its ground the canvas; the shapes
+   keep telling the kinds of step apart; focus in the highlight colour. ------------------------------------------ */
+
+@media (forced-colors: active) {
+  .fig,
+  .panel {
+    --fig-ground: Canvas;
+    --hue: CanvasText;
+  }
+
+  .fig-band,
+  .fig-band--b {
+    fill: Canvas;
+  }
+
+  .fig-band__edge,
+  .fig-axis__line,
+  .fig-axis__tick,
+  .fig-score__line,
+  .fig-score__floor {
+    stroke: GrayText;
+  }
+
+  .fig-text,
+  .fig-band__name,
+  .fig-band__range,
+  .fig-axis__label,
+  .fig-label,
+  .fig-score__tick {
+    fill: CanvasText;
+    stroke: Canvas;
+  }
+
+  .fig-gene,
+  .fig-glyph--event,
+  .fig-glyph--handoff .fig-glyph__shape,
+  .fig-glyph--final .fig-glyph__shape,
+  .fig-glyph--bridge .fig-glyph__inner,
+  .fig-score__stem circle {
+    fill: CanvasText;
+  }
+
+  .fig-gene--weak,
+  .fig-glyph--weak {
+    fill: GrayText;
+    opacity: 1;
+  }
+
+  .fig-glyph--version,
+  .fig-glyph--loop,
+  .fig-glyph--identity,
+  .fig-glyph--form,
+  .fig-glyph--read .fig-glyph__shape,
+  .fig-glyph--bridge .fig-glyph__shape,
+  .fig-link,
+  .fig-cross,
+  .fig-score__stem line,
+  .fig-score__none {
+    stroke: CanvasText;
+  }
+
+  .fig-glyph--handoff.fig-glyph--weak .fig-glyph__shape,
+  .fig-glyph--read .fig-glyph__shape,
+  .fig-glyph--bridge .fig-glyph__shape,
+  .fig-glyph--form,
+  .fig-score__none {
+    fill: Canvas;
+  }
+
+  .fig-focus {
+    stroke: Highlight;
+    stroke-width: 2;
+  }
+
+  .fig-note {
+    border-color: CanvasText;
+  }
+
+  .fig-wipe::after {
+    content: none;
+  }
+}

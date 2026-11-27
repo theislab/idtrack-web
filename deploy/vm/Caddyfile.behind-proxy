@@ -1,0 +1,68 @@
+# Caddy behind the institute's reverse proxy (SETUP.md, section 10.5): the proxy holds the certificate,
+# answers https, redirects http and passes the requests to this machine on plain http, port 80. Caddy answers only
+# the proxy's addresses (IDTRACK_WEB_TRUSTED_PROXIES, space-separated; every other address gets 403, so the site is
+# never served on plain http to anyone else), takes the client's address from the X-Forwarded-For the proxy sends,
+# and passes the api that address alone, so the api's allowances count each client by its own address (the api
+# trusts X-Forwarded-For from Caddy's network only). Otherwise deploy/Caddyfile.
+{
+	servers {
+		# A client must send its request's head within 10 s and its body within 30 s; an idle kept connection is
+		# closed after 2 minutes. Heads over 64 KB are refused here (the api reads at most 64 KB of head, and answers
+		# a path and query over 16 KB with 414 uri_too_long).
+		timeouts {
+			read_header 10s
+			read_body 30s
+			idle 2m
+		}
+		max_header_size 64KB
+		# The client's address is read from X-Forwarded-For right to left, skipping the proxy's addresses: the first
+		# other one is the address the proxy saw (strict: whatever a client wrote further left is not believed).
+		trusted_proxies static {$IDTRACK_WEB_TRUSTED_PROXIES}
+		trusted_proxies_strict
+		client_ip_headers X-Forwarded-For
+	}
+}
+
+http:// {
+	@direct not remote_ip {$IDTRACK_WEB_TRUSTED_PROXIES}
+	respond @direct "Forbidden: this server answers the institute's proxy only." 403 {
+		close
+	}
+
+	encode zstd gzip
+
+	request_body {
+		max_size 2MB
+	}
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		-Server
+	}
+
+	# The api: the compose service `api`, or (without containers) IDTRACK_WEB_UPSTREAM=127.0.0.1:8000 in Caddy's
+	# environment (deploy/systemd/caddy-idtrack-web.conf).
+	reverse_proxy {$IDTRACK_WEB_UPSTREAM:api:8000} {
+		# Answered at once by whichever worker takes it, even while every worker is in a search; the api is marked
+		# down only after three failed checks in a row.
+		health_uri /api/v1/health
+		health_interval 30s
+		health_timeout 10s
+		health_fails 3
+		# A body is read whole by Caddy before the request is passed on, so a client that sends it slowly holds
+		# Caddy's buffer, never an api worker (the api's own bound is 1 MiB; Caddy's is 2 MB above).
+		request_buffers 2MB
+		# The client as Caddy determined it, in place of the proxies' chain.
+		header_up X-Forwarded-For {client_ip}
+		header_up X-Forwarded-Proto https
+		# A batch may take the api's whole request budget (IDTRACK_WEB_REQUEST_SECONDS, 20 s by default).
+		transport http {
+			read_timeout 90s
+		}
+	}
+
+	log {
+		output stdout
+		format console
+	}
+}

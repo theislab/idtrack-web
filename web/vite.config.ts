@@ -3,12 +3,27 @@ import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 
 // The api the development server forwards /api to (`npm run dev`); in production the api serves the built files itself.
-const api = process.env.IDTRACK_WEB_API ?? "http://127.0.0.1:8000";
+const api = process.env["IDTRACK_WEB_API"] ?? "http://127.0.0.1:8000";
 
 export default defineConfig({
   plugins: [react()],
-  server: { host: "127.0.0.1", port: 5173, strictPort: true, proxy: { "/api": { target: api, changeOrigin: false } } },
-  preview: { host: "127.0.0.1", port: 4173, strictPort: true, proxy: { "/api": { target: api } } },
+  server: {
+    host: "127.0.0.1",
+    port: 5173,
+    strictPort: true,
+    proxy: {
+      "/api": { target: api, changeOrigin: false },
+      // The texts for language models are the api's (written from its OpenAPI document).
+      "/llms.txt": { target: api, changeOrigin: false },
+      "/llms-full.txt": { target: api, changeOrigin: false },
+    },
+  },
+  preview: {
+    host: "127.0.0.1",
+    port: 4173,
+    strictPort: true,
+    proxy: { "/api": { target: api }, "/llms.txt": { target: api }, "/llms-full.txt": { target: api } },
+  },
   build: { target: "es2022", sourcemap: true, assetsInlineLimit: 0, chunkSizeWarningLimit: 400 },
   test: {
     environment: "node",

@@ -5,9 +5,9 @@ name: api
 on:
   push:
     branches: [main]
-    paths: ["api/**", "data/**", "scripts/**", "README.md", ".github/workflows/api.yml"]
+    paths: ["api/**", "data/**", "scripts/**", "web/scripts/fixtures/**", "README.md", ".github/workflows/api.yml"]
   pull_request:
-    paths: ["api/**", "data/**", "scripts/**", "README.md", ".github/workflows/api.yml"]
+    paths: ["api/**", "data/**", "scripts/**", "web/scripts/fixtures/**", "README.md", ".github/workflows/api.yml"]
   workflow_dispatch:
 
 permissions:
@@ -30,8 +30,11 @@ jobs:
         with:
           version: "0.11.28"
       - run: uv sync --locked --python 3.14
-      - run: uv run --no-sync ruff format --check . ../scripts
-      - run: uv run --no-sync ruff check . ../scripts
+      # The package, its tests and the repository's Python scripts (SETUP.md, "Test"; scripts/check.sh runs the same).
+      - name: ruff format
+        run: uv run --no-sync ruff format --check . ../scripts ../web/scripts/fixtures
+      - name: ruff
+        run: uv run --no-sync ruff check . ../scripts ../web/scripts/fixtures
 
   types:
     runs-on: ubuntu-24.04
@@ -41,7 +44,8 @@ jobs:
         with:
           version: "0.11.28"
       - run: uv sync --locked --python 3.14
-      - run: uv run --no-sync mypy
+      - name: mypy
+        run: uv run --no-sync mypy
 
   tests:
     runs-on: ubuntu-24.04

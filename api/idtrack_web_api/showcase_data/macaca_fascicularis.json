@@ -1,0 +1,120 @@
+{
+  "checked_on": "881d8af7db843120b8bdbb8c9c503089a449f5694dd321baf06c1233ebf9cccc",
+  "journeys": [
+    {
+      "identifier": "TP53",
+      "from_release": 91,
+      "to_release": null,
+      "final_database": "NCBI gene (formerly Entrezgene)"
+    },
+    {
+      "identifier": "BRCA1",
+      "from_release": 91,
+      "to_release": null,
+      "final_database": "NCBI gene (formerly Entrezgene)"
+    },
+    {
+      "identifier": "EGFR",
+      "from_release": 91,
+      "to_release": null,
+      "final_database": "NCBI gene (formerly Entrezgene)"
+    },
+    {
+      "identifier": "MYC",
+      "from_release": 91,
+      "to_release": null,
+      "final_database": "NCBI gene (formerly Entrezgene)"
+    },
+    {
+      "identifier": "MARCH1",
+      "from_release": 91,
+      "to_release": null,
+      "final_database": "NCBI gene (formerly Entrezgene)"
+    },
+    {
+      "identifier": "TP53",
+      "from_release": 91,
+      "to_release": null,
+      "final_database": "Uniprot/SWISSPROT"
+    },
+    {
+      "identifier": "MSTN",
+      "from_release": 91,
+      "to_release": null,
+      "final_database": "Uniprot/SWISSPROT"
+    },
+    {
+      "identifier": "ENSMFAG00000001880",
+      "from_release": 91,
+      "to_release": null,
+      "final_database": null
+    },
+    {
+      "identifier": "ENSMFAG00000000997",
+      "from_release": 91,
+      "to_release": null,
+      "final_database": null
+    },
+    {
+      "identifier": "ENSMFAG00000000841",
+      "from_release": null,
+      "to_release": null,
+      "final_database": null
+    },
+    {
+      "identifier": "ENSMFAG00000030451",
+      "from_release": null,
+      "to_release": null,
+      "final_database": null
+    },
+    {
+      "identifier": "ENSMFAG00000038506",
+      "from_release": 115,
+      "to_release": 91,
+      "final_database": null
+    },
+    {
+      "identifier": "ENSMFAG00000034444",
+      "from_release": 115,
+      "to_release": 91,
+      "final_database": null
+    }
+  ],
+  "cases": [
+    {
+      "kind": "lineage",
+      "identifier": "ENSMFAG00000038506",
+      "from_release": 91,
+      "to_release": null,
+      "final_database": null
+    },
+    {
+      "kind": "renamed",
+      "identifier": "MARCH1",
+      "from_release": 91,
+      "to_release": null,
+      "final_database": "NCBI gene (formerly Entrezgene)"
+    },
+    {
+      "kind": "merge",
+      "identifier": "ENSMFAG00000000841",
+      "from_release": 102,
+      "to_release": null,
+      "final_database": null
+    },
+    {
+      "kind": "handoff",
+      "identifier": "ENSMFAG00000000997",
+      "from_release": 91,
+      "to_release": null,
+      "final_database": null
+    },
+    {
+      "kind": "final",
+      "identifier": "ENSMFAG00000038506",
+      "from_release": 91,
+      "to_release": null,
+      "final_database": "NCBI gene (formerly Entrezgene)"
+    }
+  ]
+}

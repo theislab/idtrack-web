@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
-from pathlib import Path
+from typing import TYPE_CHECKING
 
 from tests.conftest import REAL_ORGANISM, real_graph_of
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 def test_not_set() -> None:

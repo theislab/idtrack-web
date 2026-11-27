@@ -1,0 +1,569 @@
+/* Method panels f and g: the benchmarks' rates per family and organism, and the tools beside idtrack, on one
+   logarithmic axis of wrong shares (10⁻⁶ to 1). Imported by components/method/Benchmarks.tsx. */
+
+.bench-caveat {
+  max-width: var(--measure);
+  margin: 0 0 var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  border-inline-start: 2px solid var(--line-strong);
+  background: var(--surface-sunk);
+  font-size: var(--text-sm);
+  color: var(--ink-2);
+}
+
+.bench-dl {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0 0 var(--space-5);
+  font-size: var(--text-sm);
+  color: var(--ink-2);
+}
+
+.bench-dl > div {
+  display: grid;
+  grid-template-columns: 7rem minmax(0, 1fr);
+  gap: var(--space-3);
+}
+
+.bench-dl dt {
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  letter-spacing: var(--track-label);
+  text-transform: uppercase;
+  color: var(--ink-3);
+  padding-top: 2px;
+}
+
+.bench-dl dd {
+  margin: 0;
+  max-width: var(--measure);
+}
+
+.bench-dl .disclosure {
+  display: inline;
+}
+
+.bench-provenance {
+  overflow-wrap: break-word;
+}
+
+.bench,
+.tools {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+.bench th,
+.bench td,
+.tools th,
+.tools td {
+  padding: var(--space-3);
+  text-align: left;
+  vertical-align: top;
+  border-bottom: 1px solid var(--line);
+}
+
+.bench thead th,
+.tools thead th {
+  font-size: var(--text-2xs);
+  font-weight: var(--weight-medium);
+  color: var(--ink-3);
+  text-transform: uppercase;
+  letter-spacing: var(--track-label);
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+
+.bench > thead > tr:first-child > th:first-child {
+  inline-size: 22%;
+}
+
+.tools > thead > tr:first-child > th:first-child {
+  inline-size: 15%;
+}
+
+.bench__axis-row td {
+  padding-top: var(--space-1);
+  padding-bottom: var(--space-4);
+  vertical-align: bottom;
+}
+
+.bench__family {
+  border-top: 1px solid var(--line-strong);
+}
+
+.bench__name {
+  inline-size: 24%;
+  font-weight: var(--weight-regular);
+}
+
+.bench__title {
+  display: block;
+  font-weight: var(--weight-strong);
+  color: var(--ink-1);
+}
+
+.bench__measures,
+.bench__parts,
+.bench__history {
+  display: block;
+  margin-top: var(--space-1);
+  font-size: var(--text-xs);
+  color: var(--ink-3);
+}
+
+.bench__history {
+  color: var(--ink-2);
+}
+
+.bench__history::before {
+  content: "";
+  display: inline-block;
+  inline-size: 6px;
+  block-size: 6px;
+  margin-inline-end: var(--space-2);
+  border-radius: 50%;
+  background: var(--hue-history);
+  vertical-align: 1px;
+}
+
+.bench__name .disclosure {
+  margin-top: var(--space-2);
+  font-size: var(--text-xs);
+}
+
+.bench__truth,
+.bench__truth-items {
+  margin: var(--space-2) 0;
+  color: var(--ink-2);
+}
+
+.bench__truth-items {
+  padding-inline-start: var(--space-4);
+}
+
+.bench__truth-items li + li {
+  margin-top: var(--space-1);
+}
+
+.bench__judge {
+  display: block;
+  margin-top: var(--space-2);
+  font-size: var(--text-xs);
+  color: var(--ink-2);
+}
+
+.bench__rate {
+  display: block;
+  font-size: var(--text-md);
+  font-weight: var(--weight-strong);
+  color: var(--ink-1);
+}
+
+.bench__interval,
+.bench__counts,
+.bench__hard {
+  display: block;
+  font-size: var(--text-2xs);
+  color: var(--ink-3);
+}
+
+.bench__hard {
+  margin-top: var(--space-2);
+  padding-top: var(--space-1);
+  border-top: 1px dotted var(--line-strong);
+  color: var(--ink-2);
+}
+
+.bench__counts .mono,
+.bench__hard .mono,
+.tools__kept .mono {
+  white-space: nowrap;
+}
+
+.bench__hard code {
+  font-size: var(--text-2xs);
+}
+
+.bench__hard-rate {
+  font-weight: var(--weight-strong);
+  color: var(--ink-1);
+}
+
+/* The logarithmic strip: a baseline, ticks at 10⁻⁶, 10⁻⁴, 10⁻² and 1, and the marks placed by --at (0 to 1). */
+.bench__track {
+  position: relative;
+  display: block;
+  block-size: 12px;
+  margin: var(--space-2) 0 var(--space-1);
+  border-bottom: 1px solid var(--line-strong);
+  inline-size: 100%;
+  max-inline-size: 10rem;
+}
+
+.bench__track--legend {
+  display: inline-block;
+  inline-size: 40px;
+  margin: 0;
+  vertical-align: middle;
+}
+
+.wrong-axis {
+  position: absolute;
+  inset: 0;
+  display: block;
+}
+
+.wrong-axis__tick {
+  position: absolute;
+  inset-block-end: -1px;
+  inset-inline-start: calc(var(--at) * (100% - 1px));
+  inline-size: 1px;
+  block-size: 4px;
+  background: var(--line-strong);
+}
+
+.wrong-axis--labels {
+  position: relative;
+  display: block;
+  block-size: 18px;
+  inline-size: 100%;
+  max-inline-size: 10rem;
+  border-top: 1px solid var(--line-strong);
+}
+
+.wrong-axis--labels .wrong-axis__tick {
+  inset-block: -1px auto;
+}
+
+.wrong-axis__label {
+  position: absolute;
+  inset-block-start: 5px;
+  inset-inline-start: 0;
+  transform: translateX(-50%);
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  line-height: 1;
+  color: var(--ink-3);
+  white-space: nowrap;
+}
+
+.wrong-axis__tick:first-child .wrong-axis__label {
+  transform: none;
+}
+
+.wrong-axis__tick:last-child .wrong-axis__label {
+  transform: translateX(-100%);
+}
+
+.bench__dot {
+  position: absolute;
+  inset-block-start: 2px;
+  inset-inline-start: calc(var(--at) * (100% - 8px));
+  inline-size: 8px;
+  block-size: 8px;
+  border-radius: 50%;
+  background: var(--state-danger);
+}
+
+.bench__dot--none {
+  inset-inline-start: 0;
+  background: transparent;
+  border: 1.5px solid var(--ink-3);
+}
+
+/* The undetermined share of all lines: a quiet linear bar. */
+.bench__und {
+  display: block;
+  block-size: 4px;
+  margin: var(--space-2) 0 2px;
+  inline-size: 100%;
+  max-inline-size: 10rem;
+  background: var(--surface-sunk);
+  border: 1px solid var(--line);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.bench__und > span {
+  display: block;
+  block-size: 100%;
+  background: var(--ink-3);
+  opacity: 0.55;
+}
+
+.bench__und--legend {
+  display: inline-block;
+  inline-size: 40px;
+  margin: 0;
+  vertical-align: middle;
+}
+
+.bench__cell--none,
+.tools__cell--none {
+  color: var(--ink-3);
+  font-size: var(--text-xs);
+}
+
+.bench__strata td {
+  padding-top: var(--space-1);
+  padding-bottom: var(--space-4);
+}
+
+.bench__strata .disclosure {
+  font-size: var(--text-xs);
+}
+
+.bench-strata {
+  min-width: 640px;
+  table-layout: auto;
+  font-size: var(--text-xs);
+}
+
+.bench-strata th,
+.bench-strata td {
+  padding: var(--space-1) var(--space-3);
+  border-bottom: 1px solid var(--line);
+}
+
+/* g: the tools. */
+.tool-tasks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin: 0 0 var(--space-4);
+}
+
+.tool-tasks__item {
+  padding: var(--space-1) var(--space-3);
+  border: 1px solid var(--line-control);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--ink-2);
+  font: inherit;
+  font-size: var(--text-sm);
+  cursor: pointer;
+  min-block-size: 32px;
+}
+
+.tool-tasks__item--on {
+  background: var(--ink-1);
+  border-color: var(--ink-1);
+  color: var(--paper);
+}
+
+.tools th[scope="row"] {
+  inline-size: 16%;
+  font-weight: var(--weight-medium);
+}
+
+.tools__values,
+.tools__ratio,
+.tools__kept {
+  display: block;
+  font-size: var(--text-2xs);
+  color: var(--ink-3);
+}
+
+.tools__values {
+  font-size: var(--text-xs);
+}
+
+.tools__ratio {
+  color: var(--ink-2);
+}
+
+.tools__idtrack-rate {
+  color: var(--ink-1);
+  font-weight: var(--weight-strong);
+}
+
+.bench__axis-phone {
+  display: none;
+}
+
+.tools__segment {
+  position: absolute;
+  inset-block-start: 5px;
+  inset-inline-start: calc(var(--lo) * (100% - 8px) + 4px);
+  inline-size: calc((var(--hi) - var(--lo)) * (100% - 8px));
+  block-size: 2px;
+  background: var(--line-strong);
+}
+
+.tools__tool,
+.tools__idtrack {
+  position: absolute;
+  inset-block-start: 2px;
+  inset-inline-start: calc(var(--at) * (100% - 8px));
+  inline-size: 8px;
+  block-size: 8px;
+  border-radius: 50%;
+}
+
+.tools__tool {
+  border: 1.5px solid var(--ink-2);
+  background: var(--surface);
+}
+
+.tools__idtrack {
+  background: var(--ink-1);
+}
+
+.tools__idtrack--none {
+  background: var(--surface);
+  border: 2px solid var(--ink-1);
+}
+
+/* Where an organism's column is narrow, the labelled axis names its ends and 10⁻² only (every tick is drawn). */
+@media (min-width: 1001px) and (max-width: 1300px) {
+  .wrong-axis--labels .wrong-axis__tick:nth-child(2) .wrong-axis__label {
+    display: none;
+  }
+}
+
+/* Below the width the five organisms' columns need, each family (each tool) is a card: its name across, then a grid
+   of the organisms' cells, each named above its values, so nothing scrolls sideways on a tablet. */
+@media (max-width: 1000px) {
+  .bench,
+  .tools {
+    min-width: 0;
+    table-layout: auto;
+  }
+
+  .bench,
+  .tools,
+  .bench > tbody,
+  .tools > tbody {
+    display: block;
+  }
+
+  .bench > thead,
+  .tools > thead {
+    position: absolute;
+    inline-size: 1px;
+    block-size: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+
+  .bench > tbody > tr,
+  .tools > tbody > tr {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+    column-gap: var(--space-4);
+    border-bottom: 1px solid var(--line);
+  }
+
+  .bench > tbody > tr > th,
+  .tools > tbody > tr > th,
+  .bench > tbody > tr.bench__strata > td {
+    grid-column: 1 / -1;
+    inline-size: auto;
+  }
+
+  .bench > tbody > tr > td,
+  .tools > tbody > tr > td {
+    display: block;
+    border-bottom: 0;
+  }
+
+  .bench > tbody > tr > td::before,
+  .tools > tbody > tr > td::before {
+    content: attr(data-label);
+    display: block;
+    margin-bottom: var(--space-1);
+    font-family: var(--font-mono);
+    font-size: var(--text-2xs);
+    letter-spacing: var(--track-label);
+    text-transform: uppercase;
+    color: var(--ink-3);
+  }
+
+  .bench > tbody > tr.bench__strata > td::before {
+    content: none;
+  }
+
+  .bench__axis-phone {
+    display: block;
+    margin: 0 0 var(--space-2);
+  }
+
+  .bench-strata {
+    min-width: 0;
+  }
+
+  .bench-strata th,
+  .bench-strata td,
+  .bench-strata .mono {
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+}
+
+@media (max-width: 640px) {
+  .bench,
+  .tools,
+  .bench-strata {
+    min-width: 0;
+  }
+
+  .bench__axis-row {
+    display: none !important;
+  }
+
+  .bench.table--cards th,
+  .tools.table--cards th {
+    display: block;
+    width: 100%;
+    padding: var(--space-2) var(--space-3);
+    border: 0;
+  }
+
+  /* A card's cell: the organism's name on a line of its own above its values, so no drawing runs into it. */
+  .bench.table--cards td,
+  .tools.table--cards td {
+    padding: var(--space-2) var(--space-3);
+  }
+
+  .bench.table--cards td::before,
+  .tools.table--cards td::before {
+    position: static;
+    display: block;
+    width: auto;
+    margin-bottom: var(--space-1);
+  }
+
+  .bench__strata td::before {
+    display: none !important;
+  }
+
+  .bench__axis-phone {
+    display: block;
+    margin: 0 0 var(--space-2);
+  }
+
+  .bench-dl > div {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+  }
+}
+
+@media (forced-colors: active) {
+  .bench__dot,
+  .tools__idtrack,
+  .bench__und > span,
+  .wrong-axis__tick,
+  .bench__history::before {
+    background: CanvasText;
+    forced-color-adjust: none;
+  }
+
+  .tools__segment {
+    background: GrayText;
+    forced-color-adjust: none;
+  }
+}

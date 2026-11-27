@@ -1,0 +1,1013 @@
+/* Method (pages/MethodPage.tsx, components/method/MethodFigure.tsx): how idtrack answers, as a figure of five
+   lettered panels, then the server's data, the citation, the known limitations and the bounds. */
+
+.method-figure {
+  display: grid;
+  gap: var(--space-5);
+  min-width: 0;
+}
+
+/* The five stages, as one strip of the figure: each a link to its panel. */
+.method-stages {
+  list-style: none;
+  margin: 0 0 var(--space-3);
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  border-top: 1px solid var(--ink-1);
+  border-bottom: 1px solid var(--line);
+  counter-reset: stage;
+}
+
+.method-stages li + li .method-stage {
+  border-left: 1px solid var(--line);
+}
+
+.method-stage {
+  position: relative;
+  display: grid;
+  gap: var(--space-1);
+  height: 100%;
+  padding: var(--space-4) var(--space-4) var(--space-5);
+  text-decoration: none;
+  color: var(--ink-1);
+  border-radius: 0;
+}
+
+.method-stage:hover {
+  background: var(--surface-sunk);
+}
+
+.method-stages li + li .method-stage::before {
+  content: "→";
+  position: absolute;
+  left: -0.55em;
+  top: var(--space-4);
+  padding: 0 2px;
+  background: var(--paper);
+  color: var(--ink-3);
+  font-size: var(--text-sm);
+  line-height: 1.4;
+}
+
+.method-stage__letter {
+  font-weight: var(--weight-strong);
+  font-size: var(--text-md);
+}
+
+.method-stage__title {
+  font-family: var(--font-display);
+  font-size: var(--text-2xl);
+  font-weight: var(--weight-medium);
+  letter-spacing: -0.015em;
+  line-height: 1.1;
+}
+
+.method-stage__words {
+  font-size: var(--text-xs);
+  color: var(--ink-2);
+  line-height: 1.5;
+}
+
+.method-panel {
+  display: grid;
+  gap: var(--space-4);
+  min-width: 0;
+  scroll-margin-top: calc(var(--masthead-height) + var(--space-4));
+}
+
+.method-panel__head {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-3);
+}
+
+.method-panel__docs {
+  margin-left: auto;
+  font-size: var(--text-xs);
+}
+
+.method-panel__lede {
+  color: var(--ink-2);
+  max-width: 96ch;
+}
+
+.method-sub {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-strong);
+  margin-bottom: var(--space-3);
+}
+
+.method .method-code,
+.method-figure .method-code {
+  display: inline-block;
+  font-size: var(--text-sm);
+  font-size-adjust: none;
+  font-weight: var(--weight-strong);
+  color: var(--ink-1);
+}
+
+/* The lists of terms of a panel, one under the other, each the panel's width and flowing in balanced columns (so that
+   a short list beside a long one never leaves a hole). */
+.method-columns {
+  display: grid;
+  gap: var(--space-5);
+  margin-top: var(--space-5);
+}
+
+.method-termlist {
+  min-width: 0;
+}
+
+.method-termlist + .method-termlist {
+  margin-top: 0;
+}
+
+/* A list of terms: each a code in words and the first sentence of its meaning. A list alone in its row flows in
+   balanced columns, so that it never leaves half the width empty. */
+.method-terms {
+  margin: 0;
+}
+
+.method-termlist > .method-terms {
+  columns: 2 26rem;
+  column-gap: var(--space-6);
+}
+
+.method-terms > div {
+  display: grid;
+  grid-template-columns: minmax(8em, 11em) minmax(0, 1fr);
+  gap: var(--space-3);
+  padding: var(--space-2) 0;
+  border-top: 1px solid var(--line);
+  break-inside: avoid;
+}
+
+.method-terms dt {
+  margin: 0;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  color: var(--ink-1);
+}
+
+.method-terms dd {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--ink-2);
+  line-height: 1.5;
+}
+
+.method-terms--full > div {
+  grid-template-columns: minmax(10em, 15em) minmax(0, 1fr);
+}
+
+.method-terms--full dt code {
+  font-size: var(--text-xs);
+  overflow-wrap: anywhere;
+}
+
+/* The page's other parts, named under the stages. */
+.method-contents {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-2) var(--space-4);
+  margin: calc(-1 * var(--space-3)) 0 var(--space-6);
+  font-size: var(--text-sm);
+}
+
+.method-contents ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.method-contents a {
+  color: var(--ink-2);
+}
+
+.method-contents__letter {
+  margin-right: var(--space-1);
+  font-family: var(--font-display);
+  font-weight: var(--weight-strong);
+  color: var(--ink-1);
+}
+
+/* b: the kinds of history step, each drawn as a small schematic beside what Ensembl recorded; a row of the
+   documentation that names several kinds keeps its schematics together, each named under it. */
+.method-kinds {
+  list-style: none;
+  margin: 0 0 var(--space-5);
+  padding: 0;
+  columns: 2 30rem;
+  column-gap: var(--space-6);
+}
+
+.method-kind {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: var(--space-3);
+  padding: var(--space-3) 0;
+  border-top: 1px solid var(--line);
+  font-size: var(--text-sm);
+  color: var(--ink-2);
+  break-inside: avoid;
+}
+
+.method-kind--group {
+  column-span: all;
+  grid-template-columns: minmax(0, auto) minmax(0, 1fr);
+}
+
+.method-kind__figures {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.method-kind__figure {
+  margin: 0;
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+}
+
+.method-kind__figure figcaption {
+  font-size: var(--text-xs);
+}
+
+.method-kind p {
+  margin: 0;
+}
+
+.method-kind__codes {
+  font-weight: var(--weight-medium);
+  color: var(--ink-1);
+}
+
+.method-kind__words {
+  margin-top: var(--space-1) !important;
+}
+
+.kind-fig {
+  display: block;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+
+  --fig-ground: var(--surface);
+}
+
+.kind-fig__refused {
+  font-size: var(--text-md);
+  font-weight: var(--weight-strong);
+  fill: var(--state-danger);
+  paint-order: stroke;
+  stroke: var(--surface);
+  stroke-width: 4px;
+}
+
+.kind-fig__refused-line {
+  stroke: var(--line-strong);
+  stroke-width: 1.2;
+  stroke-dasharray: 2 2;
+}
+
+@media (max-width: 560px) {
+  .method-kind,
+  .method-kind--group {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* d: the criteria as a ladder, grouped as idtrack's documentation groups them. */
+.method-ladder {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+}
+
+.method-ladder__step {
+  position: relative;
+  display: grid;
+  grid-template-columns: 2.5em minmax(0, 1fr) 15em;
+  gap: var(--space-3);
+  align-items: start;
+  padding: var(--space-3) 0;
+  border-top: 1px solid var(--line);
+}
+
+.method-ladder__n {
+  font-size: var(--text-lg);
+  font-size-adjust: none;
+  color: var(--ink-3);
+  text-align: right;
+}
+
+.method-ladder__body p {
+  font-size: var(--text-sm);
+  color: var(--ink-2);
+  margin-top: var(--space-1);
+  max-width: 96ch;
+}
+
+.method-ladder__first {
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs) !important;
+  color: var(--ink-3) !important;
+}
+
+.method-ladder__step--lineage,
+.method-ladder__step--successors {
+  border-left: 3px solid var(--line-strong);
+  padding-left: var(--space-3);
+}
+
+.method-ladder__step--successors {
+  border-left-color: var(--ink-3);
+}
+
+.method-ladder__group {
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--ink-3);
+  text-align: right;
+}
+
+.method-source {
+  font-size: var(--text-xs);
+  color: var(--ink-3);
+}
+
+.method-after {
+  margin-top: var(--space-7);
+  grid-auto-flow: row dense;
+}
+
+/* The data and the limitations need the width; the citation and the bounds share a row. */
+.method-after > [aria-labelledby="data"],
+.method-after > [aria-labelledby="known-limitations"] {
+  grid-column: 1 / -1;
+}
+
+@media (max-width: 760px) {
+  .method-stages {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .method-stages li + li .method-stage {
+    border-left: none;
+    border-top: 1px solid var(--line);
+  }
+
+  .method-stages li + li .method-stage::before {
+    content: none;
+  }
+
+  .method-stage {
+    grid-template-columns: 1.5em auto;
+    padding: var(--space-3) 0;
+  }
+
+  .method-stage__words {
+    grid-column: 2;
+  }
+
+  .method-columns {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-4);
+  }
+
+  .method-terms > div {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-1);
+  }
+
+  .method-ladder__step {
+    grid-template-columns: 2em minmax(0, 1fr);
+  }
+
+  .method-ladder__group {
+    grid-column: 2;
+    grid-row: 1;
+    text-align: left;
+  }
+
+  .method-ladder__body {
+    grid-column: 2;
+    grid-row: 2;
+  }
+
+  .method-ladder__n {
+    grid-row: 1 / span 2;
+  }
+
+  .method-panel__docs {
+    margin-left: 0;
+  }
+}
+
+/* The page's scope, under the lede. */
+.method-scope {
+  max-width: var(--measure);
+  margin-top: var(--space-4);
+  padding-left: var(--space-3);
+  border-left: 2px solid var(--line-strong);
+  font-size: var(--text-sm);
+  color: var(--ink-2);
+}
+
+/* A stage seen on a real answer of this server (StageCase). */
+.stage-case {
+  margin: var(--space-5) 0;
+  padding: var(--space-4) var(--space-4) var(--space-3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  min-width: 0;
+}
+
+.stage-case__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-1) var(--space-4);
+  margin-bottom: var(--space-3);
+}
+
+.stage-case__eyebrow {
+  flex: 1 0 100%;
+  margin: 0;
+}
+
+.stage-case__query {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.stage-case__at {
+  color: var(--ink-3);
+  font-size: var(--text-sm);
+}
+
+.stage-case__open {
+  font-size: var(--text-sm);
+  white-space: nowrap;
+}
+
+.stage-case__body {
+  min-width: 0;
+}
+
+.stage-case__loading,
+.stage-case__failed {
+  margin: 0;
+  padding: var(--space-5) 0;
+  color: var(--ink-3);
+  font-size: var(--text-sm);
+}
+
+.stage-case__caption {
+  margin-top: var(--space-3);
+}
+
+.stage-case__source {
+  font-size: var(--text-2xs);
+  overflow-wrap: anywhere;
+}
+
+/* a: the reading of a real string, as a ladder of the steps of a match. */
+.read-fig {
+  display: grid;
+  grid-template-columns: minmax(10rem, 0.8fr) minmax(0, 2.4fr) minmax(12rem, 1fr);
+  gap: var(--space-5);
+  align-items: start;
+}
+
+.read-fig__in,
+.read-fig__out {
+  display: grid;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+}
+
+.read-fig__out p {
+  margin: 0;
+}
+
+.read-fig__typed {
+  font-size: var(--text-xl);
+  color: var(--ink-1);
+  overflow-wrap: anywhere;
+}
+
+.read-fig__prefixes {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--text-xs);
+  color: var(--ink-2);
+}
+
+.read-fig__steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+}
+
+.read-fig__step {
+  display: grid;
+  grid-template-columns: 1.5em 14px minmax(8rem, auto) minmax(0, 1fr);
+  grid-template-areas: "n mark code state" ". . meaning meaning";
+  column-gap: var(--space-2);
+  align-items: baseline;
+  padding: var(--space-2) 0;
+  border-top: 1px solid var(--line);
+  color: var(--ink-3);
+}
+
+.read-fig__step:last-child {
+  border-bottom: 1px solid var(--line);
+}
+
+.read-fig__n {
+  grid-area: n;
+  font-size: var(--text-2xs);
+}
+
+.read-fig__mark {
+  grid-area: mark;
+  inline-size: 10px;
+  block-size: 10px;
+  border-radius: 50%;
+  border: 1.5px solid var(--line-strong);
+  align-self: center;
+}
+
+.read-fig__code {
+  grid-area: code;
+  font-size: var(--text-sm);
+}
+
+.read-fig__state {
+  grid-area: state;
+  font-size: var(--text-xs);
+}
+
+.read-fig__meaning {
+  grid-area: meaning;
+  font-size: var(--text-xs);
+  color: var(--ink-3);
+}
+
+.read-fig__step--missed .read-fig__mark {
+  border-color: var(--ink-3);
+}
+
+.read-fig__step--matched {
+  color: var(--ink-1);
+}
+
+.read-fig__step--matched .read-fig__mark {
+  border-color: var(--ink-1);
+  background: var(--ink-1);
+}
+
+.read-fig__step--matched .read-fig__code {
+  font-weight: var(--weight-strong);
+}
+
+.read-fig__step--matched .read-fig__meaning {
+  color: var(--ink-2);
+}
+
+.read-fig__step--unneeded .read-fig__mark {
+  border-style: dotted;
+}
+
+/* c: the bridges the search considered. */
+.bridge-checks {
+  margin-top: var(--space-3);
+  font-size: var(--text-sm);
+}
+
+.bridge-checks h4 {
+  margin: 0 0 var(--space-2);
+}
+
+.bridge-checks ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-2);
+}
+
+.bridge-checks li {
+  padding: var(--space-2) var(--space-3);
+  border-left: 2px solid var(--hue-external);
+  background: var(--surface-sunk);
+}
+
+.bridge-checks__refused {
+  border-left-color: var(--state-danger) !important;
+}
+
+.bridge-checks p {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.bridge-checks__verdict {
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: var(--track-label);
+}
+
+.bridge-checks__places {
+  font-size: var(--text-xs);
+  color: var(--ink-2);
+}
+
+/* d: the ranking of a real answer, rung by rung. */
+.rank-fig__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+.rank-fig__table th,
+.rank-fig__table td {
+  padding: var(--space-2) var(--space-3);
+  text-align: left;
+  border-bottom: 1px solid var(--line);
+  vertical-align: baseline;
+  overflow-wrap: anywhere;
+}
+
+.rank-fig__table thead th {
+  font-size: var(--text-2xs);
+  font-weight: var(--weight-medium);
+  color: var(--ink-3);
+  text-transform: uppercase;
+  letter-spacing: var(--track-label);
+}
+
+.rank-fig__table thead th .mono {
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--ink-1);
+}
+
+.rank-fig__n {
+  inline-size: 2em;
+  color: var(--ink-3);
+  font-size: var(--text-2xs);
+}
+
+.rank-fig__code {
+  font-weight: var(--weight-regular);
+}
+
+.rank-fig__state {
+  font-size: var(--text-xs);
+  color: var(--ink-3);
+  white-space: nowrap;
+}
+
+.rank-fig__row--decides {
+  background: var(--surface-sunk);
+  box-shadow: inset 3px 0 0 var(--ink-1);
+}
+
+.rank-fig__row--decides .rank-fig__code,
+.rank-fig__row--decides .rank-fig__state {
+  color: var(--ink-1);
+  font-weight: var(--weight-strong);
+}
+
+.rank-fig__row--after {
+  color: var(--ink-3);
+}
+
+.rank-fig__meaning {
+  margin: var(--space-3) 0 0;
+  max-width: var(--measure);
+  font-size: var(--text-sm);
+  color: var(--ink-2);
+}
+
+/* The citation's sentence for a methods section. */
+.method-cite__sub {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-top: var(--space-5);
+}
+
+.method-cite__sentence {
+  padding: var(--space-3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface-sunk);
+  font-size: var(--text-sm);
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 1100px) {
+  .read-fig {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+  }
+
+  .read-fig__out {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 760px) {
+  .read-fig {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-3);
+  }
+
+  .read-fig__step {
+    grid-template-columns: 1.5em 14px minmax(0, 1fr);
+    grid-template-areas: "n mark code" ". . state" ". . meaning";
+  }
+
+  .stage-case {
+    padding: var(--space-3);
+  }
+
+  .rank-fig__table th,
+  .rank-fig__table td {
+    padding: var(--space-2);
+  }
+}
+
+@media (forced-colors: active) {
+  .read-fig__step--matched .read-fig__mark {
+    background: CanvasText;
+    forced-color-adjust: none;
+  }
+
+  .rank-fig__row--decides {
+    outline: 2px solid CanvasText;
+  }
+}
+
+/* b, c: the path of one answer, fitted to its releases, under an overview of the graph's whole axis. */
+.stage-fig {
+  position: relative;
+}
+
+.stage-fig__ov-band {
+  fill: transparent;
+  stroke: var(--line-strong);
+  stroke-width: 0.5;
+}
+
+.stage-fig__ov-band--b {
+  fill: var(--band);
+}
+
+.stage-fig__ov-window {
+  fill: none;
+  stroke: var(--ink-1);
+  stroke-width: 1.4;
+  rx: 2px;
+}
+
+.stage-fig__ov-text {
+  font-size: var(--text-2xs);
+  fill: var(--ink-3);
+}
+
+.stage-fig__ov-lead {
+  stroke: var(--line-strong);
+  stroke-width: 1;
+  stroke-dasharray: 2 3;
+}
+
+.stage-fig__lane {
+  font-size: var(--text-2xs);
+  fill: var(--ink-2);
+}
+
+/* e: the last steps of an answer, at the target release, in columns by Ensembl form. */
+.answer-fig {
+  position: relative;
+}
+
+.answer-fig svg {
+  display: block;
+  overflow: visible;
+}
+
+.answer-fig__head {
+  font-size: var(--text-2xs);
+  fill: var(--ink-3);
+  text-transform: uppercase;
+  letter-spacing: var(--track-label);
+}
+
+.answer-fig__edge {
+  fill: none;
+  stroke: var(--hue-external);
+  stroke-width: 1.2;
+  stroke-dasharray: 4 3;
+}
+
+.answer-fig__edge--entry {
+  stroke: var(--ink-3);
+}
+
+.answer-fig__status {
+  margin: var(--space-2) 0 0;
+  font-size: var(--text-sm);
+  color: var(--ink-2);
+}
+
+@media (forced-colors: active) {
+  .stage-fig__ov-window,
+  .answer-fig__edge,
+  .answer-fig__edge--entry,
+  .stage-fig__ov-lead,
+  .kind-fig__refused-line {
+    stroke: CanvasText;
+  }
+
+  .stage-fig__ov-band,
+  .stage-fig__ov-band--b {
+    fill: Canvas;
+    stroke: CanvasText;
+  }
+
+  .stage-fig__lane,
+  .stage-fig__ov-text,
+  .answer-fig__head,
+  .kind-fig__refused {
+    fill: CanvasText;
+  }
+}
+
+/* What idtrack does not do yet: each limitation's whole first sentence, linked to its section; under a short one, the
+   sentence after it, quieter. Two balanced columns where the panel is wide. */
+.limitations-list {
+  margin: var(--space-3) 0;
+  padding-left: 1.6em;
+  columns: 2 30rem;
+  column-gap: var(--space-7);
+  font-size: var(--text-sm);
+}
+
+.limitations-list li {
+  break-inside: avoid;
+  padding: var(--space-1) 0 var(--space-2);
+}
+
+.limitations-list li::marker {
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  color: var(--ink-3);
+}
+
+.limitations-list__lead {
+  color: var(--ink-1);
+}
+
+.limitations-list__next {
+  display: block;
+  margin-top: 2px;
+  font-size: var(--text-xs);
+  color: var(--ink-3);
+}
+
+.stage-fig__other {
+  stroke: var(--hue-event);
+  stroke-width: 1.4;
+  stroke-linecap: round;
+}
+
+@media (forced-colors: active) {
+  .stage-fig__other {
+    stroke: CanvasText;
+  }
+}
+
+.answer-tree,
+.answer-tree ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.answer-tree ul {
+  margin-left: var(--space-4);
+  padding-left: var(--space-3);
+  border-left: 1px dashed var(--hue-external);
+}
+
+.answer-tree li {
+  padding: var(--space-1) 0;
+}
+
+.answer-tree__node {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px;
+  margin-right: var(--space-1);
+  font-size: var(--text-xs);
+  overflow-wrap: anywhere;
+}
+
+.answer-tree__node .fig-swatch {
+  width: 18px;
+}
+
+.answer-tree__best {
+  font-weight: var(--weight-strong);
+}
+
+/* The ranking on a phone: one block per criterion, its name and outcome on one line, the two values under it, each
+   named; the genes' ids in the head as a line of their own. */
+@media (max-width: 560px) {
+  .rank-fig__table,
+  .rank-fig__table tbody,
+  .rank-fig__table tr {
+    display: block;
+    width: 100%;
+  }
+
+  .rank-fig__table thead {
+    display: block;
+  }
+
+  .rank-fig__table thead tr {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: var(--space-2);
+  }
+
+  .rank-fig__table thead th:first-child,
+  .rank-fig__table thead th:nth-child(2),
+  .rank-fig__table thead th:last-child {
+    display: none;
+  }
+
+  .rank-fig__table thead th .mono {
+    display: block;
+    overflow-wrap: anywhere;
+  }
+
+  .rank-fig__table tbody tr {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 2px var(--space-3);
+    padding: var(--space-2) 0;
+  }
+
+  .rank-fig__table td,
+  .rank-fig__table th {
+    display: block;
+    padding: 0;
+    border: 0;
+  }
+
+  .rank-fig__table .rank-fig__n {
+    display: none;
+  }
+
+  .rank-fig__table .rank-fig__value:empty {
+    display: none;
+  }
+
+  .rank-fig__table .rank-fig__value {
+    grid-column: 1 / -1;
+    font-size: var(--text-xs);
+  }
+
+  .rank-fig__table .rank-fig__value::before {
+    content: attr(data-label) ": ";
+    font-family: var(--font-sans);
+    color: var(--ink-3);
+  }
+
+  .rank-fig__table .rank-fig__state {
+    grid-column: 2;
+    grid-row: 1;
+  }
+}

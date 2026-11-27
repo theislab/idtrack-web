@@ -1,0 +1,7249 @@
+{
+ "operations": {
+  "index": {
+   "responses": {
+    "application/json": {
+     "api_version": "0.1.2",
+     "openapi": "/api/v1/openapi.json",
+     "llms_txt": "/llms.txt",
+     "llms_full_txt": "/llms-full.txt",
+     "reference": "/developers",
+     "vocabulary": "/api/v1/vocabulary",
+     "limits": "/api/v1/limits",
+     "organisms": "/api/v1/organisms",
+     "endpoints": [
+      {
+       "method": "GET",
+       "path": "/api/v1",
+       "operation_id": "index",
+       "summary": "Where everything is: the api's documents and every endpoint"
+      },
+      {
+       "method": "GET",
+       "path": "/api/v1/health",
+       "operation_id": "health",
+       "summary": "The server is up and holds its graphs (no allowance taken)"
+      },
+      {
+       "method": "GET",
+       "path": "/api/v1/status",
+       "operation_id": "status",
+       "summary": "The server's load: CPU, memory and requests of every worker and the master"
+      },
+      {
+       "method": "GET",
+       "path": "/api/v1/version",
+       "operation_id": "version",
+       "summary": "The versions of the api, idtrack and every loaded graph"
+      },
+      {
+       "method": "GET",
+       "path": "/api/v1/vocabulary",
+       "operation_id": "vocabulary",
+       "summary": "What the codes of the answers mean: idtrack's own tables, the api's where idtrack has none"
+      },
+      {
+       "method": "GET",
+       "path": "/api/v1/limits",
+       "operation_id": "limits",
+       "summary": "The bounds this server enforces, as configured"
+      },
+      {
+       "method": "GET",
+       "path": "/api/v1/organisms",
+       "operation_id": "list_organisms",
+       "summary": "Every loaded organism and what its graph holds"
+      },
+      {
+       "method": "GET",
+       "path": "/api/v1/organisms/{organism}",
+       "operation_id": "describe_organism",
+       "summary": "What one organism's graph holds: releases, assemblies, databases, its build"
+      },
+      {
+       "method": "GET",
+       "path": "/api/v1/organisms/{organism}/final-databases",
+       "operation_id": "final_databases",
+       "summary": "The databases a conversion to a release can end in"
+      },
+      {
+       "method": "GET",
+       "path": "/api/v1/organisms/{organism}/databases",
+       "operation_id": "databases_by_release",
+       "summary": "What a conversion to each release can end in: a release-by-database matrix, and each assembly's"
+      },
+      {
+       "method": "GET",
+       "path": "/api/v1/organisms/{organism}/showcase",
+       "operation_id": "showcase",
+       "summary": "Chosen conversions of one graph, answered once when the server started: the home page's figures"
+      },
+      {
+       "method": "GET",
+       "path": "/api/v1/organisms/{organism}/history",
+       "operation_id": "history",
+       "summary": "Ensembl's gene id history in the graph: genes active per release, history edges per transition"
+      },
+      {
+       "method": "GET",
+       "path": "/api/v1/organisms/{organism}/convert",
+       "operation_id": "convert",
+       "summary": "Convert one identifier: every candidate ranked, the best marked, optionally its path"
+      },
+      {
+       "method": "GET",
+       "path": "/api/v1/organisms/{organism}/convert/each-database",
+       "operation_id": "convert_each_database",
+       "summary": "Convert one identifier into every database a conversion to the target release can end in"
+      },
+      {
+       "method": "POST",
+       "path": "/api/v1/organisms/{organism}/convert/batch",
+       "operation_id": "convert_batch",
+       "summary": "Convert a batch with the same arguments; results in input order, each with its own status"
+      },
+      {
+       "method": "POST",
+       "path": "/api/v1/organisms/{organism}/source-inference",
+       "operation_id": "source_inference",
+       "summary": "Where a list of identifiers comes from: the releases, assemblies or databases it fits"
+      },
+      {
+       "method": "GET",
+       "path": "/api/v1/organisms/{organism}/genes-named",
+       "operation_id": "genes_named",
+       "summary": "The genes a name of an external database names, per database and release"
+      },
+      {
+       "method": "GET",
+       "path": "/api/v1/organisms/{organism}/names-of",
+       "operation_id": "names_of",
+       "summary": "The names external databases give a gene, per database and release"
+      }
+     ]
+    }
+   },
+   "recorded": "a real answer of a server holding the five graphs of Ensembl 115 (human, mouse, pig, rhesus, cynomolgus)",
+   "parameters": {}
+  },
+  "health": {
+   "responses": {
+    "application/json": {
+     "status": "ok",
+     "organisms": [
+      "homo_sapiens",
+      "macaca_fascicularis",
+      "macaca_mulatta",
+      "mus_musculus",
+      "sus_scrofa"
+     ]
+    }
+   },
+   "recorded": "a real answer of a server holding the five graphs of Ensembl 115 (human, mouse, pig, rhesus, cynomolgus)",
+   "parameters": {}
+  },
+  "status": {
+   "responses": {
+    "application/json": {
+     "sampled_at": "2026-11-27T10:41:44.919Z",
+     "started_at": "2026-11-27T10:32:19.679Z",
+     "uptime_seconds": 565.2403023522347,
+     "sample_interval_seconds": 1.0,
+     "memory_sample_interval_seconds": 5.0,
+     "cache_seconds": 1.0,
+     "workers_configured": 2,
+     "workers_alive": 2,
+     "workers_exited": 0,
+     "last_worker_exit_at": null,
+     "master": {
+      "started_at": "2026-11-27T10:32:19.679Z",
+      "cpu_share": 0.0,
+      "cpu_seconds": 172.44,
+      "rss_bytes": 5051183104,
+      "pss_bytes": 1749487616,
+      "uss_bytes": 103219200,
+      "cpu_sample_age_seconds": 0.23709083907306194,
+      "memory_sample_age_seconds": 0.09372725710272789
+     },
+     "workers": [
+      {
+       "worker": 1,
+       "started_at": "2026-11-27T10:35:00.119Z",
+       "cpu_share": 0.02999143072311026,
+       "cpu_seconds": 13.14,
+       "rss_bytes": 5052768256,
+       "pss_bytes": 1757830144,
+       "uss_bytes": 113065984,
+       "cpu_sample_age_seconds": 0.5074394922703505,
+       "memory_sample_age_seconds": 0.23724628053605556,
+       "requests": 162,
+       "in_flight": 0,
+       "searches_running": 0,
+       "searches_waiting": 0,
+       "sending_bytes": 0,
+       "last_60_seconds": 162,
+       "errors_4xx": 2,
+       "errors_5xx": 0
+      },
+      {
+       "worker": 2,
+       "started_at": "2026-11-27T10:35:00.417Z",
+       "cpu_share": 0.14863952498040725,
+       "cpu_seconds": 12.940000000000001,
+       "rss_bytes": 5052780544,
+       "pss_bytes": 1758527488,
+       "uss_bytes": 114376704,
+       "cpu_sample_age_seconds": 0.338528648018837,
+       "memory_sample_age_seconds": 0.067149568349123,
+       "requests": 169,
+       "in_flight": 0,
+       "searches_running": 0,
+       "searches_waiting": 0,
+       "sending_bytes": 0,
+       "last_60_seconds": 168,
+       "errors_4xx": 1,
+       "errors_5xx": 0
+      }
+     ],
+     "cpu": {
+      "cores_used": 0.1786309557035175,
+      "share_of_available": 0.014885912975293125,
+      "cores_available": 12.0,
+      "affinity_cores": 12,
+      "quota_cores": null,
+      "source": "affinity"
+     },
+     "memory": {
+      "rss_bytes": 15156731904,
+      "pss_bytes": 5265845248,
+      "uss_bytes": 330661888,
+      "limit_bytes": 107374182400,
+      "limit_used_bytes": 51384061952,
+      "source": "cgroup"
+     },
+     "requests": {
+      "total": 331,
+      "in_flight": 0,
+      "searches_running": 0,
+      "searches_waiting": 0,
+      "connections_waiting": 0,
+      "searches_queued": 0,
+      "sending_bytes": 0,
+      "last_60_seconds": 330,
+      "errors_4xx": 3,
+      "errors_5xx": 0,
+      "lost": 0,
+      "status_requests": 29,
+      "latency": {
+       "count": 331,
+       "most_recent": 1000,
+       "window_seconds": 300.0,
+       "p50_ms": 14.716893434524536,
+       "p95_ms": 64.76076506078243,
+       "p99_ms": 237.0039038360119,
+       "max_ms": 311.77993305027485
+      }
+     },
+     "graphs": [
+      {
+       "organism": "homo_sapiens",
+       "file_bytes": 155632289
+      },
+      {
+       "organism": "macaca_fascicularis",
+       "file_bytes": 22454109
+      },
+      {
+       "organism": "macaca_mulatta",
+       "file_bytes": 34028589
+      },
+      {
+       "organism": "mus_musculus",
+       "file_bytes": 100943147
+      },
+      {
+       "organism": "sus_scrofa",
+       "file_bytes": 40237028
+      }
+     ],
+     "graphs_file_bytes": 353295162,
+     "unavailable": []
+    }
+   },
+   "recorded": "a real answer of a server holding the five graphs of Ensembl 115 (human, mouse, pig, rhesus, cynomolgus)",
+   "parameters": {}
+  },
+  "version": {
+   "responses": {
+    "application/json": {
+     "api_version": "0.1.2",
+     "idtrack_version": "0.1.2",
+     "idtrack_commit": "7f71b2606a61b7e46b99361406ad403ae21eb5b9",
+     "graph_format_version": 6,
+     "manifest": {
+      "key": "idtrack/6/manifest.json",
+      "sha256": "3568f99b4b878f07e5300bfe7ea7c55f6927148cc69082f6e2c8c29489e653d7",
+      "size": 3247
+     },
+     "graphs": [
+      {
+       "organism": "homo_sapiens",
+       "snapshot_release": 115,
+       "file": {
+        "key": "idtrack/6/homo_sapiens/9d9d770898828f40197472fd7e9deb1442c9a984e3d82d208dd9e69e57d3ef6b.npz",
+        "sha256": "9d9d770898828f40197472fd7e9deb1442c9a984e3d82d208dd9e69e57d3ef6b",
+        "size": 155632289
+       },
+       "format_version": 6,
+       "content_digest": "f922779314f8a27dd1d1a7a4f24e7b6a316fa7fb8f7b071f3d66857095682cfb",
+       "package_version": null,
+       "package_version_note": "none: built from a source folder, not an installed idtrack",
+       "package_commit": "23239cfeef786ccb999609cf3f0303041d0f09e7",
+       "build_date": "2026-11-22T18:27:50Z"
+      },
+      {
+       "organism": "macaca_fascicularis",
+       "snapshot_release": 115,
+       "file": {
+        "key": "idtrack/6/macaca_fascicularis/ec7290dcc30938cbbb3e22e99d704f5366bf5dd8b40e6f738328d161ffc57365.npz",
+        "sha256": "ec7290dcc30938cbbb3e22e99d704f5366bf5dd8b40e6f738328d161ffc57365",
+        "size": 22454109
+       },
+       "format_version": 6,
+       "content_digest": "881d8af7db843120b8bdbb8c9c503089a449f5694dd321baf06c1233ebf9cccc",
+       "package_version": null,
+       "package_version_note": "none: built from a source folder, not an installed idtrack",
+       "package_commit": "9e2591ab8eef3f28253eeed4a5a1205ebcd32540",
+       "build_date": "2026-11-22T12:42:15Z"
+      },
+      {
+       "organism": "macaca_mulatta",
+       "snapshot_release": 115,
+       "file": {
+        "key": "idtrack/6/macaca_mulatta/41b3342d1c9fec22d5bcebfac1fbef38e491f72234338e3a2e130dc50db820a4.npz",
+        "sha256": "41b3342d1c9fec22d5bcebfac1fbef38e491f72234338e3a2e130dc50db820a4",
+        "size": 34028589
+       },
+       "format_version": 6,
+       "content_digest": "19866fe1699f8de855226a1f8fbf4dc97c4c6e912bc21095ea1a708f289668fa",
+       "package_version": null,
+       "package_version_note": "none: built from a source folder, not an installed idtrack",
+       "package_commit": "9e2591ab8eef3f28253eeed4a5a1205ebcd32540",
+       "build_date": "2026-11-22T13:12:43Z"
+      },
+      {
+       "organism": "mus_musculus",
+       "snapshot_release": 115,
+       "file": {
+        "key": "idtrack/6/mus_musculus/c0f0e4b25f7e04018bbda88b29b596649816261030017ec3d39a9457a8480b8c.npz",
+        "sha256": "c0f0e4b25f7e04018bbda88b29b596649816261030017ec3d39a9457a8480b8c",
+        "size": 100943147
+       },
+       "format_version": 6,
+       "content_digest": "a0663af01bd72b7785c06a69de0eadb7cfc4bf5faa27d8a328fec22a9bf963fc",
+       "package_version": null,
+       "package_version_note": "none: built from a source folder, not an installed idtrack",
+       "package_commit": "9e2591ab8eef3f28253eeed4a5a1205ebcd32540",
+       "build_date": "2026-11-22T13:54:23Z"
+      },
+      {
+       "organism": "sus_scrofa",
+       "snapshot_release": 115,
+       "file": {
+        "key": "idtrack/6/sus_scrofa/647491ca9bf1f477e68b8af25bc59fb61926a57ec1aa21e98338cdf84b3bd1db.npz",
+        "sha256": "647491ca9bf1f477e68b8af25bc59fb61926a57ec1aa21e98338cdf84b3bd1db",
+        "size": 40237028
+       },
+       "format_version": 6,
+       "content_digest": "80bda9b3bb224243664e8b35d2ea602255b02b4dd39abb22e982f7aa2aff62df",
+       "package_version": null,
+       "package_version_note": "none: built from a source folder, not an installed idtrack",
+       "package_commit": "9e2591ab8eef3f28253eeed4a5a1205ebcd32540",
+       "build_date": "2026-11-22T12:55:16Z"
+      }
+     ],
+     "docs_url": "https://idtrack.readthedocs.io/en/stable/"
+    }
+   },
+   "recorded": "a real answer of a server holding the five graphs of Ensembl 115 (human, mouse, pig, rhesus, cynomolgus)",
+   "parameters": {}
+  },
+  "limits": {
+   "responses": {
+    "application/json": {
+     "batch_max": 1000,
+     "identifier_max_length": 256,
+     "body_max_bytes": 1048576,
+     "response_max_bytes": 33554432,
+     "request_seconds": 20.0,
+     "search_seconds": 10.0,
+     "search_states": 200000,
+     "rate_per_minute": 0,
+     "rate_burst": 30,
+     "read_share": 10,
+     "rate_search_seconds": 30.0,
+     "rate_search_burst_seconds": 60.0,
+     "queue_max": 64,
+     "head_seconds": 5.0,
+     "body_seconds": 30.0,
+     "answer_cache_bytes": 67108864,
+     "allowances_enforced": false,
+     "rate_concurrent_searches": 2,
+     "send_seconds": 30.0,
+     "send_min_bytes_per_second": 65536,
+     "sending_max_bytes": 268435456
+    }
+   },
+   "recorded": "a real answer of a server holding the five graphs of Ensembl 115 (human, mouse, pig, rhesus, cynomolgus)",
+   "parameters": {}
+  },
+  "list_organisms": {
+   "responses": {
+    "application/json": {
+     "organisms": [
+      {
+       "organism": "homo_sapiens",
+       "primary_assembly": 38,
+       "snapshot_release": 115,
+       "releases": [
+        48,
+        49,
+        50,
+        51,
+        52,
+        53,
+        54,
+        55,
+        56,
+        57,
+        58,
+        59,
+        60,
+        61,
+        62,
+        63,
+        64,
+        65,
+        66,
+        67,
+        68,
+        69,
+        70,
+        71,
+        72,
+        73,
+        74,
+        75,
+        76,
+        77,
+        78,
+        79,
+        80,
+        81,
+        82,
+        83,
+        84,
+        85,
+        86,
+        87,
+        88,
+        89,
+        90,
+        91,
+        92,
+        93,
+        94,
+        95,
+        96,
+        97,
+        98,
+        99,
+        100,
+        101,
+        102,
+        103,
+        104,
+        105,
+        106,
+        107,
+        108,
+        109,
+        110,
+        111,
+        112,
+        113,
+        114,
+        115
+       ],
+       "assemblies": [
+        {
+         "assembly": 38,
+         "name": "GRCh38",
+         "releases": [
+          76,
+          77,
+          78,
+          79,
+          80,
+          81,
+          82,
+          83,
+          84,
+          85,
+          86,
+          87,
+          88,
+          89,
+          90,
+          91,
+          92,
+          93,
+          94,
+          95,
+          96,
+          97,
+          98,
+          99,
+          100,
+          101,
+          102,
+          103,
+          104,
+          105,
+          106,
+          107,
+          108,
+          109,
+          110,
+          111,
+          112,
+          113,
+          114,
+          115
+         ],
+         "serves": [
+          76,
+          77,
+          78,
+          79,
+          80,
+          81,
+          82,
+          83,
+          84,
+          85,
+          86,
+          87,
+          88,
+          89,
+          90,
+          91,
+          92,
+          93,
+          94,
+          95,
+          96,
+          97,
+          98,
+          99,
+          100,
+          101,
+          102,
+          103,
+          104,
+          105,
+          106,
+          107,
+          108,
+          109,
+          110,
+          111,
+          112,
+          113,
+          114,
+          115
+         ],
+         "external_databases": [
+          "CCDS",
+          "CCDS label",
+          "Clone_based_ensembl_gene",
+          "Clone_based_vega_gene",
+          "EntrezGene",
+          "HGNC Symbol",
+          "Havana gene",
+          "Havana transcript",
+          "Havana translation",
+          "NCBI gene (formerly Entrezgene)",
+          "RFAM",
+          "RFAM label",
+          "RefSeq_mRNA",
+          "RefSeq_mRNA_predicted",
+          "RefSeq_ncRNA",
+          "RefSeq_ncRNA_predicted",
+          "RefSeq_peptide",
+          "RefSeq_peptide_predicted",
+          "UniProtKB Gene Name",
+          "Uniprot/SPTREMBL",
+          "Uniprot/SWISSPROT",
+          "Vega gene",
+          "Vega_gene",
+          "miRBase",
+          "miRBase label"
+         ],
+         "synonym_databases": [
+          "HGNC Symbol",
+          "NCBI gene (formerly Entrezgene)",
+          "UniProtKB Gene Name"
+         ]
+        },
+        {
+         "assembly": 37,
+         "name": "GRCh37",
+         "releases": [
+          55,
+          56,
+          57,
+          58,
+          59,
+          60,
+          61,
+          62,
+          63,
+          64,
+          65,
+          66,
+          67,
+          68,
+          69,
+          70,
+          71,
+          72,
+          73,
+          74,
+          75,
+          76,
+          77,
+          78,
+          79,
+          80,
+          81,
+          82,
+          83,
+          84,
+          85,
+          86,
+          87,
+          88,
+          89,
+          90,
+          91,
+          92,
+          93,
+          94,
+          95,
+          96,
+          97,
+          98,
+          99,
+          100,
+          101,
+          102,
+          103,
+          104,
+          105,
+          106,
+          107,
+          108,
+          109,
+          110,
+          111,
+          112,
+          113,
+          114,
+          115
+         ],
+         "serves": [
+          55,
+          56,
+          57,
+          58,
+          59,
+          60,
+          61,
+          62,
+          63,
+          64,
+          65,
+          66,
+          67,
+          68,
+          69,
+          70,
+          71,
+          72,
+          73,
+          74,
+          75
+         ],
+         "external_databases": [
+          "CCDS",
+          "CCDS label",
+          "Clone_based_ensembl_gene",
+          "Clone_based_vega_gene",
+          "EntrezGene",
+          "HGNC (automatic)",
+          "HGNC (curated)",
+          "HGNC Symbol",
+          "Havana gene",
+          "Havana transcript",
+          "NCBI gene (formerly Entrezgene)",
+          "RFAM",
+          "RFAM gene name",
+          "RFAM label",
+          "RefSeq_mRNA",
+          "RefSeq_mRNA_predicted",
+          "RefSeq_ncRNA",
+          "RefSeq_ncRNA_predicted",
+          "RefSeq_peptide",
+          "RefSeq_peptide_predicted",
+          "UniProtKB Gene Name",
+          "Uniprot/SPTREMBL",
+          "Uniprot/SWISSPROT",
+          "Vega gene",
+          "Vega_gene",
+          "miRBase",
+          "miRBase gene name",
+          "miRBase label"
+         ],
+         "synonym_databases": [
+          "HGNC Symbol",
+          "NCBI gene (formerly Entrezgene)",
+          "UniProtKB Gene Name"
+         ]
+        },
+        {
+         "assembly": 36,
+         "name": "NCBI36",
+         "releases": [
+          48,
+          49,
+          50,
+          51,
+          52,
+          53,
+          54
+         ],
+         "serves": [
+          48,
+          49,
+          50,
+          51,
+          52,
+          53,
+          54
+         ],
+         "external_databases": [
+          "CCDS",
+          "CCDS label",
+          "Clone_based_ensembl_gene",
+          "Clone_based_vega_gene",
+          "EntrezGene",
+          "HGNC (curated)",
+          "HGNC Symbol",
+          "Havana gene",
+          "Havana transcript",
+          "Havana translation",
+          "IMGT/GENE-DB",
+          "NCBI gene (formerly Entrezgene)",
+          "RFAM",
+          "RFAM label",
+          "RefSeq DNA",
+          "RefSeq peptide",
+          "RefSeq_mRNA",
+          "RefSeq_mRNA_predicted",
+          "RefSeq_ncRNA",
+          "RefSeq_ncRNA_predicted",
+          "RefSeq_peptide",
+          "RefSeq_peptide_predicted",
+          "UniProtKB/SpliceVariant",
+          "UniProtKB/Swiss-Prot",
+          "UniProtKB/TrEMBL",
+          "Uniprot/SPTREMBL",
+          "Uniprot/SWISSPROT",
+          "miRBase",
+          "miRBase label"
+         ],
+         "synonym_databases": [
+          "HGNC Symbol",
+          "NCBI gene (formerly Entrezgene)"
+         ]
+        }
+       ],
+       "serving_assembly": {
+        "48": 36,
+        "49": 36,
+        "50": 36,
+        "51": 36,
+        "52": 36,
+        "53": 36,
+        "54": 36,
+        "55": 37,
+        "56": 37,
+        "57": 37,
+        "58": 37,
+        "59": 37,
+        "60": 37,
+        "61": 37,
+        "62": 37,
+        "63": 37,
+        "64": 37,
+        "65": 37,
+        "66": 37,
+        "67": 37,
+        "68": 37,
+        "69": 37,
+        "70": 37,
+        "71": 37,
+        "72": 37,
+        "73": 37,
+        "74": 37,
+        "75": 37,
+        "76": 38,
+        "77": 38,
+        "78": 38,
+        "79": 38,
+        "80": 38,
+        "81": 38,
+        "82": 38,
+        "83": 38,
+        "84": 38,
+        "85": 38,
+        "86": 38,
+        "87": 38,
+        "88": 38,
+        "89": 38,
+        "90": 38,
+        "91": 38,
+        "92": 38,
+        "93": 38,
+        "94": 38,
+        "95": 38,
+        "96": 38,
+        "97": 38,
+        "98": 38,
+        "99": 38,
+        "100": 38,
+        "101": 38,
+        "102": 38,
+        "103": 38,
+        "104": 38,
+        "105": 38,
+        "106": 38,
+        "107": 38,
+        "108": 38,
+        "109": 38,
+        "110": 38,
+        "111": 38,
+        "112": 38,
+        "113": 38,
+        "114": 38,
+        "115": 38
+       },
+       "external_databases": [
+        "CCDS",
+        "CCDS label",
+        "Clone_based_ensembl_gene",
+        "Clone_based_vega_gene",
+        "EntrezGene",
+        "HGNC (automatic)",
+        "HGNC (curated)",
+        "HGNC Symbol",
+        "Havana gene",
+        "Havana transcript",
+        "Havana translation",
+        "IMGT/GENE-DB",
+        "NCBI gene (formerly Entrezgene)",
+        "RFAM",
+        "RFAM gene name",
+        "RFAM label",
+        "RefSeq DNA",
+        "RefSeq peptide",
+        "RefSeq_mRNA",
+        "RefSeq_mRNA_predicted",
+        "RefSeq_ncRNA",
+        "RefSeq_ncRNA_predicted",
+        "RefSeq_peptide",
+        "RefSeq_peptide_predicted",
+        "UniProtKB Gene Name",
+        "UniProtKB/SpliceVariant",
+        "UniProtKB/Swiss-Prot",
+        "UniProtKB/TrEMBL",
+        "Uniprot/SPTREMBL",
+        "Uniprot/SWISSPROT",
+        "Vega gene",
+        "Vega_gene",
+        "miRBase",
+        "miRBase gene name",
+        "miRBase label"
+       ],
+       "synonym_databases": [
+        "HGNC Symbol",
+        "NCBI gene (formerly Entrezgene)",
+        "UniProtKB Gene Name"
+       ],
+       "final_databases": [
+        "CCDS",
+        "CCDS label",
+        "Clone_based_ensembl_gene",
+        "Clone_based_vega_gene",
+        "EntrezGene",
+        "HGNC Symbol",
+        "Havana gene",
+        "Havana transcript",
+        "Havana translation",
+        "NCBI gene (formerly Entrezgene)",
+        "RFAM",
+        "RFAM label",
+        "RefSeq_mRNA",
+        "RefSeq_mRNA_predicted",
+        "RefSeq_ncRNA",
+        "RefSeq_ncRNA_predicted",
+        "RefSeq_peptide",
+        "RefSeq_peptide_predicted",
+        "UniProtKB Gene Name",
+        "Uniprot/SPTREMBL",
+        "Uniprot/SWISSPROT",
+        "Vega gene",
+        "Vega_gene",
+        "base_ensembl_gene",
+        "ensembl_gene",
+        "miRBase",
+        "miRBase label"
+       ],
+       "forms": [
+        "gene",
+        "transcript",
+        "translation"
+       ],
+       "format_version": 6,
+       "package_version": "none: built from a source folder, not an installed idtrack",
+       "package_commit": "23239cfeef786ccb999609cf3f0303041d0f09e7",
+       "content_digest": "f922779314f8a27dd1d1a7a4f24e7b6a316fa7fb8f7b071f3d66857095682cfb",
+       "build_date": "2026-11-22T18:27:50Z",
+       "counts": {
+        "accession_versions": 4186547,
+        "assembly_exceptions": 691,
+        "carried_places": 213127,
+        "connections": 65810,
+        "cross_reference_edges": 8703895,
+        "display_names": 899508,
+        "history_edges": 587740,
+        "links_of_entries_of_several_genes": 2110,
+        "merged_spellings": 13527,
+        "misplaced_external_entries": 579,
+        "nodes": 3715701,
+        "non_reference_genes": 25908,
+        "places": 415994
+       }
+      }
+     ],
+     "names": [
+      {
+       "organism": "homo_sapiens",
+       "aliases": [
+        "human"
+       ]
+      }
+     ]
+    }
+   },
+   "recorded": "a real answer of a server holding the five graphs of Ensembl 115 (human, mouse, pig, rhesus, cynomolgus); trimmed: `organisms` to its first 1 of 5 items, `names` to its first 1 of 5 items",
+   "parameters": {}
+  },
+  "describe_organism": {
+   "responses": {
+    "application/json": {
+     "organism": "homo_sapiens",
+     "primary_assembly": 38,
+     "snapshot_release": 115,
+     "releases": [
+      48,
+      49,
+      50,
+      51,
+      52,
+      53,
+      54,
+      55,
+      56,
+      57,
+      58,
+      59,
+      60,
+      61,
+      62,
+      63,
+      64,
+      65,
+      66,
+      67,
+      68,
+      69,
+      70,
+      71,
+      72,
+      73,
+      74,
+      75,
+      76,
+      77,
+      78,
+      79,
+      80,
+      81,
+      82,
+      83,
+      84,
+      85,
+      86,
+      87,
+      88,
+      89,
+      90,
+      91,
+      92,
+      93,
+      94,
+      95,
+      96,
+      97,
+      98,
+      99,
+      100,
+      101,
+      102,
+      103,
+      104,
+      105,
+      106,
+      107,
+      108,
+      109,
+      110,
+      111,
+      112,
+      113,
+      114,
+      115
+     ],
+     "assemblies": [
+      {
+       "assembly": 38,
+       "name": "GRCh38",
+       "releases": [
+        76,
+        77,
+        78,
+        79,
+        80,
+        81,
+        82,
+        83,
+        84,
+        85,
+        86,
+        87,
+        88,
+        89,
+        90,
+        91,
+        92,
+        93,
+        94,
+        95,
+        96,
+        97,
+        98,
+        99,
+        100,
+        101,
+        102,
+        103,
+        104,
+        105,
+        106,
+        107,
+        108,
+        109,
+        110,
+        111,
+        112,
+        113,
+        114,
+        115
+       ],
+       "serves": [
+        76,
+        77,
+        78,
+        79,
+        80,
+        81,
+        82,
+        83,
+        84,
+        85,
+        86,
+        87,
+        88,
+        89,
+        90,
+        91,
+        92,
+        93,
+        94,
+        95,
+        96,
+        97,
+        98,
+        99,
+        100,
+        101,
+        102,
+        103,
+        104,
+        105,
+        106,
+        107,
+        108,
+        109,
+        110,
+        111,
+        112,
+        113,
+        114,
+        115
+       ],
+       "external_databases": [
+        "CCDS",
+        "CCDS label",
+        "Clone_based_ensembl_gene",
+        "Clone_based_vega_gene",
+        "EntrezGene",
+        "HGNC Symbol",
+        "Havana gene",
+        "Havana transcript",
+        "Havana translation",
+        "NCBI gene (formerly Entrezgene)",
+        "RFAM",
+        "RFAM label",
+        "RefSeq_mRNA",
+        "RefSeq_mRNA_predicted",
+        "RefSeq_ncRNA",
+        "RefSeq_ncRNA_predicted",
+        "RefSeq_peptide",
+        "RefSeq_peptide_predicted",
+        "UniProtKB Gene Name",
+        "Uniprot/SPTREMBL",
+        "Uniprot/SWISSPROT",
+        "Vega gene",
+        "Vega_gene",
+        "miRBase",
+        "miRBase label"
+       ],
+       "synonym_databases": [
+        "HGNC Symbol",
+        "NCBI gene (formerly Entrezgene)",
+        "UniProtKB Gene Name"
+       ]
+      },
+      {
+       "assembly": 37,
+       "name": "GRCh37",
+       "releases": [
+        55,
+        56,
+        57,
+        58,
+        59,
+        60,
+        61,
+        62,
+        63,
+        64,
+        65,
+        66,
+        67,
+        68,
+        69,
+        70,
+        71,
+        72,
+        73,
+        74,
+        75,
+        76,
+        77,
+        78,
+        79,
+        80,
+        81,
+        82,
+        83,
+        84,
+        85,
+        86,
+        87,
+        88,
+        89,
+        90,
+        91,
+        92,
+        93,
+        94,
+        95,
+        96,
+        97,
+        98,
+        99,
+        100,
+        101,
+        102,
+        103,
+        104,
+        105,
+        106,
+        107,
+        108,
+        109,
+        110,
+        111,
+        112,
+        113,
+        114,
+        115
+       ],
+       "serves": [
+        55,
+        56,
+        57,
+        58,
+        59,
+        60,
+        61,
+        62,
+        63,
+        64,
+        65,
+        66,
+        67,
+        68,
+        69,
+        70,
+        71,
+        72,
+        73,
+        74,
+        75
+       ],
+       "external_databases": [
+        "CCDS",
+        "CCDS label",
+        "Clone_based_ensembl_gene",
+        "Clone_based_vega_gene",
+        "EntrezGene",
+        "HGNC (automatic)",
+        "HGNC (curated)",
+        "HGNC Symbol",
+        "Havana gene",
+        "Havana transcript",
+        "NCBI gene (formerly Entrezgene)",
+        "RFAM",
+        "RFAM gene name",
+        "RFAM label",
+        "RefSeq_mRNA",
+        "RefSeq_mRNA_predicted",
+        "RefSeq_ncRNA",
+        "RefSeq_ncRNA_predicted",
+        "RefSeq_peptide",
+        "RefSeq_peptide_predicted",
+        "UniProtKB Gene Name",
+        "Uniprot/SPTREMBL",
+        "Uniprot/SWISSPROT",
+        "Vega gene",
+        "Vega_gene",
+        "miRBase",
+        "miRBase gene name",
+        "miRBase label"
+       ],
+       "synonym_databases": [
+        "HGNC Symbol",
+        "NCBI gene (formerly Entrezgene)",
+        "UniProtKB Gene Name"
+       ]
+      },
+      {
+       "assembly": 36,
+       "name": "NCBI36",
+       "releases": [
+        48,
+        49,
+        50,
+        51,
+        52,
+        53,
+        54
+       ],
+       "serves": [
+        48,
+        49,
+        50,
+        51,
+        52,
+        53,
+        54
+       ],
+       "external_databases": [
+        "CCDS",
+        "CCDS label",
+        "Clone_based_ensembl_gene",
+        "Clone_based_vega_gene",
+        "EntrezGene",
+        "HGNC (curated)",
+        "HGNC Symbol",
+        "Havana gene",
+        "Havana transcript",
+        "Havana translation",
+        "IMGT/GENE-DB",
+        "NCBI gene (formerly Entrezgene)",
+        "RFAM",
+        "RFAM label",
+        "RefSeq DNA",
+        "RefSeq peptide",
+        "RefSeq_mRNA",
+        "RefSeq_mRNA_predicted",
+        "RefSeq_ncRNA",
+        "RefSeq_ncRNA_predicted",
+        "RefSeq_peptide",
+        "RefSeq_peptide_predicted",
+        "UniProtKB/SpliceVariant",
+        "UniProtKB/Swiss-Prot",
+        "UniProtKB/TrEMBL",
+        "Uniprot/SPTREMBL",
+        "Uniprot/SWISSPROT",
+        "miRBase",
+        "miRBase label"
+       ],
+       "synonym_databases": [
+        "HGNC Symbol",
+        "NCBI gene (formerly Entrezgene)"
+       ]
+      }
+     ],
+     "serving_assembly": {
+      "48": 36,
+      "49": 36,
+      "50": 36,
+      "51": 36,
+      "52": 36,
+      "53": 36,
+      "54": 36,
+      "55": 37,
+      "56": 37,
+      "57": 37,
+      "58": 37,
+      "59": 37,
+      "60": 37,
+      "61": 37,
+      "62": 37,
+      "63": 37,
+      "64": 37,
+      "65": 37,
+      "66": 37,
+      "67": 37,
+      "68": 37,
+      "69": 37,
+      "70": 37,
+      "71": 37,
+      "72": 37,
+      "73": 37,
+      "74": 37,
+      "75": 37,
+      "76": 38,
+      "77": 38,
+      "78": 38,
+      "79": 38,
+      "80": 38,
+      "81": 38,
+      "82": 38,
+      "83": 38,
+      "84": 38,
+      "85": 38,
+      "86": 38,
+      "87": 38,
+      "88": 38,
+      "89": 38,
+      "90": 38,
+      "91": 38,
+      "92": 38,
+      "93": 38,
+      "94": 38,
+      "95": 38,
+      "96": 38,
+      "97": 38,
+      "98": 38,
+      "99": 38,
+      "100": 38,
+      "101": 38,
+      "102": 38,
+      "103": 38,
+      "104": 38,
+      "105": 38,
+      "106": 38,
+      "107": 38,
+      "108": 38,
+      "109": 38,
+      "110": 38,
+      "111": 38,
+      "112": 38,
+      "113": 38,
+      "114": 38,
+      "115": 38
+     },
+     "external_databases": [
+      "CCDS",
+      "CCDS label",
+      "Clone_based_ensembl_gene",
+      "Clone_based_vega_gene",
+      "EntrezGene",
+      "HGNC (automatic)",
+      "HGNC (curated)",
+      "HGNC Symbol",
+      "Havana gene",
+      "Havana transcript",
+      "Havana translation",
+      "IMGT/GENE-DB",
+      "NCBI gene (formerly Entrezgene)",
+      "RFAM",
+      "RFAM gene name",
+      "RFAM label",
+      "RefSeq DNA",
+      "RefSeq peptide",
+      "RefSeq_mRNA",
+      "RefSeq_mRNA_predicted",
+      "RefSeq_ncRNA",
+      "RefSeq_ncRNA_predicted",
+      "RefSeq_peptide",
+      "RefSeq_peptide_predicted",
+      "UniProtKB Gene Name",
+      "UniProtKB/SpliceVariant",
+      "UniProtKB/Swiss-Prot",
+      "UniProtKB/TrEMBL",
+      "Uniprot/SPTREMBL",
+      "Uniprot/SWISSPROT",
+      "Vega gene",
+      "Vega_gene",
+      "miRBase",
+      "miRBase gene name",
+      "miRBase label"
+     ],
+     "synonym_databases": [
+      "HGNC Symbol",
+      "NCBI gene (formerly Entrezgene)",
+      "UniProtKB Gene Name"
+     ],
+     "final_databases": [
+      "CCDS",
+      "CCDS label",
+      "Clone_based_ensembl_gene",
+      "Clone_based_vega_gene",
+      "EntrezGene",
+      "HGNC Symbol",
+      "Havana gene",
+      "Havana transcript",
+      "Havana translation",
+      "NCBI gene (formerly Entrezgene)",
+      "RFAM",
+      "RFAM label",
+      "RefSeq_mRNA",
+      "RefSeq_mRNA_predicted",
+      "RefSeq_ncRNA",
+      "RefSeq_ncRNA_predicted",
+      "RefSeq_peptide",
+      "RefSeq_peptide_predicted",
+      "UniProtKB Gene Name",
+      "Uniprot/SPTREMBL",
+      "Uniprot/SWISSPROT",
+      "Vega gene",
+      "Vega_gene",
+      "base_ensembl_gene",
+      "ensembl_gene",
+      "miRBase",
+      "miRBase label"
+     ],
+     "forms": [
+      "gene",
+      "transcript",
+      "translation"
+     ],
+     "format_version": 6,
+     "package_version": "none: built from a source folder, not an installed idtrack",
+     "package_commit": "23239cfeef786ccb999609cf3f0303041d0f09e7",
+     "content_digest": "f922779314f8a27dd1d1a7a4f24e7b6a316fa7fb8f7b071f3d66857095682cfb",
+     "build_date": "2026-11-22T18:27:50Z",
+     "counts": {
+      "accession_versions": 4186547,
+      "assembly_exceptions": 691,
+      "carried_places": 213127,
+      "connections": 65810,
+      "cross_reference_edges": 8703895,
+      "display_names": 899508,
+      "history_edges": 587740,
+      "links_of_entries_of_several_genes": 2110,
+      "merged_spellings": 13527,
+      "misplaced_external_entries": 579,
+      "nodes": 3715701,
+      "non_reference_genes": 25908,
+      "places": 415994
+     }
+    }
+   },
+   "recorded": "a real answer of a server holding the five graphs of Ensembl 115 (human, mouse, pig, rhesus, cynomolgus)",
+   "parameters": {
+    "organism": "homo_sapiens"
+   }
+  },
+  "final_databases": {
+   "responses": {
+    "application/json": {
+     "organism": "homo_sapiens",
+     "to_release": 100,
+     "final_databases": [
+      "CCDS",
+      "CCDS label",
+      "Clone_based_ensembl_gene",
+      "Clone_based_vega_gene",
+      "EntrezGene",
+      "HGNC Symbol",
+      "Havana gene",
+      "Havana transcript",
+      "Havana translation",
+      "NCBI gene (formerly Entrezgene)",
+      "RFAM",
+      "RFAM label",
+      "RefSeq_mRNA",
+      "RefSeq_mRNA_predicted",
+      "RefSeq_ncRNA",
+      "RefSeq_ncRNA_predicted",
+      "RefSeq_peptide",
+      "RefSeq_peptide_predicted",
+      "UniProtKB Gene Name",
+      "Uniprot/SPTREMBL",
+      "Uniprot/SWISSPROT",
+      "Vega gene",
+      "Vega_gene",
+      "base_ensembl_gene",
+      "ensembl_gene",
+      "miRBase",
+      "miRBase label"
+     ]
+    }
+   },
+   "recorded": "a real answer of a server holding the five graphs of Ensembl 115 (human, mouse, pig, rhesus, cynomolgus)",
+   "parameters": {
+    "organism": "homo_sapiens",
+    "to_release": "100"
+   }
+  },
+  "history": {
+   "responses": {
+    "application/json": {
+     "organism": "homo_sapiens",
+     "content_digest": "f922779314f8a27dd1d1a7a4f24e7b6a316fa7fb8f7b071f3d66857095682cfb",
+     "releases": [
+      {
+       "release": 48,
+       "genes_active": 32561,
+       "versions_active": 32561,
+       "created": 32561
+      },
+      {
+       "release": 49,
+       "genes_active": 32561,
+       "versions_active": 32561,
+       "created": 0
+      },
+      {
+       "release": 50,
+       "genes_active": 36396,
+       "versions_active": 36396,
+       "created": 5603
+      },
+      {
+       "release": 51,
+       "genes_active": 36582,
+       "versions_active": 36582,
+       "created": 189
+      },
+      {
+       "release": 52,
+       "genes_active": 37435,
+       "versions_active": 37435,
+       "created": 1342
+      },
+      {
+       "release": 53,
+       "genes_active": 37435,
+       "versions_active": 37435,
+       "created": 0
+      },
+      {
+       "release": 54,
+       "genes_active": 37435,
+       "versions_active": 37435,
+       "created": 0
+      },
+      {
+       "release": 55,
+       "genes_active": 44285,
+       "versions_active": 44285,
+       "created": 15854
+      },
+      {
+       "release": 56,
+       "genes_active": 49506,
+       "versions_active": 49506,
+       "created": 5559
+      },
+      {
+       "release": 57,
+       "genes_active": 51682,
+       "versions_active": 51682,
+       "created": 3341
+      },
+      {
+       "release": 58,
+       "genes_active": 51726,
+       "versions_active": 51726,
+       "created": 5011
+      },
+      {
+       "release": 59,
+       "genes_active": 51737,
+       "versions_active": 51737,
+       "created": 22
+      },
+      {
+       "release": 60,
+       "genes_active": 52580,
+       "versions_active": 52580,
+       "created": 1390
+      },
+      {
+       "release": 61,
+       "genes_active": 53630,
+       "versions_active": 53630,
+       "created": 1167
+      },
+      {
+       "release": 62,
+       "genes_active": 53334,
+       "versions_active": 53334,
+       "created": 1608
+      },
+      {
+       "release": 63,
+       "genes_active": 53893,
+       "versions_active": 53893,
+       "created": 1270
+      },
+      {
+       "release": 64,
+       "genes_active": 54304,
+       "versions_active": 54304,
+       "created": 797
+      },
+      {
+       "release": 65,
+       "genes_active": 54843,
+       "versions_active": 54843,
+       "created": 604
+      },
+      {
+       "release": 66,
+       "genes_active": 56478,
+       "versions_active": 56478,
+       "created": 2069
+      },
+      {
+       "release": 67,
+       "genes_active": 57891,
+       "versions_active": 57891,
+       "created": 1553
+      },
+      {
+       "release": 68,
+       "genes_active": 59807,
+       "versions_active": 59807,
+       "created": 3545
+      },
+      {
+       "release": 69,
+       "genes_active": 60620,
+       "versions_active": 60620,
+       "created": 909
+      },
+      {
+       "release": 70,
+       "genes_active": 62316,
+       "versions_active": 62316,
+       "created": 2097
+      },
+      {
+       "release": 71,
+       "genes_active": 62192,
+       "versions_active": 62192,
+       "created": 351
+      },
+      {
+       "release": 72,
+       "genes_active": 63193,
+       "versions_active": 63193,
+       "created": 1530
+      },
+      {
+       "release": 73,
+       "genes_active": 63545,
+       "versions_active": 63545,
+       "created": 923
+      },
+      {
+       "release": 74,
+       "genes_active": 64078,
+       "versions_active": 64078,
+       "created": 956
+      },
+      {
+       "release": 75,
+       "genes_active": 64102,
+       "versions_active": 64102,
+       "created": 23
+      },
+      {
+       "release": 76,
+       "genes_active": 63263,
+       "versions_active": 63263,
+       "created": 5446
+      },
+      {
+       "release": 77,
+       "genes_active": 64769,
+       "versions_active": 64769,
+       "created": 1606
+      },
+      {
+       "release": 78,
+       "genes_active": 64785,
+       "versions_active": 64785,
+       "created": 16
+      },
+      {
+       "release": 79,
+       "genes_active": 65774,
+       "versions_active": 65774,
+       "created": 1493
+      },
+      {
+       "release": 80,
+       "genes_active": 65774,
+       "versions_active": 65774,
+       "created": 0
+      },
+      {
+       "release": 81,
+       "genes_active": 66563,
+       "versions_active": 66563,
+       "created": 918
+      },
+      {
+       "release": 82,
+       "genes_active": 66598,
+       "versions_active": 66598,
+       "created": 35
+      },
+      {
+       "release": 83,
+       "genes_active": 66858,
+       "versions_active": 66858,
+       "created": 347
+      },
+      {
+       "release": 84,
+       "genes_active": 66867,
+       "versions_active": 66867,
+       "created": 9
+      },
+      {
+       "release": 85,
+       "genes_active": 63969,
+       "versions_active": 63969,
+       "created": 569
+      },
+      {
+       "release": 86,
+       "genes_active": 63970,
+       "versions_active": 63970,
+       "created": 1
+      },
+      {
+       "release": 87,
+       "genes_active": 63970,
+       "versions_active": 63970,
+       "created": 0
+      },
+      {
+       "release": 88,
+       "genes_active": 64592,
+       "versions_active": 64592,
+       "created": 929
+      },
+      {
+       "release": 89,
+       "genes_active": 64592,
+       "versions_active": 64592,
+       "created": 0
+      },
+      {
+       "release": 90,
+       "genes_active": 64661,
+       "versions_active": 64661,
+       "created": 148
+      },
+      {
+       "release": 91,
+       "genes_active": 64661,
+       "versions_active": 64661,
+       "created": 0
+      },
+      {
+       "release": 92,
+       "genes_active": 65256,
+       "versions_active": 65256,
+       "created": 769
+      },
+      {
+       "release": 93,
+       "genes_active": 65256,
+       "versions_active": 65256,
+       "created": 0
+      },
+      {
+       "release": 94,
+       "genes_active": 65687,
+       "versions_active": 65687,
+       "created": 557
+      },
+      {
+       "release": 95,
+       "genes_active": 65712,
+       "versions_active": 65712,
+       "created": 25
+      },
+      {
+       "release": 96,
+       "genes_active": 65868,
+       "versions_active": 65868,
+       "created": 282
+      },
+      {
+       "release": 97,
+       "genes_active": 67667,
+       "versions_active": 67667,
+       "created": 1871
+      },
+      {
+       "release": 98,
+       "genes_active": 67946,
+       "versions_active": 67946,
+       "created": 435
+      },
+      {
+       "release": 99,
+       "genes_active": 67998,
+       "versions_active": 67998,
+       "created": 66
+      },
+      {
+       "release": 100,
+       "genes_active": 68008,
+       "versions_active": 68008,
+       "created": 16
+      },
+      {
+       "release": 101,
+       "genes_active": 67990,
+       "versions_active": 67990,
+       "created": 37
+      },
+      {
+       "release": 102,
+       "genes_active": 68001,
+       "versions_active": 68001,
+       "created": 26
+      },
+      {
+       "release": 103,
+       "genes_active": 67992,
+       "versions_active": 67992,
+       "created": 18
+      },
+      {
+       "release": 104,
+       "genes_active": 67990,
+       "versions_active": 67990,
+       "created": 26
+      },
+      {
+       "release": 105,
+       "genes_active": 69329,
+       "versions_active": 69329,
+       "created": 1374
+      },
+      {
+       "release": 106,
+       "genes_active": 69340,
+       "versions_active": 69340,
+       "created": 31
+      },
+      {
+       "release": 107,
+       "genes_active": 69648,
+       "versions_active": 69648,
+       "created": 358
+      },
+      {
+       "release": 108,
+       "genes_active": 70616,
+       "versions_active": 70616,
+       "created": 1000
+      },
+      {
+       "release": 109,
+       "genes_active": 70623,
+       "versions_active": 70623,
+       "created": 13
+      },
+      {
+       "release": 110,
+       "genes_active": 71440,
+       "versions_active": 71440,
+       "created": 978
+      },
+      {
+       "release": 111,
+       "genes_active": 72035,
+       "versions_active": 72035,
+       "created": 645
+      },
+      {
+       "release": 112,
+       "genes_active": 71935,
+       "versions_active": 71935,
+       "created": 27
+      },
+      {
+       "release": 113,
+       "genes_active": 87726,
+       "versions_active": 87726,
+       "created": 16878
+      },
+      {
+       "release": 114,
+       "genes_active": 87688,
+       "versions_active": 87688,
+       "created": 10
+      },
+      {
+       "release": 115,
+       "genes_active": 87693,
+       "versions_active": 87693,
+       "created": 14
+      }
+     ],
+     "transitions": [
+      {
+       "from_release": 49,
+       "to_release": 50,
+       "version_changes": 7018,
+       "id_changes": 51,
+       "same_version": 0,
+       "retired": 1768,
+       "scored": 7069,
+       "one_to_many": 9,
+       "many_to_one": 9
+      },
+      {
+       "from_release": 50,
+       "to_release": 51,
+       "version_changes": 71,
+       "id_changes": 4,
+       "same_version": 0,
+       "retired": 3,
+       "scored": 75,
+       "one_to_many": 1,
+       "many_to_one": 0
+      },
+      {
+       "from_release": 51,
+       "to_release": 52,
+       "version_changes": 734,
+       "id_changes": 11,
+       "same_version": 0,
+       "retired": 489,
+       "scored": 745,
+       "one_to_many": 3,
+       "many_to_one": 4
+      },
+      {
+       "from_release": 54,
+       "to_release": 55,
+       "version_changes": 15830,
+       "id_changes": 4956,
+       "same_version": 0,
+       "retired": 9004,
+       "scored": 20786,
+       "one_to_many": 420,
+       "many_to_one": 749
+      },
+      {
+       "from_release": 55,
+       "to_release": 56,
+       "version_changes": 13824,
+       "id_changes": 512,
+       "same_version": 0,
+       "retired": 338,
+       "scored": 14335,
+       "one_to_many": 91,
+       "many_to_one": 58
+      },
+      {
+       "from_release": 56,
+       "to_release": 57,
+       "version_changes": 217,
+       "id_changes": 0,
+       "same_version": 0,
+       "retired": 1165,
+       "scored": 217,
+       "one_to_many": 0,
+       "many_to_one": 0
+      }
+     ],
+     "compute_seconds": 42.065
+    }
+   },
+   "recorded": "a real answer of a server holding the five graphs of Ensembl 115 (human, mouse, pig, rhesus, cynomolgus); trimmed: `transitions` to its first 6 of 54 items",
+   "parameters": {
+    "organism": "homo_sapiens"
+   }
+  },
+  "vocabulary": {
+   "responses": {
+    "application/json": {
+     "statuses": [
+      {
+       "code": "converted",
+       "meaning": "One best answer: the identifier leads to one target in the requested database.",
+       "source": "idtrack-web"
+      },
+      {
+       "code": "tie",
+       "meaning": "Several genes or targets are equal in all the evidence that decides; all of them are the best answer, in ascending order of gene id and target id.",
+       "source": "idtrack-web"
+      }
+     ],
+     "reasons": [
+      {
+       "code": "not_in_graph",
+       "meaning": "The identifier is not an identifier of this graph at any release.",
+       "source": "idtrack"
+      },
+      {
+       "code": "unknown_version",
+       "meaning": "The identifier is an Ensembl id, or a sequence accession, with a version this graph does not hold.",
+       "source": "idtrack"
+      }
+     ],
+     "step_reasons": [
+      {
+       "code": "identity",
+       "meaning": "The gene exists at the target release.",
+       "source": "idtrack"
+      },
+      {
+       "code": "entry",
+       "meaning": "The identifier is attached to this gene at the release it is read at.",
+       "source": "idtrack"
+      }
+     ],
+     "criteria": [
+      {
+       "code": "own_version",
+       "meaning": "The gene is the queried gene id's own version at the target release (an id that exists at the target release is its own answer).",
+       "source": "idtrack",
+       "fields": [
+        {
+         "field": "own_version",
+         "first": "yes",
+         "parts": null
+        }
+       ]
+      },
+      {
+       "code": "final_confidence",
+       "meaning": "0: the target is attached to the gene at the target release; 1: attached to a transcript or translation that belonged to the gene at another release; `null`: no gene has an id in the requested database and the gene itself is the target.",
+       "source": "idtrack",
+       "fields": [
+        {
+         "field": "final_confidence",
+         "first": "lower",
+         "parts": null
+        }
+       ]
+      }
+     ],
+     "candidate_fields": [
+      {
+       "code": "gene",
+       "meaning": "The Ensembl gene (`<id>.<version>`) at the target release through which the target was reached.",
+       "source": "idtrack"
+      },
+      {
+       "code": "target",
+       "meaning": "The id in the final database, as that database wrote it at the target release (the gene itself for `ensembl_gene`).",
+       "source": "idtrack"
+      }
+     ],
+     "match_steps": [
+      {
+       "code": "exact",
+       "meaning": "The identifier as written (for an external identifier: as a database wrote it at the release read).",
+       "source": "idtrack"
+      },
+      {
+       "code": "case",
+       "meaning": "The identifier when letter case is ignored.",
+       "source": "idtrack"
+      }
+     ],
+     "match_prefixes": [
+      {
+       "code": "copy",
+       "meaning": "In a batch: a name made unique by a single-cell tool (another item of the batch with -1, .1 or _1 appended, itself no exact name at the release it is read at alone); the result is that item's.",
+       "source": "idtrack"
+      },
+      {
+       "code": "unicode",
+       "meaning": "Unicode was normalised before matching: invisible and control characters (zero-width characters, byte-order marks, bidirectional marks, soft hyphens) removed, compatibility forms (NFKC: full-width letters and digits) and Unicode dashes read as their plain characters.",
+       "source": "idtrack"
+      }
+     ],
+     "reading_reasons": [
+      {
+       "code": "symbol_without_case",
+       "meaning": "In an organism whose symbols follow a letter-case convention, a string written otherwise that is not exactly a name is read first as a symbol of the organism without letter case, where that names exactly one gene; this reading came after it.",
+       "source": "idtrack"
+      },
+      {
+       "code": "make_unique_suffix",
+       "meaning": "The string ends in a suffix that single-cell tools append to make names unique (-1, .1, _1); reading it, with its separators taken as one or without letter case, as a synonym of another gene than the string before the suffix names is not taken.",
+       "source": "idtrack"
+      }
+     ],
+     "place_relations": [
+      {
+       "code": "same_place",
+       "meaning": "On one assembly the two genes overlap (one sequence region, one strand), or a place carried onto the other's assembly by Ensembl's mapping of the two assemblies overlaps it.",
+       "source": "idtrack"
+      },
+      {
+       "code": "places_apart",
+       "meaning": "On one assembly the two genes do not overlap: another sequence region, another strand, or apart; or a place carried onto the other's assembly by Ensembl's mapping of the two assemblies shares no base with it; or a copy's reference region (Ensembl's assembly exception) shares no base with the other gene; or, on two assemblies that no published mapping joins, they lie on chromosomes of different names (the mitochondrial genome against a chromosome among them), which no assembly change turns one into the other.",
+       "source": "idtrack"
+      }
+     ],
+     "bridge_rules": [
+      {
+       "code": "same_place",
+       "meaning": "Taken: the two genes overlap on one assembly, or Ensembl's mapping of their two assemblies carries one onto the other.",
+       "source": "idtrack",
+       "taken": true
+      },
+      {
+       "code": "never_shared",
+       "meaning": "Taken: the places of the two genes cannot be compared (two assemblies, a sequence of one name or a scaffold), and no release gives the id to both: the id left one gene for the other.",
+       "source": "idtrack",
+       "taken": true
+      }
+     ],
+     "errors": [
+      {
+       "code": "invalid_request",
+       "status": 400,
+       "title": "The request is not in the form the endpoint takes.",
+       "meaning": "The request does not have the shape the endpoint takes: a missing or malformed parameter, a body that is not UTF-8 JSON of the documented shape (`details` lists each problem, `argument` names the parameter when one is at fault).",
+       "retryable": false,
+       "source": "idtrack-web"
+      },
+      {
+       "code": "unknown_parameter",
+       "status": 400,
+       "title": "The request names a parameter the endpoint does not take, or names one twice.",
+       "meaning": "A query parameter the endpoint does not take, or one given more than once.",
+       "retryable": false,
+       "source": "idtrack-web"
+      }
+     ],
+     "database_kinds": [
+      {
+       "code": "ensembl",
+       "meaning": "One of idtrack's two Ensembl gene namespaces: `ensembl_gene`, the gene id with its version, and `base_ensembl_gene`, without (`versioned` says which).",
+       "source": "idtrack-web"
+      },
+      {
+       "code": "accession",
+       "meaning": "An external database whose ids are accessions (NCBI's gene numbers in `EntrezGene`, RefSeq's and UniProt's accessions); where the graph holds its labels apart, `labels` names their database.",
+       "source": "idtrack-web"
+      }
+     ],
+     "allowances": [
+      {
+       "code": "searches",
+       "meaning": "Searching requests (`rate_per_minute` per minute, `rate_burst` at once).",
+       "source": "idtrack-web"
+      },
+      {
+       "code": "reads",
+       "meaning": "Every other request of the api (`read_share` times the searches' allowance).",
+       "source": "idtrack-web"
+      }
+     ],
+     "source_modes": [
+      {
+       "code": "complete",
+       "meaning": "An origin is `[database, assembly, release]`.",
+       "source": "idtrack-web"
+      },
+      {
+       "code": "release",
+       "meaning": "An origin is a release (counted only on the assembly that serves it).",
+       "source": "idtrack-web"
+      }
+     ]
+    }
+   },
+   "recorded": "a real answer of a server holding the five graphs of Ensembl 115 (human, mouse, pig, rhesus, cynomolgus); trimmed: `statuses` to its first 2 of 7 items, `reasons` to its first 2 of 10 items, `step_reasons` to its first 2 of 13 items, `criteria` to its first 2 of 9 items, `candidate_fields` to its first 2 of 21 items, `match_steps` to its first 2 of 6 items, `match_prefixes` to its first 2 of 6 items, `reading_reasons` to its first 2 of 5 items, `place_relations` to its first 2 of 5 items, `bridge_rules` to its first 2 of 9 items, `errors` to its first 2 of 23 items, `database_kinds` to its first 2 of 3 items, `allowances` to its first 2 of 4 items, `source_modes` to its first 2 of 4 items",
+   "parameters": {}
+  },
+  "databases_by_release": {
+   "responses": {
+    "application/json": {
+     "organism": "homo_sapiens",
+     "releases": [
+      48,
+      49,
+      50,
+      51,
+      52,
+      53,
+      54,
+      55,
+      56,
+      57,
+      58,
+      59,
+      60,
+      61,
+      62,
+      63,
+      64,
+      65,
+      66,
+      67,
+      68,
+      69,
+      70,
+      71,
+      72,
+      73,
+      74,
+      75,
+      76,
+      77,
+      78,
+      79,
+      80,
+      81,
+      82,
+      83,
+      84,
+      85,
+      86,
+      87,
+      88,
+      89,
+      90,
+      91,
+      92,
+      93,
+      94,
+      95,
+      96,
+      97,
+      98,
+      99,
+      100,
+      101,
+      102,
+      103,
+      104,
+      105,
+      106,
+      107,
+      108,
+      109,
+      110,
+      111,
+      112,
+      113,
+      114,
+      115
+     ],
+     "databases": [
+      {
+       "name": "CCDS",
+       "form": "transcript",
+       "releases": [
+        48,
+        49,
+        50,
+        51,
+        52,
+        53,
+        54,
+        55,
+        56,
+        57,
+        58,
+        59,
+        60,
+        61,
+        62,
+        63,
+        64,
+        65,
+        66,
+        67,
+        68,
+        69,
+        70,
+        71,
+        72,
+        73,
+        74,
+        75,
+        76,
+        77,
+        78,
+        79,
+        80,
+        81,
+        82,
+        83,
+        84,
+        85,
+        86,
+        87,
+        88,
+        89,
+        90,
+        91,
+        92,
+        93,
+        94,
+        95,
+        96,
+        97,
+        98,
+        99,
+        100,
+        101,
+        102,
+        103,
+        104,
+        105,
+        106,
+        107,
+        108,
+        109,
+        110,
+        111,
+        112,
+        113,
+        114,
+        115
+       ],
+       "kind": "accession",
+       "versioned": null,
+       "authority": false,
+       "labels": "CCDS label",
+       "labels_of": [],
+       "former_names": []
+      },
+      {
+       "name": "CCDS label",
+       "form": "transcript",
+       "releases": [
+        48,
+        49,
+        50,
+        51,
+        52,
+        53,
+        54,
+        55,
+        56,
+        57,
+        58,
+        59,
+        60,
+        61,
+        62,
+        63,
+        64,
+        65,
+        66,
+        67,
+        68,
+        69,
+        70,
+        71,
+        72,
+        73,
+        74,
+        75,
+        76,
+        77,
+        78,
+        79,
+        80,
+        81,
+        82,
+        83,
+        84,
+        85,
+        86,
+        87,
+        88,
+        89,
+        90,
+        91,
+        92,
+        93,
+        94,
+        95,
+        96,
+        97,
+        98,
+        99,
+        100,
+        101,
+        102,
+        103,
+        104,
+        105,
+        106,
+        107,
+        108,
+        109,
+        110,
+        111,
+        112,
+        113,
+        114,
+        115
+       ],
+       "kind": "label",
+       "versioned": null,
+       "authority": false,
+       "labels": null,
+       "labels_of": [
+        "CCDS"
+       ],
+       "former_names": []
+      },
+      {
+       "name": "Clone_based_ensembl_gene",
+       "form": "gene",
+       "releases": [
+        48,
+        49,
+        50,
+        51,
+        52,
+        53,
+        54,
+        55,
+        56,
+        57,
+        58,
+        59,
+        60,
+        61,
+        62,
+        63,
+        64,
+        65,
+        66,
+        67,
+        68,
+        69,
+        70,
+        71,
+        72,
+        73,
+        74,
+        75,
+        76,
+        77,
+        78,
+        79,
+        80,
+        81,
+        82,
+        83,
+        84,
+        85,
+        86,
+        87,
+        88,
+        89,
+        90,
+        91,
+        92,
+        93,
+        94,
+        95,
+        96,
+        97,
+        98,
+        99,
+        100,
+        101,
+        102,
+        103,
+        104,
+        105,
+        106,
+        107,
+        108,
+        109,
+        110,
+        111,
+        112,
+        113,
+        114,
+        115
+       ],
+       "kind": "accession",
+       "versioned": null,
+       "authority": false,
+       "labels": null,
+       "labels_of": [],
+       "former_names": []
+      },
+      {
+       "name": "Clone_based_vega_gene",
+       "form": "gene",
+       "releases": [
+        48,
+        49,
+        50,
+        51,
+        52,
+        53,
+        54,
+        55,
+        56,
+        57,
+        58,
+        59,
+        60,
+        61,
+        62,
+        63,
+        64,
+        65,
+        66,
+        67,
+        68,
+        69,
+        70,
+        71,
+        72,
+        73,
+        74,
+        75,
+        76,
+        77,
+        78,
+        79,
+        80,
+        81,
+        82,
+        83,
+        84,
+        85,
+        86,
+        87,
+        88,
+        89,
+        90,
+        91,
+        92,
+        93,
+        94,
+        95,
+        96,
+        97,
+        98,
+        99,
+        100,
+        101,
+        102,
+        103,
+        104,
+        105,
+        106,
+        107,
+        108,
+        109,
+        110,
+        111,
+        112,
+        113,
+        114,
+        115
+       ],
+       "kind": "accession",
+       "versioned": null,
+       "authority": false,
+       "labels": null,
+       "labels_of": [],
+       "former_names": []
+      }
+     ],
+     "by_assembly": {
+      "36": [
+       "CCDS",
+       "CCDS label",
+       "Clone_based_ensembl_gene",
+       "Clone_based_vega_gene",
+       "EntrezGene",
+       "HGNC (curated)",
+       "HGNC Symbol",
+       "Havana gene",
+       "Havana transcript",
+       "Havana translation",
+       "IMGT/GENE-DB",
+       "NCBI gene (formerly Entrezgene)",
+       "RFAM",
+       "RFAM label",
+       "RefSeq DNA",
+       "RefSeq peptide",
+       "RefSeq_mRNA",
+       "RefSeq_mRNA_predicted",
+       "RefSeq_ncRNA",
+       "RefSeq_ncRNA_predicted",
+       "RefSeq_peptide",
+       "RefSeq_peptide_predicted",
+       "UniProtKB/SpliceVariant",
+       "UniProtKB/Swiss-Prot",
+       "UniProtKB/TrEMBL",
+       "Uniprot/SPTREMBL",
+       "Uniprot/SWISSPROT",
+       "miRBase",
+       "miRBase label"
+      ],
+      "37": [
+       "CCDS",
+       "CCDS label",
+       "Clone_based_ensembl_gene",
+       "Clone_based_vega_gene",
+       "EntrezGene",
+       "HGNC (automatic)",
+       "HGNC (curated)",
+       "HGNC Symbol",
+       "Havana gene",
+       "Havana transcript",
+       "NCBI gene (formerly Entrezgene)",
+       "RFAM",
+       "RFAM gene name",
+       "RFAM label",
+       "RefSeq_mRNA",
+       "RefSeq_mRNA_predicted",
+       "RefSeq_ncRNA",
+       "RefSeq_ncRNA_predicted",
+       "RefSeq_peptide",
+       "RefSeq_peptide_predicted",
+       "UniProtKB Gene Name",
+       "Uniprot/SPTREMBL",
+       "Uniprot/SWISSPROT",
+       "Vega gene",
+       "Vega_gene",
+       "miRBase",
+       "miRBase gene name",
+       "miRBase label"
+      ],
+      "38": [
+       "CCDS",
+       "CCDS label",
+       "Clone_based_ensembl_gene",
+       "Clone_based_vega_gene",
+       "EntrezGene",
+       "HGNC Symbol",
+       "Havana gene",
+       "Havana transcript",
+       "Havana translation",
+       "NCBI gene (formerly Entrezgene)",
+       "RFAM",
+       "RFAM label",
+       "RefSeq_mRNA",
+       "RefSeq_mRNA_predicted",
+       "RefSeq_ncRNA",
+       "RefSeq_ncRNA_predicted",
+       "RefSeq_peptide",
+       "RefSeq_peptide_predicted",
+       "UniProtKB Gene Name",
+       "Uniprot/SPTREMBL",
+       "Uniprot/SWISSPROT",
+       "Vega gene",
+       "Vega_gene",
+       "miRBase",
+       "miRBase label"
+      ]
+     },
+     "symbol_databases": [
+      "HGNC Symbol"
+     ]
+    }
+   },
+   "recorded": "a real answer of a server holding the five graphs of Ensembl 115 (human, mouse, pig, rhesus, cynomolgus); trimmed: `databases` to its first 4 of 37 items",
+   "parameters": {
+    "organism": "homo_sapiens"
+   }
+  },
+  "showcase": {
+   "responses": {
+    "application/json": {
+     "organism": "homo_sapiens",
+     "content_digest": "f922779314f8a27dd1d1a7a4f24e7b6a316fa7fb8f7b071f3d66857095682cfb",
+     "checked_on": "f922779314f8a27dd1d1a7a4f24e7b6a316fa7fb8f7b071f3d66857095682cfb",
+     "journeys": [
+      {
+       "query": {
+        "identifier": "TP53",
+        "from_release": 50,
+        "to_release": null,
+        "final_database": "HGNC Symbol",
+        "explain": true
+       },
+       "result": {
+        "query_id": "TP53",
+        "graph_id": "TP53",
+        "match": "exact",
+        "known_versions": [],
+        "from_release": 50,
+        "from_release_inferred": false,
+        "from_release_given": 50,
+        "from_release_fallback": false,
+        "from_databases": [
+         "HGNC Symbol",
+         "NCBI gene (formerly Entrezgene)"
+        ],
+        "to_release": 115,
+        "final_database": "HGNC Symbol",
+        "candidates": [
+         {
+          "gene": "ENSG00000141510.20",
+          "target": "TP53",
+          "best": true,
+          "entry_gene": "ENSG00000141510.5",
+          "entry_databases": [
+           "HGNC Symbol",
+           "NCBI gene (formerly Entrezgene)"
+          ],
+          "authority": true,
+          "display_name": true,
+          "display_rank": 0,
+          "entry_support": 2,
+          "own_version": false,
+          "final_confidence": 0,
+          "bridges": 0,
+          "bridge_gap": 0,
+          "score": 0.7909885957885995,
+          "unscored_steps": 0,
+          "same_as_query": true,
+          "external_steps": 1,
+          "history_steps": 18,
+          "annotation": null,
+          "path": [
+           0,
+           1,
+           2,
+           3,
+           4,
+           5,
+           6,
+           7,
+           8,
+           9,
+           10,
+           11,
+           12,
+           13,
+           14,
+           15,
+           16,
+           17,
+           18
+          ],
+          "final_path": [
+           19
+          ]
+         }
+        ],
+        "tie": false,
+        "decided_by": null,
+        "alternative_locus_genes": [],
+        "no_target": false,
+        "no_target_genes": [],
+        "status": "converted",
+        "reason": null,
+        "reasons": [],
+        "other_readings": [],
+        "error": null,
+        "path": {
+         "nodes": [
+          {
+           "id": "TP53",
+           "kind": "external",
+           "label": "TP53",
+           "databases": [
+            "HGNC Symbol",
+            "NCBI gene (formerly Entrezgene)",
+            "UniProtKB Gene Name",
+            "Vega gene"
+           ],
+           "active": [],
+           "assemblies": [],
+           "non_reference": [],
+           "places": []
+          },
+          {
+           "id": "ENSG00000141510.5",
+           "kind": "ensembl_gene",
+           "label": "ENSG00000141510.5",
+           "databases": [],
+           "active": [
+            [
+             50,
+             54
+            ]
+           ],
+           "assemblies": [
+            36
+           ],
+           "non_reference": [],
+           "places": [
+            {
+             "assembly": 36,
+             "region": "17",
+             "start": 7512445,
+             "end": 7531642,
+             "strand": -1,
+             "releases": [
+              [
+               50,
+               54
+              ]
+             ],
+             "reference": true
+            }
+           ]
+          },
+          {
+           "id": "ENSG00000141510.6",
+           "kind": "ensembl_gene",
+           "label": "ENSG00000141510.6",
+           "databases": [],
+           "active": [
+            [
+             55,
+             57
+            ]
+           ],
+           "assemblies": [
+            37
+           ],
+           "non_reference": [],
+           "places": [
+            {
+             "assembly": 37,
+             "region": "17",
+             "start": 7565257,
+             "end": 7590863,
+             "strand": -1,
+             "releases": [
+              [
+               55,
+               57
+              ]
+             ],
+             "reference": true
+            }
+           ]
+          },
+          {
+           "id": "ENSG00000141510.7",
+           "kind": "ensembl_gene",
+           "label": "ENSG00000141510.7",
+           "databases": [],
+           "active": [
+            [
+             58,
+             61
+            ]
+           ],
+           "assemblies": [
+            37
+           ],
+           "non_reference": [],
+           "places": [
+            {
+             "assembly": 37,
+             "region": "17",
+             "start": 7565257,
+             "end": 7590856,
+             "strand": -1,
+             "releases": [
+              [
+               58,
+               61
+              ]
+             ],
+             "reference": true
+            }
+           ]
+          },
+          {
+           "id": "ENSG00000141510.8",
+           "kind": "ensembl_gene",
+           "label": "ENSG00000141510.8",
+           "databases": [],
+           "active": [
+            [
+             62,
+             66
+            ]
+           ],
+           "assemblies": [
+            37
+           ],
+           "non_reference": [],
+           "places": [
+            {
+             "assembly": 37,
+             "region": "17",
+             "start": 7565097,
+             "end": 7590856,
+             "strand": -1,
+             "releases": [
+              [
+               62,
+               66
+              ]
+             ],
+             "reference": true
+            }
+           ]
+          },
+          {
+           "id": "ENSG00000141510.9",
+           "kind": "ensembl_gene",
+           "label": "ENSG00000141510.9",
+           "databases": [],
+           "active": [
+            [
+             67,
+             67
+            ]
+           ],
+           "assemblies": [
+            37
+           ],
+           "non_reference": [],
+           "places": [
+            {
+             "assembly": 37,
+             "region": "17",
+             "start": 7565097,
+             "end": 7590856,
+             "strand": -1,
+             "releases": [
+              [
+               67,
+               67
+              ]
+             ],
+             "reference": true
+            }
+           ]
+          },
+          {
+           "id": "ENSG00000141510.10",
+           "kind": "ensembl_gene",
+           "label": "ENSG00000141510.10",
+           "databases": [],
+           "active": [
+            [
+             68,
+             71
+            ]
+           ],
+           "assemblies": [
+            37
+           ],
+           "non_reference": [],
+           "places": [
+            {
+             "assembly": 37,
+             "region": "17",
+             "start": 7565097,
+             "end": 7590856,
+             "strand": -1,
+             "releases": [
+              [
+               68,
+               71
+              ]
+             ],
+             "reference": true
+            }
+           ]
+          },
+          {
+           "id": "ENSG00000141510.11",
+           "kind": "ensembl_gene",
+           "label": "ENSG00000141510.11",
+           "databases": [],
+           "active": [
+            [
+             72,
+             75
+            ]
+           ],
+           "assemblies": [
+            37
+           ],
+           "non_reference": [],
+           "places": [
+            {
+             "assembly": 37,
+             "region": "17",
+             "start": 7565097,
+             "end": 7590856,
+             "strand": -1,
+             "releases": [
+              [
+               72,
+               75
+              ]
+             ],
+             "reference": true
+            }
+           ]
+          },
+          {
+           "id": "ENSG00000141510.12",
+           "kind": "ensembl_gene",
+           "label": "ENSG00000141510.12",
+           "databases": [],
+           "active": [
+            [
+             76,
+             76
+            ]
+           ],
+           "assemblies": [
+            38
+           ],
+           "non_reference": [],
+           "places": [
+            {
+             "assembly": 38,
+             "region": "17",
+             "start": 7661779,
+             "end": 7687550,
+             "strand": -1,
+             "releases": [
+              [
+               76,
+               76
+              ]
+             ],
+             "reference": true
+            }
+           ]
+          },
+          {
+           "id": "ENSG00000141510.13",
+           "kind": "ensembl_gene",
+           "label": "ENSG00000141510.13",
+           "databases": [],
+           "active": [
+            [
+             77,
+             78
+            ]
+           ],
+           "assemblies": [
+            38
+           ],
+           "non_reference": [],
+           "places": [
+            {
+             "assembly": 38,
+             "region": "17",
+             "start": 7661779,
+             "end": 7687550,
+             "strand": -1,
+             "releases": [
+              [
+               77,
+               78
+              ]
+             ],
+             "reference": true
+            }
+           ]
+          },
+          {
+           "id": "ENSG00000141510.14",
+           "kind": "ensembl_gene",
+           "label": "ENSG00000141510.14",
+           "databases": [],
+           "active": [
+            [
+             79,
+             80
+            ]
+           ],
+           "assemblies": [
+            38
+           ],
+           "non_reference": [],
+           "places": [
+            {
+             "assembly": 38,
+             "region": "17",
+             "start": 7661779,
+             "end": 7687550,
+             "strand": -1,
+             "releases": [
+              [
+               79,
+               80
+              ]
+             ],
+             "reference": true
+            }
+           ]
+          },
+          {
+           "id": "ENSG00000141510.15",
+           "kind": "ensembl_gene",
+           "label": "ENSG00000141510.15",
+           "databases": [],
+           "active": [
+            [
+             81,
+             82
+            ]
+           ],
+           "assemblies": [
+            38
+           ],
+           "non_reference": [],
+           "places": [
+            {
+             "assembly": 38,
+             "region": "17",
+             "start": 7661779,
+             "end": 7687550,
+             "strand": -1,
+             "releases": [
+              [
+               81,
+               82
+              ]
+             ],
+             "reference": true
+            }
+           ]
+          },
+          {
+           "id": "ENSG00000141510.16",
+           "kind": "ensembl_gene",
+           "label": "ENSG00000141510.16",
+           "databases": [],
+           "active": [
+            [
+             83,
+             93
+            ]
+           ],
+           "assemblies": [
+            38
+           ],
+           "non_reference": [],
+           "places": [
+            {
+             "assembly": 38,
+             "region": "17",
+             "start": 7661779,
+             "end": 7687550,
+             "strand": -1,
+             "releases": [
+              [
+               83,
+               93
+              ]
+             ],
+             "reference": true
+            }
+           ]
+          },
+          {
+           "id": "ENSG00000141510.17",
+           "kind": "ensembl_gene",
+           "label": "ENSG00000141510.17",
+           "databases": [],
+           "active": [
+            [
+             94,
+             100
+            ]
+           ],
+           "assemblies": [
+            38
+           ],
+           "non_reference": [],
+           "places": [
+            {
+             "assembly": 38,
+             "region": "17",
+             "start": 7661779,
+             "end": 7687550,
+             "strand": -1,
+             "releases": [
+              [
+               94,
+               100
+              ]
+             ],
+             "reference": true
+            }
+           ]
+          },
+          {
+           "id": "ENSG00000141510.18",
+           "kind": "ensembl_gene",
+           "label": "ENSG00000141510.18",
+           "databases": [],
+           "active": [
+            [
+             101,
+             111
+            ]
+           ],
+           "assemblies": [
+            38
+           ],
+           "non_reference": [],
+           "places": [
+            {
+             "assembly": 38,
+             "region": "17",
+             "start": 7661779,
+             "end": 7687538,
+             "strand": -1,
+             "releases": [
+              [
+               101,
+               111
+              ]
+             ],
+             "reference": true
+            }
+           ]
+          },
+          {
+           "id": "ENSG00000141510.19",
+           "kind": "ensembl_gene",
+           "label": "ENSG00000141510.19",
+           "databases": [],
+           "active": [
+            [
+             112,
+             114
+            ]
+           ],
+           "assemblies": [
+            38
+           ],
+           "non_reference": [],
+           "places": [
+            {
+             "assembly": 38,
+             "region": "17",
+             "start": 7661779,
+             "end": 7687546,
+             "strand": -1,
+             "releases": [
+              [
+               112,
+               114
+              ]
+             ],
+             "reference": true
+            }
+           ]
+          },
+          {
+           "id": "ENSG00000141510.20",
+           "kind": "ensembl_gene",
+           "label": "ENSG00000141510.20",
+           "databases": [],
+           "active": [
+            [
+             115,
+             null
+            ]
+           ],
+           "assemblies": [
+            38
+           ],
+           "non_reference": [],
+           "places": [
+            {
+             "assembly": 38,
+             "region": "17",
+             "start": 7661779,
+             "end": 7687546,
+             "strand": -1,
+             "releases": [
+              [
+               115,
+               115
+              ]
+             ],
+             "reference": true
+            }
+           ]
+          }
+         ],
+         "steps": [
+          {
+           "kind": "entry",
+           "source": "TP53",
+           "target": "ENSG00000141510.5",
+           "key": null,
+           "release": 50,
+           "old_release": null,
+           "new_release": null,
+           "weight": null,
+           "splits": 0,
+           "merges": 0,
+           "databases": [
+            "HGNC Symbol"
+           ],
+           "assembly": 36,
+           "old_assembly": null,
+           "reason": "entry",
+           "places": null
+          },
+          {
+           "kind": "history",
+           "source": "ENSG00000141510.5",
+           "target": "ENSG00000141510.6",
+           "key": 0,
+           "release": null,
+           "old_release": 54,
+           "new_release": 55,
+           "weight": 0.965765,
+           "splits": 0,
+           "merges": 0,
+           "databases": [],
+           "assembly": 37,
+           "old_assembly": 36,
+           "reason": "new_version",
+           "places": "same_place"
+          },
+          {
+           "kind": "history",
+           "source": "ENSG00000141510.6",
+           "target": "ENSG00000141510.7",
+           "key": 0,
+           "release": null,
+           "old_release": 57,
+           "new_release": 58,
+           "weight": 0.946538,
+           "splits": 0,
+           "merges": 0,
+           "databases": [],
+           "assembly": 37,
+           "old_assembly": 37,
+           "reason": "new_version",
+           "places": "same_place"
+          },
+          {
+           "kind": "history",
+           "source": "ENSG00000141510.7",
+           "target": "ENSG00000141510.8",
+           "key": 0,
+           "release": null,
+           "old_release": 61,
+           "new_release": 62,
+           "weight": 0.976159,
+           "splits": 0,
+           "merges": 0,
+           "databases": [],
+           "assembly": 37,
+           "old_assembly": 37,
+           "reason": "new_version",
+           "places": "same_place"
+          },
+          {
+           "kind": "self_loop",
+           "source": "ENSG00000141510.8",
+           "target": "ENSG00000141510.8",
+           "key": 0,
+           "release": null,
+           "old_release": 62,
+           "new_release": 63,
+           "weight": 0.999429,
+           "splits": 0,
+           "merges": 0,
+           "databases": [],
+           "assembly": 37,
+           "old_assembly": 37,
+           "reason": "self_loop",
+           "places": null
+          },
+          {
+           "kind": "history",
+           "source": "ENSG00000141510.8",
+           "target": "ENSG00000141510.9",
+           "key": 0,
+           "release": null,
+           "old_release": 66,
+           "new_release": 67,
+           "weight": 0.985882,
+           "splits": 0,
+           "merges": 0,
+           "databases": [],
+           "assembly": 37,
+           "old_assembly": 37,
+           "reason": "new_version",
+           "places": "same_place"
+          },
+          {
+           "kind": "history",
+           "source": "ENSG00000141510.9",
+           "target": "ENSG00000141510.10",
+           "key": 0,
+           "release": null,
+           "old_release": 67,
+           "new_release": 68,
+           "weight": 0.999441,
+           "splits": 0,
+           "merges": 0,
+           "databases": [],
+           "assembly": 37,
+           "old_assembly": 37,
+           "reason": "new_version",
+           "places": "same_place"
+          },
+          {
+           "kind": "history",
+           "source": "ENSG00000141510.10",
+           "target": "ENSG00000141510.11",
+           "key": 0,
+           "release": null,
+           "old_release": 71,
+           "new_release": 72,
+           "weight": 0.9978,
+           "splits": 0,
+           "merges": 0,
+           "databases": [],
+           "assembly": 37,
+           "old_assembly": 37,
+           "reason": "new_version",
+           "places": "same_place"
+          },
+          {
+           "kind": "history",
+           "source": "ENSG00000141510.11",
+           "target": "ENSG00000141510.12",
+           "key": 0,
+           "release": null,
+           "old_release": 75,
+           "new_release": 76,
+           "weight": 0.940993,
+           "splits": 0,
+           "merges": 0,
+           "databases": [],
+           "assembly": 38,
+           "old_assembly": 37,
+           "reason": "new_version",
+           "places": "same_place"
+          },
+          {
+           "kind": "history",
+           "source": "ENSG00000141510.12",
+           "target": "ENSG00000141510.13",
+           "key": 0,
+           "release": null,
+           "old_release": 76,
+           "new_release": 77,
+           "weight": 1.0,
+           "splits": 0,
+           "merges": 0,
+           "databases": [],
+           "assembly": 38,
+           "old_assembly": 38,
+           "reason": "new_version",
+           "places": "same_place"
+          },
+          {
+           "kind": "history",
+           "source": "ENSG00000141510.13",
+           "target": "ENSG00000141510.14",
+           "key": 0,
+           "release": null,
+           "old_release": 78,
+           "new_release": 79,
+           "weight": 1.0,
+           "splits": 0,
+           "merges": 0,
+           "databases": [],
+           "assembly": 38,
+           "old_assembly": 38,
+           "reason": "new_version",
+           "places": "same_place"
+          },
+          {
+           "kind": "history",
+           "source": "ENSG00000141510.14",
+           "target": "ENSG00000141510.15",
+           "key": 0,
+           "release": null,
+           "old_release": 80,
+           "new_release": 81,
+           "weight": 1.0,
+           "splits": 0,
+           "merges": 0,
+           "databases": [],
+           "assembly": 38,
+           "old_assembly": 38,
+           "reason": "new_version",
+           "places": "same_place"
+          },
+          {
+           "kind": "history",
+           "source": "ENSG00000141510.15",
+           "target": "ENSG00000141510.16",
+           "key": 0,
+           "release": null,
+           "old_release": 82,
+           "new_release": 83,
+           "weight": 0.992277,
+           "splits": 0,
+           "merges": 0,
+           "databases": [],
+           "assembly": 38,
+           "old_assembly": 38,
+           "reason": "new_version",
+           "places": "same_place"
+          },
+          {
+           "kind": "history",
+           "source": "ENSG00000141510.16",
+           "target": "ENSG00000141510.17",
+           "key": 0,
+           "release": null,
+           "old_release": 93,
+           "new_release": 94,
+           "weight": 0.988958,
+           "splits": 0,
+           "merges": 0,
+           "databases": [],
+           "assembly": 38,
+           "old_assembly": 38,
+           "reason": "new_version",
+           "places": "same_place"
+          },
+          {
+           "kind": "self_loop",
+           "source": "ENSG00000141510.17",
+           "target": "ENSG00000141510.17",
+           "key": 0,
+           "release": null,
+           "old_release": 97,
+           "new_release": 98,
+           "weight": 0.999796,
+           "splits": 0,
+           "merges": 0,
+           "databases": [],
+           "assembly": 38,
+           "old_assembly": 38,
+           "reason": "self_loop",
+           "places": null
+          },
+          {
+           "kind": "self_loop",
+           "source": "ENSG00000141510.17",
+           "target": "ENSG00000141510.17",
+           "key": 1,
+           "release": null,
+           "old_release": 98,
+           "new_release": 99,
+           "weight": 0.999796,
+           "splits": 0,
+           "merges": 0,
+           "databases": [],
+           "assembly": 38,
+           "old_assembly": 38,
+           "reason": "self_loop",
+           "places": null
+          },
+          {
+           "kind": "history",
+           "source": "ENSG00000141510.17",
+           "target": "ENSG00000141510.18",
+           "key": 0,
+           "release": null,
+           "old_release": 100,
+           "new_release": 101,
+           "weight": 0.997177,
+           "splits": 0,
+           "merges": 0,
+           "databases": [],
+           "assembly": 38,
+           "old_assembly": 38,
+           "reason": "new_version",
+           "places": "same_place"
+          },
+          {
+           "kind": "history",
+           "source": "ENSG00000141510.18",
+           "target": "ENSG00000141510.19",
+           "key": 0,
+           "release": null,
+           "old_release": 111,
+           "new_release": 112,
+           "weight": 0.99,
+           "splits": 0,
+           "merges": 0,
+           "databases": [],
+           "assembly": 38,
+           "old_assembly": 38,
+           "reason": "new_version",
+           "places": "same_place"
+          },
+          {
+           "kind": "history",
+           "source": "ENSG00000141510.19",
+           "target": "ENSG00000141510.20",
+           "key": 0,
+           "release": null,
+           "old_release": 114,
+           "new_release": 115,
+           "weight": 0.99,
+           "splits": 0,
+           "merges": 0,
+           "databases": [],
+           "assembly": 38,
+           "old_assembly": 38,
+           "reason": "new_version",
+           "places": "same_place"
+          },
+          {
+           "kind": "final",
+           "source": "ENSG00000141510.20",
+           "target": "TP53",
+           "key": null,
+           "release": 115,
+           "old_release": null,
+           "new_release": null,
+           "weight": null,
+           "splits": 0,
+           "merges": 0,
+           "databases": [
+            "HGNC Symbol",
+            "NCBI gene (formerly Entrezgene)",
+            "UniProtKB Gene Name"
+           ],
+           "assembly": 38,
+           "old_assembly": null,
+           "reason": "final",
+           "places": null
+          }
+         ],
+         "bridges": [],
+         "refused": []
+        }
+       },
+       "error": null
+      }
+     ],
+     "cases": [
+      {
+       "kind": "lineage",
+       "query": {
+        "identifier": "ENSG00000141510.5",
+        "from_release": 54,
+        "to_release": null,
+        "final_database": null,
+        "explain": true
+       },
+       "result": {
+        "query_id": "ENSG00000141510.5",
+        "graph_id": "ENSG00000141510.5",
+        "match": "exact",
+        "known_versions": [],
+        "from_release": 54,
+        "from_release_inferred": false,
+        "from_release_given": 54,
+        "from_release_fallback": false,
+        "from_databases": [],
+        "to_release": 115,
+        "final_database": "ensembl_gene",
+        "candidates": [
+         {
+          "gene": "ENSG00000141510.20",
+          "target": "ENSG00000141510.20",
+          "best": true,
+          "entry_gene": "ENSG00000141510.5",
+          "entry_databases": [],
+          "authority": false,
+          "display_name": false,
+          "display_rank": 2,
+          "entry_support": 1,
+          "own_version": true,
+          "final_confidence": 0,
+          "bridges": 0,
+          "bridge_gap": 0,
+          "score": 0.7909885957885995,
+          "unscored_steps": 0,
+          "same_as_query": false,
+          "external_steps": 0,
+          "history_steps": 18,
+          "annotation": null,
+          "path": [
+           0,
+           1,
+           2,
+           3,
+           4,
+           5,
+           6,
+           7,
+           8,
+           9,
+           10,
+           11,
+           12,
+           13,
+           14,
+           15,
+           16,
+           17
+          ],
+          "final_path": []
+         }
+        ],
+        "tie": false,
+        "decided_by": null,
+        "alternative_locus_genes": [],
+        "no_target": false,
+        "no_target_genes": [],
+        "status": "converted",
+        "reason": null,
+        "reasons": [],
+        "other_readings": [],
+        "error": null,
+        "path": {
+         "nodes": [
+          {
+           "id": "ENSG00000141510.5",
+           "kind": "ensembl_gene",
+           "label": "ENSG00000141510.5",
+           "databases": [],
+           "active": [
+            [
+             50,
+             54
+            ]
+           ],
+           "assemblies": [
+            36
+           ],
+           "non_reference": [],
+           "places": [
+            {
+             "assembly": 36,
+             "region": "17",
+             "start": 7512445,
+             "end": 7531642,
+             "strand": -1,
+             "releases": [
+              [
+               50,
+               54
+              ]
+             ],
+             "reference": true
+            }
+           ]
+          },
+          {
+           "id": "ENSG00000141510.6",
+           "kind": "ensembl_gene",
+           "label": "ENSG00000141510.6",
+           "databases": [],
+           "active": [
+            [
+             55,
+             57
+            ]
+           ],
+           "assemblies": [
+            37
+           ],
+           "non_reference": [],
+           "places": [
+            {
+             "assembly": 37,
+             "region": "17",
+             "start": 7565257,
+             "end": 7590863,
+             "strand": -1,
+             "releases": [
+              [
+               55,
+               57
+              ]
+             ],
+             "reference": true
+            }
+           ]
+          },
+          {
+           "id": "ENSG00000141510.7",
+           "kind": "ensembl_gene",
+           "label": "ENSG00000141510.7",
+           "databases": [],
+           "active": [
+            [
+             58,
+             61
+            ]
+           ],
+           "assemblies": [
+            37
+           ],
+           "non_reference": [],
+           "places": [
+            {
+             "assembly": 37,
+             "region": "17",
+             "start": 7565257,
+             "end": 7590856,
+             "strand": -1,
+             "releases": [
+              [
+               58,
+               61
+              ]
+             ],
+             "reference": true
+            }
+           ]
+          },
+          {
+           "id": "ENSG00000141510.8",
+           "kind": "ensembl_gene",
+           "label": "ENSG00000141510.8",
+           "databases": [],
+           "active": [
+            [
+             62,
+             66
+            ]
+           ],
+           "assemblies": [
+            37
+           ],
+           "non_reference": [],
+           "places": [
+            {
+             "assembly": 37,
+             "region": "17",
+             "start": 7565097,
+             "end": 7590856,
+             "strand": -1,
+             "releases": [
+              [
+               62,
+               66
+              ]
+             ],
+             "reference": true
+            }
+           ]
+          },
+          {
+           "id": "ENSG00000141510.9",
+           "kind": "ensembl_gene",
+           "label": "ENSG00000141510.9",
+           "databases": [],
+           "active": [
+            [
+             67,
+             67
+            ]
+           ],
+           "assemblies": [
+            37
+           ],
+           "non_reference": [],
+           "places": [
+            {
+             "assembly": 37,
+             "region": "17",
+             "start": 7565097,
+             "end": 7590856,
+             "strand": -1,
+             "releases": [
+              [
+               67,
+               67
+              ]
+             ],
+             "reference": true
+            }
+           ]
+          },
+          {
+           "id": "ENSG00000141510.10",
+           "kind": "ensembl_gene",
+           "label": "ENSG00000141510.10",
+           "databases": [],
+           "active": [
+            [
+             68,
+             71
+            ]
+           ],
+           "assemblies": [
+            37
+           ],
+           "non_reference": [],
+           "places": [
+            {
+             "assembly": 37,
+             "region": "17",
+             "start": 7565097,
+             "end": 7590856,
+             "strand": -1,
+             "releases": [
+              [
+               68,
+               71
+              ]
+             ],
+             "reference": true
+            }
+           ]
+          },
+          {
+           "id": "ENSG00000141510.11",
+           "kind": "ensembl_gene",
+           "label": "ENSG00000141510.11",
+           "databases": [],
+           "active": [
+            [
+             72,
+             75
+            ]
+           ],
+           "assemblies": [
+            37
+           ],
+           "non_reference": [],
+           "places": [
+            {
+             "assembly": 37,
+             "region": "17",
+             "start": 7565097,
+             "end": 7590856,
+             "strand": -1,
+             "releases": [
+              [
+               72,
+               75
+              ]
+             ],
+             "reference": true
+            }
+           ]
+          },
+          {
+           "id": "ENSG00000141510.12",
+           "kind": "ensembl_gene",
+           "label": "ENSG00000141510.12",
+           "databases": [],
+           "active": [
+            [
+             76,
+             76
+            ]
+           ],
+           "assemblies": [
+            38
+           ],
+           "non_reference": [],
+           "places": [
+            {
+             "assembly": 38,
+             "region": "17",
+             "start": 7661779,
+             "end": 7687550,
+             "strand": -1,
+             "releases": [
+              [
+               76,
+               76
+              ]
+             ],
+             "reference": true
+            }
+           ]
+          },
+          {
+           "id": "ENSG00000141510.13",
+           "kind": "ensembl_gene",
+           "label": "ENSG00000141510.13",
+           "databases": [],
+           "active": [
+            [
+             77,
+             78
+            ]
+           ],
+           "assemblies": [
+            38
+           ],
+           "non_reference": [],
+           "places": [
+            {
+             "assembly": 38,
+             "region": "17",
+             "start": 7661779,
+             "end": 7687550,
+             "strand": -1,
+             "releases": [
+              [
+               77,
+               78
+              ]
+             ],
+             "reference": true
+            }
+           ]
+          },
+          {
+           "id": "ENSG00000141510.14",
+           "kind": "ensembl_gene",
+           "label": "ENSG00000141510.14",
+           "databases": [],
+           "active": [
+            [
+             79,
+             80
+            ]
+           ],
+           "assemblies": [
+            38
+           ],
+           "non_reference": [],
+           "places": [
+            {
+             "assembly": 38,
+             "region": "17",
+             "start": 7661779,
+             "end": 7687550,
+             "strand": -1,
+             "releases": [
+              [
+               79,
+               80
+              ]
+             ],
+             "reference": true
+            }
+           ]
+          },
+          {
+           "id": "ENSG00000141510.15",
+           "kind": "ensembl_gene",
+           "label": "ENSG00000141510.15",
+           "databases": [],
+           "active": [
+            [
+             81,
+             82
+            ]
+           ],
+           "assemblies": [
+            38
+           ],
+           "non_reference": [],
+           "places": [
+            {
+             "assembly": 38,
+             "region": "17",
+             "start": 7661779,
+             "end": 7687550,
+             "strand": -1,
+             "releases": [
+              [
+               81,
+               82
+              ]
+             ],
+             "reference": true
+            }
+           ]
+          },
+          {
+           "id": "ENSG00000141510.16",
+           "kind": "ensembl_gene",
+           "label": "ENSG00000141510.16",
+           "databases": [],
+           "active": [
+            [
+             83,
+             93
+            ]
+           ],
+           "assemblies": [
+            38
+           ],
+           "non_reference": [],
+           "places": [
+            {
+             "assembly": 38,
+             "region": "17",
+             "start": 7661779,
+             "end": 7687550,
+             "strand": -1,
+             "releases": [
+              [
+               83,
+               93
+              ]
+             ],
+             "reference": true
+            }
+           ]
+          },
+          {
+           "id": "ENSG00000141510.17",
+           "kind": "ensembl_gene",
+           "label": "ENSG00000141510.17",
+           "databases": [],
+           "active": [
+            [
+             94,
+             100
+            ]
+           ],
+           "assemblies": [
+            38
+           ],
+           "non_reference": [],
+           "places": [
+            {
+             "assembly": 38,
+             "region": "17",
+             "start": 7661779,
+             "end": 7687550,
+             "strand": -1,
+             "releases": [
+              [
+               94,
+               100
+              ]
+             ],
+             "reference": true
+            }
+           ]
+          },
+          {
+           "id": "ENSG00000141510.18",
+           "kind": "ensembl_gene",
+           "label": "ENSG00000141510.18",
+           "databases": [],
+           "active": [
+            [
+             101,
+             111
+            ]
+           ],
+           "assemblies": [
+            38
+           ],
+           "non_reference": [],
+           "places": [
+            {
+             "assembly": 38,
+             "region": "17",
+             "start": 7661779,
+             "end": 7687538,
+             "strand": -1,
+             "releases": [
+              [
+               101,
+               111
+              ]
+             ],
+             "reference": true
+            }
+           ]
+          },
+          {
+           "id": "ENSG00000141510.19",
+           "kind": "ensembl_gene",
+           "label": "ENSG00000141510.19",
+           "databases": [],
+           "active": [
+            [
+             112,
+             114
+            ]
+           ],
+           "assemblies": [
+            38
+           ],
+           "non_reference": [],
+           "places": [
+            {
+             "assembly": 38,
+             "region": "17",
+             "start": 7661779,
+             "end": 7687546,
+             "strand": -1,
+             "releases": [
+              [
+               112,
+               114
+              ]
+             ],
+             "reference": true
+            }
+           ]
+          },
+          {
+           "id": "ENSG00000141510.20",
+           "kind": "ensembl_gene",
+           "label": "ENSG00000141510.20",
+           "databases": [],
+           "active": [
+            [
+             115,
+             null
+            ]
+           ],
+           "assemblies": [
+            38
+           ],
+           "non_reference": [],
+           "places": [
+            {
+             "assembly": 38,
+             "region": "17",
+             "start": 7661779,
+             "end": 7687546,
+             "strand": -1,
+             "releases": [
+              [
+               115,
+               115
+              ]
+             ],
+             "reference": true
+            }
+           ]
+          }
+         ],
+         "steps": [
+          {
+           "kind": "history",
+           "source": "ENSG00000141510.5",
+           "target": "ENSG00000141510.6",
+           "key": 0,
+           "release": null,
+           "old_release": 54,
+           "new_release": 55,
+           "weight": 0.965765,
+           "splits": 0,
+           "merges": 0,
+           "databases": [],
+           "assembly": 37,
+           "old_assembly": 36,
+           "reason": "new_version",
+           "places": "same_place"
+          },
+          {
+           "kind": "history",
+           "source": "ENSG00000141510.6",
+           "target": "ENSG00000141510.7",
+           "key": 0,
+           "release": null,
+           "old_release": 57,
+           "new_release": 58,
+           "weight": 0.946538,
+           "splits": 0,
+           "merges": 0,
+           "databases": [],
+           "assembly": 37,
+           "old_assembly": 37,
+           "reason": "new_version",
+           "places": "same_place"
+          },
+          {
+           "kind": "history",
+           "source": "ENSG00000141510.7",
+           "target": "ENSG00000141510.8",
+           "key": 0,
+           "release": null,
+           "old_release": 61,
+           "new_release": 62,
+           "weight": 0.976159,
+           "splits": 0,
+           "merges": 0,
+           "databases": [],
+           "assembly": 37,
+           "old_assembly": 37,
+           "reason": "new_version",
+           "places": "same_place"
+          },
+          {
+           "kind": "self_loop",
+           "source": "ENSG00000141510.8",
+           "target": "ENSG00000141510.8",
+           "key": 0,
+           "release": null,
+           "old_release": 62,
+           "new_release": 63,
+           "weight": 0.999429,
+           "splits": 0,
+           "merges": 0,
+           "databases": [],
+           "assembly": 37,
+           "old_assembly": 37,
+           "reason": "self_loop",
+           "places": null
+          },
+          {
+           "kind": "history",
+           "source": "ENSG00000141510.8",
+           "target": "ENSG00000141510.9",
+           "key": 0,
+           "release": null,
+           "old_release": 66,
+           "new_release": 67,
+           "weight": 0.985882,
+           "splits": 0,
+           "merges": 0,
+           "databases": [],
+           "assembly": 37,
+           "old_assembly": 37,
+           "reason": "new_version",
+           "places": "same_place"
+          },
+          {
+           "kind": "history",
+           "source": "ENSG00000141510.9",
+           "target": "ENSG00000141510.10",
+           "key": 0,
+           "release": null,
+           "old_release": 67,
+           "new_release": 68,
+           "weight": 0.999441,
+           "splits": 0,
+           "merges": 0,
+           "databases": [],
+           "assembly": 37,
+           "old_assembly": 37,
+           "reason": "new_version",
+           "places": "same_place"
+          },
+          {
+           "kind": "history",
+           "source": "ENSG00000141510.10",
+           "target": "ENSG00000141510.11",
+           "key": 0,
+           "release": null,
+           "old_release": 71,
+           "new_release": 72,
+           "weight": 0.9978,
+           "splits": 0,
+           "merges": 0,
+           "databases": [],
+           "assembly": 37,
+           "old_assembly": 37,
+           "reason": "new_version",
+           "places": "same_place"
+          },
+          {
+           "kind": "history",
+           "source": "ENSG00000141510.11",
+           "target": "ENSG00000141510.12",
+           "key": 0,
+           "release": null,
+           "old_release": 75,
+           "new_release": 76,
+           "weight": 0.940993,
+           "splits": 0,
+           "merges": 0,
+           "databases": [],
+           "assembly": 38,
+           "old_assembly": 37,
+           "reason": "new_version",
+           "places": "same_place"
+          },
+          {
+           "kind": "history",
+           "source": "ENSG00000141510.12",
+           "target": "ENSG00000141510.13",
+           "key": 0,
+           "release": null,
+           "old_release": 76,
+           "new_release": 77,
+           "weight": 1.0,
+           "splits": 0,
+           "merges": 0,
+           "databases": [],
+           "assembly": 38,
+           "old_assembly": 38,
+           "reason": "new_version",
+           "places": "same_place"
+          },
+          {
+           "kind": "history",
+           "source": "ENSG00000141510.13",
+           "target": "ENSG00000141510.14",
+           "key": 0,
+           "release": null,
+           "old_release": 78,
+           "new_release": 79,
+           "weight": 1.0,
+           "splits": 0,
+           "merges": 0,
+           "databases": [],
+           "assembly": 38,
+           "old_assembly": 38,
+           "reason": "new_version",
+           "places": "same_place"
+          },
+          {
+           "kind": "history",
+           "source": "ENSG00000141510.14",
+           "target": "ENSG00000141510.15",
+           "key": 0,
+           "release": null,
+           "old_release": 80,
+           "new_release": 81,
+           "weight": 1.0,
+           "splits": 0,
+           "merges": 0,
+           "databases": [],
+           "assembly": 38,
+           "old_assembly": 38,
+           "reason": "new_version",
+           "places": "same_place"
+          },
+          {
+           "kind": "history",
+           "source": "ENSG00000141510.15",
+           "target": "ENSG00000141510.16",
+           "key": 0,
+           "release": null,
+           "old_release": 82,
+           "new_release": 83,
+           "weight": 0.992277,
+           "splits": 0,
+           "merges": 0,
+           "databases": [],
+           "assembly": 38,
+           "old_assembly": 38,
+           "reason": "new_version",
+           "places": "same_place"
+          },
+          {
+           "kind": "history",
+           "source": "ENSG00000141510.16",
+           "target": "ENSG00000141510.17",
+           "key": 0,
+           "release": null,
+           "old_release": 93,
+           "new_release": 94,
+           "weight": 0.988958,
+           "splits": 0,
+           "merges": 0,
+           "databases": [],
+           "assembly": 38,
+           "old_assembly": 38,
+           "reason": "new_version",
+           "places": "same_place"
+          },
+          {
+           "kind": "self_loop",
+           "source": "ENSG00000141510.17",
+           "target": "ENSG00000141510.17",
+           "key": 0,
+           "release": null,
+           "old_release": 97,
+           "new_release": 98,
+           "weight": 0.999796,
+           "splits": 0,
+           "merges": 0,
+           "databases": [],
+           "assembly": 38,
+           "old_assembly": 38,
+           "reason": "self_loop",
+           "places": null
+          },
+          {
+           "kind": "self_loop",
+           "source": "ENSG00000141510.17",
+           "target": "ENSG00000141510.17",
+           "key": 1,
+           "release": null,
+           "old_release": 98,
+           "new_release": 99,
+           "weight": 0.999796,
+           "splits": 0,
+           "merges": 0,
+           "databases": [],
+           "assembly": 38,
+           "old_assembly": 38,
+           "reason": "self_loop",
+           "places": null
+          },
+          {
+           "kind": "history",
+           "source": "ENSG00000141510.17",
+           "target": "ENSG00000141510.18",
+           "key": 0,
+           "release": null,
+           "old_release": 100,
+           "new_release": 101,
+           "weight": 0.997177,
+           "splits": 0,
+           "merges": 0,
+           "databases": [],
+           "assembly": 38,
+           "old_assembly": 38,
+           "reason": "new_version",
+           "places": "same_place"
+          },
+          {
+           "kind": "history",
+           "source": "ENSG00000141510.18",
+           "target": "ENSG00000141510.19",
+           "key": 0,
+           "release": null,
+           "old_release": 111,
+           "new_release": 112,
+           "weight": 0.99,
+           "splits": 0,
+           "merges": 0,
+           "databases": [],
+           "assembly": 38,
+           "old_assembly": 38,
+           "reason": "new_version",
+           "places": "same_place"
+          },
+          {
+           "kind": "history",
+           "source": "ENSG00000141510.19",
+           "target": "ENSG00000141510.20",
+           "key": 0,
+           "release": null,
+           "old_release": 114,
+           "new_release": 115,
+           "weight": 0.99,
+           "splits": 0,
+           "merges": 0,
+           "databases": [],
+           "assembly": 38,
+           "old_assembly": 38,
+           "reason": "new_version",
+           "places": "same_place"
+          }
+         ],
+         "bridges": [],
+         "refused": []
+        }
+       },
+       "error": null
+      }
+     ]
+    }
+   },
+   "recorded": "a real answer of a server holding the five graphs of Ensembl 115 (human, mouse, pig, rhesus, cynomolgus); trimmed: `journeys` to its first 1 of 23 items, `cases` to its first 1 of 12 items",
+   "parameters": {
+    "organism": "homo_sapiens"
+   }
+  },
+  "convert_each_database": {
+   "responses": {
+    "application/json": {
+     "organism": "homo_sapiens",
+     "to_release": 115,
+     "conversions": [
+      {
+       "database": "CCDS",
+       "result": {
+        "query_id": "TP53",
+        "graph_id": "TP53",
+        "match": "exact",
+        "known_versions": [],
+        "from_release": 115,
+        "from_release_inferred": true,
+        "from_release_given": null,
+        "from_release_fallback": false,
+        "from_databases": [
+         "HGNC Symbol",
+         "NCBI gene (formerly Entrezgene)",
+         "UniProtKB Gene Name"
+        ],
+        "to_release": 115,
+        "final_database": "CCDS",
+        "candidates": [
+         {
+          "gene": "ENSG00000141510.20",
+          "target": "CCDS11118",
+          "best": true,
+          "entry_gene": "ENSG00000141510.20",
+          "entry_databases": [
+           "HGNC Symbol",
+           "NCBI gene (formerly Entrezgene)",
+           "UniProtKB Gene Name"
+          ],
+          "authority": true,
+          "display_name": true,
+          "display_rank": 0,
+          "entry_support": 3,
+          "own_version": false,
+          "final_confidence": 0,
+          "bridges": 0,
+          "bridge_gap": 0,
+          "score": 1.0,
+          "unscored_steps": 0,
+          "same_as_query": false,
+          "external_steps": 1,
+          "history_steps": 0,
+          "annotation": null,
+          "path": [],
+          "final_path": []
+         },
+         {
+          "gene": "ENSG00000141510.20",
+          "target": "CCDS45605",
+          "best": true,
+          "entry_gene": "ENSG00000141510.20",
+          "entry_databases": [
+           "HGNC Symbol",
+           "NCBI gene (formerly Entrezgene)",
+           "UniProtKB Gene Name"
+          ],
+          "authority": true,
+          "display_name": true,
+          "display_rank": 0,
+          "entry_support": 3,
+          "own_version": false,
+          "final_confidence": 0,
+          "bridges": 0,
+          "bridge_gap": 0,
+          "score": 1.0,
+          "unscored_steps": 0,
+          "same_as_query": false,
+          "external_steps": 1,
+          "history_steps": 0,
+          "annotation": null,
+          "path": [],
+          "final_path": []
+         },
+         {
+          "gene": "ENSG00000141510.20",
+          "target": "CCDS45606",
+          "best": true,
+          "entry_gene": "ENSG00000141510.20",
+          "entry_databases": [
+           "HGNC Symbol",
+           "NCBI gene (formerly Entrezgene)",
+           "UniProtKB Gene Name"
+          ],
+          "authority": true,
+          "display_name": true,
+          "display_rank": 0,
+          "entry_support": 3,
+          "own_version": false,
+          "final_confidence": 0,
+          "bridges": 0,
+          "bridge_gap": 0,
+          "score": 1.0,
+          "unscored_steps": 0,
+          "same_as_query": false,
+          "external_steps": 1,
+          "history_steps": 0,
+          "annotation": null,
+          "path": [],
+          "final_path": []
+         },
+         {
+          "gene": "ENSG00000141510.20",
+          "target": "CCDS73963",
+          "best": true,
+          "entry_gene": "ENSG00000141510.20",
+          "entry_databases": [
+           "HGNC Symbol",
+           "NCBI gene (formerly Entrezgene)",
+           "UniProtKB Gene Name"
+          ],
+          "authority": true,
+          "display_name": true,
+          "display_rank": 0,
+          "entry_support": 3,
+          "own_version": false,
+          "final_confidence": 0,
+          "bridges": 0,
+          "bridge_gap": 0,
+          "score": 1.0,
+          "unscored_steps": 0,
+          "same_as_query": false,
+          "external_steps": 1,
+          "history_steps": 0,
+          "annotation": null,
+          "path": [],
+          "final_path": []
+         },
+         {
+          "gene": "ENSG00000141510.20",
+          "target": "CCDS73964",
+          "best": true,
+          "entry_gene": "ENSG00000141510.20",
+          "entry_databases": [
+           "HGNC Symbol",
+           "NCBI gene (formerly Entrezgene)",
+           "UniProtKB Gene Name"
+          ],
+          "authority": true,
+          "display_name": true,
+          "display_rank": 0,
+          "entry_support": 3,
+          "own_version": false,
+          "final_confidence": 0,
+          "bridges": 0,
+          "bridge_gap": 0,
+          "score": 1.0,
+          "unscored_steps": 0,
+          "same_as_query": false,
+          "external_steps": 1,
+          "history_steps": 0,
+          "annotation": null,
+          "path": [],
+          "final_path": []
+         },
+         {
+          "gene": "ENSG00000141510.20",
+          "target": "CCDS73965",
+          "best": true,
+          "entry_gene": "ENSG00000141510.20",
+          "entry_databases": [
+           "HGNC Symbol",
+           "NCBI gene (formerly Entrezgene)",
+           "UniProtKB Gene Name"
+          ],
+          "authority": true,
+          "display_name": true,
+          "display_rank": 0,
+          "entry_support": 3,
+          "own_version": false,
+          "final_confidence": 0,
+          "bridges": 0,
+          "bridge_gap": 0,
+          "score": 1.0,
+          "unscored_steps": 0,
+          "same_as_query": false,
+          "external_steps": 1,
+          "history_steps": 0,
+          "annotation": null,
+          "path": [],
+          "final_path": []
+         },
+         {
+          "gene": "ENSG00000141510.20",
+          "target": "CCDS73966",
+          "best": true,
+          "entry_gene": "ENSG00000141510.20",
+          "entry_databases": [
+           "HGNC Symbol",
+           "NCBI gene (formerly Entrezgene)",
+           "UniProtKB Gene Name"
+          ],
+          "authority": true,
+          "display_name": true,
+          "display_rank": 0,
+          "entry_support": 3,
+          "own_version": false,
+          "final_confidence": 0,
+          "bridges": 0,
+          "bridge_gap": 0,
+          "score": 1.0,
+          "unscored_steps": 0,
+          "same_as_query": false,
+          "external_steps": 1,
+          "history_steps": 0,
+          "annotation": null,
+          "path": [],
+          "final_path": []
+         },
+         {
+          "gene": "ENSG00000141510.20",
+          "target": "CCDS73967",
+          "best": true,
+          "entry_gene": "ENSG00000141510.20",
+          "entry_databases": [
+           "HGNC Symbol",
+           "NCBI gene (formerly Entrezgene)",
+           "UniProtKB Gene Name"
+          ],
+          "authority": true,
+          "display_name": true,
+          "display_rank": 0,
+          "entry_support": 3,
+          "own_version": false,
+          "final_confidence": 0,
+          "bridges": 0,
+          "bridge_gap": 0,
+          "score": 1.0,
+          "unscored_steps": 0,
+          "same_as_query": false,
+          "external_steps": 1,
+          "history_steps": 0,
+          "annotation": null,
+          "path": [],
+          "final_path": []
+         },
+         {
+          "gene": "ENSG00000141510.20",
+          "target": "CCDS73968",
+          "best": true,
+          "entry_gene": "ENSG00000141510.20",
+          "entry_databases": [
+           "HGNC Symbol",
+           "NCBI gene (formerly Entrezgene)",
+           "UniProtKB Gene Name"
+          ],
+          "authority": true,
+          "display_name": true,
+          "display_rank": 0,
+          "entry_support": 3,
+          "own_version": false,
+          "final_confidence": 0,
+          "bridges": 0,
+          "bridge_gap": 0,
+          "score": 1.0,
+          "unscored_steps": 0,
+          "same_as_query": false,
+          "external_steps": 1,
+          "history_steps": 0,
+          "annotation": null,
+          "path": [],
+          "final_path": []
+         },
+         {
+          "gene": "ENSG00000141510.20",
+          "target": "CCDS73969",
+          "best": true,
+          "entry_gene": "ENSG00000141510.20",
+          "entry_databases": [
+           "HGNC Symbol",
+           "NCBI gene (formerly Entrezgene)",
+           "UniProtKB Gene Name"
+          ],
+          "authority": true,
+          "display_name": true,
+          "display_rank": 0,
+          "entry_support": 3,
+          "own_version": false,
+          "final_confidence": 0,
+          "bridges": 0,
+          "bridge_gap": 0,
+          "score": 1.0,
+          "unscored_steps": 0,
+          "same_as_query": false,
+          "external_steps": 1,
+          "history_steps": 0,
+          "annotation": null,
+          "path": [],
+          "final_path": []
+         },
+         {
+          "gene": "ENSG00000141510.20",
+          "target": "CCDS73970",
+          "best": true,
+          "entry_gene": "ENSG00000141510.20",
+          "entry_databases": [
+           "HGNC Symbol",
+           "NCBI gene (formerly Entrezgene)",
+           "UniProtKB Gene Name"
+          ],
+          "authority": true,
+          "display_name": true,
+          "display_rank": 0,
+          "entry_support": 3,
+          "own_version": false,
+          "final_confidence": 0,
+          "bridges": 0,
+          "bridge_gap": 0,
+          "score": 1.0,
+          "unscored_steps": 0,
+          "same_as_query": false,
+          "external_steps": 1,
+          "history_steps": 0,
+          "annotation": null,
+          "path": [],
+          "final_path": []
+         },
+         {
+          "gene": "ENSG00000141510.20",
+          "target": "CCDS73971",
+          "best": true,
+          "entry_gene": "ENSG00000141510.20",
+          "entry_databases": [
+           "HGNC Symbol",
+           "NCBI gene (formerly Entrezgene)",
+           "UniProtKB Gene Name"
+          ],
+          "authority": true,
+          "display_name": true,
+          "display_rank": 0,
+          "entry_support": 3,
+          "own_version": false,
+          "final_confidence": 0,
+          "bridges": 0,
+          "bridge_gap": 0,
+          "score": 1.0,
+          "unscored_steps": 0,
+          "same_as_query": false,
+          "external_steps": 1,
+          "history_steps": 0,
+          "annotation": null,
+          "path": [],
+          "final_path": []
+         }
+        ],
+        "tie": true,
+        "decided_by": null,
+        "alternative_locus_genes": [
+         "LRG_321.1"
+        ],
+        "no_target": false,
+        "no_target_genes": [],
+        "status": "tie",
+        "reason": null,
+        "reasons": [],
+        "other_readings": [],
+        "error": null,
+        "path": null
+       }
+      },
+      {
+       "database": "CCDS label",
+       "result": {
+        "query_id": "TP53",
+        "graph_id": "TP53",
+        "match": "exact",
+        "known_versions": [],
+        "from_release": 115,
+        "from_release_inferred": true,
+        "from_release_given": null,
+        "from_release_fallback": false,
+        "from_databases": [
+         "HGNC Symbol",
+         "NCBI gene (formerly Entrezgene)",
+         "UniProtKB Gene Name"
+        ],
+        "to_release": 115,
+        "final_database": "CCDS label",
+        "candidates": [
+         {
+          "gene": "ENSG00000141510.20",
+          "target": "CCDS11118.1",
+          "best": true,
+          "entry_gene": "ENSG00000141510.20",
+          "entry_databases": [
+           "HGNC Symbol",
+           "NCBI gene (formerly Entrezgene)",
+           "UniProtKB Gene Name"
+          ],
+          "authority": true,
+          "display_name": true,
+          "display_rank": 0,
+          "entry_support": 3,
+          "own_version": false,
+          "final_confidence": 0,
+          "bridges": 0,
+          "bridge_gap": 0,
+          "score": 1.0,
+          "unscored_steps": 0,
+          "same_as_query": false,
+          "external_steps": 1,
+          "history_steps": 0,
+          "annotation": null,
+          "path": [],
+          "final_path": []
+         },
+         {
+          "gene": "ENSG00000141510.20",
+          "target": "CCDS45605.1",
+          "best": true,
+          "entry_gene": "ENSG00000141510.20",
+          "entry_databases": [
+           "HGNC Symbol",
+           "NCBI gene (formerly Entrezgene)",
+           "UniProtKB Gene Name"
+          ],
+          "authority": true,
+          "display_name": true,
+          "display_rank": 0,
+          "entry_support": 3,
+          "own_version": false,
+          "final_confidence": 0,
+          "bridges": 0,
+          "bridge_gap": 0,
+          "score": 1.0,
+          "unscored_steps": 0,
+          "same_as_query": false,
+          "external_steps": 1,
+          "history_steps": 0,
+          "annotation": null,
+          "path": [],
+          "final_path": []
+         },
+         {
+          "gene": "ENSG00000141510.20",
+          "target": "CCDS45606.1",
+          "best": true,
+          "entry_gene": "ENSG00000141510.20",
+          "entry_databases": [
+           "HGNC Symbol",
+           "NCBI gene (formerly Entrezgene)",
+           "UniProtKB Gene Name"
+          ],
+          "authority": true,
+          "display_name": true,
+          "display_rank": 0,
+          "entry_support": 3,
+          "own_version": false,
+          "final_confidence": 0,
+          "bridges": 0,
+          "bridge_gap": 0,
+          "score": 1.0,
+          "unscored_steps": 0,
+          "same_as_query": false,
+          "external_steps": 1,
+          "history_steps": 0,
+          "annotation": null,
+          "path": [],
+          "final_path": []
+         },
+         {
+          "gene": "ENSG00000141510.20",
+          "target": "CCDS73963.1",
+          "best": true,
+          "entry_gene": "ENSG00000141510.20",
+          "entry_databases": [
+           "HGNC Symbol",
+           "NCBI gene (formerly Entrezgene)",
+           "UniProtKB Gene Name"
+          ],
+          "authority": true,
+          "display_name": true,
+          "display_rank": 0,
+          "entry_support": 3,
+          "own_version": false,
+          "final_confidence": 0,
+          "bridges": 0,
+          "bridge_gap": 0,
+          "score": 1.0,
+          "unscored_steps": 0,
+          "same_as_query": false,
+          "external_steps": 1,
+          "history_steps": 0,
+          "annotation": null,
+          "path": [],
+          "final_path": []
+         },
+         {
+          "gene": "ENSG00000141510.20",
+          "target": "CCDS73964.1",
+          "best": true,
+          "entry_gene": "ENSG00000141510.20",
+          "entry_databases": [
+           "HGNC Symbol",
+           "NCBI gene (formerly Entrezgene)",
+           "UniProtKB Gene Name"
+          ],
+          "authority": true,
+          "display_name": true,
+          "display_rank": 0,
+          "entry_support": 3,
+          "own_version": false,
+          "final_confidence": 0,
+          "bridges": 0,
+          "bridge_gap": 0,
+          "score": 1.0,
+          "unscored_steps": 0,
+          "same_as_query": false,
+          "external_steps": 1,
+          "history_steps": 0,
+          "annotation": null,
+          "path": [],
+          "final_path": []
+         },
+         {
+          "gene": "ENSG00000141510.20",
+          "target": "CCDS73965.1",
+          "best": true,
+          "entry_gene": "ENSG00000141510.20",
+          "entry_databases": [
+           "HGNC Symbol",
+           "NCBI gene (formerly Entrezgene)",
+           "UniProtKB Gene Name"
+          ],
+          "authority": true,
+          "display_name": true,
+          "display_rank": 0,
+          "entry_support": 3,
+          "own_version": false,
+          "final_confidence": 0,
+          "bridges": 0,
+          "bridge_gap": 0,
+          "score": 1.0,
+          "unscored_steps": 0,
+          "same_as_query": false,
+          "external_steps": 1,
+          "history_steps": 0,
+          "annotation": null,
+          "path": [],
+          "final_path": []
+         },
+         {
+          "gene": "ENSG00000141510.20",
+          "target": "CCDS73966.1",
+          "best": true,
+          "entry_gene": "ENSG00000141510.20",
+          "entry_databases": [
+           "HGNC Symbol",
+           "NCBI gene (formerly Entrezgene)",
+           "UniProtKB Gene Name"
+          ],
+          "authority": true,
+          "display_name": true,
+          "display_rank": 0,
+          "entry_support": 3,
+          "own_version": false,
+          "final_confidence": 0,
+          "bridges": 0,
+          "bridge_gap": 0,
+          "score": 1.0,
+          "unscored_steps": 0,
+          "same_as_query": false,
+          "external_steps": 1,
+          "history_steps": 0,
+          "annotation": null,
+          "path": [],
+          "final_path": []
+         },
+         {
+          "gene": "ENSG00000141510.20",
+          "target": "CCDS73967.1",
+          "best": true,
+          "entry_gene": "ENSG00000141510.20",
+          "entry_databases": [
+           "HGNC Symbol",
+           "NCBI gene (formerly Entrezgene)",
+           "UniProtKB Gene Name"
+          ],
+          "authority": true,
+          "display_name": true,
+          "display_rank": 0,
+          "entry_support": 3,
+          "own_version": false,
+          "final_confidence": 0,
+          "bridges": 0,
+          "bridge_gap": 0,
+          "score": 1.0,
+          "unscored_steps": 0,
+          "same_as_query": false,
+          "external_steps": 1,
+          "history_steps": 0,
+          "annotation": null,
+          "path": [],
+          "final_path": []
+         },
+         {
+          "gene": "ENSG00000141510.20",
+          "target": "CCDS73968.1",
+          "best": true,
+          "entry_gene": "ENSG00000141510.20",
+          "entry_databases": [
+           "HGNC Symbol",
+           "NCBI gene (formerly Entrezgene)",
+           "UniProtKB Gene Name"
+          ],
+          "authority": true,
+          "display_name": true,
+          "display_rank": 0,
+          "entry_support": 3,
+          "own_version": false,
+          "final_confidence": 0,
+          "bridges": 0,
+          "bridge_gap": 0,
+          "score": 1.0,
+          "unscored_steps": 0,
+          "same_as_query": false,
+          "external_steps": 1,
+          "history_steps": 0,
+          "annotation": null,
+          "path": [],
+          "final_path": []
+         },
+         {
+          "gene": "ENSG00000141510.20",
+          "target": "CCDS73969.1",
+          "best": true,
+          "entry_gene": "ENSG00000141510.20",
+          "entry_databases": [
+           "HGNC Symbol",
+           "NCBI gene (formerly Entrezgene)",
+           "UniProtKB Gene Name"
+          ],
+          "authority": true,
+          "display_name": true,
+          "display_rank": 0,
+          "entry_support": 3,
+          "own_version": false,
+          "final_confidence": 0,
+          "bridges": 0,
+          "bridge_gap": 0,
+          "score": 1.0,
+          "unscored_steps": 0,
+          "same_as_query": false,
+          "external_steps": 1,
+          "history_steps": 0,
+          "annotation": null,
+          "path": [],
+          "final_path": []
+         },
+         {
+          "gene": "ENSG00000141510.20",
+          "target": "CCDS73970.1",
+          "best": true,
+          "entry_gene": "ENSG00000141510.20",
+          "entry_databases": [
+           "HGNC Symbol",
+           "NCBI gene (formerly Entrezgene)",
+           "UniProtKB Gene Name"
+          ],
+          "authority": true,
+          "display_name": true,
+          "display_rank": 0,
+          "entry_support": 3,
+          "own_version": false,
+          "final_confidence": 0,
+          "bridges": 0,
+          "bridge_gap": 0,
+          "score": 1.0,
+          "unscored_steps": 0,
+          "same_as_query": false,
+          "external_steps": 1,
+          "history_steps": 0,
+          "annotation": null,
+          "path": [],
+          "final_path": []
+         },
+         {
+          "gene": "ENSG00000141510.20",
+          "target": "CCDS73971.1",
+          "best": true,
+          "entry_gene": "ENSG00000141510.20",
+          "entry_databases": [
+           "HGNC Symbol",
+           "NCBI gene (formerly Entrezgene)",
+           "UniProtKB Gene Name"
+          ],
+          "authority": true,
+          "display_name": true,
+          "display_rank": 0,
+          "entry_support": 3,
+          "own_version": false,
+          "final_confidence": 0,
+          "bridges": 0,
+          "bridge_gap": 0,
+          "score": 1.0,
+          "unscored_steps": 0,
+          "same_as_query": false,
+          "external_steps": 1,
+          "history_steps": 0,
+          "annotation": null,
+          "path": [],
+          "final_path": []
+         }
+        ],
+        "tie": true,
+        "decided_by": null,
+        "alternative_locus_genes": [
+         "LRG_321.1"
+        ],
+        "no_target": false,
+        "no_target_genes": [],
+        "status": "tie",
+        "reason": null,
+        "reasons": [],
+        "other_readings": [],
+        "error": null,
+        "path": null
+       }
+      },
+      {
+       "database": "Clone_based_ensembl_gene",
+       "result": {
+        "query_id": "TP53",
+        "graph_id": "TP53",
+        "match": "exact",
+        "known_versions": [],
+        "from_release": 115,
+        "from_release_inferred": true,
+        "from_release_given": null,
+        "from_release_fallback": false,
+        "from_databases": [
+         "HGNC Symbol",
+         "NCBI gene (formerly Entrezgene)",
+         "UniProtKB Gene Name"
+        ],
+        "to_release": 115,
+        "final_database": "ensembl_gene",
+        "candidates": [
+         {
+          "gene": "ENSG00000141510.20",
+          "target": "ENSG00000141510.20",
+          "best": true,
+          "entry_gene": "ENSG00000141510.20",
+          "entry_databases": [
+           "HGNC Symbol",
+           "NCBI gene (formerly Entrezgene)",
+           "UniProtKB Gene Name"
+          ],
+          "authority": true,
+          "display_name": true,
+          "display_rank": 0,
+          "entry_support": 3,
+          "own_version": false,
+          "final_confidence": null,
+          "bridges": 0,
+          "bridge_gap": 0,
+          "score": 1.0,
+          "unscored_steps": 0,
+          "same_as_query": false,
+          "external_steps": 1,
+          "history_steps": 0,
+          "annotation": null,
+          "path": [],
+          "final_path": []
+         }
+        ],
+        "tie": false,
+        "decided_by": null,
+        "alternative_locus_genes": [
+         "LRG_321.1"
+        ],
+        "no_target": true,
+        "no_target_genes": [],
+        "status": "no_target",
+        "reason": "no_id_in_final_database",
+        "reasons": [
+         "no_id_in_final_database"
+        ],
+        "other_readings": [],
+        "error": null,
+        "path": null
+       }
+      }
+     ]
+    }
+   },
+   "recorded": "a real answer of a server holding the five graphs of Ensembl 115 (human, mouse, pig, rhesus, cynomolgus); trimmed: `conversions` to its first 3 of 27 items",
+   "parameters": {
+    "organism": "homo_sapiens",
+    "identifier": "TP53",
+    "to_release": "115"
+   }
+  },
+  "source_inference": {
+   "responses": {
+    "application/json": {
+     "organism": "homo_sapiens",
+     "inference": {
+      "mode": "release",
+      "band": [
+       50,
+       51,
+       52,
+       53,
+       54,
+       55,
+       56,
+       57,
+       58,
+       59,
+       60,
+       61,
+       62,
+       63,
+       64,
+       65,
+       66,
+       67,
+       68,
+       69,
+       70,
+       71,
+       72,
+       73,
+       74,
+       75,
+       76,
+       77,
+       78,
+       79,
+       80,
+       81,
+       82,
+       83,
+       84,
+       85,
+       86,
+       87,
+       48,
+       49,
+       88,
+       89,
+       90,
+       91,
+       92,
+       93,
+       94,
+       95,
+       96,
+       97,
+       98,
+       99,
+       100,
+       101,
+       102,
+       103,
+       104,
+       105,
+       106,
+       107,
+       109,
+       108,
+       110,
+       111,
+       112
+      ],
+      "margin": 5,
+      "counts": [
+       [
+        50,
+        7
+       ],
+       [
+        51,
+        7
+       ],
+       [
+        52,
+        7
+       ],
+       [
+        53,
+        7
+       ],
+       [
+        54,
+        7
+       ],
+       [
+        55,
+        7
+       ],
+       [
+        56,
+        7
+       ],
+       [
+        57,
+        7
+       ],
+       [
+        58,
+        7
+       ],
+       [
+        59,
+        7
+       ],
+       [
+        60,
+        7
+       ],
+       [
+        61,
+        7
+       ],
+       [
+        62,
+        7
+       ],
+       [
+        63,
+        7
+       ],
+       [
+        64,
+        7
+       ],
+       [
+        65,
+        7
+       ],
+       [
+        66,
+        7
+       ],
+       [
+        67,
+        7
+       ],
+       [
+        68,
+        7
+       ],
+       [
+        69,
+        7
+       ],
+       [
+        70,
+        7
+       ],
+       [
+        71,
+        7
+       ],
+       [
+        72,
+        7
+       ],
+       [
+        73,
+        7
+       ],
+       [
+        74,
+        7
+       ],
+       [
+        75,
+        7
+       ],
+       [
+        76,
+        7
+       ],
+       [
+        77,
+        7
+       ],
+       [
+        78,
+        7
+       ],
+       [
+        79,
+        7
+       ],
+       [
+        80,
+        7
+       ],
+       [
+        81,
+        7
+       ],
+       [
+        82,
+        7
+       ],
+       [
+        83,
+        7
+       ],
+       [
+        84,
+        7
+       ],
+       [
+        85,
+        7
+       ],
+       [
+        86,
+        7
+       ],
+       [
+        87,
+        7
+       ],
+       [
+        48,
+        6
+       ],
+       [
+        49,
+        6
+       ],
+       [
+        88,
+        6
+       ],
+       [
+        89,
+        6
+       ],
+       [
+        90,
+        6
+       ],
+       [
+        91,
+        6
+       ],
+       [
+        92,
+        6
+       ],
+       [
+        93,
+        6
+       ],
+       [
+        94,
+        5
+       ],
+       [
+        95,
+        5
+       ],
+       [
+        96,
+        5
+       ],
+       [
+        97,
+        5
+       ],
+       [
+        98,
+        5
+       ],
+       [
+        99,
+        5
+       ],
+       [
+        100,
+        5
+       ],
+       [
+        101,
+        5
+       ],
+       [
+        102,
+        5
+       ],
+       [
+        103,
+        5
+       ],
+       [
+        104,
+        5
+       ],
+       [
+        105,
+        5
+       ],
+       [
+        106,
+        5
+       ],
+       [
+        107,
+        5
+       ],
+       [
+        109,
+        5
+       ],
+       [
+        108,
+        4
+       ],
+       [
+        110,
+        3
+       ],
+       [
+        111,
+        3
+       ],
+       [
+        112,
+        3
+       ],
+       [
+        113,
+        2
+       ],
+       [
+        114,
+        2
+       ],
+       [
+        115,
+        2
+       ]
+      ],
+      "identifiers": 7,
+      "not_found": 0
+     }
+    }
+   },
+   "recorded": "a real answer of a server holding the five graphs of Ensembl 115 (human, mouse, pig, rhesus, cynomolgus)",
+   "parameters": {
+    "organism": "homo_sapiens"
+   },
+   "body": {
+    "identifiers": [
+     "TP53",
+     "BRCA1",
+     "AGPAT9",
+     "C1orf112",
+     "HIST1H2BC",
+     "FAM46A",
+     "KIAA0100"
+    ],
+    "mode": "release"
+   }
+  },
+  "convert": {
+   "responses": {
+    "application/json": {
+     "query_id": "ENSG00000141510",
+     "graph_id": "ENSG00000141510",
+     "match": "exact",
+     "known_versions": [],
+     "from_release": 100,
+     "from_release_inferred": false,
+     "from_release_given": 100,
+     "from_release_fallback": false,
+     "from_databases": [
+      "base_ensembl_gene"
+     ],
+     "to_release": 115,
+     "final_database": "HGNC Symbol",
+     "candidates": [
+      {
+       "gene": "ENSG00000141510.20",
+       "target": "TP53",
+       "best": true,
+       "entry_gene": "ENSG00000141510.17",
+       "entry_databases": [
+        "base_ensembl_gene"
+       ],
+       "authority": false,
+       "display_name": false,
+       "display_rank": 2,
+       "entry_support": 1,
+       "own_version": true,
+       "final_confidence": 0,
+       "bridges": 0,
+       "bridge_gap": 0,
+       "score": 0.9773331776999999,
+       "unscored_steps": 0,
+       "same_as_query": true,
+       "external_steps": 1,
+       "history_steps": 3,
+       "annotation": null,
+       "path": [],
+       "final_path": []
+      }
+     ],
+     "tie": false,
+     "decided_by": null,
+     "alternative_locus_genes": [],
+     "no_target": false,
+     "no_target_genes": [],
+     "status": "converted",
+     "reason": null,
+     "reasons": [],
+     "other_readings": [],
+     "error": null,
+     "path": null
+    }
+   },
+   "recorded": "a real answer of a server holding the five graphs of Ensembl 115 (human, mouse, pig, rhesus, cynomolgus)",
+   "parameters": {
+    "organism": "homo_sapiens",
+    "identifier": "ENSG00000141510",
+    "from_release": "100",
+    "final_database": "HGNC Symbol"
+   }
+  },
+  "convert_batch": {
+   "responses": {
+    "application/json": {
+     "count": 3,
+     "results": [
+      {
+       "query_id": "TP53",
+       "graph_id": "TP53",
+       "match": "exact",
+       "known_versions": [],
+       "from_release": 115,
+       "from_release_inferred": true,
+       "from_release_given": null,
+       "from_release_fallback": false,
+       "from_databases": [
+        "HGNC Symbol",
+        "NCBI gene (formerly Entrezgene)",
+        "UniProtKB Gene Name"
+       ],
+       "to_release": 115,
+       "final_database": "ensembl_gene",
+       "candidates": [
+        {
+         "gene": "ENSG00000141510.20",
+         "target": "ENSG00000141510.20",
+         "best": true,
+         "entry_gene": "ENSG00000141510.20",
+         "entry_databases": [
+          "HGNC Symbol",
+          "NCBI gene (formerly Entrezgene)",
+          "UniProtKB Gene Name"
+         ],
+         "authority": true,
+         "display_name": true,
+         "display_rank": 0,
+         "entry_support": 3,
+         "own_version": false,
+         "final_confidence": 0,
+         "bridges": 0,
+         "bridge_gap": 0,
+         "score": 1.0,
+         "unscored_steps": 0,
+         "same_as_query": false,
+         "external_steps": 1,
+         "history_steps": 0,
+         "annotation": null,
+         "path": [],
+         "final_path": []
+        }
+       ],
+       "tie": false,
+       "decided_by": null,
+       "alternative_locus_genes": [
+        "LRG_321.1"
+       ],
+       "no_target": false,
+       "no_target_genes": [],
+       "status": "converted",
+       "reason": null,
+       "reasons": [],
+       "other_readings": [],
+       "error": null,
+       "path": null
+      },
+      {
+       "query_id": "ENSG00000139618",
+       "graph_id": "ENSG00000139618",
+       "match": "exact",
+       "known_versions": [],
+       "from_release": 115,
+       "from_release_inferred": true,
+       "from_release_given": null,
+       "from_release_fallback": false,
+       "from_databases": [
+        "base_ensembl_gene"
+       ],
+       "to_release": 115,
+       "final_database": "ensembl_gene",
+       "candidates": [
+        {
+         "gene": "ENSG00000139618.19",
+         "target": "ENSG00000139618.19",
+         "best": true,
+         "entry_gene": "ENSG00000139618.19",
+         "entry_databases": [
+          "base_ensembl_gene"
+         ],
+         "authority": false,
+         "display_name": false,
+         "display_rank": 2,
+         "entry_support": 1,
+         "own_version": true,
+         "final_confidence": 0,
+         "bridges": 0,
+         "bridge_gap": 0,
+         "score": 1.0,
+         "unscored_steps": 0,
+         "same_as_query": true,
+         "external_steps": 1,
+         "history_steps": 0,
+         "annotation": null,
+         "path": [],
+         "final_path": []
+        }
+       ],
+       "tie": false,
+       "decided_by": null,
+       "alternative_locus_genes": [],
+       "no_target": false,
+       "no_target_genes": [],
+       "status": "converted",
+       "reason": null,
+       "reasons": [],
+       "other_readings": [],
+       "error": null,
+       "path": null
+      },
+      {
+       "query_id": "NOT_A_GENE",
+       "graph_id": null,
+       "match": null,
+       "known_versions": [],
+       "from_release": null,
+       "from_release_inferred": true,
+       "from_release_given": null,
+       "from_release_fallback": false,
+       "from_databases": [],
+       "to_release": 115,
+       "final_database": null,
+       "candidates": [],
+       "tie": false,
+       "decided_by": null,
+       "alternative_locus_genes": [],
+       "no_target": false,
+       "no_target_genes": [],
+       "status": "not_found",
+       "reason": "not_in_graph",
+       "reasons": [
+        "not_in_graph"
+       ],
+       "other_readings": [],
+       "error": null,
+       "path": null
+      }
+     ]
+    },
+    "text/tab-separated-values": "input_index\tquery_id\tstatus\treason\treasons\tgraph_id\tmatch\tknown_versions\tfrom_release\tfrom_release_inferred\tfrom_release_given\tfrom_release_fallback\tfrom_databases\tto_release\tfinal_database\tcandidate_count\ttie\tdecided_by\talternative_locus_genes\tno_target\tno_target_genes\tother_readings\terror_code\terror_type\terror_message\terror_input_error\trank\tbest\tgene\ttarget\tentry_gene\tentry_databases\tauthority\tdisplay_name\tdisplay_rank\tentry_support\town_version\tfinal_confidence\tbridges\tbridge_gap\tscore\tunscored_steps\tsame_as_query\texternal_steps\thistory_steps\tannotation\n0\tTP53\tconverted\t\t\tTP53\texact\t\t115\ttrue\t\tfalse\tHGNC Symbol;NCBI gene (formerly Entrezgene);UniProtKB Gene Name\t115\tensembl_gene\t1\tfalse\t\tLRG_321.1\tfalse\t\t\t\t\t\t\t1\ttrue\tENSG00000141510.20\tENSG00000141510.20\tENSG00000141510.20\tHGNC Symbol;NCBI gene (formerly Entrezgene);UniProtKB Gene Name\ttrue\ttrue\t0\t3\tfalse\t0\t0\t0\t1.0\t0\tfalse\t1\t0\t\n1\tENSG00000139618\tconverted\t\t\tENSG00000139618\texact\t\t115\ttrue\t\tfalse\tbase_ensembl_gene\t115\tensembl_gene\t1\tfalse\t\t\tfalse\t\t\t\t\t\t\t1\ttrue\tENSG00000139618.19\tENSG00000139618.19\tENSG00000139618.19\tbase_ensembl_gene\tfalse\tfalse\t2\t1\ttrue\t0\t0\t0\t1.0\t0\ttrue\t1\t0\t\n2\tNOT_A_GENE\tnot_found\tnot_in_graph\tnot_in_graph\t\t\t\t\ttrue\t\tfalse\t\t115\t\t0\tfalse\t\t\tfalse\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\n"
+   },
+   "recorded": "a real answer of a server holding the five graphs of Ensembl 115 (human, mouse, pig, rhesus, cynomolgus)",
+   "parameters": {
+    "organism": "homo_sapiens"
+   },
+   "body": {
+    "identifiers": [
+     "TP53",
+     "ENSG00000139618",
+     "NOT_A_GENE"
+    ]
+   }
+  },
+  "genes_named": {
+   "responses": {
+    "application/json": {
+     "matches": [
+      {
+       "name": "NOV",
+       "gene": "ENSG00000136999.1",
+       "database": "HGNC Symbol",
+       "synonym": false,
+       "releases": [
+        48,
+        49,
+        50,
+        51,
+        52,
+        53,
+        54
+       ]
+      },
+      {
+       "name": "NOV",
+       "gene": "ENSG00000136999.2",
+       "database": "HGNC Symbol",
+       "synonym": false,
+       "releases": [
+        55,
+        56,
+        57,
+        58,
+        59
+       ]
+      },
+      {
+       "name": "NOV",
+       "gene": "ENSG00000136999.3",
+       "database": "HGNC Symbol",
+       "synonym": false,
+       "releases": [
+        60
+       ]
+      },
+      {
+       "name": "NOV",
+       "gene": "ENSG00000136999.4",
+       "database": "HGNC Symbol",
+       "synonym": false,
+       "releases": [
+        61,
+        62,
+        63,
+        64,
+        65,
+        66,
+        67,
+        68,
+        69,
+        70,
+        71,
+        72,
+        73,
+        74,
+        75,
+        76,
+        77,
+        78,
+        79,
+        80,
+        81,
+        82,
+        83,
+        84,
+        85,
+        86,
+        87,
+        88,
+        89,
+        90,
+        91,
+        92,
+        93,
+        94,
+        95
+       ]
+      },
+      {
+       "name": "NOV",
+       "gene": "ENSG00000114554.10",
+       "database": "HGNC Symbol",
+       "synonym": true,
+       "releases": [
+        79,
+        80
+       ]
+      },
+      {
+       "name": "NOV",
+       "gene": "ENSG00000114554.11",
+       "database": "HGNC Symbol",
+       "synonym": true,
+       "releases": [
+        81,
+        82,
+        83,
+        84,
+        85,
+        86,
+        87,
+        88,
+        89,
+        90,
+        91,
+        92,
+        93,
+        94,
+        95,
+        96,
+        97,
+        98,
+        99,
+        100,
+        101,
+        102,
+        103
+       ]
+      },
+      {
+       "name": "NOV",
+       "gene": "ENSG00000114554.12",
+       "database": "HGNC Symbol",
+       "synonym": true,
+       "releases": [
+        104,
+        105,
+        106,
+        107,
+        108,
+        109,
+        110,
+        111,
+        112,
+        113,
+        114,
+        115
+       ]
+      },
+      {
+       "name": "NOV",
+       "gene": "ENSG00000114554.5",
+       "database": "HGNC Symbol",
+       "synonym": true,
+       "releases": [
+        48,
+        49,
+        50,
+        51,
+        52,
+        53,
+        54,
+        55,
+        56,
+        57
+       ]
+      },
+      {
+       "name": "NOV",
+       "gene": "ENSG00000114554.6",
+       "database": "HGNC Symbol",
+       "synonym": true,
+       "releases": [
+        58,
+        59,
+        60,
+        61
+       ]
+      },
+      {
+       "name": "NOV",
+       "gene": "ENSG00000114554.7",
+       "database": "HGNC Symbol",
+       "synonym": true,
+       "releases": [
+        62,
+        63,
+        64,
+        65,
+        66,
+        67,
+        68,
+        69,
+        70,
+        71,
+        72,
+        73,
+        74,
+        75
+       ]
+      },
+      {
+       "name": "NOV",
+       "gene": "ENSG00000114554.8",
+       "database": "HGNC Symbol",
+       "synonym": true,
+       "releases": [
+        76
+       ]
+      },
+      {
+       "name": "NOV",
+       "gene": "ENSG00000114554.9",
+       "database": "HGNC Symbol",
+       "synonym": true,
+       "releases": [
+        77,
+        78
+       ]
+      },
+      {
+       "name": "NOV",
+       "gene": "ENSG00000136999.5",
+       "database": "HGNC Symbol",
+       "synonym": true,
+       "releases": [
+        96,
+        97,
+        98,
+        99,
+        100,
+        101,
+        102,
+        103,
+        104,
+        105,
+        106,
+        107,
+        108,
+        109,
+        110,
+        111,
+        112,
+        113,
+        114
+       ]
+      },
+      {
+       "name": "NOV",
+       "gene": "ENSG00000136999.6",
+       "database": "HGNC Symbol",
+       "synonym": true,
+       "releases": [
+        115
+       ]
+      },
+      {
+       "name": "NOV",
+       "gene": "ENSG00000147403.10",
+       "database": "HGNC Symbol",
+       "synonym": true,
+       "releases": [
+        56,
+        57
+       ]
+      },
+      {
+       "name": "NOV",
+       "gene": "ENSG00000147403.11",
+       "database": "HGNC Symbol",
+       "synonym": true,
+       "releases": [
+        58,
+        59,
+        60,
+        61
+       ]
+      },
+      {
+       "name": "NOV",
+       "gene": "ENSG00000147403.12",
+       "database": "HGNC Symbol",
+       "synonym": true,
+       "releases": [
+        62,
+        63,
+        64,
+        65,
+        66,
+        67,
+        68,
+        69,
+        70,
+        71,
+        72,
+        73,
+        74,
+        75
+       ]
+      },
+      {
+       "name": "NOV",
+       "gene": "ENSG00000147403.13",
+       "database": "HGNC Symbol",
+       "synonym": true,
+       "releases": [
+        76
+       ]
+      },
+      {
+       "name": "NOV",
+       "gene": "ENSG00000147403.14",
+       "database": "HGNC Symbol",
+       "synonym": true,
+       "releases": [
+        77,
+        78
+       ]
+      },
+      {
+       "name": "NOV",
+       "gene": "ENSG00000147403.15",
+       "database": "HGNC Symbol",
+       "synonym": true,
+       "releases": [
+        79,
+        80
+       ]
+      },
+      {
+       "name": "NOV",
+       "gene": "ENSG00000147403.16",
+       "database": "HGNC Symbol",
+       "synonym": true,
+       "releases": [
+        81,
+        82,
+        83,
+        84,
+        85,
+        86,
+        87,
+        88,
+        89,
+        90,
+        91,
+        92,
+        93,
+        94,
+        95,
+        96,
+        97,
+        98,
+        99,
+        100
+       ]
+      },
+      {
+       "name": "NOV",
+       "gene": "ENSG00000147403.17",
+       "database": "HGNC Symbol",
+       "synonym": true,
+       "releases": [
+        101
+       ]
+      },
+      {
+       "name": "NOV",
+       "gene": "ENSG00000147403.18",
+       "database": "HGNC Symbol",
+       "synonym": true,
+       "releases": [
+        102,
+        103,
+        104,
+        105,
+        106,
+        107,
+        108,
+        109,
+        110,
+        111,
+        112,
+        113,
+        114
+       ]
+      },
+      {
+       "name": "NOV",
+       "gene": "ENSG00000147403.19",
+       "database": "HGNC Symbol",
+       "synonym": true,
+       "releases": [
+        115
+       ]
+      },
+      {
+       "name": "NOV",
+       "gene": "ENSG00000147403.7",
+       "database": "HGNC Symbol",
+       "synonym": true,
+       "releases": [
+        48,
+        49
+       ]
+      },
+      {
+       "name": "NOV",
+       "gene": "ENSG00000147403.8",
+       "database": "HGNC Symbol",
+       "synonym": true,
+       "releases": [
+        50,
+        51,
+        52,
+        53,
+        54
+       ]
+      },
+      {
+       "name": "NOV",
+       "gene": "ENSG00000147403.9",
+       "database": "HGNC Symbol",
+       "synonym": true,
+       "releases": [
+        55
+       ]
+      },
+      {
+       "name": "NOV",
+       "gene": "ENSG00000136999.4",
+       "database": "NCBI gene (formerly Entrezgene)",
+       "synonym": false,
+       "releases": [
+        63,
+        64,
+        65,
+        66,
+        67,
+        68,
+        69,
+        70,
+        71,
+        72,
+        73,
+        74,
+        75,
+        76,
+        77,
+        78,
+        79,
+        80,
+        81,
+        82,
+        83,
+        84,
+        85,
+        86,
+        87,
+        88,
+        89,
+        90,
+        91,
+        92,
+        93,
+        94,
+        95
+       ]
+      },
+      {
+       "name": "NOV",
+       "gene": "ENSG00000114554.10",
+       "database": "NCBI gene (formerly Entrezgene)",
+       "synonym": true,
+       "releases": [
+        79,
+        80
+       ]
+      },
+      {
+       "name": "NOV",
+       "gene": "ENSG00000114554.11",
+       "database": "NCBI gene (formerly Entrezgene)",
+       "synonym": true,
+       "releases": [
+        81,
+        82,
+        83,
+        84,
+        85,
+        86,
+        87
+       ]
+      },
+      {
+       "name": "NOV",
+       "gene": "ENSG00000114554.7",
+       "database": "NCBI gene (formerly Entrezgene)",
+       "synonym": true,
+       "releases": [
+        63,
+        64,
+        65,
+        66,
+        67,
+        68,
+        69,
+        70,
+        71,
+        72,
+        73,
+        74,
+        75
+       ]
+      },
+      {
+       "name": "NOV",
+       "gene": "ENSG00000114554.8",
+       "database": "NCBI gene (formerly Entrezgene)",
+       "synonym": true,
+       "releases": [
+        76
+       ]
+      },
+      {
+       "name": "NOV",
+       "gene": "ENSG00000114554.9",
+       "database": "NCBI gene (formerly Entrezgene)",
+       "synonym": true,
+       "releases": [
+        77,
+        78
+       ]
+      },
+      {
+       "name": "NOV",
+       "gene": "ENSG00000147403.12",
+       "database": "NCBI gene (formerly Entrezgene)",
+       "synonym": true,
+       "releases": [
+        63,
+        64,
+        65,
+        66,
+        67,
+        68,
+        69,
+        70,
+        71,
+        72,
+        73,
+        74,
+        75
+       ]
+      },
+      {
+       "name": "NOV",
+       "gene": "ENSG00000147403.13",
+       "database": "NCBI gene (formerly Entrezgene)",
+       "synonym": true,
+       "releases": [
+        76
+       ]
+      },
+      {
+       "name": "NOV",
+       "gene": "ENSG00000147403.14",
+       "database": "NCBI gene (formerly Entrezgene)",
+       "synonym": true,
+       "releases": [
+        77,
+        78
+       ]
+      },
+      {
+       "name": "NOV",
+       "gene": "ENSG00000147403.15",
+       "database": "NCBI gene (formerly Entrezgene)",
+       "synonym": true,
+       "releases": [
+        79,
+        80
+       ]
+      },
+      {
+       "name": "NOV",
+       "gene": "ENSG00000147403.16",
+       "database": "NCBI gene (formerly Entrezgene)",
+       "synonym": true,
+       "releases": [
+        81,
+        82,
+        83,
+        84,
+        85,
+        86,
+        87
+       ]
+      },
+      {
+       "name": "NOV",
+       "gene": "ENSG00000136999.4",
+       "database": "UniProtKB Gene Name",
+       "synonym": false,
+       "releases": [
+        63,
+        64,
+        65,
+        66,
+        67,
+        68,
+        69,
+        70,
+        71,
+        72,
+        73,
+        74,
+        75,
+        76,
+        77,
+        78,
+        79,
+        80,
+        81,
+        82,
+        83,
+        84,
+        85,
+        86,
+        87,
+        88,
+        89,
+        90,
+        91,
+        92,
+        93,
+        94,
+        95
+       ]
+      },
+      {
+       "name": "NOV",
+       "gene": "ENSG00000136999.5",
+       "database": "UniProtKB Gene Name",
+       "synonym": false,
+       "releases": [
+        96,
+        97,
+        98,
+        99,
+        100,
+        101,
+        102,
+        103,
+        104,
+        105,
+        106,
+        107,
+        108,
+        109,
+        110,
+        111,
+        112
+       ]
+      },
+      {
+       "name": "NOV",
+       "gene": "ENSG00000114554.10",
+       "database": "UniProtKB Gene Name",
+       "synonym": true,
+       "releases": [
+        79,
+        80
+       ]
+      },
+      {
+       "name": "NOV",
+       "gene": "ENSG00000114554.11",
+       "database": "UniProtKB Gene Name",
+       "synonym": true,
+       "releases": [
+        81,
+        82,
+        83,
+        84,
+        85,
+        86,
+        87
+       ]
+      },
+      {
+       "name": "NOV",
+       "gene": "ENSG00000114554.7",
+       "database": "UniProtKB Gene Name",
+       "synonym": true,
+       "releases": [
+        63,
+        64,
+        65,
+        66,
+        67,
+        68,
+        69,
+        70,
+        71,
+        72,
+        73,
+        74,
+        75
+       ]
+      },
+      {
+       "name": "NOV",
+       "gene": "ENSG00000114554.8",
+       "database": "UniProtKB Gene Name",
+       "synonym": true,
+       "releases": [
+        76
+       ]
+      },
+      {
+       "name": "NOV",
+       "gene": "ENSG00000114554.9",
+       "database": "UniProtKB Gene Name",
+       "synonym": true,
+       "releases": [
+        77,
+        78
+       ]
+      },
+      {
+       "name": "NOV",
+       "gene": "ENSG00000136999.4",
+       "database": "Vega gene",
+       "synonym": false,
+       "releases": [
+        76,
+        77,
+        78,
+        79,
+        80,
+        81,
+        82,
+        83,
+        84,
+        85,
+        86,
+        87,
+        88
+       ]
+      }
+     ]
+    }
+   },
+   "recorded": "a real answer of a server holding the five graphs of Ensembl 115 (human, mouse, pig, rhesus, cynomolgus)",
+   "parameters": {
+    "organism": "homo_sapiens",
+    "name": "NOV"
+   }
+  },
+  "names_of": {
+   "responses": {
+    "application/json": {
+     "matches": [
+      {
+       "name": "7157",
+       "gene": "ENSG00000141510.20",
+       "database": "EntrezGene",
+       "synonym": false,
+       "releases": [
+        115
+       ]
+      },
+      {
+       "name": "TP53",
+       "gene": "ENSG00000141510.20",
+       "database": "HGNC Symbol",
+       "synonym": false,
+       "releases": [
+        115
+       ]
+      },
+      {
+       "name": "LFS1",
+       "gene": "ENSG00000141510.20",
+       "database": "HGNC Symbol",
+       "synonym": true,
+       "releases": [
+        115
+       ]
+      },
+      {
+       "name": "P53",
+       "gene": "ENSG00000141510.20",
+       "database": "HGNC Symbol",
+       "synonym": true,
+       "releases": [
+        115
+       ]
+      },
+      {
+       "name": "TP53",
+       "gene": "ENSG00000141510.20",
+       "database": "NCBI gene (formerly Entrezgene)",
+       "synonym": false,
+       "releases": [
+        115
+       ]
+      },
+      {
+       "name": "TP53",
+       "gene": "ENSG00000141510.20",
+       "database": "UniProtKB Gene Name",
+       "synonym": false,
+       "releases": [
+        115
+       ]
+      }
+     ]
+    }
+   },
+   "recorded": "a real answer of a server holding the five graphs of Ensembl 115 (human, mouse, pig, rhesus, cynomolgus)",
+   "parameters": {
+    "organism": "homo_sapiens",
+    "gene": "ENSG00000141510.20",
+    "release": "115"
+   }
+  }
+ },
+ "errors": {
+  "invalid_request": {
+   "error": {
+    "code": "invalid_request",
+    "message": "The request is not valid: `query.to_release`: Value error, must be a whole number from 0 to 999999999, written in digits only.",
+    "argument": "to_release",
+    "allowed": null,
+    "details": [
+     {
+      "location": [
+       "query",
+       "to_release"
+      ],
+      "message": "Value error, must be a whole number from 0 to 999999999, written in digits only"
+     }
+    ],
+    "request_id": "58dab36983fb423996a3c71b8d1ad619",
+    "retry_after": null,
+    "allowance": null
+   }
+  },
+  "unknown_parameter": {
+   "error": {
+    "code": "unknown_parameter",
+    "message": "This endpoint does not take the query parameter `to_releas`; it takes `allow_bridges`, `explain`, `final_database`, `from_database`, `from_release`, `identifier` and `to_release`.",
+    "argument": "to_releas",
+    "allowed": [
+     "allow_bridges",
+     "explain",
+     "final_database",
+     "from_database",
+     "from_release",
+     "identifier",
+     "to_release"
+    ],
+    "details": null,
+    "request_id": "255ade182b7e40f9b9a914b49a736acf",
+    "retry_after": null,
+    "allowance": null
+   }
+  },
+  "invalid_identifier": {
+   "error": {
+    "code": "invalid_identifier",
+    "message": "`identifier` holds a control or unassigned character inside it, at character 2 (counted from 0).",
+    "argument": "identifier",
+    "allowed": null,
+    "details": null,
+    "request_id": "fd116e09f5394c1898ecebecbc0be4d3",
+    "retry_after": null,
+    "allowance": null
+   }
+  },
+  "unknown_release": {
+   "error": {
+    "code": "unknown_release",
+    "message": "`to_release`=999 is not a release of this graph, which covers the Ensembl releases 48 to 115.",
+    "argument": "to_release",
+    "allowed": [
+     48,
+     49,
+     50,
+     51,
+     52,
+     53,
+     54,
+     55,
+     56,
+     57,
+     58,
+     59,
+     60,
+     61,
+     62,
+     63,
+     64,
+     65,
+     66,
+     67,
+     68,
+     69,
+     70,
+     71,
+     72,
+     73,
+     74,
+     75,
+     76,
+     77,
+     78,
+     79,
+     80,
+     81,
+     82,
+     83,
+     84,
+     85,
+     86,
+     87,
+     88,
+     89,
+     90,
+     91,
+     92,
+     93,
+     94,
+     95,
+     96,
+     97,
+     98,
+     99,
+     100,
+     101,
+     102,
+     103,
+     104,
+     105,
+     106,
+     107,
+     108,
+     109,
+     110,
+     111,
+     112,
+     113,
+     114,
+     115
+    ],
+    "details": null,
+    "request_id": "449dd8e04dd84bc487d55a65c6963d50",
+    "retry_after": null,
+    "allowance": null
+   }
+  },
+  "unknown_database": {
+   "error": {
+    "code": "unknown_database",
+    "message": "`final_database`='HGNC' is not a database of this graph at Ensembl release 115 (genome assembly 38); valid: the 27 values of `allowed`.",
+    "argument": "final_database",
+    "allowed": [
+     "CCDS",
+     "CCDS label",
+     "Clone_based_ensembl_gene",
+     "Clone_based_vega_gene",
+     "EntrezGene",
+     "HGNC Symbol",
+     "Havana gene",
+     "Havana transcript",
+     "Havana translation",
+     "NCBI gene (formerly Entrezgene)",
+     "RFAM",
+     "RFAM label",
+     "RefSeq_mRNA",
+     "RefSeq_mRNA_predicted",
+     "RefSeq_ncRNA",
+     "RefSeq_ncRNA_predicted",
+     "RefSeq_peptide",
+     "RefSeq_peptide_predicted",
+     "UniProtKB Gene Name",
+     "Uniprot/SPTREMBL",
+     "Uniprot/SWISSPROT",
+     "Vega gene",
+     "Vega_gene",
+     "base_ensembl_gene",
+     "ensembl_gene",
+     "miRBase",
+     "miRBase label"
+    ],
+    "details": null,
+    "request_id": "70403306d8be4a2cb0ad1649b9c03d7b",
+    "retry_after": null,
+    "allowance": null
+   }
+  },
+  "unknown_identifier": {
+   "error": {
+    "code": "unknown_identifier",
+    "message": "'ENSG00000000000.1' is not an Ensembl gene id with version of this graph.",
+    "argument": "gene",
+    "allowed": null,
+    "details": null,
+    "request_id": "10e33cbbfc224156b2826e6ff9ad67e4",
+    "retry_after": null,
+    "allowance": null
+   }
+  },
+  "missing_value": {
+   "error": {
+    "code": "missing_value",
+    "message": "`identifier`='NA' stands for a missing value, not an identifier; name its source database (`from_database`) to look it up as an identifier of that database.",
+    "argument": "identifier",
+    "allowed": null,
+    "details": null,
+    "request_id": "1a17b73fa9fd40a8a1af8807f0455a28",
+    "retry_after": null,
+    "allowance": null
+   }
+  },
+  "invalid_argument": {
+   "error": {
+    "code": "invalid_argument",
+    "message": "`final_database` must be a database name of 1 to 200 characters.",
+    "argument": "final_database",
+    "allowed": null,
+    "details": null,
+    "request_id": "745b8682e70a4be0947c77f405c8eee7",
+    "retry_after": null,
+    "allowance": null
+   }
+  },
+  "unknown_organism": {
+   "error": {
+    "code": "unknown_organism",
+    "message": "This server holds no graph of 'cow'; it holds `homo_sapiens`, `macaca_fascicularis`, `macaca_mulatta`, `mus_musculus` and `sus_scrofa` (their short names: `names` of `GET /api/v1/organisms`).",
+    "argument": "organism",
+    "allowed": [
+     "homo_sapiens",
+     "macaca_fascicularis",
+     "macaca_mulatta",
+     "mus_musculus",
+     "sus_scrofa"
+    ],
+    "details": null,
+    "request_id": "7ff9e56d2faa4f80834aed13c727da3e",
+    "retry_after": null,
+    "allowance": null
+   }
+  },
+  "method_not_allowed": {
+   "error": {
+    "code": "method_not_allowed",
+    "message": "GET is not taken at /api/v1/organisms/homo_sapiens/convert/batch; it takes POST.",
+    "argument": null,
+    "allowed": [
+     "POST"
+    ],
+    "details": null,
+    "request_id": "300493307c6243cea77d85c4b6dabbfb",
+    "retry_after": null,
+    "allowance": null
+   }
+  },
+  "too_many_identifiers": {
+   "error": {
+    "code": "too_many_identifiers",
+    "message": "The list has 1001 identifiers; this server takes at most 1000 per request.",
+    "argument": "identifiers",
+    "allowed": null,
+    "details": null,
+    "request_id": "2bffb55712f5401a8c16fff945e1f6d3",
+    "retry_after": null,
+    "allowance": null
+   }
+  },
+  "unsupported_media_type": {
+   "error": {
+    "code": "unsupported_media_type",
+    "message": "The body must be JSON with the header `Content-Type: application/json`; got 'text/plain'.",
+    "argument": null,
+    "allowed": null,
+    "details": null,
+    "request_id": "4002b5c934f14d09a503743730957e96",
+    "retry_after": null,
+    "allowance": null
+   }
+  },
+  "uri_too_long": {
+   "error": {
+    "code": "uri_too_long",
+    "message": "The request's path and query have 17049 bytes; this server reads at most 16384.",
+    "argument": null,
+    "allowed": null,
+    "details": null,
+    "request_id": "ad5db40b638b4defb03a5339e4f269c7",
+    "retry_after": null,
+    "allowance": null
+   }
+  },
+  "not_found": {
+   "error": {
+    "code": "not_found",
+    "message": "There is no endpoint /api/v1/organism. The api's endpoints are under /api/v1: `GET /api/v1` lists them all, and `/api/v1/openapi.json` describes them.",
+    "argument": null,
+    "allowed": null,
+    "details": null,
+    "request_id": "0f54b203b273482d95c905e659ab5ce8",
+    "retry_after": null,
+    "allowance": null
+   }
+  },
+  "response_too_large": {
+   "error": {
+    "code": "response_too_large",
+    "message": "The answer is larger than the 33554432 bytes this server sends (writing it stopped at 33718445 bytes); send fewer identifiers per request or ask without `explain` (the paths are most of the answer).",
+    "argument": null,
+    "allowed": null,
+    "details": null,
+    "request_id": "670886b5387f4e29b314c1aa66fc12d0",
+    "retry_after": null,
+    "allowance": null
+   }
+  },
+  "payload_too_large": {
+   "error": {
+    "code": "payload_too_large",
+    "message": "The request body is larger than 1048576 bytes; send fewer identifiers per request.",
+    "argument": null,
+    "allowed": null,
+    "details": null,
+    "request_id": "2f7099a421874db686cd9b3da0035a8a",
+    "retry_after": null,
+    "allowance": null
+   }
+  },
+  "request_timeout": {
+   "error": {
+    "code": "request_timeout",
+    "message": "The request's body did not arrive within 1 s (1 bytes came).",
+    "argument": null,
+    "allowed": null,
+    "details": null,
+    "request_id": "24e9893ce5534b7082b8251b0cbdfd2f",
+    "retry_after": null,
+    "allowance": null
+   }
+  },
+  "rate_limited": {
+   "error": {
+    "code": "rate_limited",
+    "message": "More than 60 searching requests per minute from this client; retry in 1 s.",
+    "argument": null,
+    "allowed": null,
+    "details": null,
+    "request_id": "612ee161223944078689d39233cfbd37",
+    "retry_after": 1,
+    "allowance": "searches"
+   }
+  },
+  "internal_error": {
+   "constructed": "written by the api's own code: no request makes it on purpose",
+   "answer": {
+    "error": {
+     "code": "internal_error",
+     "message": "The server failed to answer this request; quote the request id 0123456789abcdef0123456789abcdef when reporting it.",
+     "argument": null,
+     "allowed": null,
+     "details": null,
+     "request_id": "0123456789abcdef0123456789abcdef",
+     "retry_after": null,
+     "allowance": null
+    }
+   }
+  },
+  "server_busy": {
+   "constructed": "written by the api's own code: no request makes it on purpose",
+   "answer": {
+    "error": {
+     "code": "server_busy",
+     "message": "Every worker is in a search and as many searches as the server queues already wait for one; retry in a few seconds.",
+     "argument": null,
+     "allowed": null,
+     "details": null,
+     "request_id": "0123456789abcdef0123456789abcdef",
+     "retry_after": 2,
+     "allowance": null
+    }
+   }
+  },
+  "request_budget_exceeded": {
+   "constructed": "written by the api's own code: no request makes it on purpose",
+   "answer": {
+    "error": {
+     "code": "request_budget_exceeded",
+     "message": "640 of the 1000 distinct identifiers were converted within the request's time budget (20 s); send fewer identifiers per request.",
+     "argument": null,
+     "allowed": null,
+     "details": null,
+     "request_id": "0123456789abcdef0123456789abcdef",
+     "retry_after": 5,
+     "allowance": null
+    }
+   }
+  },
+  "search_budget_exceeded": {
+   "constructed": "written by the api's own code: no request makes it on purpose",
+   "answer": {
+    "error": {
+     "code": "search_budget_exceeded",
+     "message": "The conversion of 'ENSSSCG00000040076.1' was stopped after 2 search states and 0.0 s (budget: 1 states, 10.0 s). Give the call a larger `budget_states` or `budget_seconds` (or a `SearchSettings` with them) to let it run longer. The server's budget of one search is 200000 states and 10.0 s; ask with `allow_bridges=false`, or with the release the identifier is read at.",
+     "argument": null,
+     "allowed": null,
+     "details": null,
+     "request_id": "0123456789abcdef0123456789abcdef",
+     "retry_after": null,
+     "allowance": null
+    }
+   }
+  }
+ }
+}

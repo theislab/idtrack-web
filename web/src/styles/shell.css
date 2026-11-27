@@ -1,0 +1,28 @@
+/* The shell's behaviour parts: the statements of error boundaries and the notice after a reload for code. Tokens
+   only; the look of notices is app.css's. */
+
+.boundary-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+  color: var(--state-danger);
+}
+
+.boundary-inline__retry {
+  font: inherit;
+  color: var(--ink-1);
+  background: none;
+  border: 0;
+  padding: var(--space-1) var(--space-2);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.notice__prose {
+  overflow-wrap: anywhere;
+}
+
+.reload-notice {
+  margin-top: var(--space-4);
+}

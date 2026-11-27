@@ -7,10 +7,9 @@ import os
 import shutil
 import subprocess
 import sys
-from collections.abc import Iterator
 from dataclasses import replace
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import pytest
 from idtrack.graph import GRAPH_FORMAT_VERSION
@@ -32,10 +31,13 @@ from idtrack_web_api.graphs import load_registry
 from idtrack_web_api.publish import DirectoryTarget, S3Target, graph_entry, publish
 from tests.conftest import API_ROOT, CUT_GRAPH, registry_of, settings_of
 
+if TYPE_CHECKING:
+    from collections.abc import Iterator
+
 ACCESS = {"access_key_id": "testing-key", "secret_access_key": "testing-secret"}
 
 
-def published(tmp_path: Path, link: bool = False) -> tuple[Path, Manifest]:
+def published(tmp_path: Path, *, link: bool = False) -> tuple[Path, Manifest]:
     root = tmp_path / "store"
     manifest, _ = publish([CUT_GRAPH], DirectoryTarget(root, link=link))
     return root, manifest
