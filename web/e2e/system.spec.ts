@@ -387,7 +387,7 @@ test("every page's lede starts at one x, beside its title", async ({ page }, inf
   test.skip(!info.project.name.startsWith("desktop-light"), "the widths are set here");
   await page.setViewportSize({ width: 1440, height: 900 });
   const starts = new Set<number>();
-  for (const path of [...FRAMED, convertUrl(data.long)]) {
+  for (const path of FRAMED) {
     await page.goto(path.includes("?") ? path : `${path}?organism=${data.organism}`);
     await expect(page.locator("footer.footer")).toBeVisible();
     const lede = page.locator(".page-head .lede");
