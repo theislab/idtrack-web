@@ -37,6 +37,7 @@ import { groupedInteger } from "../lib/numbers";
 import { Exact } from "./Exact";
 import { useWidth } from "./figure/useWidth";
 import { Absent, Disclosure, Mono, TableFrame } from "./ui";
+import "../styles/load-panel.css";
 
 const CHART_H = 104;
 const PAD = { left: 44, right: 8, top: 10, bottom: 20 };

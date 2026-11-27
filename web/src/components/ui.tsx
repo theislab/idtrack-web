@@ -90,9 +90,20 @@ export function Field({ label, hint, error, children, className = "" }: FieldPro
   );
 }
 
+/** A field of text: it takes exactly what is typed (an identifier, a name, a release), so a phone neither capitalizes
+ *  nor corrects it, and its Enter key says it sends the form. */
 export function TextInput(props: InputHTMLAttributes<HTMLInputElement>) {
   return (
-    <input type="text" autoComplete="off" spellCheck={false} {...props} className={`input ${props.className ?? ""}`} />
+    <input
+      type="text"
+      autoComplete="off"
+      autoCapitalize="none"
+      autoCorrect="off"
+      spellCheck={false}
+      enterKeyHint="go"
+      {...props}
+      className={`input ${props.className ?? ""}`}
+    />
   );
 }
 

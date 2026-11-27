@@ -2005,6 +2005,13 @@ code {
   }
 }
 
+/* While the theme changes (ThemeSwitch.tsx): no transition, so the new tokens apply at once in one restyle. */
+.theme-switching *,
+.theme-switching *::before,
+.theme-switching *::after {
+  transition: none !important;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .skeleton {
     animation: none;

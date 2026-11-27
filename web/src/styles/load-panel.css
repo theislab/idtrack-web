@@ -1,0 +1,561 @@
+/* The panel "Server load" (LoadPanel.tsx, loaded on the monitor's first open, with this stylesheet): its sections,
+   charts, processes, latency strip and exact values. The masthead's reading is styled in load.css. */
+
+/* ---- The panel ------------------------------------------------------------------------------------------------ */
+
+.load-panel {
+  position: fixed;
+  inset: calc(var(--masthead-height) + var(--space-2))
+    max(var(--space-4), calc((100vw - var(--content)) / 2 + var(--space-5))) auto auto;
+  margin: 0;
+  padding: 0;
+  width: min(820px, calc(100vw - 2 * var(--space-4)));
+  max-height: calc(100vh - var(--masthead-height) - var(--space-5));
+  max-height: calc(100dvh - var(--masthead-height) - var(--space-5));
+  overflow: auto;
+  overscroll-behavior: contain;
+  background: var(--surface-raised);
+  color: var(--ink-1);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-pop);
+}
+
+.load-panel::backdrop {
+  background: rgb(14 17 22 / 10%);
+}
+
+:root[data-theme="dark"] .load-panel::backdrop {
+  background: rgb(0 0 0 / 40%);
+}
+
+.load-panel__body {
+  padding: var(--space-5) var(--space-5) var(--space-5);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-5);
+}
+
+.load-panel__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+
+.load-panel__head .eyebrow a {
+  color: inherit;
+}
+
+/* An address in an eyebrow is code: shown exactly as written, never uppercased. */
+.eyebrow__code {
+  font-family: var(--font-mono);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.load-panel__title {
+  margin-top: 2px;
+}
+
+.load-panel__close {
+  display: inline-grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--ink-2);
+  cursor: pointer;
+}
+
+.load-panel__close:hover {
+  color: var(--ink-1);
+  border-color: var(--ink-3);
+}
+
+.load-panel__close svg {
+  width: 14px;
+  height: 14px;
+}
+
+.load-panel__state {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface-sunk);
+  font-size: var(--text-sm);
+  line-height: 1.5;
+}
+
+.load-panel__state .load-dot {
+  transform: translateY(-1px);
+}
+
+.load-panel__state--saturated .load-dot {
+  transform: translateY(-1px) rotate(45deg) scale(0.9);
+}
+
+.load-panel__rule {
+  color: var(--ink-3);
+  font-size: var(--text-xs);
+  margin-top: 2px;
+}
+
+.load-panel__failure {
+  margin: 0;
+}
+
+.notice.load-panel__late {
+  border-color: var(--state-warn);
+  background: var(--state-warn-surface);
+}
+
+/* The panel's figures and values. While they are the last answer's and not current, their numbers and lines take the
+   quiet ink: the notice above says since when. */
+.load-panel__data {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-5);
+}
+
+.load-panel__data--stale .mono,
+.load-panel__data--stale .load-chart__line {
+  color: var(--ink-3);
+  stroke: var(--ink-3);
+}
+
+.load-panel__data--stale .load-chart__area {
+  opacity: 0.03;
+}
+
+.load-section {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-3);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--line);
+}
+
+.load-section__title {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  font-size: var(--heading-panel);
+  font-weight: var(--weight-strong);
+}
+
+.load-section__aside {
+  margin-left: auto;
+  font-weight: var(--weight-regular);
+  font-size: var(--text-xs);
+  color: var(--ink-3);
+  font-family: var(--font-mono);
+}
+
+.load-section__note {
+  font-size: var(--text-sm);
+  color: var(--ink-2);
+  max-width: 70ch;
+}
+
+.load-subtitle {
+  font-size: var(--text-xs);
+  font-weight: var(--weight-strong);
+  color: var(--ink-2);
+  letter-spacing: 0.02em;
+  margin: var(--space-2) 0 0;
+}
+
+.load-caption {
+  font-size: var(--text-xs);
+  line-height: 1.55;
+  color: var(--ink-3);
+  max-width: 78ch;
+}
+
+.load-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: var(--space-3) var(--space-5);
+  margin: 0;
+}
+
+.load-stats--four {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.load-stats--three {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.load-stats--three + .load-stats--three {
+  margin-top: var(--space-3);
+}
+
+@media (max-width: 640px) {
+  .load-stats--four {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .load-stats--three {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.load-stat {
+  display: grid;
+  align-content: start;
+  gap: 2px;
+}
+
+.load-stat__label {
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--ink-3);
+}
+
+.load-stat__value {
+  margin: 0;
+  font-size: var(--text-md);
+}
+
+.load-stat__note {
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--ink-3);
+  line-height: 1.5;
+}
+
+.load-stats .exact--strong .mono {
+  font-size: var(--text-xl);
+  font-size-adjust: none;
+  font-weight: var(--weight-medium);
+  letter-spacing: -0.02em;
+}
+
+.load-missing {
+  color: var(--ink-3);
+  font-size: var(--text-xs);
+}
+
+.load-facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: var(--space-3) var(--space-5);
+  margin: 0;
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--line);
+  font-size: var(--text-sm);
+}
+
+.load-method {
+  margin: var(--space-2) 0 0;
+  padding-left: var(--space-5);
+  display: grid;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+  color: var(--ink-2);
+  max-width: 74ch;
+}
+
+.load-raw {
+  max-height: 320px;
+}
+
+/* An exact value on hover and focus. */
+.exact {
+  position: relative;
+  display: inline-block;
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  text-align: inherit;
+  border-radius: 2px;
+  cursor: help;
+  text-decoration: underline dotted var(--line-strong);
+  text-underline-offset: 0.22em;
+}
+
+.exact__tip {
+  display: none;
+  position: absolute;
+  z-index: 3;
+  left: 50%;
+  bottom: calc(100% + 6px);
+  transform: translateX(-50%);
+  padding: 4px 8px;
+  border-radius: var(--radius);
+  background: var(--inverse-paper);
+  color: var(--inverse-ink);
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  font-weight: var(--weight-regular);
+  letter-spacing: 0;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.exact:hover .exact__tip,
+.exact:focus-visible .exact__tip,
+.exact--pinned .exact__tip {
+  display: block;
+}
+
+/* Escape hid it: it stays hidden until the pointer and focus have left the value. */
+.exact.exact--dismissed .exact__tip {
+  display: none;
+}
+
+/* The processes' table: the balance between the workers as a bar of each one's share of the requests. */
+.load-table td {
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+.load-balance {
+  display: inline-grid;
+  grid-template-columns: auto 48px 4ch;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.load-balance__bar {
+  height: 4px;
+  background: var(--band);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.load-balance__bar > span {
+  display: block;
+  height: 100%;
+  background: var(--ink-2);
+}
+
+.load-balance__share {
+  color: var(--ink-3);
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  text-align: right;
+}
+
+/* The charts. */
+.load-chart {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.load-chart__frame {
+  border-radius: var(--radius);
+  touch-action: pan-y;
+}
+
+.load-chart__svg {
+  display: block;
+  overflow: visible;
+}
+
+.load-chart__grid {
+  stroke: var(--line);
+  stroke-width: 1;
+  shape-rendering: crispedges;
+}
+
+.load-chart__reference {
+  stroke: var(--ink-3);
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+}
+
+.load-chart__tick {
+  fill: var(--ink-3);
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+}
+
+.load-chart__line {
+  fill: none;
+  stroke: var(--ink-1);
+  stroke-width: 1.5;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.load-chart__area {
+  fill: var(--ink-1);
+  opacity: 0.06;
+}
+
+.load-chart__dot {
+  fill: var(--surface-raised);
+  stroke: var(--ink-1);
+  stroke-width: 1.5;
+}
+
+.load-chart__cursor {
+  stroke: var(--ink-3);
+  stroke-width: 1;
+}
+
+.load-chart__readout {
+  font-size: var(--text-xs);
+  color: var(--ink-2);
+  min-height: 1.5em;
+}
+
+/* The latency's percentiles on a logarithmic strip: a tick at 1, 2 and 5 times each power of ten (the powers longer),
+   labelled where a label touches no other (placed by lib/load.ts placeOnLine at the strip's width), the marks' names
+   on up to three rows above. */
+.latency-strip {
+  padding: 52px 0 22px;
+  margin: 0 var(--space-4);
+}
+
+.latency-strip__axis {
+  position: relative;
+  height: 1px;
+  background: var(--line-strong);
+}
+
+.latency-strip__tick {
+  position: absolute;
+  top: 1px;
+  width: 1px;
+  height: 3px;
+  background: var(--line-strong);
+}
+
+.latency-strip__tick--decade {
+  height: 5px;
+}
+
+.latency-strip__decade {
+  position: absolute;
+  top: 7px;
+  transform: translateX(-50%);
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  color: var(--ink-3);
+  white-space: nowrap;
+}
+
+.latency-strip__mark {
+  position: absolute;
+  top: -5px;
+  width: 1.5px;
+  height: 10px;
+  background: var(--ink-1);
+  transform: translateX(-50%);
+}
+
+.latency-strip__name {
+  position: absolute;
+  bottom: 12px;
+  transform: translateX(-50%);
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+
+.latency-strip__name--row1 {
+  bottom: 26px;
+}
+
+.latency-strip__name--row2 {
+  bottom: 40px;
+}
+
+/* A name on a higher row is joined to its mark by a hairline. */
+.latency-strip__name--row1::after,
+.latency-strip__name--row2::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  width: 1px;
+  background: var(--line-strong);
+}
+
+.latency-strip__name--row1::after {
+  height: 14px;
+}
+
+.latency-strip__name--row2::after {
+  height: 28px;
+}
+
+/* A phone: the panel is a sheet from the bottom. */
+@media (max-width: 640px) {
+  .load-panel {
+    inset: auto 0 0;
+    width: 100%;
+    max-width: 100%;
+    max-height: 88vh;
+    max-height: 88dvh;
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    border-bottom: 0;
+  }
+
+  .load-panel__body {
+    padding: var(--space-4);
+  }
+
+  /* The sheet's title and close button stay in reach while it scrolls. */
+  .load-panel__head {
+    position: sticky;
+    top: calc(-1 * var(--space-4));
+    z-index: 1;
+    margin: calc(-1 * var(--space-4)) calc(-1 * var(--space-4)) 0;
+    padding: var(--space-4) var(--space-4) var(--space-3);
+    background: var(--surface-raised);
+    border-bottom: 1px solid var(--line);
+  }
+
+  .load-balance {
+    grid-template-columns: auto 48px 4ch;
+  }
+}
+
+@media (forced-colors: active) {
+  .load-chart__line {
+    stroke: CanvasText;
+  }
+}
+
+.load-table__process {
+  font-weight: var(--weight-medium);
+  color: var(--ink-1);
+  white-space: nowrap;
+}
+
+@media (min-width: 641px) {
+  .load-table th,
+  .load-table td {
+    padding-left: var(--space-2);
+    padding-right: var(--space-2);
+  }
+
+  .load-table th:first-child,
+  .load-table td:first-child {
+    padding-left: var(--space-3);
+  }
+}
+
+/* A phone: each process is a card titled by its name (the row's header), its values beside their columns' names. */
+@media (max-width: 640px) {
+  .load-table__process {
+    font-weight: var(--weight-strong);
+    padding: 0 var(--space-3) var(--space-1);
+  }
+}

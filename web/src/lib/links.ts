@@ -11,7 +11,9 @@ export const BENCHMARKS_SOURCE = "https://github.com/theislab/idtrack-reproducib
 
 let root = DEFAULT_DOCS;
 
-/** Take the documentation's address the server names (a root ending in "/"); an address that is not https is ignored. */
+/** Take the documentation's address the server names (a root ending in "/"): an absolute http(s) address, as the
+ *  server's setting takes it (https in production; http only for a local test, `config._https_url`); anything else is
+ *  ignored and the default stays. */
 export function setDocsRoot(url: string | null | undefined): void {
   if (url && /^https?:\/\//.test(url)) root = url.endsWith("/") ? url : `${url}/`;
 }

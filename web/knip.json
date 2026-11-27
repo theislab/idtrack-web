@@ -1,6 +1,6 @@
 {
   "$schema": "https://unpkg.com/knip@6/schema.json",
-  "entry": ["scripts/*.ts", "tests/**/*.test.{ts,tsx}", "e2e/**/*.spec.ts"],
+  "entry": ["scripts/*.ts", "tests/**/*.test.{ts,tsx}", "e2e/**/*.spec.ts", "src/prerender.tsx"],
   "project": ["src/**/*.{ts,tsx}", "scripts/**/*.ts", "tests/**/*.{ts,tsx}", "e2e/**/*.ts"],
   "ignoreBinaries": ["Rscript"]
 }

@@ -121,7 +121,12 @@ export function ThemeSwitch() {
   const button = useRef<HTMLButtonElement>(null);
   const menuId = useId();
   useEffect(() => {
-    document.documentElement.setAttribute("data-theme", theme);
+    // A change of theme is one change of the root's tokens: no control's colour transition runs meanwhile (each would
+    // be animated on its own), and nothing of the style is read in the task that makes it.
+    const root = document.documentElement;
+    const switching = root.getAttribute("data-theme") !== theme;
+    if (switching) root.classList.add("theme-switching");
+    root.setAttribute("data-theme", theme);
     try {
       if (theme === "light") window.localStorage.removeItem(KEY);
       else window.localStorage.setItem(KEY, theme);
@@ -135,10 +140,20 @@ export function ThemeSwitch() {
       const paper = getComputedStyle(document.body).backgroundColor;
       if (meta && paper) meta.setAttribute("content", paper);
     };
-    paint();
+    // After the frame that draws the new theme: the style is then computed already, and reading it costs nothing.
+    let later = 0;
+    const frame = requestAnimationFrame(() => {
+      later = window.setTimeout(() => {
+        root.classList.remove("theme-switching");
+        paint();
+      });
+    });
     const media = typeof window.matchMedia === "function" ? window.matchMedia("(prefers-color-scheme: dark)") : null;
     if (theme === "system") media?.addEventListener("change", paint);
     return () => {
+      cancelAnimationFrame(frame);
+      window.clearTimeout(later);
+      root.classList.remove("theme-switching");
       media?.removeEventListener("change", paint);
     };
   }, [theme]);
