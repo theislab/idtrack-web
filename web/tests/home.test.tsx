@@ -424,7 +424,8 @@ describe("the kinds of the cases", () => {
         />
       </VocabularyContext.Provider>,
     );
-    expect(screen.getByRole("link", { name: /A tie, not a guess/ })).toBeTruthy();
+    // The cards are drawn once what changes their words has come (here: requests that fail at once).
+    expect(await screen.findByRole("link", { name: /A tie, not a guess/ }, { timeout: 4000 })).toBeTruthy();
     const card = document.querySelector(".case");
     for (const target of new Set(
       tie.candidates

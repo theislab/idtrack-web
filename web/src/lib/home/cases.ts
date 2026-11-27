@@ -53,8 +53,8 @@ export const KIND_TEXT: Record<CaseKind, KindText> = {
   split: {
     title: "A split",
     concept:
-      "Ensembl recorded one gene becoming several. Every descendant is followed and ranked by the product of Ensembl's scores along its path; the first is the answer, and the others stay listed with their places.",
-    href: "concepts.html#concept-ties",
+      "Ensembl recorded one gene becoming several. Every descendant is followed and ranked by idtrack's criteria in their order, among them the product of Ensembl's scores along its path and, where all else is equal, the gene's annotation; the first is the answer, and the others stay listed with their places.",
+    href: "concepts.html#concept-ranking",
   },
   merge: {
     title: "A merge",

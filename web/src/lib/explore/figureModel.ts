@@ -142,8 +142,27 @@ export function shortLabel(id: string, previous: string | null): string {
 }
 
 /** The figure's height for a number of lanes: fixed before the answer arrives, so nothing moves when it is drawn. */
-export function figureHeight(lanes = 1): number {
-  return 248 + (lanes - 1) * 44;
+export function figureHeight(lanes = 1, product = false): number {
+  return 248 + (lanes - 1) * 44 + (product ? PRODUCT_ROOM : 0);
+}
+
+/** The room of the track of the running product of Ensembl's scores under the score track (Explore's journey up
+ *  close). */
+export const PRODUCT_ROOM = 72;
+
+/** The product of Ensembl's scores along the path after each history step (a step without a score counts 1.0), by the
+ *  step's number: how the candidate's score builds up, step by step. The page's own arithmetic: its last digit can
+ *  differ from the engine's (the order of the multiplications), so it is written shortened (sketch.ts,
+ *  `shortProduct`) and the candidate's score is the api's. */
+export function runningProduct(steps: readonly FigureStep[]): Map<number, number> {
+  const products = new Map<number, number>();
+  let product = 1;
+  for (const s of steps) {
+    if (s.family === "cross") continue;
+    if (s.step.weight !== null) product *= s.step.weight;
+    products.set(s.number, product);
+  }
+  return products;
 }
 
 /** The gene before gene `i` on its own lane (the last that ends before it starts), or null: a lane's label is read

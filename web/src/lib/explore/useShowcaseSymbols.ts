@@ -10,8 +10,12 @@ export interface Named {
   release: number;
 }
 
-/** The symbols of `genes`, by gene id (null until every batch has answered, or where none could be had). */
-export function useShowcaseSymbols(organism: string, genes: readonly Named[]): Map<string, string[]> | null {
+/** The symbols of `genes`, by gene id (null until every batch has answered, or where none could be had), and whether
+ *  the batches have answered (or failed): a view that would move when the symbols come can wait for it. */
+export function useShowcaseSymbols(
+  organism: string,
+  genes: readonly Named[],
+): { symbols: Map<string, string[]> | null; settled: boolean } {
   const byRelease = new Map<number, string[]>();
   for (const g of genes) byRelease.set(g.release, [...(byRelease.get(g.release) ?? []), g.gene]);
   const key = `${organism}|${[...byRelease.entries()]
@@ -38,5 +42,6 @@ export function useShowcaseSymbols(organism: string, genes: readonly Named[]): M
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- the genes and organism are named by the key
   }, [key]);
-  return state?.key === key ? state.symbols : null;
+  if (!genes.length) return { symbols: null, settled: true };
+  return state?.key === key ? { symbols: state.symbols, settled: true } : { symbols: null, settled: false };
 }

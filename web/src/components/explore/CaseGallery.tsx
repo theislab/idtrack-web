@@ -3,7 +3,7 @@
 // says the answer in one line with its numbers and its evidence marks (components/Evidence.tsx). Every value on a card
 // is read from the case's answer; a card opens the full answer, where a strip steps through the cases.
 import { docsPage } from "../../lib/links";
-import { useId, type CSSProperties } from "react";
+import { useEffect, useId, useState, type ReactNode } from "react";
 import type { Candidate, ConversionResult, GraphDescription, PathStep, ShowcaseResponse } from "../../api/types";
 import { bestSteps, isCaseKind, type CaseKind } from "../../lib/home/caseKinds";
 import { KIND_TEXT } from "../../lib/home/cases";
@@ -20,11 +20,58 @@ import { api } from "../../api/client";
 import { authorityOf } from "../../lib/symbols";
 import { useRequest } from "../../lib/useRequest";
 import { Link, Mono } from "../ui";
-import { CaseSketch } from "./CaseSketch";
+import { CaseSketch, type SketchLife } from "./CaseSketch";
+import { GeneBar, GlyphSwatch } from "../figure/glyphs";
+import { lastRelease } from "../../lib/explore/sketch";
 
 type ShowcaseCase = ShowcaseResponse["cases"][number];
 
 const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
+
+const rangeOf = (a: number, b: number) => Array.from({ length: b - a + 1 }, (_, i) => a + i);
+
+/** How long the gallery waits for the symbols, the organism's databases and the lives of genes that answer nothing,
+ *  which change the cards' words, before it draws the cards without what has not come (ms): within it nothing moves. */
+const SETTLE_MS = 2500;
+
+/** The lives of the genes the gallery's answers that reach nothing name where they are read: each such identifier
+ *  converted at the release it is read at, with its path (the gene's `active` releases), as the answer page asks it
+ *  (the same request, held for the page session). */
+function useLives(organism: string, cases: readonly { kind: string; result: ConversionResult }[]) {
+  const ended = cases.filter(
+    (c) => c.kind === "retired" && c.result.graph_id !== null && c.result.from_release !== null,
+  );
+  const key = ended.length
+    ? `lives|${organism}|${ended.map((c) => `${c.result.graph_id ?? ""}@${c.result.from_release ?? ""}`).join(",")}`
+    : null;
+  return useRequest(key, async (signal, fresh) => {
+    const answers = await Promise.all(
+      ended.map(({ result }) =>
+        api.convert(
+          organism,
+          {
+            identifier: result.graph_id ?? "",
+            from_release: result.from_release,
+            to_release: result.from_release,
+            explain: true,
+            allow_bridges: false,
+          },
+          { signal, fresh },
+        ),
+      ),
+    );
+    const lives = new Map<ConversionResult, SketchLife | null>();
+    ended.forEach(({ result }, i) => {
+      const at = answers[i]?.data;
+      const nodes = new Map((at?.path?.nodes ?? []).map((n) => [n.id, n]));
+      const gene = at?.candidates.map((c) => nodes.get(c.gene)).find((n) => n?.active.length);
+      lives.set(result, gene ? { gene: gene.id, active: gene.active.map(([a, b]) => [a, b]) } : null);
+    });
+    const first = answers[0];
+    if (!first) throw new Error("no answer");
+    return { ...first, data: lives };
+  });
+}
 
 function targetsOf(result: ConversionResult): string[] {
   return [...new Set(result.candidates.filter((c) => c.best).map((c) => c.target))];
@@ -77,6 +124,7 @@ function CaseStory({
   vocabulary,
   symbols = null,
   authority = null,
+  life = null,
 }: {
   kind: CaseKind;
   result: ConversionResult;
@@ -86,6 +134,8 @@ function CaseStory({
   /** The organism's name authority at the release asked, where the database asked is a symbol database that is not it
    *  (a symbol Ensembl projects from another organism's authority): said beside the database. */
   authority?: string | null;
+  /** For an answer that reaches nothing: the life of the gene the identifier names where it is read. */
+  life?: SketchLife | null;
 }) {
   const targets = targetsOf(result);
   const asm = (key: number | null) =>
@@ -255,10 +305,19 @@ function CaseStory({
     case "retired": {
       const reason = result.reasons[0];
       const text = reason ? (vocabulary.reasons.get(reason) ?? null) : null;
+      const last = life ? lastRelease(life.active) : null;
       return (
         <>
-          {read}: no answer at {result.to_release}. {text ? prose(text) : ""} Bridges were allowed, and none reaches
-          another gene.
+          {read}
+          {life ? (
+            <>
+              : it names <Mono>{life.gene}</Mono> there, which exists at releases{" "}
+              {releaseRanges(life.active.flatMap(([a, b]) => (b === null ? [a] : rangeOf(a, b))))}
+              {last !== null ? <>, the last {last}</> : null}
+            </>
+          ) : null}
+          ; no answer at {result.to_release}. {text ? prose(text) : ""} Bridges were allowed, and none reaches another
+          gene.
         </>
       );
     }
@@ -285,12 +344,67 @@ function CaseStory({
 }
 
 /** What a sketch shows, for its accessible name. */
-function sketchLabel(kind: CaseKind, result: ConversionResult): string {
+function sketchLabel(kind: CaseKind, result: ConversionResult, life: SketchLife | null = null): string {
   const targets = targetsOf(result);
+  const last = life ? lastRelease(life.active) : null;
+  const lived = life && last !== null ? `; ${life.gene} exists until release ${last}` : "";
   return `The answer drawn on the releases: ${result.query_id} from release ${result.from_release ?? "—"} to ${
     targets.length ? targets.join(", ") : "no gene"
-  } at release ${result.to_release} (${KIND_TEXT[kind].title.toLowerCase()}).`;
+  } at release ${result.to_release}${lived} (${KIND_TEXT[kind].title.toLowerCase()}).`;
 }
+
+/** A swatch of a mark the sketches draw that is not one glyph of the grammar, with the sketches' own classes. */
+function Swatch({ children }: { children: ReactNode }) {
+  return (
+    <svg className="fig-swatch" width={30} height={16} viewBox="0 0 30 16" aria-hidden="true" focusable="false">
+      {children}
+    </svg>
+  );
+}
+
+/** The key of the sketches: each mark beside its word, drawn by the same components and classes as the sketches. */
+const KEY: [string, ReactNode, string][] = [
+  ["form", <GlyphSwatch key="form" glyph="form" />, "the release read"],
+  ["read", <GlyphSwatch key="read" glyph="read" />, "read in an external database"],
+  [
+    "answer",
+    <Swatch key="answer">
+      <rect x={12} y={5} width={6} height={6} className="jr-end" />
+    </Swatch>,
+    "the answer",
+  ],
+  ["final", <GlyphSwatch key="final" glyph="final" />, "the answer in an external database"],
+  ["version", <GlyphSwatch key="version" glyph="version" />, "a new version or a replacement"],
+  ["event", <GlyphSwatch key="event" glyph="event" />, "a split or a merge"],
+  ["loop", <GlyphSwatch key="loop" glyph="loop" />, "a re-mapping of a gene to itself"],
+  ["handoff", <GlyphSwatch key="handoff" glyph="handoff" />, "a step across an assembly change"],
+  ["bridge", <GlyphSwatch key="bridge" glyph="bridge" />, "a bridge through an id two genes carried"],
+  [
+    "branch",
+    <Swatch key="branch">
+      <line x1={6} x2={6} y1={3} y2={12} className="case-sketch__branch" />
+      <GeneBar x0={6} x1={26} y={12} size="thin" strong={false} />
+    </Swatch>,
+    "another gene of a split or a tie",
+  ],
+  [
+    "ended",
+    <Swatch key="ended">
+      <line x1={2} x2={12} y1={8} y2={8} className="case-sketch__stop" />
+      <line x1={12} x2={12} y1={3} y2={13} className="case-sketch__cap" />
+      <line x1={15} x2={22} y1={8} y2={8} className="jr-wait" />
+      <rect x={23} y={5} width={6} height={6} className="case-sketch__empty" />
+    </Swatch>,
+    "a gene's last release, and no answer",
+  ],
+  [
+    "other",
+    <Swatch key="other">
+      <rect x={3} y={5} width={24} height={6} className="case-sketch__other" />
+    </Swatch>,
+    "the releases a name meant another gene",
+  ],
+];
 
 export function CaseGallery({
   graph,
@@ -330,10 +444,24 @@ export function CaseGallery({
     for (const s of bestSteps(result)) if (s.kind === "bridge_far") genes.add(s.target);
     return [...genes].filter((g) => /^ENS[A-Z]*G\d/.test(g)).map((gene) => ({ gene, release: result.to_release }));
   });
-  const symbols = useShowcaseSymbols(graph.organism, named);
+  const { symbols, settled } = useShowcaseSymbols(graph.organism, named);
+  const lives = useLives(graph.organism, shown);
+  // The cards are drawn once what changes their words has come (or after SETTLE_MS), in the room held for them, so
+  // that no card grows under the reader's eyes.
+  const [waited, setWaited] = useState(false);
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setWaited(true);
+    }, SETTLE_MS);
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, []);
+  const ready = waited || (settled && matrix.state !== "loading" && lives.state !== "loading");
+  const lifeOf = (result: ConversionResult) =>
+    lives.state === "done" ? (lives.answer.data.get(result) ?? null) : null;
   if (!shown.length) return null;
-  const rest3 = shown.length % 3 ? 3 - (shown.length % 3) : 3;
-  const rest2 = shown.length % 2 ? 1 : 2;
+  if (!ready) return <div className="stories-reserve stories-reserve--cases" aria-busy="true" />;
   return (
     <section className="home-cases" aria-labelledby={`${id}-title`}>
       <div className="home-section-head">
@@ -354,7 +482,13 @@ export function CaseGallery({
           const query = caseQueryOf(graph.organism, item.query);
           return (
             <li key={`${item.kind}-${i}`} className="case" data-kind={item.kind}>
-              <CaseSketch result={item.result} graph={graph} label={sketchLabel(item.kind, item.result)} />
+              <CaseSketch
+                result={item.result}
+                graph={graph}
+                label={sketchLabel(item.kind, item.result, lifeOf(item.result))}
+                life={lifeOf(item.result)}
+                symbols={symbols}
+              />
               <Card className="case__title">
                 <Link
                   to={caseHref(query)}
@@ -378,6 +512,7 @@ export function CaseGallery({
                   vocabulary={vocabulary}
                   symbols={symbols}
                   authority={authorityFor(item.result)}
+                  life={lifeOf(item.result)}
                 />
               </p>
               <div className="case__evidence">
@@ -389,18 +524,21 @@ export function CaseGallery({
             </li>
           );
         })}
-        <li className="case case--key" style={{ "--rest3": rest3, "--rest2": rest2 } as CSSProperties}>
+        <li className="case case--key">
           <Card className="case__title">Reading the sketches</Card>
           <p className="case__concept">
-            Each sketch draws its case&apos;s answer on the stretch of releases it spans, zoomed: the strip above it is
+            Each sketch draws its case&apos;s answer on the stretch of releases it spans, zoomed: the line above it is
             the graph&apos;s whole axis ({graph.releases[0]}–{graph.snapshot_release}, a tick at each change of
-            assembly) with the stretch marked, and two hairlines open from it to the view. The glyphs are those of
-            figure a: the release read (open circle, or an open square where it is read in an external database), the
-            answer (a square), a new version (a tick), a split or merge (a dot), a re-mapping (an arc), an assembly
-            change (a diamond), a bridge (a square with a dot). A split&apos;s or a tie&apos;s other genes branch off
-            below, lighter; a refused step is a line that stops; another meaning of a name is a pale lane at its
-            releases.
+            assembly) with the stretch marked, two hairlines opening from it to the view.
           </p>
+          <ul className="case-key" aria-label="The marks of the sketches">
+            {KEY.map(([key, swatch, words]) => (
+              <li key={key}>
+                {swatch}
+                <span>{words}</span>
+              </li>
+            ))}
+          </ul>
         </li>
       </ol>
     </section>

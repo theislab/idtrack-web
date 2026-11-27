@@ -1,18 +1,21 @@
 // The Convert page's figure: one real answer of this server, drawn as its path through the releases. The gene
 // versions of the best answer lie as bars over the releases the path holds each, joined by Ensembl's steps (a dot in
 // the hue of the step's kind; a diamond where the step crosses from one assembly to the next; an arc for a re-mapping
-// of a gene to itself), over the assembly bands; under it, Ensembl's mapping score of each step. Every element is
-// focusable with its exact values, as the api sent them. The path draws itself once, left to right (not under reduced
-// motion).
+// of a gene to itself), over the assembly bands; under it, Ensembl's mapping score of each step, and under that the
+// product of the scores so far, falling step by step to the candidate's score (the score that ranks candidates). Every
+// element is focusable with its exact values, as the api sent them. The path draws itself once, left to right (not
+// under reduced motion).
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import type { GraphDescription } from "../../api/types";
 import {
   figureHeight,
   previousOnLane,
+  runningProduct,
   shortLabel,
   type FigureModel,
   type FigureStep,
 } from "../../lib/explore/figureModel";
+import { shortProduct } from "../../lib/explore/sketch";
 import { groupedInteger, pythonFloat } from "../../lib/numbers";
 import { prose } from "../../lib/values";
 import { spaced } from "../../lib/vocabulary";
@@ -73,10 +76,18 @@ export function HistoryFigure({ model, description }: { model: FigureModel; desc
   const scale = releaseScale(releases, left, width - (phone ? 6 : 12));
   const laneY = (lane: number) => 96 + lane * 44;
   const lastLane = laneY(model.lanes - 1);
+  const hasScores = model.steps.some((s) => s.family !== "cross");
   const scoreTop = lastLane + 62;
   const scoreBottom = scoreTop + 48;
-  const axisY = scoreBottom + 18;
-  const height = figureHeight(model.lanes);
+  // The running product: its own track under the scores, 1.0 at its top, its floor the tenth under the candidate's
+  // score (0.9 at most), so that the fall to the candidate's score is drawn whole.
+  const products = useMemo(() => runningProduct(model.steps), [model]);
+  const productTop = scoreBottom + 38;
+  const productBottom = productTop + 34;
+  const productFloor = Math.max(0, Math.min(0.9, Math.floor(Math.min(1, ...products.values()) * 10) / 10));
+  const productY = (p: number) => productTop + ((1 - p) / (1 - productFloor || 1)) * (productBottom - productTop);
+  const axisY = hasScores ? productBottom + 18 : scoreBottom + 18;
+  const height = figureHeight(model.lanes, hasScores);
   const bands = assemblyBands(description);
 
   const laneOf = useMemo(() => new Map(model.genes.map((g) => [g.node.id, g.lane])), [model]);
@@ -119,8 +130,6 @@ export function HistoryFigure({ model, description }: { model: FigureModel; desc
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps -- the scale changes with the width only; the model fixes the rest
   }, [model, width]);
-
-  const hasScores = model.steps.some((s) => s.family !== "cross");
 
   // The elements in the order of the walk: a gene, the step that leaves it, the next gene, ...
   const items: Item[] = [];
@@ -205,6 +214,12 @@ export function HistoryFigure({ model, description }: { model: FigureModel; desc
               <span className="mono">{assemblyName(step.assembly)}</span>
             </p>
           ) : null}
+          {products.has(s.number) ? (
+            <p className="fig-note__quiet">
+              Product of the scores so far{" "}
+              <span className="mono">{shortProduct(pythonFloat(products.get(s.number) ?? 1))}</span>
+            </p>
+          ) : null}
           {step.places ? <p className="fig-note__quiet">Places: {spaced(step.places)}</p> : null}
           {step.splits || step.merges ? (
             <p className="fig-note__quiet">
@@ -280,7 +295,11 @@ export function HistoryFigure({ model, description }: { model: FigureModel; desc
         : st.weight === null
           ? " · no score"
           : ` · Ensembl's score ${pythonFloat(st.weight)}`
-    }${cursorStep.handoff ? ` · ${assemblyName(st.old_assembly)} → ${assemblyName(st.assembly)}` : ""}`;
+    }${cursorStep.handoff ? ` · ${assemblyName(st.old_assembly)} → ${assemblyName(st.assembly)}` : ""}${
+      products.has(cursorStep.number)
+        ? ` · product so far ${shortProduct(pythonFloat(products.get(cursorStep.number) ?? 1))}`
+        : ""
+    }`;
   })();
 
   const svg = useCallback(() => ref.current?.querySelector("svg") ?? null, [ref]);
@@ -316,6 +335,40 @@ export function HistoryFigure({ model, description }: { model: FigureModel; desc
               bottom={scoreBottom}
               labelX={scale.x0 - 6}
             />
+          ) : null}
+          {hasScores ? (
+            <g className="fig-score fig-product" aria-hidden="true">
+              <line x1={scale.x0} x2={scale.x1} y1={productTop} y2={productTop} className="fig-score__line" />
+              <line x1={scale.x0} x2={scale.x1} y1={productBottom} y2={productBottom} className="fig-score__floor" />
+              <text x={scale.x0 - 6} y={productTop - 12} textAnchor="end" className="fig-score__tick fig-score__name">
+                product
+              </text>
+              <text x={scale.x0 - 6} y={productTop + 4} textAnchor="end" className="fig-score__tick">
+                1.0
+              </text>
+              <text x={scale.x0 - 6} y={productBottom + 4} textAnchor="end" className="fig-score__tick">
+                {pythonFloat(productFloor)}
+              </text>
+              <path
+                className="fig-product__line"
+                d={(() => {
+                  let d = `M${scale.x0.toFixed(1)},${productY(1).toFixed(1)}`;
+                  for (const st of model.steps) {
+                    const p = products.get(st.number);
+                    if (p === undefined) continue;
+                    const x = jointX(st).toFixed(1);
+                    d += `H${x}V${productY(p).toFixed(1)}`;
+                  }
+                  return `${d}H${scale.x1.toFixed(1)}`;
+                })()}
+              />
+              <circle
+                cx={scale.x1}
+                cy={productY(products.size ? ([...products.values()].pop() ?? 1) : 1)}
+                r={2.4}
+                className="fig-product__end"
+              />
+            </g>
           ) : null}
           <ReleaseTicks scale={scale} y={axisY} releases={releases} bounds={[0, width]} />
 

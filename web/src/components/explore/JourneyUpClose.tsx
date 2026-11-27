@@ -75,7 +75,7 @@ export function JourneyUpClose({
           Open this answer
         </Link>
       </div>
-      <Suspense fallback={<FigureReserve height={() => figureHeight(model.lanes)} />}>
+      <Suspense fallback={<FigureReserve height={() => figureHeight(model.lanes, history.length > 0)} />}>
         <HistoryFigure model={model} description={graph} />
       </Suspense>
       <FigureLegend
@@ -85,6 +85,19 @@ export function JourneyUpClose({
           { key: "event", glyph: "event", text: "A split or a merge" },
           { key: "loop", glyph: "loop", text: "A re-mapping of a gene to itself" },
           { key: "handoff", glyph: "handoff", text: "A step across an assembly change" },
+          ...(history.length
+            ? [
+                {
+                  key: "product",
+                  swatch: (
+                    <svg width="30" height="16" aria-hidden="true" className="fig-swatch">
+                      <path className="fig-product__line" d="M2,3H10V8H20V13H28" />
+                    </svg>
+                  ),
+                  text: "The product of the scores so far, the candidate's score at the end",
+                },
+              ]
+            : []),
           {
             key: "score",
             swatch: (
@@ -128,11 +141,13 @@ export function JourneyUpClose({
             ), which are not Ensembl&apos;s history
           </>
         ) : null}
-        . Below, Ensembl's mapping score of each step, on an axis from {pythonFloat(1)} down to the value marked. The
-        candidate's score, <Mono>{pythonFloat(model.answer.score)}</Mono>, is{" "}
-        {scoreMeaning ? lowerFirst(prose(scoreMeaning)) : "its score"}. Replay walks the path step by step. Focus the
-        figure and use the arrow keys for each element's exact values (on a touch screen, tap a mark). Source:{" "}
-        <Mono>GET /api/v1/organisms/{graph.organism}/showcase</Mono>, the answer{" "}
+        . Below, Ensembl's mapping score of each step, on an axis from {pythonFloat(1)} down to the value marked; under
+        it, the product of the scores so far, stepping down at each scored step to the candidate's score,{" "}
+        <Mono>{pythonFloat(model.answer.score)}</Mono>, which is{" "}
+        {scoreMeaning ? lowerFirst(prose(scoreMeaning)) : "its score"}. Replay walks the path step by step and writes
+        each step's score and the product so far (the page's own product, cut after six decimals: the candidate's score
+        is idtrack's). Focus the figure and use the arrow keys for each element's exact values (on a touch screen, tap a
+        mark). Source: <Mono>GET /api/v1/organisms/{graph.organism}/showcase</Mono>, the answer{" "}
         <a href={apiAddress(query)}>
           <Mono>GET {apiAddress(query).replace(/\?.*/, "")}</Mono>
         </a>{" "}
