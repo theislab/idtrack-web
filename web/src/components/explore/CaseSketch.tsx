@@ -91,7 +91,7 @@ const CLEAR = 9;
 /** The overview's line stands this far in from the drawing's edges, its end releases `OVERVIEW_GAP` outside its ends:
  *  a hairline that opens from the stretch at an end passes at least 4 px from them. */
 const OVERVIEW_INSET = 36;
-const OVERVIEW_GAP = 10;
+const OVERVIEW_GAP = 12;
 
 /** The words above a lane: `lead` (releases) then an identifier, the identifier cut in its middle where the line is too
  *  short (never the releases), set from `x` towards the side with room, inside [lo, hi]. */
@@ -153,8 +153,15 @@ function Overview({
       <rect x={a} y={y - 2} width={Math.max(3, b - a)} height={4} className="case-sketch__window" />
       {whole ? null : (
         <>
-          <line x1={a} x2={scale.x0 - scale.step / 2} y1={y + 2} y2={VIEW_TOP} className="case-sketch__zoom" />
-          <line x1={b} x2={scale.x1 + scale.step / 2} y1={y + 2} y2={VIEW_TOP} className="case-sketch__zoom" />
+          {/* Down from the stretch's ends until clear of the written releases, then open to the view's top corners. */}
+          <polyline
+            points={`${a},${y + 2} ${a},${ty + 7} ${scale.x0},${VIEW_TOP - 4}`}
+            className="case-sketch__zoom"
+          />
+          <polyline
+            points={`${b},${y + 2} ${b},${ty + 7} ${scale.x1},${VIEW_TOP - 4}`}
+            className="case-sketch__zoom"
+          />
         </>
       )}
     </g>
@@ -198,7 +205,7 @@ export function CaseSketch({
             scale={scale}
             top={VIEW_TOP}
             bottom={layout.axisY - 2}
-            labelY={VIEW_TOP + 11}
+            labelY={VIEW_TOP + 12}
             view={[0, width]}
           />
           <ReleaseTicks scale={scale} y={layout.axisY} releases={releases} bounds={[0, width]} />

@@ -4,7 +4,6 @@
 // product of Ensembl's scores builds up to the candidate's score.
 import { cleanup, render, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
-import type { ConversionResult } from "../src/api/types";
 import { CaseSketch } from "../src/components/explore/CaseSketch";
 import { figureHeight, figureModel, PRODUCT_ROOM, runningProduct } from "../src/lib/explore/figureModel";
 import {
@@ -72,9 +71,9 @@ describe("a case's sketch", () => {
   it("draws the life of a gene to its last release, a wait and an empty end at the release asked", async () => {
     const ended = answers.find((r) => r.status === "no_conversion" && r.candidates.length === 0 && r.from_release);
     expect(ended).toBeDefined();
-    if (!ended || ended.from_release === null) return;
+    const from = ended?.from_release ?? null;
+    if (ended === undefined || from === null) return;
     const organism = recorded.find((c) => c.result === ended)?.entry.organism ?? "homo_sapiens";
-    const from = ended.from_release;
     render(
       <CaseSketch
         result={ended}
@@ -88,7 +87,7 @@ describe("a case's sketch", () => {
     });
     const words = [...document.querySelectorAll(".case-sketch__words")].map((t) => t.textContent);
     expect(words).toContain(`none at ${ended.to_release}`);
-    expect(words.some((w) => w?.startsWith(`${from - 3}–${from}`))).toBe(true);
+    expect(words.some((w) => w.startsWith(`${from - 3}–${from}`))).toBe(true);
     expect(document.querySelector(".case-sketch__empty")).not.toBeNull();
   });
 
@@ -103,7 +102,7 @@ describe("a case's sketch", () => {
     await waitFor(() => {
       expect(document.querySelectorAll(".case-sketch__words")).toHaveLength(2);
     });
-    const [first, second] = [...document.querySelectorAll(".case-sketch__words")].map((t) => t.textContent ?? "");
+    const [first = "", second = ""] = [...document.querySelectorAll(".case-sketch__words")].map((t) => t.textContent);
     expect(first.startsWith(`${meaning.from_release ?? meaning.to_release}:`)).toBe(true);
     expect(second).toContain(":");
     expect(document.querySelectorAll(".case-sketch__other").length).toBeGreaterThan(0);

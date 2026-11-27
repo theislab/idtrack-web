@@ -340,7 +340,7 @@ export function HistoryFigure({ model, description }: { model: FigureModel; desc
             <g className="fig-score fig-product" aria-hidden="true">
               <line x1={scale.x0} x2={scale.x1} y1={productTop} y2={productTop} className="fig-score__line" />
               <line x1={scale.x0} x2={scale.x1} y1={productBottom} y2={productBottom} className="fig-score__floor" />
-              <text x={scale.x0 - 6} y={productTop - 12} textAnchor="end" className="fig-score__tick fig-score__name">
+              <text x={0} y={productTop - 12} className="fig-score__tick fig-score__name">
                 product
               </text>
               <text x={scale.x0 - 6} y={productTop + 4} textAnchor="end" className="fig-score__tick">

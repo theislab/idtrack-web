@@ -27,8 +27,8 @@ export function sketchRows(result: ConversionResult): { candidate: number; stron
 export const SKETCH = {
   OVERVIEW_Y: 7,
   OVERVIEW_TEXT_Y: 11,
-  VIEW_TOP: 22,
-  TOP: 48,
+  VIEW_TOP: 30,
+  TOP: 56,
   PITCH: 16,
   /** A lane of its own with its words on a line above it (a retired gene, a name with another meaning). */
   LANE_PITCH: 30,

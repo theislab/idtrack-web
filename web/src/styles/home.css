@@ -160,6 +160,7 @@
   column-rule: 1px solid var(--line);
   border: 1px solid var(--line);
   border-top: none;
+  background: var(--surface);
 }
 
 /* Each card is a small figure of its own, as tall as what it holds: its sketch (as tall as what it draws), its title, its
@@ -249,6 +250,7 @@
 }
 
 .case-sketch__zoom {
+  fill: none;
   stroke: var(--ink-3);
   stroke-width: 0.5;
 }
