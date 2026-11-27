@@ -130,7 +130,15 @@ export function MethodPage() {
           </SectionTitle>
           <p>
             idtrack&apos;s citation, as its documentation gives it (<a href={docs.citation.source}>Citing idtrack</a>
-            ), with the version of the idtrack that answers on this server: <Prose text={docs.citation.note} />
+            ). For answers of this site, the version to cite is the idtrack that answered them on this server
+            {idtrackVersion ? (
+              <>
+                , <Mono>{idtrackVersion}</Mono>
+              </>
+            ) : null}{" "}
+            (<span className="mono">GET /api/v1/version</span>, <span className="mono">idtrack_version</span>), which
+            the entry below carries. For idtrack run as a package, its documentation says:{" "}
+            <Prose text={docs.citation.note} />
           </p>
           <pre className="raw raw--cite" role="region" aria-label="Citation in BibTeX" tabIndex={0}>
             {bibtex}
