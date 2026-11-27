@@ -148,6 +148,9 @@
 /* The compact reading of a phone (hidden on wider screens, where the readings and lines stand). */
 .load-monitor__compact {
   display: none;
+  grid-template-columns: auto auto;
+  column-gap: 5px;
+  align-items: baseline;
   font-family: var(--font-mono);
   font-size: var(--text-2xs);
   line-height: 1.1;
@@ -254,9 +257,10 @@
     display: none;
   }
 
-  /* The widest: the word "unreadable" beside the two numbers stacked ("999.99 GiB"): 20 characters and 46 px. */
+  /* The widest: the word "unreadable" beside the two numbers stacked, each after its name ("MEM 999.99 GiB"): 24
+     characters (the names' tracking included) and 51 px. */
   .load-monitor__trigger {
-    width: calc(46px + 20ch);
+    width: calc(51px + 24ch);
     min-width: 44px;
     padding: 0 var(--space-2);
   }
@@ -267,10 +271,21 @@
 }
 
 @media (max-width: 640px) {
-  /* The widest: the dot beside the two numbers stacked: 10 characters and 36 px. */
+  /* The widest: the dot beside the two numbers stacked, each after its name ("MEM 999.99 GiB"): 13 characters
+     and 26 px. */
   .load-monitor__trigger {
-    width: calc(36px + 10ch);
+    width: calc(26px + 13ch);
     height: 44px;
+    gap: 6px;
+    padding: 0 4px;
+  }
+
+  .load-monitor__compact {
+    column-gap: 4px;
+  }
+
+  .load-monitor__compact .load-monitor__label {
+    letter-spacing: 0;
   }
 
   .load-monitor__word {

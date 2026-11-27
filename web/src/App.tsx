@@ -2,19 +2,20 @@
 // can fail is inside an error boundary (the page, keyed by its address; the load monitor), so that a failure is said
 // in its place and never leaves a white page; a route change moves the focus to the new page's heading.
 import { BENCHMARKS_SOURCE, docsPage, IDTRACK_PACKAGE, IDTRACK_SOURCE, SITE_SOURCE } from "./lib/links";
-import { Suspense, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { Suspense, useEffect, useRef, useState, type ReactNode } from "react";
 import { Announcer } from "./components/Announcer";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { ErrorPanel } from "./components/ErrorPanel";
 import { LoadMonitor } from "./components/LoadMonitor";
 import { Logo, LogoMark } from "./components/Logo";
 import { NotFound } from "./components/NotFound";
+import { OrganismPicker } from "./components/OrganismPicker";
 import { ThemeSwitch } from "./components/ThemeSwitch";
-import { Button, Link, Mono, Select, Skeleton } from "./components/ui";
+import { Button, Link, Mono, Skeleton } from "./components/ui";
 import { takeReloadNotice } from "./lib/chunks";
 import { focusWhenThere } from "./lib/focus";
 import { lazyPart } from "./lib/lazyPart";
-import { commonName, organismName, shortOrganismName } from "./lib/organismNames";
+import { organismName } from "./lib/organismNames";
 import { OrganismsProvider, useOrganisms } from "./lib/organisms";
 import { routeOf } from "./lib/routes";
 import { href, navigate, useLocation } from "./lib/router";
@@ -82,62 +83,57 @@ function isActive(path: string, current: string): boolean {
   return current === path || current.startsWith(`${path}/`);
 }
 
-/** Whether a media query matches now, kept current. */
-function useMedia(query: string): boolean {
-  const media = useMemo(
-    () => (typeof window !== "undefined" && typeof window.matchMedia === "function" ? window.matchMedia(query) : null),
-    [query],
-  );
-  const [matches, setMatches] = useState(() => media?.matches ?? false);
-  useEffect(() => {
-    if (!media) return;
-    const change = () => {
-      setMatches(media.matches);
-    };
-    change();
-    media.addEventListener("change", change);
-    return () => {
-      media.removeEventListener("change", change);
-    };
-  }, [media]);
-  return matches;
-}
-
-/** Whether a row that scrolls sideways holds more to its left or right (for the fade on that side), kept current as
- *  it scrolls or is resized; no layout is read but in a frame after a scroll or a resize. When `shown` changes (the
- *  page shown), its current link is brought into the row (the row only: the page itself never scrolls for it). */
+/** Whether a row that scrolls sideways holds more to its left or right (for the fade on that side), from an
+ *  IntersectionObserver on its first and last links: no layout is read, during a commit or after one. When `shown`
+ *  changes (the page shown), its current link is brought into the row from the observer's own measures (the row only:
+ *  the page itself never scrolls for it). */
 function useScrollEdges<T extends HTMLElement>(shown: string) {
   const ref = useRef<T>(null);
   const [more, setMore] = useState({ left: false, right: false });
   useEffect(() => {
     const row = ref.current;
     const link = row?.querySelector<HTMLElement>('[aria-current="page"]');
-    if (!row || !link || row.scrollWidth <= row.clientWidth) return;
-    const start = link.offsetLeft - row.offsetLeft;
-    if (start < row.scrollLeft || start + link.offsetWidth > row.scrollLeft + row.clientWidth)
-      row.scrollLeft = Math.max(0, start - 16);
+    if (!row || !link || typeof IntersectionObserver === "undefined") return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        observer.disconnect();
+        if (!entry?.rootBounds || entry.intersectionRatio >= 1) return;
+        const { left, right } = entry.boundingClientRect;
+        const edge = 16;
+        if (left < entry.rootBounds.left) row.scrollLeft += left - entry.rootBounds.left - edge;
+        else if (right > entry.rootBounds.right) row.scrollLeft += right - entry.rootBounds.right + edge;
+      },
+      { root: row, threshold: 1 },
+    );
+    observer.observe(link);
+    return () => {
+      observer.disconnect();
+    };
   }, [shown]);
   useEffect(() => {
-    const element = ref.current;
-    if (!element) return;
-    let frame = 0;
-    const measure = () => {
-      frame = 0;
-      const left = element.scrollLeft > 1;
-      const right = element.scrollLeft + element.clientWidth < element.scrollWidth - 1;
-      setMore((m) => (m.left === left && m.right === right ? m : { left, right }));
-    };
-    const later = () => {
-      if (!frame) frame = window.requestAnimationFrame(measure);
-    };
-    later();
-    element.addEventListener("scroll", later, { passive: true });
-    const observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(later);
-    observer?.observe(element);
+    const row = ref.current;
+    const links = row?.querySelectorAll(".nav__link");
+    const start = links?.[0];
+    const end = links?.[links.length - 1];
+    if (!row || !start || !end || typeof IntersectionObserver === "undefined") return;
+    const seen = new Map<Element, boolean>([
+      [start, true],
+      [end, true],
+    ]);
+    const observer = new IntersectionObserver(
+      (entries) => {
+        // Whole in view (a link cut by the row's edge intersects it, but is not whole).
+        for (const entry of entries) seen.set(entry.target, entry.intersectionRatio >= 0.99);
+        const left = !seen.get(start);
+        const right = !seen.get(end);
+        setMore((m) => (m.left === left && m.right === right ? m : { left, right }));
+      },
+      { root: row, threshold: [0, 0.99, 1] },
+    );
+    observer.observe(start);
+    observer.observe(end);
     return () => {
-      element.removeEventListener("scroll", later);
-      observer?.disconnect();
-      if (frame) window.cancelAnimationFrame(frame);
+      observer.disconnect();
     };
   }, []);
   return { ref, more };
@@ -146,8 +142,6 @@ function useScrollEdges<T extends HTMLElement>(shown: string) {
 function Header() {
   const { organisms, current, choose, status } = useOrganisms();
   const location = useLocation();
-  // A phone's first row holds the brand, the organism, the load and the theme: the organism's name is abbreviated.
-  const narrow = useMedia("(max-width: 480px)");
   const { ref: nav, more } = useScrollEdges<HTMLElement>(location.path);
   const showsOrganism = !location.path.startsWith("/organisms") && !WITHOUT_ORGANISM.has(location.path);
   return (
@@ -182,22 +176,7 @@ function Header() {
         </nav>
         <div className="masthead__tools">
           {status === "done" && showsOrganism && organisms.length > 0 ? (
-            <label className="organism-picker">
-              <span className="visually-hidden">Organism</span>
-              <Select
-                value={current?.organism ?? ""}
-                onChange={(e) => choose(e.target.value)}
-                aria-label="Organism"
-                className="organism-picker__select"
-              >
-                {organisms.map((o) => (
-                  <option key={o.organism} value={o.organism}>
-                    {narrow ? shortOrganismName(o.organism) : organismName(o.organism)}
-                    {!narrow && commonName(o.organism) ? ` (${commonName(o.organism)})` : ""}
-                  </option>
-                ))}
-              </Select>
-            </label>
+            <OrganismPicker organisms={organisms} current={current?.organism ?? ""} choose={choose} />
           ) : status === "loading" && showsOrganism ? (
             <Skeleton width={232} height={34} />
           ) : !showsOrganism ? (
@@ -237,6 +216,11 @@ function Footer() {
           <p className="footer__claim">
             Gene identifiers followed through Ensembl&apos;s releases, genome assemblies and external databases, with
             the evidence for every step.
+          </p>
+          {/* Who stands behind the tool, as idtrack's documentation states it (its credits, "Institutional Support"). */}
+          <p className="footer__origin">
+            Developed at the Theis Lab, Institute of Computational Biology, Helmholtz Center Munich (
+            <a href={docsPage("authors.html#institutional-support")}>credits</a>).
           </p>
           <p className="footer__note">
             Conversions and names are idtrack&apos;s own results, shown as the api returns them: no number of a result

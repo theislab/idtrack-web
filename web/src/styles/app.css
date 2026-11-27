@@ -432,23 +432,118 @@ code {
   gap: var(--space-3);
 }
 
+/* The organism: the browser's own select, its text drawn by the binomial laid over it (OrganismPicker.tsx). Every
+   binomial the server holds stands in one cell, only the chosen one visible, so the box is as wide as the longest and
+   never cuts a name nor moves when another is chosen. */
 .organism-picker {
   display: flex;
   align-items: center;
-  flex: 0 1 14.5rem;
-  min-width: 11rem;
+  flex: none;
+  min-width: 0;
 }
 
-.organism-picker .select {
-  width: 100%;
+.organism-picker__box {
+  position: relative;
+  display: inline-grid;
+  min-width: 0;
+  max-width: 100%;
 }
 
-.masthead .select__control {
+.organism-picker__shown {
+  grid-area: 1 / 1;
+  position: relative;
+  z-index: 1;
+  display: grid;
+  align-items: center;
   min-height: 34px;
-  padding-top: 5px;
-  padding-bottom: 5px;
+  padding: 0 30px 0 12px;
   font-size: var(--text-sm);
+  line-height: 1.2;
+  color: var(--ink-1);
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.organism-picker__name {
+  grid-area: 1 / 1;
+  visibility: hidden;
+}
+
+.organism-picker__name[data-current] {
+  visibility: visible;
+}
+
+.organism-picker__short {
+  display: none;
+}
+
+.organism-picker__select {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  margin: 0;
+  appearance: none;
+  font: inherit;
+  font-size: var(--text-sm);
+
+  /* The words laid over the control are its text; the control's own is the same name, made invisible. */
+  color: transparent;
   background: var(--surface);
+  border: 1px solid var(--line-control);
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+
+.organism-picker__select option {
+  color: var(--ink-1);
+  background: var(--surface-raised);
+}
+
+.organism-picker__select:focus-visible {
+  border-color: var(--ink-1);
+}
+
+@media (hover: hover) {
+  .organism-picker__select:hover {
+    border-color: var(--ink-3);
+  }
+}
+
+.organism-picker__box::after {
+  content: "";
+  position: absolute;
+  z-index: 1;
+  right: 12px;
+  top: 50%;
+  width: 6px;
+  height: 6px;
+  border-right: 1.5px solid var(--ink-2);
+  border-bottom: 1.5px solid var(--ink-2);
+  transform: translateY(-70%) rotate(45deg);
+  pointer-events: none;
+}
+
+@media (forced-colors: active) {
+  .organism-picker__select {
+    forced-color-adjust: none;
+    color: transparent;
+    background: Field;
+    border-color: FieldText;
+  }
+
+  .organism-picker__select option {
+    color: FieldText;
+    background: Field;
+  }
+
+  .organism-picker__select:focus-visible {
+    outline-color: Highlight;
+  }
+
+  .organism-picker__box::after {
+    border-color: FieldText;
+  }
 }
 
 /* On the pages that hold every organism, the organism's place says so, and nothing beside it moves. */
@@ -645,13 +740,16 @@ code {
     display: none;
   }
 
-  .masthead .select__control {
-    min-height: 44px;
-    padding-left: 10px;
-    padding-right: 28px;
+  .organism-picker__box {
+    width: 100%;
   }
 
-  .masthead .select::after {
+  .organism-picker__shown {
+    min-height: 44px;
+    padding: 0 28px 0 10px;
+  }
+
+  .organism-picker__box::after {
     right: 11px;
   }
 
@@ -698,25 +796,53 @@ code {
   }
 }
 
-@media (max-width: 380px) {
+/* A narrow phone: the seven links in the text size of notes, so that every one, Docs too, is in the row from 352 px
+   (the row scrolls, with its fade, only below). Each link keeps a finger's height; the first and the last link's text
+   stand on the page's 16 px edges. */
+@media (max-width: 420px) {
   .nav__link {
-    padding: 0 7px;
+    padding: 0 4px;
+    font-size: var(--text-xs);
+    letter-spacing: 0;
   }
 
   .nav {
-    padding: 0 9px;
+    padding: 0 12px;
   }
 
   .nav__link::after {
-    left: 7px;
-    right: 7px;
+    left: 4px;
+    right: 4px;
   }
 }
 
-/* A narrow phone: the brand's mark alone. */
+/* A narrow phone: the brand's mark alone, the organism's binomial abbreviated (H. sapiens). */
 @media (max-width: 480px) {
   .brand__logo {
     display: none;
+  }
+
+  .organism-picker__long {
+    display: none;
+  }
+
+  .organism-picker__short {
+    display: inline;
+  }
+
+  /* The first row holds the mark, the organism, the load with its names and the theme from 360 px: the longest
+     abbreviated binomial ("M. fascicularis") in the text size of notes. */
+  .masthead__inner {
+    column-gap: 6px;
+  }
+
+  .organism-picker__shown {
+    padding: 0 20px 0 8px;
+    font-size: var(--text-xs);
+  }
+
+  .organism-picker__box::after {
+    right: 8px;
   }
 
   .brand__mark {
@@ -1681,6 +1807,13 @@ code {
 .footer__note {
   color: var(--ink-3);
   font-size: var(--text-xs);
+}
+
+/* Where the tool is made, as idtrack's documentation credits it. */
+.footer__origin {
+  max-width: 44ch;
+  color: var(--ink-2);
+  font-size: var(--text-sm);
 }
 
 .footer__col {

@@ -168,7 +168,9 @@ export function LoadMonitor() {
             <>
               {/* On a phone, where the readings and lines do not fit, one compact block of both numbers. */}
               <span className="load-monitor__compact">
+                <span className="load-monitor__label">CPU</span>
                 <span>{cpuText}</span>
+                <span className="load-monitor__label">MEM</span>
                 <span>{pssText}</span>
               </span>
               <span className="load-monitor__reading">
