@@ -111,7 +111,8 @@ disallow_any_explicit = true
 
 [[tool.mypy.overrides]]
 module = [
-    "idtrack_web_api.adapter", "idtrack_web_api.app", "idtrack_web_api.cli", "idtrack_web_api.contract",
+    "idtrack_web_api.adapter", "idtrack_web_api.app", "idtrack_web_api.cautions", "idtrack_web_api.cli",
+    "idtrack_web_api.contract",
     "idtrack_web_api.data", "idtrack_web_api.docs", "idtrack_web_api.errors", "idtrack_web_api.graphs",
     "idtrack_web_api.guard", "idtrack_web_api.history", "idtrack_web_api.limits", "idtrack_web_api.monitor",
     "idtrack_web_api.openapi", "idtrack_web_api.schemas", "idtrack_web_api.server", "idtrack_web_api.service",

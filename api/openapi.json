@@ -259,9 +259,9 @@
                   "$ref": "#/components/schemas/StatusResponse"
                 },
                 "example": {
-                  "sampled_at": "2026-11-27T10:41:44.919Z",
-                  "started_at": "2026-11-27T10:32:19.679Z",
-                  "uptime_seconds": 565.2403023522347,
+                  "sampled_at": "2026-11-27T18:38:05.626Z",
+                  "started_at": "2026-11-27T18:30:05.013Z",
+                  "uptime_seconds": 480.61268771626055,
                   "sample_interval_seconds": 1.0,
                   "memory_sample_interval_seconds": 5.0,
                   "cache_seconds": 1.0,
@@ -270,92 +270,92 @@
                   "workers_exited": 0,
                   "last_worker_exit_at": null,
                   "master": {
-                    "started_at": "2026-11-27T10:32:19.679Z",
-                    "cpu_share": 0.0,
-                    "cpu_seconds": 172.44,
-                    "rss_bytes": 5051183104,
-                    "pss_bytes": 1749487616,
-                    "uss_bytes": 103219200,
-                    "cpu_sample_age_seconds": 0.23709083907306194,
-                    "memory_sample_age_seconds": 0.09372725710272789
+                    "started_at": "2026-11-27T18:30:05.013Z",
+                    "cpu_share": 0.039103867722417175,
+                    "cpu_seconds": 217.44,
+                    "rss_bytes": 4982333440,
+                    "pss_bytes": 1661635584,
+                    "uss_bytes": 4284416,
+                    "cpu_sample_age_seconds": 0.8311634669080377,
+                    "memory_sample_age_seconds": 1.6884166896343231
                   },
                   "workers": [
                     {
                       "worker": 1,
-                      "started_at": "2026-11-27T10:35:00.119Z",
-                      "cpu_share": 0.02999143072311026,
-                      "cpu_seconds": 13.14,
-                      "rss_bytes": 5052768256,
-                      "pss_bytes": 1757830144,
-                      "uss_bytes": 113065984,
-                      "cpu_sample_age_seconds": 0.5074394922703505,
-                      "memory_sample_age_seconds": 0.23724628053605556,
-                      "requests": 162,
+                      "started_at": "2026-11-27T18:38:02.622Z",
+                      "cpu_share": 0.14786117624872644,
+                      "cpu_seconds": 0.35,
+                      "rss_bytes": 4975005696,
+                      "pss_bytes": 2237210624,
+                      "uss_bytes": 6885376,
+                      "cpu_sample_age_seconds": 0.6882601669058204,
+                      "memory_sample_age_seconds": 2.6215937109664083,
+                      "requests": 2,
                       "in_flight": 0,
                       "searches_running": 0,
                       "searches_waiting": 0,
                       "sending_bytes": 0,
-                      "last_60_seconds": 162,
-                      "errors_4xx": 2,
+                      "last_60_seconds": 2,
+                      "errors_4xx": 0,
                       "errors_5xx": 0
                     },
                     {
                       "worker": 2,
-                      "started_at": "2026-11-27T10:35:00.417Z",
-                      "cpu_share": 0.14863952498040725,
-                      "cpu_seconds": 12.940000000000001,
-                      "rss_bytes": 5052780544,
-                      "pss_bytes": 1758527488,
-                      "uss_bytes": 114376704,
-                      "cpu_sample_age_seconds": 0.338528648018837,
-                      "memory_sample_age_seconds": 0.067149568349123,
-                      "requests": 169,
+                      "started_at": "2026-11-27T18:38:03.783Z",
+                      "cpu_share": null,
+                      "cpu_seconds": 0.01,
+                      "rss_bytes": 4975001600,
+                      "pss_bytes": 1662500864,
+                      "uss_bytes": 6615040,
+                      "cpu_sample_age_seconds": 1.8390072546899319,
+                      "memory_sample_age_seconds": 0.8313510306179523,
+                      "requests": 1,
                       "in_flight": 0,
                       "searches_running": 0,
                       "searches_waiting": 0,
                       "sending_bytes": 0,
-                      "last_60_seconds": 168,
-                      "errors_4xx": 1,
+                      "last_60_seconds": 1,
+                      "errors_4xx": 0,
                       "errors_5xx": 0
                     }
                   ],
                   "cpu": {
-                    "cores_used": 0.1786309557035175,
-                    "share_of_available": 0.014885912975293125,
+                    "cores_used": null,
+                    "share_of_available": null,
                     "cores_available": 12.0,
                     "affinity_cores": 12,
                     "quota_cores": null,
                     "source": "affinity"
                   },
                   "memory": {
-                    "rss_bytes": 15156731904,
-                    "pss_bytes": 5265845248,
-                    "uss_bytes": 330661888,
+                    "rss_bytes": 14932340736,
+                    "pss_bytes": 5561347072,
+                    "uss_bytes": 17784832,
                     "limit_bytes": 107374182400,
-                    "limit_used_bytes": 51384061952,
+                    "limit_used_bytes": 66292215808,
                     "source": "cgroup"
                   },
                   "requests": {
-                    "total": 331,
+                    "total": 3,
                     "in_flight": 0,
                     "searches_running": 0,
                     "searches_waiting": 0,
                     "connections_waiting": 0,
                     "searches_queued": 0,
                     "sending_bytes": 0,
-                    "last_60_seconds": 330,
-                    "errors_4xx": 3,
+                    "last_60_seconds": 3,
+                    "errors_4xx": 0,
                     "errors_5xx": 0,
                     "lost": 0,
-                    "status_requests": 29,
+                    "status_requests": 1,
                     "latency": {
-                      "count": 331,
+                      "count": 3,
                       "most_recent": 1000,
                       "window_seconds": 300.0,
-                      "p50_ms": 14.716893434524536,
-                      "p95_ms": 64.76076506078243,
-                      "p99_ms": 237.0039038360119,
-                      "max_ms": 311.77993305027485
+                      "p50_ms": 121.79761938750744,
+                      "p95_ms": 526.2316009029746,
+                      "p99_ms": 526.2316009029746,
+                      "max_ms": 526.2316009029746
                     }
                   },
                   "graphs": [
@@ -381,7 +381,10 @@
                     }
                   ],
                   "graphs_file_bytes": 353295162,
-                  "unavailable": []
+                  "unavailable": [
+                    "cpu.cores_used",
+                    "workers.cpu_share"
+                  ]
                 },
                 "x-recorded": "a real answer of a server holding the five graphs of Ensembl 115 (human, mouse, pig, rhesus, cynomolgus)"
               }
@@ -774,9 +777,27 @@
                       "meaning": "An origin is a release (counted only on the assembly that serves it).",
                       "source": "idtrack-web"
                     }
+                  ],
+                  "cautions": [
+                    {
+                      "code": "bridge",
+                      "tone": "caution",
+                      "meaning": "The best answer is reached through a bridge: where Ensembl's history gives a gene no successor, the walk left it through an id it carries and entered another gene that carries the same id. That is idtrack's inference; no record of Ensembl states it.",
+                      "reads_path": false,
+                      "limitation": "https://idtrack.readthedocs.io/en/stable/limitations.html#answers-that-only-a-bridge-reaches",
+                      "source": "idtrack-web"
+                    },
+                    {
+                      "code": "bridge_beside",
+                      "tone": "caution",
+                      "meaning": "A bridge on the best answer's path joins two genes that lived at the same releases: the gene it enters did not take the place of the gene it leaves in Ensembl's records, so their shared ids are no sign of succession.",
+                      "reads_path": true,
+                      "limitation": "https://idtrack.readthedocs.io/en/stable/limitations.html#answers-that-only-a-bridge-reaches",
+                      "source": "idtrack-web"
+                    }
                   ]
                 },
-                "x-recorded": "a real answer of a server holding the five graphs of Ensembl 115 (human, mouse, pig, rhesus, cynomolgus); trimmed: `statuses` to its first 2 of 7 items, `reasons` to its first 2 of 10 items, `step_reasons` to its first 2 of 13 items, `criteria` to its first 2 of 9 items, `candidate_fields` to its first 2 of 21 items, `match_steps` to its first 2 of 6 items, `match_prefixes` to its first 2 of 6 items, `reading_reasons` to its first 2 of 5 items, `place_relations` to its first 2 of 5 items, `bridge_rules` to its first 2 of 9 items, `errors` to its first 2 of 23 items, `database_kinds` to its first 2 of 3 items, `allowances` to its first 2 of 4 items, `source_modes` to its first 2 of 4 items"
+                "x-recorded": "a real answer of a server holding the five graphs of Ensembl 115 (human, mouse, pig, rhesus, cynomolgus); trimmed: `statuses` to its first 2 of 7 items, `reasons` to its first 2 of 10 items, `step_reasons` to its first 2 of 13 items, `criteria` to its first 2 of 9 items, `candidate_fields` to its first 2 of 21 items, `match_steps` to its first 2 of 6 items, `match_prefixes` to its first 2 of 6 items, `reading_reasons` to its first 2 of 5 items, `place_relations` to its first 2 of 5 items, `bridge_rules` to its first 2 of 9 items, `errors` to its first 2 of 23 items, `database_kinds` to its first 2 of 3 items, `allowances` to its first 2 of 4 items, `source_modes` to its first 2 of 4 items, `cautions` to its first 2 of 28 items"
               }
             },
             "headers": {
@@ -3847,7 +3868,15 @@
                           ],
                           "bridges": [],
                           "refused": []
-                        }
+                        },
+                        "cautions": [
+                          {
+                            "code": "lowest_score",
+                            "tone": "note",
+                            "text": "The lowest of Ensembl's scores on the path is 0.940993, at releases 75 to 76.",
+                            "limitation": null
+                          }
+                        ]
                       },
                       "error": null
                     }
@@ -4753,7 +4782,15 @@
                           ],
                           "bridges": [],
                           "refused": []
-                        }
+                        },
+                        "cautions": [
+                          {
+                            "code": "lowest_score",
+                            "tone": "note",
+                            "text": "The lowest of Ensembl's scores on the path is 0.940993, at releases 75 to 76.",
+                            "limitation": null
+                          }
+                        ]
                       },
                       "error": null
                     }
@@ -5320,7 +5357,7 @@
                       "many_to_one": 0
                     }
                   ],
-                  "compute_seconds": 42.065
+                  "compute_seconds": 92.501
                 },
                 "x-recorded": "a real answer of a server holding the five graphs of Ensembl 115 (human, mouse, pig, rhesus, cynomolgus); trimmed: `transitions` to its first 6 of 54 items"
               }
@@ -5557,7 +5594,15 @@
                   "reasons": [],
                   "other_readings": [],
                   "error": null,
-                  "path": null
+                  "path": null,
+                  "cautions": [
+                    {
+                      "code": "lowest_score",
+                      "tone": "note",
+                      "text": "The lowest of Ensembl's scores on the path is 0.99, at releases 111 to 112.",
+                      "limitation": null
+                    }
+                  ]
                 },
                 "x-recorded": "a real answer of a server holding the five graphs of Ensembl 115 (human, mouse, pig, rhesus, cynomolgus)"
               }
@@ -6090,7 +6135,15 @@
                         "reasons": [],
                         "other_readings": [],
                         "error": null,
-                        "path": null
+                        "path": null,
+                        "cautions": [
+                          {
+                            "code": "one_gene",
+                            "tone": "note",
+                            "text": "The 12 targets are the ids `ENSG00000141510.20` carries in CCDS at release 115.",
+                            "limitation": null
+                          }
+                        ]
                       }
                     },
                     {
@@ -6449,76 +6502,20 @@
                         "reasons": [],
                         "other_readings": [],
                         "error": null,
-                        "path": null
-                      }
-                    },
-                    {
-                      "database": "Clone_based_ensembl_gene",
-                      "result": {
-                        "query_id": "TP53",
-                        "graph_id": "TP53",
-                        "match": "exact",
-                        "known_versions": [],
-                        "from_release": 115,
-                        "from_release_inferred": true,
-                        "from_release_given": null,
-                        "from_release_fallback": false,
-                        "from_databases": [
-                          "HGNC Symbol",
-                          "NCBI gene (formerly Entrezgene)",
-                          "UniProtKB Gene Name"
-                        ],
-                        "to_release": 115,
-                        "final_database": "ensembl_gene",
-                        "candidates": [
+                        "path": null,
+                        "cautions": [
                           {
-                            "gene": "ENSG00000141510.20",
-                            "target": "ENSG00000141510.20",
-                            "best": true,
-                            "entry_gene": "ENSG00000141510.20",
-                            "entry_databases": [
-                              "HGNC Symbol",
-                              "NCBI gene (formerly Entrezgene)",
-                              "UniProtKB Gene Name"
-                            ],
-                            "authority": true,
-                            "display_name": true,
-                            "display_rank": 0,
-                            "entry_support": 3,
-                            "own_version": false,
-                            "final_confidence": null,
-                            "bridges": 0,
-                            "bridge_gap": 0,
-                            "score": 1.0,
-                            "unscored_steps": 0,
-                            "same_as_query": false,
-                            "external_steps": 1,
-                            "history_steps": 0,
-                            "annotation": null,
-                            "path": [],
-                            "final_path": []
+                            "code": "one_gene",
+                            "tone": "note",
+                            "text": "The 12 targets are the ids `ENSG00000141510.20` carries in CCDS label at release 115.",
+                            "limitation": null
                           }
-                        ],
-                        "tie": false,
-                        "decided_by": null,
-                        "alternative_locus_genes": [
-                          "LRG_321.1"
-                        ],
-                        "no_target": true,
-                        "no_target_genes": [],
-                        "status": "no_target",
-                        "reason": "no_id_in_final_database",
-                        "reasons": [
-                          "no_id_in_final_database"
-                        ],
-                        "other_readings": [],
-                        "error": null,
-                        "path": null
+                        ]
                       }
                     }
                   ]
                 },
-                "x-recorded": "a real answer of a server holding the five graphs of Ensembl 115 (human, mouse, pig, rhesus, cynomolgus); trimmed: `conversions` to its first 3 of 27 items"
+                "x-recorded": "a real answer of a server holding the five graphs of Ensembl 115 (human, mouse, pig, rhesus, cynomolgus); trimmed: `conversions` to its first 2 of 27 items"
               }
             },
             "headers": {
@@ -6701,7 +6698,8 @@
                       "reasons": [],
                       "other_readings": [],
                       "error": null,
-                      "path": null
+                      "path": null,
+                      "cautions": []
                     },
                     {
                       "query_id": "ENSG00000139618",
@@ -6754,7 +6752,8 @@
                       "reasons": [],
                       "other_readings": [],
                       "error": null,
-                      "path": null
+                      "path": null,
+                      "cautions": []
                     },
                     {
                       "query_id": "NOT_A_GENE",
@@ -6781,7 +6780,8 @@
                       ],
                       "other_readings": [],
                       "error": null,
-                      "path": null
+                      "path": null,
+                      "cautions": []
                     }
                   ]
                 },
@@ -6790,7 +6790,7 @@
               "text/tab-separated-values": {
                 "schema": {
                   "type": "string",
-                  "description": "A table of tab-separated values, UTF-8, each line ending in a line feed: the first line names the columns, then one row per candidate of each result in input order (a result without candidates: one row, its candidate columns empty). A result's columns repeat on each of its rows. Each value as the JSON answer writes it: `null` as an empty cell; `true` and `false` as those words; a number as written in the JSON answer (nothing rounded); a list's items joined by `;`. The explained path (`path`, `final_path`) is not in the table: ask for JSON. With `provenance=true`, one line before the header begins with `#` and names the graph and the request (`Content-Disposition` names the file after the organism, the target release and the graph's digest). The columns, in order (also as `x-columns`):\n\n| Column | Of | What it holds |\n| --- | --- | --- |\n| `input_index` | result | The item's place in the batch, from 0 (the result's place in `results`). |\n| `query_id` | result | `query_id`: the identifier as sent (escaped: a backslash before `\\`, `t`, `n`, `r`). |\n| `status` | result | `status` of the result. |\n| `reason` | result | `reason` of the result. |\n| `reasons` | result | `reasons` of the result. |\n| `graph_id` | result | `graph_id` of the result. |\n| `match` | result | `match` of the result. |\n| `known_versions` | result | `known_versions` of the result. |\n| `from_release` | result | `from_release` of the result. |\n| `from_release_inferred` | result | `from_release_inferred` of the result. |\n| `from_release_given` | result | `from_release_given` of the result. |\n| `from_release_fallback` | result | `from_release_fallback` of the result. |\n| `from_databases` | result | `from_databases` of the result. |\n| `to_release` | result | `to_release` of the result. |\n| `final_database` | result | `final_database` of the result. |\n| `candidate_count` | result | The number of the result's candidates (its rows; 0 on the one row of a result without any). |\n| `tie` | result | `tie` of the result. |\n| `decided_by` | result | `decided_by` of the result. |\n| `alternative_locus_genes` | result | `alternative_locus_genes` of the result. |\n| `no_target` | result | `no_target` of the result. |\n| `no_target_genes` | result | `no_target_genes` of the result. |\n| `other_readings` | result | `other_readings` as compact JSON (empty for none). |\n| `error_code` | error | The api's code of the item's error (`error.code`; `errors` of `GET /api/v1/vocabulary`). |\n| `error_type` | error | `error.type`: the class of idtrack's error. |\n| `error_message` | error | `error.message` (escaped as `query_id`). |\n| `error_input_error` | error | `error.input_error`. |\n| `rank` | candidate | The candidate's place in `candidates`, from 1 (empty on the row of a result without candidates). |\n| `best` | candidate | `best` of the candidate. |\n| `gene` | candidate | `gene` of the candidate. |\n| `target` | candidate | `target` of the candidate. |\n| `entry_gene` | candidate | `entry_gene` of the candidate. |\n| `entry_databases` | candidate | `entry_databases` of the candidate. |\n| `authority` | candidate | `authority` of the candidate. |\n| `display_name` | candidate | `display_name` of the candidate. |\n| `display_rank` | candidate | `display_rank` of the candidate. |\n| `entry_support` | candidate | `entry_support` of the candidate. |\n| `own_version` | candidate | `own_version` of the candidate. |\n| `final_confidence` | candidate | `final_confidence` of the candidate. |\n| `bridges` | candidate | `bridges` of the candidate. |\n| `bridge_gap` | candidate | `bridge_gap` of the candidate. |\n| `score` | candidate | `score` of the candidate. |\n| `unscored_steps` | candidate | `unscored_steps` of the candidate. |\n| `same_as_query` | candidate | `same_as_query` of the candidate. |\n| `external_steps` | candidate | `external_steps` of the candidate. |\n| `history_steps` | candidate | `history_steps` of the candidate. |\n| `annotation` | candidate | `annotation` of the candidate. |"
+                  "description": "A table of tab-separated values, UTF-8, each line ending in a line feed: the first line names the columns, then one row per candidate of each result in input order (a result without candidates: one row, its candidate columns empty). A result's columns repeat on each of its rows. Each value as the JSON answer writes it: `null` as an empty cell; `true` and `false` as those words; a number as written in the JSON answer (nothing rounded); a list's items joined by `;`. The explained path (`path`, `final_path`) is not in the table: ask for JSON. With `provenance=true`, one line before the header begins with `#` and names the graph and the request (`Content-Disposition` names the file after the organism, the target release and the graph's digest). The columns, in order (also as `x-columns`):\n\n| Column | Of | What it holds |\n| --- | --- | --- |\n| `input_index` | result | The item's place in the batch, from 0 (the result's place in `results`). |\n| `query_id` | result | `query_id`: the identifier as sent (escaped: a backslash before `\\`, `t`, `n`, `r`). |\n| `status` | result | `status` of the result. |\n| `reason` | result | `reason` of the result. |\n| `reasons` | result | `reasons` of the result. |\n| `graph_id` | result | `graph_id` of the result. |\n| `match` | result | `match` of the result. |\n| `known_versions` | result | `known_versions` of the result. |\n| `from_release` | result | `from_release` of the result. |\n| `from_release_inferred` | result | `from_release_inferred` of the result. |\n| `from_release_given` | result | `from_release_given` of the result. |\n| `from_release_fallback` | result | `from_release_fallback` of the result. |\n| `from_databases` | result | `from_databases` of the result. |\n| `to_release` | result | `to_release` of the result. |\n| `final_database` | result | `final_database` of the result. |\n| `candidate_count` | result | The number of the result's candidates (its rows; 0 on the one row of a result without any). |\n| `tie` | result | `tie` of the result. |\n| `decided_by` | result | `decided_by` of the result. |\n| `alternative_locus_genes` | result | `alternative_locus_genes` of the result. |\n| `no_target` | result | `no_target` of the result. |\n| `no_target_genes` | result | `no_target_genes` of the result. |\n| `other_readings` | result | `other_readings` as compact JSON (empty for none). |\n| `cautions` | result | The codes of `cautions` (the api's reading of the result's evidence; `cautions` of `GET /api/v1/vocabulary`), joined by `;` (empty for none). |\n| `error_code` | error | The api's code of the item's error (`error.code`; `errors` of `GET /api/v1/vocabulary`). |\n| `error_type` | error | `error.type`: the class of idtrack's error. |\n| `error_message` | error | `error.message` (escaped as `query_id`). |\n| `error_input_error` | error | `error.input_error`. |\n| `rank` | candidate | The candidate's place in `candidates`, from 1 (empty on the row of a result without candidates). |\n| `best` | candidate | `best` of the candidate. |\n| `gene` | candidate | `gene` of the candidate. |\n| `target` | candidate | `target` of the candidate. |\n| `entry_gene` | candidate | `entry_gene` of the candidate. |\n| `entry_databases` | candidate | `entry_databases` of the candidate. |\n| `authority` | candidate | `authority` of the candidate. |\n| `display_name` | candidate | `display_name` of the candidate. |\n| `display_rank` | candidate | `display_rank` of the candidate. |\n| `entry_support` | candidate | `entry_support` of the candidate. |\n| `own_version` | candidate | `own_version` of the candidate. |\n| `final_confidence` | candidate | `final_confidence` of the candidate. |\n| `bridges` | candidate | `bridges` of the candidate. |\n| `bridge_gap` | candidate | `bridge_gap` of the candidate. |\n| `score` | candidate | `score` of the candidate. |\n| `unscored_steps` | candidate | `unscored_steps` of the candidate. |\n| `same_as_query` | candidate | `same_as_query` of the candidate. |\n| `external_steps` | candidate | `external_steps` of the candidate. |\n| `history_steps` | candidate | `history_steps` of the candidate. |\n| `annotation` | candidate | `annotation` of the candidate. |"
                 },
                 "x-columns": [
                   {
@@ -6902,6 +6902,11 @@
                     "name": "other_readings",
                     "group": "result",
                     "description": "`other_readings` as compact JSON (empty for none)."
+                  },
+                  {
+                    "name": "cautions",
+                    "group": "result",
+                    "description": "The codes of `cautions` (the api's reading of the result's evidence; `cautions` of `GET /api/v1/vocabulary`), joined by `;` (empty for none)."
                   },
                   {
                     "name": "error_code",
@@ -7024,7 +7029,7 @@
                     "description": "`annotation` of the candidate."
                   }
                 ],
-                "example": "input_index\tquery_id\tstatus\treason\treasons\tgraph_id\tmatch\tknown_versions\tfrom_release\tfrom_release_inferred\tfrom_release_given\tfrom_release_fallback\tfrom_databases\tto_release\tfinal_database\tcandidate_count\ttie\tdecided_by\talternative_locus_genes\tno_target\tno_target_genes\tother_readings\terror_code\terror_type\terror_message\terror_input_error\trank\tbest\tgene\ttarget\tentry_gene\tentry_databases\tauthority\tdisplay_name\tdisplay_rank\tentry_support\town_version\tfinal_confidence\tbridges\tbridge_gap\tscore\tunscored_steps\tsame_as_query\texternal_steps\thistory_steps\tannotation\n0\tTP53\tconverted\t\t\tTP53\texact\t\t115\ttrue\t\tfalse\tHGNC Symbol;NCBI gene (formerly Entrezgene);UniProtKB Gene Name\t115\tensembl_gene\t1\tfalse\t\tLRG_321.1\tfalse\t\t\t\t\t\t\t1\ttrue\tENSG00000141510.20\tENSG00000141510.20\tENSG00000141510.20\tHGNC Symbol;NCBI gene (formerly Entrezgene);UniProtKB Gene Name\ttrue\ttrue\t0\t3\tfalse\t0\t0\t0\t1.0\t0\tfalse\t1\t0\t\n1\tENSG00000139618\tconverted\t\t\tENSG00000139618\texact\t\t115\ttrue\t\tfalse\tbase_ensembl_gene\t115\tensembl_gene\t1\tfalse\t\t\tfalse\t\t\t\t\t\t\t1\ttrue\tENSG00000139618.19\tENSG00000139618.19\tENSG00000139618.19\tbase_ensembl_gene\tfalse\tfalse\t2\t1\ttrue\t0\t0\t0\t1.0\t0\ttrue\t1\t0\t\n2\tNOT_A_GENE\tnot_found\tnot_in_graph\tnot_in_graph\t\t\t\t\ttrue\t\tfalse\t\t115\t\t0\tfalse\t\t\tfalse\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\n",
+                "example": "input_index\tquery_id\tstatus\treason\treasons\tgraph_id\tmatch\tknown_versions\tfrom_release\tfrom_release_inferred\tfrom_release_given\tfrom_release_fallback\tfrom_databases\tto_release\tfinal_database\tcandidate_count\ttie\tdecided_by\talternative_locus_genes\tno_target\tno_target_genes\tother_readings\tcautions\terror_code\terror_type\terror_message\terror_input_error\trank\tbest\tgene\ttarget\tentry_gene\tentry_databases\tauthority\tdisplay_name\tdisplay_rank\tentry_support\town_version\tfinal_confidence\tbridges\tbridge_gap\tscore\tunscored_steps\tsame_as_query\texternal_steps\thistory_steps\tannotation\n0\tTP53\tconverted\t\t\tTP53\texact\t\t115\ttrue\t\tfalse\tHGNC Symbol;NCBI gene (formerly Entrezgene);UniProtKB Gene Name\t115\tensembl_gene\t1\tfalse\t\tLRG_321.1\tfalse\t\t\t\t\t\t\t\t1\ttrue\tENSG00000141510.20\tENSG00000141510.20\tENSG00000141510.20\tHGNC Symbol;NCBI gene (formerly Entrezgene);UniProtKB Gene Name\ttrue\ttrue\t0\t3\tfalse\t0\t0\t0\t1.0\t0\tfalse\t1\t0\t\n1\tENSG00000139618\tconverted\t\t\tENSG00000139618\texact\t\t115\ttrue\t\tfalse\tbase_ensembl_gene\t115\tensembl_gene\t1\tfalse\t\t\tfalse\t\t\t\t\t\t\t\t1\ttrue\tENSG00000139618.19\tENSG00000139618.19\tENSG00000139618.19\tbase_ensembl_gene\tfalse\tfalse\t2\t1\ttrue\t0\t0\t0\t1.0\t0\ttrue\t1\t0\t\n2\tNOT_A_GENE\tnot_found\tnot_in_graph\tnot_in_graph\t\t\t\t\ttrue\t\tfalse\t\t115\t\t0\tfalse\t\t\tfalse\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\n",
                 "x-recorded": "a real answer of a server holding the five graphs of Ensembl 115 (human, mouse, pig, rhesus, cynomolgus)"
               }
             },
@@ -9114,6 +9119,229 @@
         "title": "Candidate",
         "description": "One target of a conversion: a gene at the target release and its id in the requested database.\n\nThe fields after `best` are the ranking record of the candidate: what the engine compared."
       },
+      "Caution": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Code",
+            "description": "The class of evidence (`cautions` of `GET /vocabulary` gives its meaning).",
+            "enum": [
+              "bridge",
+              "bridge_beside",
+              "bridge_rival",
+              "places_apart",
+              "places_unknown",
+              "outside_reference",
+              "bare_number",
+              "unscored",
+              "final_other_release",
+              "read_at_another_release",
+              "match_synonym",
+              "match_copy",
+              "match_case",
+              "match_separator",
+              "match_version_newer_than_graph",
+              "other_release",
+              "other_reading",
+              "listed_as_copy",
+              "number_read",
+              "one_gene",
+              "split_ranked",
+              "also_read_same_step",
+              "match_version_not_judged",
+              "match_unicode",
+              "match_punctuation",
+              "match_par_y",
+              "match_lrg",
+              "lowest_score"
+            ],
+            "x-enum-descriptions": [
+              "The best answer is reached through a bridge: where Ensembl's history gives a gene no successor, the walk left it through an id it carries and entered another gene that carries the same id. That is idtrack's inference; no record of Ensembl states it.",
+              "A bridge on the best answer's path joins two genes that lived at the same releases: the gene it enters did not take the place of the gene it leaves in Ensembl's records, so their shared ids are no sign of succession.",
+              "The bridge taken enters the gene nearest in releases, while another gene, reached by a bridge from the same gene through ids the bridge taken does not pass, ranks below by the bridge's gap alone.",
+              "A step of Ensembl's history on the best answer's path joins two genes that do not lie at one place: the walk follows Ensembl's record, which moved the gene.",
+              "Steps of the best answer's path join genes that never lie on one assembly at the same time: where Ensembl publishes no mapping of the two assemblies, their places cannot be compared.",
+              "Every gene of the best answer lies outside the reference sequence at the target release (on a haplotype, a patch or an alternative locus): the answer holds no gene of the reference sequence.",
+              "The identifier is a bare number, read in every database whose ids are numbers, and the graph holds it only at an earlier release than the target: it was read as an id of a database of that time, which may not be the one meant. Name the database as `from_database` to read it in one database only.",
+              "The best answer's path holds history steps between two different stable ids to which Ensembl gave no score.",
+              "The id in the database asked is attached, at the target release, to a transcript or translation the gene had at another release, not to the gene itself.",
+              "The graph does not hold the identifier at the release given; it was read at another release, where the graph holds it: the answer is what the identifier meant there.",
+              "The identifier was read as a synonym, not as the name or id itself.",
+              "The item was read as the copy of another item of the batch (a name with `-1`, `.1` or `_1` appended).",
+              "The identifier matched only without letter case.",
+              "The identifier matched only with its separators taken as one.",
+              "The identifier's version is newer than any version the graph holds: it was read as the latest version held.",
+              "At other releases the same string names another gene (or reads as another id): a list made at that time means that gene. Read it at such a release (`from_release`) to have what it meant then.",
+              "The same string is also read as another id, with another answer.",
+              "The best answer is also listed among the copies the result sets apart (`alternative_locus_genes`): the answer is the gene, and code that drops the genes of that list would drop it.",
+              "The identifier is a bare number, read in every database whose ids are numbers; name the database as `from_database` to read it in one database only.",
+              "The targets are every id the best gene carries in the database asked: idtrack converts at the level of the gene, not the counterpart of the identifier alone.",
+              "The best answer descends through a split of Ensembl's history, and other successors were reached: idtrack ranks the successors of a split by Ensembl's scores and the candidates' evidence, not by which of them lies where the old gene lay.",
+              "The same string is also read as another id at the same step.",
+              "The identifier's version was not judged (`version_not_judged`).",
+              "The identifier was read after a Unicode normalisation.",
+              "The identifier was read with punctuation removed.",
+              "A gene's copy on the Y chromosome's pseudoautosomal region was read as its gene.",
+              "An LRG record was read as its gene.",
+              "The lowest of Ensembl's mapping scores on the best answer's path, stated exactly (the candidate's score is the product of the scores along its path)."
+            ]
+          },
+          "tone": {
+            "type": "string",
+            "enum": [
+              "caution",
+              "note"
+            ],
+            "title": "Tone",
+            "description": "`caution`: it changes how far the answer can be trusted (review it); `note`: an exact fact about the answer that is no fault."
+          },
+          "text": {
+            "type": "string",
+            "title": "Text",
+            "description": "What the result says, with its own values, in one sentence."
+          },
+          "limitation": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Limitation",
+            "description": "The address of the section of idtrack's documented limitations that describes this class, where there is one."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "code",
+          "tone",
+          "text",
+          "limitation"
+        ],
+        "title": "Caution",
+        "description": "A fact of a result to weigh before trusting its answer: the api's reading of idtrack's fields."
+      },
+      "CautionTerm": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Code",
+            "description": "The code, as `cautions[].code` carries it.",
+            "enum": [
+              "bridge",
+              "bridge_beside",
+              "bridge_rival",
+              "places_apart",
+              "places_unknown",
+              "outside_reference",
+              "bare_number",
+              "unscored",
+              "final_other_release",
+              "read_at_another_release",
+              "match_synonym",
+              "match_copy",
+              "match_case",
+              "match_separator",
+              "match_version_newer_than_graph",
+              "other_release",
+              "other_reading",
+              "listed_as_copy",
+              "number_read",
+              "one_gene",
+              "split_ranked",
+              "also_read_same_step",
+              "match_version_not_judged",
+              "match_unicode",
+              "match_punctuation",
+              "match_par_y",
+              "match_lrg",
+              "lowest_score"
+            ],
+            "x-enum-descriptions": [
+              "The best answer is reached through a bridge: where Ensembl's history gives a gene no successor, the walk left it through an id it carries and entered another gene that carries the same id. That is idtrack's inference; no record of Ensembl states it.",
+              "A bridge on the best answer's path joins two genes that lived at the same releases: the gene it enters did not take the place of the gene it leaves in Ensembl's records, so their shared ids are no sign of succession.",
+              "The bridge taken enters the gene nearest in releases, while another gene, reached by a bridge from the same gene through ids the bridge taken does not pass, ranks below by the bridge's gap alone.",
+              "A step of Ensembl's history on the best answer's path joins two genes that do not lie at one place: the walk follows Ensembl's record, which moved the gene.",
+              "Steps of the best answer's path join genes that never lie on one assembly at the same time: where Ensembl publishes no mapping of the two assemblies, their places cannot be compared.",
+              "Every gene of the best answer lies outside the reference sequence at the target release (on a haplotype, a patch or an alternative locus): the answer holds no gene of the reference sequence.",
+              "The identifier is a bare number, read in every database whose ids are numbers, and the graph holds it only at an earlier release than the target: it was read as an id of a database of that time, which may not be the one meant. Name the database as `from_database` to read it in one database only.",
+              "The best answer's path holds history steps between two different stable ids to which Ensembl gave no score.",
+              "The id in the database asked is attached, at the target release, to a transcript or translation the gene had at another release, not to the gene itself.",
+              "The graph does not hold the identifier at the release given; it was read at another release, where the graph holds it: the answer is what the identifier meant there.",
+              "The identifier was read as a synonym, not as the name or id itself.",
+              "The item was read as the copy of another item of the batch (a name with `-1`, `.1` or `_1` appended).",
+              "The identifier matched only without letter case.",
+              "The identifier matched only with its separators taken as one.",
+              "The identifier's version is newer than any version the graph holds: it was read as the latest version held.",
+              "At other releases the same string names another gene (or reads as another id): a list made at that time means that gene. Read it at such a release (`from_release`) to have what it meant then.",
+              "The same string is also read as another id, with another answer.",
+              "The best answer is also listed among the copies the result sets apart (`alternative_locus_genes`): the answer is the gene, and code that drops the genes of that list would drop it.",
+              "The identifier is a bare number, read in every database whose ids are numbers; name the database as `from_database` to read it in one database only.",
+              "The targets are every id the best gene carries in the database asked: idtrack converts at the level of the gene, not the counterpart of the identifier alone.",
+              "The best answer descends through a split of Ensembl's history, and other successors were reached: idtrack ranks the successors of a split by Ensembl's scores and the candidates' evidence, not by which of them lies where the old gene lay.",
+              "The same string is also read as another id at the same step.",
+              "The identifier's version was not judged (`version_not_judged`).",
+              "The identifier was read after a Unicode normalisation.",
+              "The identifier was read with punctuation removed.",
+              "A gene's copy on the Y chromosome's pseudoautosomal region was read as its gene.",
+              "An LRG record was read as its gene.",
+              "The lowest of Ensembl's mapping scores on the best answer's path, stated exactly (the candidate's score is the product of the scores along its path)."
+            ]
+          },
+          "tone": {
+            "type": "string",
+            "enum": [
+              "caution",
+              "note"
+            ],
+            "title": "Tone",
+            "description": "`caution` (review the answer) or `note`."
+          },
+          "meaning": {
+            "type": "string",
+            "title": "Meaning",
+            "description": "What it means, in the api's words."
+          },
+          "reads_path": {
+            "type": "boolean",
+            "title": "Reads Path",
+            "description": "Whether its rule reads the path (its steps, nodes or bridges)."
+          },
+          "limitation": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Limitation",
+            "description": "The address of the section of idtrack's documented limitations of this class, if any."
+          },
+          "source": {
+            "type": "string",
+            "const": "idtrack-web",
+            "title": "Source",
+            "description": "The api's own table (`api/idtrack_web_api/cautions.py`)."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "code",
+          "tone",
+          "meaning",
+          "reads_path",
+          "limitation",
+          "source"
+        ],
+        "title": "CautionTerm",
+        "description": "A class of evidence of the cautions, its tone and meaning, and the limitation it falls under."
+      },
       "ConversionResult": {
         "properties": {
           "query_id": {
@@ -9417,6 +9645,14 @@
               }
             ],
             "description": "With `explain`: the paths of the candidates (no step when there is no candidate) and the bridges the search considered; `null` without `explain`."
+          },
+          "cautions": {
+            "items": {
+              "$ref": "#/components/schemas/Caution"
+            },
+            "type": "array",
+            "title": "Cautions",
+            "description": "The api's reading of this result's evidence, by stated rules (`cautions` of `GET /vocabulary`): each fact of the best answer a reader should weigh before trusting it (`tone` `caution`: review the answer) or that is worth knowing (`note`), cautions first, with the section of idtrack's documented limitations it falls under. Read with the path whatever `explain` asks: every rule holds for every answer. Empty: nothing to weigh. Added by the api to idtrack's result."
           }
         },
         "additionalProperties": false,
@@ -9444,7 +9680,8 @@
           "reasons",
           "other_readings",
           "error",
-          "path"
+          "path",
+          "cautions"
         ],
         "title": "ConversionResult",
         "description": "One identifier converted to a target release and database (`idtrack.API.convert`)."
@@ -12835,6 +13072,14 @@
             "type": "array",
             "title": "Source Modes",
             "description": "The values of `mode` of `POST /organisms/{organism}/source-inference`: what an origin is."
+          },
+          "cautions": {
+            "items": {
+              "$ref": "#/components/schemas/CautionTerm"
+            },
+            "type": "array",
+            "title": "Cautions",
+            "description": "The classes of evidence a result's `cautions` name: the api's reading of idtrack's fields."
           }
         },
         "additionalProperties": false,
@@ -13221,7 +13466,7 @@
         "value": {
           "error": {
             "code": "invalid_request",
-            "message": "The request is not valid: `query.to_release`: Value error, must be a whole number from 0 to 999999999, written in digits only.",
+            "message": "The request is not valid: `to_release` in the query must be a whole number from 0 to 999999999, written in digits only, not \"115.0\".",
             "argument": "to_release",
             "allowed": null,
             "details": [
@@ -13230,10 +13475,10 @@
                   "query",
                   "to_release"
                 ],
-                "message": "Value error, must be a whole number from 0 to 999999999, written in digits only"
+                "message": "must be a whole number from 0 to 999999999, written in digits only, not \"115.0\""
               }
             ],
-            "request_id": "58dab36983fb423996a3c71b8d1ad619",
+            "request_id": "a1a645886de54b628af8643503b23a65",
             "retry_after": null,
             "allowance": null
           }
@@ -13256,7 +13501,7 @@
               "to_release"
             ],
             "details": null,
-            "request_id": "255ade182b7e40f9b9a914b49a736acf",
+            "request_id": "af83b9cec02b4a329781bb735707f5a9",
             "retry_after": null,
             "allowance": null
           }
@@ -13271,7 +13516,7 @@
             "argument": "identifier",
             "allowed": null,
             "details": null,
-            "request_id": "fd116e09f5394c1898ecebecbc0be4d3",
+            "request_id": "43bc0e01b3404e4eb6ea3d7389a10c65",
             "retry_after": null,
             "allowance": null
           }
@@ -13355,7 +13600,7 @@
               115
             ],
             "details": null,
-            "request_id": "449dd8e04dd84bc487d55a65c6963d50",
+            "request_id": "e6d0ee3e10ae4e978cb1254df41c3fee",
             "retry_after": null,
             "allowance": null
           }
@@ -13398,7 +13643,7 @@
               "miRBase label"
             ],
             "details": null,
-            "request_id": "70403306d8be4a2cb0ad1649b9c03d7b",
+            "request_id": "f24b6e4783ae40daa8b92f0f410c20b0",
             "retry_after": null,
             "allowance": null
           }
@@ -13413,7 +13658,7 @@
             "argument": "gene",
             "allowed": null,
             "details": null,
-            "request_id": "10e33cbbfc224156b2826e6ff9ad67e4",
+            "request_id": "9619e2e77391462286b275fa364f80d5",
             "retry_after": null,
             "allowance": null
           }
@@ -13428,7 +13673,7 @@
             "argument": "identifier",
             "allowed": null,
             "details": null,
-            "request_id": "1a17b73fa9fd40a8a1af8807f0455a28",
+            "request_id": "a02e3a27473b42a48d916806a54aafad",
             "retry_after": null,
             "allowance": null
           }
@@ -13443,7 +13688,7 @@
             "argument": "final_database",
             "allowed": null,
             "details": null,
-            "request_id": "745b8682e70a4be0947c77f405c8eee7",
+            "request_id": "765469797e6c493b9ba14a1c12b9d993",
             "retry_after": null,
             "allowance": null
           }
@@ -13464,7 +13709,7 @@
               "sus_scrofa"
             ],
             "details": null,
-            "request_id": "7ff9e56d2faa4f80834aed13c727da3e",
+            "request_id": "82268e0cbe6646129dbe1557838a550e",
             "retry_after": null,
             "allowance": null
           }
@@ -13481,7 +13726,7 @@
               "POST"
             ],
             "details": null,
-            "request_id": "300493307c6243cea77d85c4b6dabbfb",
+            "request_id": "a9cf83b2d0b443d5926565b74bbce2b7",
             "retry_after": null,
             "allowance": null
           }
@@ -13496,7 +13741,7 @@
             "argument": "identifiers",
             "allowed": null,
             "details": null,
-            "request_id": "2bffb55712f5401a8c16fff945e1f6d3",
+            "request_id": "8974c9ed19c6421293b1360759bf1f1e",
             "retry_after": null,
             "allowance": null
           }
@@ -13507,11 +13752,11 @@
         "value": {
           "error": {
             "code": "unsupported_media_type",
-            "message": "The body must be JSON with the header `Content-Type: application/json`; got 'text/plain'.",
+            "message": "The body must be JSON with the header `Content-Type: application/json`; got \"text/plain\".",
             "argument": null,
             "allowed": null,
             "details": null,
-            "request_id": "4002b5c934f14d09a503743730957e96",
+            "request_id": "74804f577b38478baa1b72746c010e8c",
             "retry_after": null,
             "allowance": null
           }
@@ -13526,7 +13771,7 @@
             "argument": null,
             "allowed": null,
             "details": null,
-            "request_id": "ad5db40b638b4defb03a5339e4f269c7",
+            "request_id": "c932bd5c27c44c638b47c3d983d9c2b3",
             "retry_after": null,
             "allowance": null
           }
@@ -13537,11 +13782,11 @@
         "value": {
           "error": {
             "code": "not_found",
-            "message": "There is no endpoint /api/v1/organism. The api's endpoints are under /api/v1: `GET /api/v1` lists them all, and `/api/v1/openapi.json` describes them.",
+            "message": "There is no endpoint /api/v1/organism. The api's endpoints are under /api/v1: `GET /api/v1` lists them all, and `/api/v1/openapi.json` describes them. The reference for people, with a console per endpoint: `/developers`.",
             "argument": null,
             "allowed": null,
             "details": null,
-            "request_id": "0f54b203b273482d95c905e659ab5ce8",
+            "request_id": "0309fe2508a84a1f9664b95e5ce2d588",
             "retry_after": null,
             "allowance": null
           }
@@ -13552,11 +13797,11 @@
         "value": {
           "error": {
             "code": "response_too_large",
-            "message": "The answer is larger than the 33554432 bytes this server sends (writing it stopped at 33718445 bytes); send fewer identifiers per request or ask without `explain` (the paths are most of the answer).",
+            "message": "The answer is larger than the 33554432 bytes this server sends (writing it stopped at 33610579 bytes); send fewer identifiers per request or ask without `explain` (the paths are most of the answer).",
             "argument": null,
             "allowed": null,
             "details": null,
-            "request_id": "670886b5387f4e29b314c1aa66fc12d0",
+            "request_id": "5f3aa0f625d34af0a6b9cb3b183466a8",
             "retry_after": null,
             "allowance": null
           }
@@ -13571,7 +13816,7 @@
             "argument": null,
             "allowed": null,
             "details": null,
-            "request_id": "2f7099a421874db686cd9b3da0035a8a",
+            "request_id": "45e9054f232f431b92af40e74d2d02c1",
             "retry_after": null,
             "allowance": null
           }
@@ -13586,7 +13831,7 @@
             "argument": null,
             "allowed": null,
             "details": null,
-            "request_id": "24e9893ce5534b7082b8251b0cbdfd2f",
+            "request_id": "b592b8a6e6ba459099652239df4ed7e7",
             "retry_after": null,
             "allowance": null
           }
@@ -13597,11 +13842,11 @@
         "value": {
           "error": {
             "code": "rate_limited",
-            "message": "More than 60 searching requests per minute from this client; retry in 1 s.",
+            "message": "This client's allowance of searching requests is used up (it holds 30 at most and fills again at 60 per minute); retry in 1 s.",
             "argument": null,
             "allowed": null,
             "details": null,
-            "request_id": "612ee161223944078689d39233cfbd37",
+            "request_id": "72214adf5574450a8cad64390641bd78",
             "retry_after": 1,
             "allowance": "searches"
           }
@@ -13642,7 +13887,7 @@
         "value": {
           "error": {
             "code": "request_budget_exceeded",
-            "message": "640 of the 1000 distinct identifiers were converted within the request's time budget (20 s); send fewer identifiers per request.",
+            "message": "640 of the 1000 distinct identifiers were converted within the request's time budget (20 s of search, counted from when its search began); send fewer identifiers per request.",
             "argument": null,
             "allowed": null,
             "details": null,

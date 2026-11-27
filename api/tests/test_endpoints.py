@@ -15,6 +15,7 @@ from idtrack.ids import public_name
 
 from idtrack_web_api import tsv
 from idtrack_web_api.adapter import FORMAT_VERSION
+from tests.conftest import without_cautions
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -48,8 +49,9 @@ def floats_of(data: Any) -> list[float]:
 
 
 def same_json(web: bytes, reference: Any) -> None:
-    """The bytes the api sent read back to exactly idtrack's data, and every float with the same bits."""
-    data = json.loads(web)
+    """The bytes the api sent read back to exactly idtrack's data (the api's `cautions` aside), and every float with
+    the same bits."""
+    data = without_cautions(json.loads(web))
     assert data == reference
     assert [f.hex() for f in floats_of(data)] == [f.hex() for f in floats_of(reference)]
     assert all(math.isfinite(f) for f in floats_of(data))

@@ -68,6 +68,17 @@ export const SCHEMAS: Record<string, Shape> = {
       final_path: { a: "integer" },
     },
   },
+  Caution: { o: { code: "string", tone: "string", text: "string", limitation: { u: ["string", "null"] } } },
+  CautionTerm: {
+    o: {
+      code: "string",
+      tone: "string",
+      meaning: "string",
+      reads_path: "boolean",
+      limitation: { u: ["string", "null"] },
+      source: "string",
+    },
+  },
   ConversionResult: {
     o: {
       query_id: "string",
@@ -93,6 +104,7 @@ export const SCHEMAS: Record<string, Shape> = {
       other_readings: { a: { r: "OtherReading" } },
       error: { u: [{ r: "ErrorInfo" }, "null"] },
       path: { u: [{ r: "ExplainedPath" }, "null"] },
+      cautions: { a: { r: "Caution" } },
     },
   },
   CpuLoad: {
@@ -500,7 +512,12 @@ export const SCHEMAS: Record<string, Shape> = {
       bridge_rules: { a: { r: "BridgeRuleTerm" } },
       errors: { a: { r: "ErrorTerm" } },
     },
-    opt: { database_kinds: { a: { r: "Term" } }, allowances: { a: { r: "Term" } }, source_modes: { a: { r: "Term" } } },
+    opt: {
+      database_kinds: { a: { r: "Term" } },
+      allowances: { a: { r: "Term" } },
+      source_modes: { a: { r: "Term" } },
+      cautions: { a: { r: "CautionTerm" } },
+    },
   },
   WorkerLoad: {
     o: {

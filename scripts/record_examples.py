@@ -72,7 +72,7 @@ TRIMMED: dict[str, list[tuple[tuple[str, ...], int]]] = {
     "list_organisms": [(("organisms",), 1), (("names",), 1)],
     "databases_by_release": [(("databases",), 4)],
     "showcase": [(("journeys",), 1), (("cases",), 1)],
-    "convert_each_database": [(("conversions",), 3)],
+    "convert_each_database": [(("conversions",), 2)],
     "history": [(("transitions",), 6)],
     "vocabulary": [
         ((table,), 2)
@@ -91,6 +91,7 @@ TRIMMED: dict[str, list[tuple[tuple[str, ...], int]]] = {
             "database_kinds",
             "allowances",
             "source_modes",
+            "cautions",
         )
     ],
 }

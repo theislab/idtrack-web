@@ -4,13 +4,15 @@ The api checks only what HTTP itself must bound (lengths, control characters, th
 databases and identifiers a graph accepts, and what an empty string or a spelling of a missing value is, is idtrack's to
 decide (:py:mod:`idtrack_web_api.adapter`), and its refusals
 are answered with their own codes. Every function here that searches runs on the worker's search thread
-(:py:class:`idtrack_web_api.limits.SearchSlot`). Results are idtrack's ``to_dict()``, unchanged.
+(:py:class:`idtrack_web_api.limits.SearchSlot`). Results are idtrack's ``to_dict()``, unchanged, with the api's reading
+of their evidence beside (``cautions``: :py:func:`with_cautions`).
 """
 
 from __future__ import annotations
 
 import time
 import unicodedata
+from dataclasses import replace
 from typing import TYPE_CHECKING, Any
 
 from idtrack_web_api.adapter import (
@@ -21,6 +23,7 @@ from idtrack_web_api.adapter import (
     batch_groups,
     item_error_code,
 )
+from idtrack_web_api.cautions import cautions_of
 from idtrack_web_api.errors import ApiError, listed
 from idtrack_web_api.schemas import DATABASE_MAX_LENGTH
 
@@ -197,10 +200,42 @@ def out_of_time(settings: Settings, converted: int, total: int, *, explain: bool
     )
 
 
+def _searched(arguments: ConversionArguments) -> ConversionArguments:
+    """Return the arguments a search is made with: always with its path, which the cautions read."""
+    return replace(arguments, explain=True)
+
+
+def with_cautions(result: dict[str, Any], settings: Settings, *, explain: bool) -> dict[str, Any]:
+    """Add a result's cautions (:py:mod:`idtrack_web_api.cautions`), then drop its path where it was not asked for.
+
+    A result searched with its path and stripped of it is idtrack's result without the path, field for field (the
+    path, and each candidate's indices into it, ``path`` and ``final_path``, empty): ``tests/test_endpoints.py`` holds
+    the api to it.
+
+    Args:
+        result: idtrack's ``to_dict()`` of a search made with its path.
+        settings: The settings (the address of idtrack's documentation).
+        explain: Whether the request asked for the path.
+
+    Returns:
+        dict[str, Any]: The result, with ``cautions``.
+    """
+    if result.get("status") == "error":
+        result["cautions"] = []
+        return result
+    result["cautions"] = cautions_of(result, settings.docs_url)
+    if not explain:
+        result["path"] = None
+        for candidate in result.get("candidates", []):
+            candidate["path"] = []
+            candidate["final_path"] = []
+    return result
+
+
 def convert_one(
     graph: LoadedGraph, identifier: str, arguments: ConversionArguments, settings: Settings, deadline: float
 ) -> dict[str, Any]:
-    """Convert one identifier: idtrack's ``API.convert(...).to_dict()``.
+    """Convert one identifier: idtrack's ``API.convert(...).to_dict()``, with its cautions.
 
     Args:
         graph: The graph.
@@ -217,7 +252,7 @@ def convert_one(
     """
     budget = min(settings.search_seconds, max(0.0, _remaining(deadline)))
     try:
-        return graph.graph.convert(identifier, arguments, budget)
+        result = graph.graph.convert(identifier, _searched(arguments), budget)
     except InputRefusedError as problem:
         raise answered(problem) from None
     except SearchBudgetError as error:
@@ -236,6 +271,7 @@ def convert_one(
             f"{settings.search_seconds} s; ask with `allow_bridges=false`, or with the release the identifier is read "
             "at.",
         ) from None
+    return with_cautions(result, settings, explain=arguments.explain)
 
 
 def convert_batch(
@@ -286,16 +322,16 @@ def convert_batch(
             raise out_of_time(settings, len(done), total, explain=arguments.explain)
         budget = min(settings.search_seconds, remaining)
         try:
-            results = graph.graph.convert_many(group, arguments, budget)
+            results = graph.graph.convert_many(group, _searched(arguments), budget)
         except InputRefusedError as problem:
             raise answered(problem) from None
         for result in results:
             error = result.get("error")
-            if error is None:
-                continue
-            if error.get("type") == SEARCH_BUDGET_ERROR_TYPE and budget < settings.search_seconds:
-                raise out_of_time(settings, len(done), total, explain=arguments.explain)
-            error["code"] = item_error_code(str(error.get("type")))
+            if error is not None:
+                if error.get("type") == SEARCH_BUDGET_ERROR_TYPE and budget < settings.search_seconds:
+                    raise out_of_time(settings, len(done), total, explain=arguments.explain)
+                error["code"] = item_error_code(str(error.get("type")))
+            with_cautions(result, settings, explain=arguments.explain)
         done.update(zip(group, results, strict=True))
     return [done[identifier] for identifier in identifiers]
 

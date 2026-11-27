@@ -27,6 +27,7 @@ import httpx2
 import pytest
 
 from idtrack_web_api.app import asgi_app
+from tests.conftest import without_cautions
 from tests.test_endpoints import sample_identifiers
 
 if TYPE_CHECKING:
@@ -67,7 +68,7 @@ def test_concurrent_requests_in_one_process(cut_settings: Settings, cut_registry
     answers = asyncio.run(run())
     assert len(answers) == 180
     for identifier, data in answers:
-        assert data == expected[identifier]
+        assert without_cautions(data) == expected[identifier]
 
 
 def free_port() -> int:
@@ -186,7 +187,7 @@ def test_forked_workers_answer_concurrently(server: str, cut_idtrack: API) -> No
         answers = list(pool.map(one, order))
     assert all(status == 200 for _, status, _ in answers)
     for identifier, _, data in answers:
-        assert data == expected[identifier]
+        assert without_cautions(data) == expected[identifier]
     status, headers, _ = get(f"{server}{P}/version")
     assert status == 200 and headers["x-request-id"]
 

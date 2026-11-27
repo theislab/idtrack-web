@@ -655,6 +655,129 @@ export type components = {
       final_path: number[];
     };
     /**
+     * Caution
+     * @description A fact of a result to weigh before trusting its answer: the api's reading of idtrack's fields.
+     */
+    Caution: {
+      /**
+       * Code
+       * @description The class of evidence (`cautions` of `GET /vocabulary` gives its meaning).
+       * @enum {string}
+       */
+      code:
+        | "bridge"
+        | "bridge_beside"
+        | "bridge_rival"
+        | "places_apart"
+        | "places_unknown"
+        | "outside_reference"
+        | "bare_number"
+        | "unscored"
+        | "final_other_release"
+        | "read_at_another_release"
+        | "match_synonym"
+        | "match_copy"
+        | "match_case"
+        | "match_separator"
+        | "match_version_newer_than_graph"
+        | "other_release"
+        | "other_reading"
+        | "listed_as_copy"
+        | "number_read"
+        | "one_gene"
+        | "split_ranked"
+        | "also_read_same_step"
+        | "match_version_not_judged"
+        | "match_unicode"
+        | "match_punctuation"
+        | "match_par_y"
+        | "match_lrg"
+        | "lowest_score";
+      /**
+       * Tone
+       * @description `caution`: it changes how far the answer can be trusted (review it); `note`: an exact fact about the answer that is no fault.
+       * @enum {string}
+       */
+      tone: "caution" | "note";
+      /**
+       * Text
+       * @description What the result says, with its own values, in one sentence.
+       */
+      text: string;
+      /**
+       * Limitation
+       * @description The address of the section of idtrack's documented limitations that describes this class, where there is one.
+       */
+      limitation: string | null;
+    };
+    /**
+     * CautionTerm
+     * @description A class of evidence of the cautions, its tone and meaning, and the limitation it falls under.
+     */
+    CautionTerm: {
+      /**
+       * Code
+       * @description The code, as `cautions[].code` carries it.
+       * @enum {string}
+       */
+      code:
+        | "bridge"
+        | "bridge_beside"
+        | "bridge_rival"
+        | "places_apart"
+        | "places_unknown"
+        | "outside_reference"
+        | "bare_number"
+        | "unscored"
+        | "final_other_release"
+        | "read_at_another_release"
+        | "match_synonym"
+        | "match_copy"
+        | "match_case"
+        | "match_separator"
+        | "match_version_newer_than_graph"
+        | "other_release"
+        | "other_reading"
+        | "listed_as_copy"
+        | "number_read"
+        | "one_gene"
+        | "split_ranked"
+        | "also_read_same_step"
+        | "match_version_not_judged"
+        | "match_unicode"
+        | "match_punctuation"
+        | "match_par_y"
+        | "match_lrg"
+        | "lowest_score";
+      /**
+       * Tone
+       * @description `caution` (review the answer) or `note`.
+       * @enum {string}
+       */
+      tone: "caution" | "note";
+      /**
+       * Meaning
+       * @description What it means, in the api's words.
+       */
+      meaning: string;
+      /**
+       * Reads Path
+       * @description Whether its rule reads the path (its steps, nodes or bridges).
+       */
+      reads_path: boolean;
+      /**
+       * Limitation
+       * @description The address of the section of idtrack's documented limitations of this class, if any.
+       */
+      limitation: string | null;
+      /**
+       * Source
+       * @description The api's own table (`api/idtrack_web_api/cautions.py`).
+       * @constant
+       */
+      source: "idtrack-web";
+    };
+    /**
      * ConversionResult
      * @description One identifier converted to a target release and database (`idtrack.API.convert`).
      */
@@ -805,6 +928,11 @@ export type components = {
       error: components["schemas"]["ErrorInfo"] | null;
       /** @description With `explain`: the paths of the candidates (no step when there is no candidate) and the bridges the search considered; `null` without `explain`. */
       path: components["schemas"]["ExplainedPath"] | null;
+      /**
+       * Cautions
+       * @description The api's reading of this result's evidence, by stated rules (`cautions` of `GET /vocabulary`): each fact of the best answer a reader should weigh before trusting it (`tone` `caution`: review the answer) or that is worth knowing (`note`), cautions first, with the section of idtrack's documented limitations it falls under. Read with the path whatever `explain` asks: every rule holds for every answer. Empty: nothing to weigh. Added by the api to idtrack's result.
+       */
+      cautions: components["schemas"]["Caution"][];
     };
     /**
      * CpuLoad
@@ -2732,6 +2860,11 @@ export type components = {
        * @description The values of `mode` of `POST /organisms/{organism}/source-inference`: what an origin is.
        */
       source_modes?: components["schemas"]["Term"][];
+      /**
+       * Cautions
+       * @description The classes of evidence a result's `cautions` name: the api's reading of idtrack's fields.
+       */
+      cautions?: components["schemas"]["CautionTerm"][];
     };
     /**
      * WorkerLoad
@@ -3415,9 +3548,9 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "sampled_at": "2026-11-27T10:41:44.919Z",
-           *       "started_at": "2026-11-27T10:32:19.679Z",
-           *       "uptime_seconds": 565.2403023522347,
+           *       "sampled_at": "2026-11-27T18:38:05.626Z",
+           *       "started_at": "2026-11-27T18:30:05.013Z",
+           *       "uptime_seconds": 480.61268771626055,
            *       "sample_interval_seconds": 1,
            *       "memory_sample_interval_seconds": 5,
            *       "cache_seconds": 1,
@@ -3426,92 +3559,92 @@ export interface operations {
            *       "workers_exited": 0,
            *       "last_worker_exit_at": null,
            *       "master": {
-           *         "started_at": "2026-11-27T10:32:19.679Z",
-           *         "cpu_share": 0,
-           *         "cpu_seconds": 172.44,
-           *         "rss_bytes": 5051183104,
-           *         "pss_bytes": 1749487616,
-           *         "uss_bytes": 103219200,
-           *         "cpu_sample_age_seconds": 0.23709083907306194,
-           *         "memory_sample_age_seconds": 0.09372725710272789
+           *         "started_at": "2026-11-27T18:30:05.013Z",
+           *         "cpu_share": 0.039103867722417175,
+           *         "cpu_seconds": 217.44,
+           *         "rss_bytes": 4982333440,
+           *         "pss_bytes": 1661635584,
+           *         "uss_bytes": 4284416,
+           *         "cpu_sample_age_seconds": 0.8311634669080377,
+           *         "memory_sample_age_seconds": 1.6884166896343231
            *       },
            *       "workers": [
            *         {
            *           "worker": 1,
-           *           "started_at": "2026-11-27T10:35:00.119Z",
-           *           "cpu_share": 0.02999143072311026,
-           *           "cpu_seconds": 13.14,
-           *           "rss_bytes": 5052768256,
-           *           "pss_bytes": 1757830144,
-           *           "uss_bytes": 113065984,
-           *           "cpu_sample_age_seconds": 0.5074394922703505,
-           *           "memory_sample_age_seconds": 0.23724628053605556,
-           *           "requests": 162,
+           *           "started_at": "2026-11-27T18:38:02.622Z",
+           *           "cpu_share": 0.14786117624872644,
+           *           "cpu_seconds": 0.35,
+           *           "rss_bytes": 4975005696,
+           *           "pss_bytes": 2237210624,
+           *           "uss_bytes": 6885376,
+           *           "cpu_sample_age_seconds": 0.6882601669058204,
+           *           "memory_sample_age_seconds": 2.6215937109664083,
+           *           "requests": 2,
            *           "in_flight": 0,
            *           "searches_running": 0,
            *           "searches_waiting": 0,
            *           "sending_bytes": 0,
-           *           "last_60_seconds": 162,
-           *           "errors_4xx": 2,
+           *           "last_60_seconds": 2,
+           *           "errors_4xx": 0,
            *           "errors_5xx": 0
            *         },
            *         {
            *           "worker": 2,
-           *           "started_at": "2026-11-27T10:35:00.417Z",
-           *           "cpu_share": 0.14863952498040725,
-           *           "cpu_seconds": 12.940000000000001,
-           *           "rss_bytes": 5052780544,
-           *           "pss_bytes": 1758527488,
-           *           "uss_bytes": 114376704,
-           *           "cpu_sample_age_seconds": 0.338528648018837,
-           *           "memory_sample_age_seconds": 0.067149568349123,
-           *           "requests": 169,
+           *           "started_at": "2026-11-27T18:38:03.783Z",
+           *           "cpu_share": null,
+           *           "cpu_seconds": 0.01,
+           *           "rss_bytes": 4975001600,
+           *           "pss_bytes": 1662500864,
+           *           "uss_bytes": 6615040,
+           *           "cpu_sample_age_seconds": 1.8390072546899319,
+           *           "memory_sample_age_seconds": 0.8313510306179523,
+           *           "requests": 1,
            *           "in_flight": 0,
            *           "searches_running": 0,
            *           "searches_waiting": 0,
            *           "sending_bytes": 0,
-           *           "last_60_seconds": 168,
-           *           "errors_4xx": 1,
+           *           "last_60_seconds": 1,
+           *           "errors_4xx": 0,
            *           "errors_5xx": 0
            *         }
            *       ],
            *       "cpu": {
-           *         "cores_used": 0.1786309557035175,
-           *         "share_of_available": 0.014885912975293125,
+           *         "cores_used": null,
+           *         "share_of_available": null,
            *         "cores_available": 12,
            *         "affinity_cores": 12,
            *         "quota_cores": null,
            *         "source": "affinity"
            *       },
            *       "memory": {
-           *         "rss_bytes": 15156731904,
-           *         "pss_bytes": 5265845248,
-           *         "uss_bytes": 330661888,
+           *         "rss_bytes": 14932340736,
+           *         "pss_bytes": 5561347072,
+           *         "uss_bytes": 17784832,
            *         "limit_bytes": 107374182400,
-           *         "limit_used_bytes": 51384061952,
+           *         "limit_used_bytes": 66292215808,
            *         "source": "cgroup"
            *       },
            *       "requests": {
-           *         "total": 331,
+           *         "total": 3,
            *         "in_flight": 0,
            *         "searches_running": 0,
            *         "searches_waiting": 0,
            *         "connections_waiting": 0,
            *         "searches_queued": 0,
            *         "sending_bytes": 0,
-           *         "last_60_seconds": 330,
-           *         "errors_4xx": 3,
+           *         "last_60_seconds": 3,
+           *         "errors_4xx": 0,
            *         "errors_5xx": 0,
            *         "lost": 0,
-           *         "status_requests": 29,
+           *         "status_requests": 1,
            *         "latency": {
-           *           "count": 331,
+           *           "count": 3,
            *           "most_recent": 1000,
            *           "window_seconds": 300,
-           *           "p50_ms": 14.716893434524536,
-           *           "p95_ms": 64.76076506078243,
-           *           "p99_ms": 237.0039038360119,
-           *           "max_ms": 311.77993305027485
+           *           "p50_ms": 121.79761938750744,
+           *           "p95_ms": 526.2316009029746,
+           *           "p99_ms": 526.2316009029746,
+           *           "max_ms": 526.2316009029746
            *         }
            *       },
            *       "graphs": [
@@ -3537,7 +3670,10 @@ export interface operations {
            *         }
            *       ],
            *       "graphs_file_bytes": 353295162,
-           *       "unavailable": []
+           *       "unavailable": [
+           *         "cpu.cores_used",
+           *         "workers.cpu_share"
+           *       ]
            *     }
            */
           "application/json": components["schemas"]["StatusResponse"];
@@ -3884,6 +4020,24 @@ export interface operations {
            *         {
            *           "code": "release",
            *           "meaning": "An origin is a release (counted only on the assembly that serves it).",
+           *           "source": "idtrack-web"
+           *         }
+           *       ],
+           *       "cautions": [
+           *         {
+           *           "code": "bridge",
+           *           "tone": "caution",
+           *           "meaning": "The best answer is reached through a bridge: where Ensembl's history gives a gene no successor, the walk left it through an id it carries and entered another gene that carries the same id. That is idtrack's inference; no record of Ensembl states it.",
+           *           "reads_path": false,
+           *           "limitation": "https://idtrack.readthedocs.io/en/stable/limitations.html#answers-that-only-a-bridge-reaches",
+           *           "source": "idtrack-web"
+           *         },
+           *         {
+           *           "code": "bridge_beside",
+           *           "tone": "caution",
+           *           "meaning": "A bridge on the best answer's path joins two genes that lived at the same releases: the gene it enters did not take the place of the gene it leaves in Ensembl's records, so their shared ids are no sign of succession.",
+           *           "reads_path": true,
+           *           "limitation": "https://idtrack.readthedocs.io/en/stable/limitations.html#answers-that-only-a-bridge-reaches",
            *           "source": "idtrack-web"
            *         }
            *       ]
@@ -6752,7 +6906,15 @@ export interface operations {
            *               ],
            *               "bridges": [],
            *               "refused": []
-           *             }
+           *             },
+           *             "cautions": [
+           *               {
+           *                 "code": "lowest_score",
+           *                 "tone": "note",
+           *                 "text": "The lowest of Ensembl's scores on the path is 0.940993, at releases 75 to 76.",
+           *                 "limitation": null
+           *               }
+           *             ]
            *           },
            *           "error": null
            *         }
@@ -7658,7 +7820,15 @@ export interface operations {
            *               ],
            *               "bridges": [],
            *               "refused": []
-           *             }
+           *             },
+           *             "cautions": [
+           *               {
+           *                 "code": "lowest_score",
+           *                 "tone": "note",
+           *                 "text": "The lowest of Ensembl's scores on the path is 0.940993, at releases 75 to 76.",
+           *                 "limitation": null
+           *               }
+           *             ]
            *           },
            *           "error": null
            *         }
@@ -8187,7 +8357,7 @@ export interface operations {
            *           "many_to_one": 0
            *         }
            *       ],
-           *       "compute_seconds": 42.065
+           *       "compute_seconds": 92.501
            *     }
            */
           "application/json": components["schemas"]["HistoryResponse"];
@@ -8306,7 +8476,15 @@ export interface operations {
            *       "reasons": [],
            *       "other_readings": [],
            *       "error": null,
-           *       "path": null
+           *       "path": null,
+           *       "cautions": [
+           *         {
+           *           "code": "lowest_score",
+           *           "tone": "note",
+           *           "text": "The lowest of Ensembl's scores on the path is 0.99, at releases 111 to 112.",
+           *           "limitation": null
+           *         }
+           *       ]
            *     }
            */
           "application/json": components["schemas"]["ConversionResult"];
@@ -8737,7 +8915,15 @@ export interface operations {
            *             "reasons": [],
            *             "other_readings": [],
            *             "error": null,
-           *             "path": null
+           *             "path": null,
+           *             "cautions": [
+           *               {
+           *                 "code": "one_gene",
+           *                 "tone": "note",
+           *                 "text": "The 12 targets are the ids `ENSG00000141510.20` carries in CCDS at release 115.",
+           *                 "limitation": null
+           *               }
+           *             ]
            *           }
            *         },
            *         {
@@ -9096,71 +9282,15 @@ export interface operations {
            *             "reasons": [],
            *             "other_readings": [],
            *             "error": null,
-           *             "path": null
-           *           }
-           *         },
-           *         {
-           *           "database": "Clone_based_ensembl_gene",
-           *           "result": {
-           *             "query_id": "TP53",
-           *             "graph_id": "TP53",
-           *             "match": "exact",
-           *             "known_versions": [],
-           *             "from_release": 115,
-           *             "from_release_inferred": true,
-           *             "from_release_given": null,
-           *             "from_release_fallback": false,
-           *             "from_databases": [
-           *               "HGNC Symbol",
-           *               "NCBI gene (formerly Entrezgene)",
-           *               "UniProtKB Gene Name"
-           *             ],
-           *             "to_release": 115,
-           *             "final_database": "ensembl_gene",
-           *             "candidates": [
+           *             "path": null,
+           *             "cautions": [
            *               {
-           *                 "gene": "ENSG00000141510.20",
-           *                 "target": "ENSG00000141510.20",
-           *                 "best": true,
-           *                 "entry_gene": "ENSG00000141510.20",
-           *                 "entry_databases": [
-           *                   "HGNC Symbol",
-           *                   "NCBI gene (formerly Entrezgene)",
-           *                   "UniProtKB Gene Name"
-           *                 ],
-           *                 "authority": true,
-           *                 "display_name": true,
-           *                 "display_rank": 0,
-           *                 "entry_support": 3,
-           *                 "own_version": false,
-           *                 "final_confidence": null,
-           *                 "bridges": 0,
-           *                 "bridge_gap": 0,
-           *                 "score": 1,
-           *                 "unscored_steps": 0,
-           *                 "same_as_query": false,
-           *                 "external_steps": 1,
-           *                 "history_steps": 0,
-           *                 "annotation": null,
-           *                 "path": [],
-           *                 "final_path": []
+           *                 "code": "one_gene",
+           *                 "tone": "note",
+           *                 "text": "The 12 targets are the ids `ENSG00000141510.20` carries in CCDS label at release 115.",
+           *                 "limitation": null
            *               }
-           *             ],
-           *             "tie": false,
-           *             "decided_by": null,
-           *             "alternative_locus_genes": [
-           *               "LRG_321.1"
-           *             ],
-           *             "no_target": true,
-           *             "no_target_genes": [],
-           *             "status": "no_target",
-           *             "reason": "no_id_in_final_database",
-           *             "reasons": [
-           *               "no_id_in_final_database"
-           *             ],
-           *             "other_readings": [],
-           *             "error": null,
-           *             "path": null
+           *             ]
            *           }
            *         }
            *       ]
@@ -9298,7 +9428,8 @@ export interface operations {
            *           "reasons": [],
            *           "other_readings": [],
            *           "error": null,
-           *           "path": null
+           *           "path": null,
+           *           "cautions": []
            *         },
            *         {
            *           "query_id": "ENSG00000139618",
@@ -9351,7 +9482,8 @@ export interface operations {
            *           "reasons": [],
            *           "other_readings": [],
            *           "error": null,
-           *           "path": null
+           *           "path": null,
+           *           "cautions": []
            *         },
            *         {
            *           "query_id": "NOT_A_GENE",
@@ -9378,16 +9510,17 @@ export interface operations {
            *           ],
            *           "other_readings": [],
            *           "error": null,
-           *           "path": null
+           *           "path": null,
+           *           "cautions": []
            *         }
            *       ]
            *     }
            */
           "application/json": components["schemas"]["BatchResponse"];
           /**
-           * @example input_index	query_id	status	reason	reasons	graph_id	match	known_versions	from_release	from_release_inferred	from_release_given	from_release_fallback	from_databases	to_release	final_database	candidate_count	tie	decided_by	alternative_locus_genes	no_target	no_target_genes	other_readings	error_code	error_type	error_message	error_input_error	rank	best	gene	target	entry_gene	entry_databases	authority	display_name	display_rank	entry_support	own_version	final_confidence	bridges	bridge_gap	score	unscored_steps	same_as_query	external_steps	history_steps	annotation
-           *     0	TP53	converted			TP53	exact		115	true		false	HGNC Symbol;NCBI gene (formerly Entrezgene);UniProtKB Gene Name	115	ensembl_gene	1	false		LRG_321.1	false							1	true	ENSG00000141510.20	ENSG00000141510.20	ENSG00000141510.20	HGNC Symbol;NCBI gene (formerly Entrezgene);UniProtKB Gene Name	true	true	0	3	false	0	0	0	1.0	0	false	1	0
-           *     1	ENSG00000139618	converted			ENSG00000139618	exact		115	true		false	base_ensembl_gene	115	ensembl_gene	1	false			false							1	true	ENSG00000139618.19	ENSG00000139618.19	ENSG00000139618.19	base_ensembl_gene	false	false	2	1	true	0	0	0	1.0	0	true	1	0
+           * @example input_index	query_id	status	reason	reasons	graph_id	match	known_versions	from_release	from_release_inferred	from_release_given	from_release_fallback	from_databases	to_release	final_database	candidate_count	tie	decided_by	alternative_locus_genes	no_target	no_target_genes	other_readings	cautions	error_code	error_type	error_message	error_input_error	rank	best	gene	target	entry_gene	entry_databases	authority	display_name	display_rank	entry_support	own_version	final_confidence	bridges	bridge_gap	score	unscored_steps	same_as_query	external_steps	history_steps	annotation
+           *     0	TP53	converted			TP53	exact		115	true		false	HGNC Symbol;NCBI gene (formerly Entrezgene);UniProtKB Gene Name	115	ensembl_gene	1	false		LRG_321.1	false								1	true	ENSG00000141510.20	ENSG00000141510.20	ENSG00000141510.20	HGNC Symbol;NCBI gene (formerly Entrezgene);UniProtKB Gene Name	true	true	0	3	false	0	0	0	1.0	0	false	1	0
+           *     1	ENSG00000139618	converted			ENSG00000139618	exact		115	true		false	base_ensembl_gene	115	ensembl_gene	1	false			false								1	true	ENSG00000139618.19	ENSG00000139618.19	ENSG00000139618.19	base_ensembl_gene	false	false	2	1	true	0	0	0	1.0	0	true	1	0
            *     2	NOT_A_GENE	not_found	not_in_graph	not_in_graph					true		false		115		0	false			false
            */
           "text/tab-separated-values": string;

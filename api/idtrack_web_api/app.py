@@ -476,7 +476,7 @@ def create_app(  # noqa: PLR0915 - every endpoint, in one place
     app.state.slot = slot
     app.state.monitor = monitor
     version_body = _json_bytes(_version(registry, settings.docs_url))
-    vocabulary_body = _json_bytes(vocabulary())
+    vocabulary_body = _json_bytes(vocabulary(settings.docs_url))
     limits_body = _json_bytes(limits(settings))
     organisms_body = _json_bytes(
         {

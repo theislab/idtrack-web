@@ -1,8 +1,9 @@
 r"""A batch's results as a tab-separated table: one row per candidate (one row for a result without candidates).
 
 The table holds every field of a result and of its candidates except the explained path and the candidates' indices
-into it (``path``, ``final_path``: a graph, not a row; ask for JSON for it), and the api's code of an item's error
-(``error_code``). The first line names the columns (:py:data:`COLUMNS`; :py:data:`COLUMN_TEXTS` says what each holds).
+into it (``path``, ``final_path``: a graph, not a row; ask for JSON for it), the api's code of an item's error
+(``error_code``), and the codes of the result's cautions (``cautions``; their texts: JSON). The first line names the
+columns (:py:data:`COLUMNS`; :py:data:`COLUMN_TEXTS` says what each holds).
 Values are written as JSON writes them, so nothing is rounded: numbers as Python's ``repr`` (the shortest text that
 reads back as the same float), ``true``/``false``, an empty cell for ``null``, and lists joined by ``;`` (no identifier
 holds a ``;``, a tab or a line break inside it: the api refuses control characters in input, and :py:func:`rows`
@@ -44,6 +45,7 @@ RESULT_COLUMNS: tuple[str, ...] = (
     "no_target",
     "no_target_genes",
     "other_readings",
+    "cautions",
     "error_code",
     "error_type",
     "error_message",
@@ -82,6 +84,10 @@ COLUMN_TEXTS: dict[str, str] = {
     "query_id": "`query_id`: the identifier as sent (escaped: a backslash before `\\`, `t`, `n`, `r`).",
     "candidate_count": "The number of the result's candidates (its rows; 0 on the one row of a result without any).",
     "other_readings": "`other_readings` as compact JSON (empty for none).",
+    "cautions": (
+        "The codes of `cautions` (the api's reading of the result's evidence; `cautions` of `GET /api/v1/vocabulary`), "
+        "joined by `;` (empty for none)."
+    ),
     "error_code": "The api's code of the item's error (`error.code`; `errors` of `GET /api/v1/vocabulary`).",
     "error_type": "`error.type`: the class of idtrack's error.",
     "error_message": "`error.message` (escaped as `query_id`).",
@@ -187,6 +193,7 @@ def rows(results: Sequence[dict[str, Any]]) -> Iterable[list[str]]:
             "query_id": _escaped(result.get("query_id")),
             "candidate_count": len(result["candidates"]),
             "other_readings": _json(result["other_readings"]),
+            "cautions": [c["code"] for c in result.get("cautions", [])],
             "error_code": error.get("code"),
             "error_type": error.get("type"),
             "error_message": _escaped(error.get("message")),

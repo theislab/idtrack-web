@@ -16,6 +16,7 @@ from idtrack_web_api import tsv, writing
 from idtrack_web_api.contract import ENDPOINT_ERRORS
 from idtrack_web_api.errors import CODES
 from idtrack_web_api.frontend import Frontend
+from tests.conftest import without_cautions
 from tests.test_endpoints import sample_identifiers
 
 if TYPE_CHECKING:
@@ -131,7 +132,7 @@ def test_white_space_at_the_ends_is_no_part_of_an_identifier(client: TestClient,
     items = [f"{GENE}\t", f"\t{GENE}\r\n", f" {GENE} "]
     answer = client.post(BATCH, json={"identifiers": items}).json()
     assert [r["query_id"] for r in answer["results"]] == items
-    assert list(answer["results"]) == [cut_idtrack.convert(i).to_dict() for i in items]
+    assert without_cautions(answer["results"]) == [cut_idtrack.convert(i).to_dict() for i in items]
     table = client.post(f"{BATCH}?format=tsv", json={"identifiers": items}).text
     rows = [line.split("\t") for line in table.splitlines()]
     assert all(len(row) == len(tsv.COLUMNS) for row in rows)
@@ -406,7 +407,7 @@ def test_each_database_is_convert_with_it(
     assert [c["database"] for c in data["conversions"]] == cut_idtrack.final_databases(100)
     for conversion in data["conversions"]:
         alone = cut_idtrack.convert("INS", to_release=100, final_database=conversion["database"]).to_dict()
-        assert conversion["result"] == json.loads(json.dumps(alone))
+        assert without_cautions(conversion["result"]) == json.loads(json.dumps(alone))
 
 
 def test_the_listed_codes_of_each_endpoint_are_met(make_client: Callable[..., TestClient]) -> None:

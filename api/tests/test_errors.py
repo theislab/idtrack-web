@@ -11,6 +11,7 @@ import pytest
 from idtrack_web_api import service
 from idtrack_web_api.errors import CODES
 from idtrack_web_api.graphs import LoadedGraph, Registry, load_graph
+from tests.conftest import without_cautions
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -185,7 +186,7 @@ def test_batch_empty_and_missing_items_are_idtracks_to_answer(
     for item in reference:  # the api adds the stable code of an item's error
         if item["error"] is not None:
             item["error"]["code"] = "missing_value"
-    assert data["results"] == reference
+    assert without_cautions(data["results"]) == reference
     assert [r["status"] for r in data["results"]] == ["converted", "error", "error", "error", "error"]
     assert data["results"][1]["error"]["code"] == "missing_value"
 

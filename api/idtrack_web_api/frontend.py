@@ -164,13 +164,6 @@ class Frontend:
         except OSError:
             return b""
 
-    @property
-    def script_hashes(self) -> tuple[str, ...]:
-        """The base64 SHA-256 of each inline script of ``index.html`` as it is on disk now."""
-        return tuple(
-            base64.b64encode(hashlib.sha256(found).digest()).decode() for found in _INLINE_SCRIPT.findall(self._page())
-        )
-
     def policy(self) -> bytes:
         """Return the page's Content-Security-Policy for the ``index.html`` on disk now (made again when it changes).
 
@@ -184,11 +177,6 @@ class Frontend:
             hashes = (base64.b64encode(hashlib.sha256(s).digest()).decode() for s in _INLINE_SCRIPT.findall(page))
             self._policy = (page, page_policy(hashes))
         return self._policy[1]
-
-    @property
-    def compressed_files(self) -> int:
-        """The number of files held compressed."""
-        return len(self._compressed)
 
     def file(self, path: str) -> Path | None:
         """Return the file a request path names inside the build, or ``None``.

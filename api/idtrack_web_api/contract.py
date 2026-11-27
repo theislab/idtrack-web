@@ -37,6 +37,7 @@ from idtrack_web_api.adapter import (
     STATUSES,
     STEP_REASONS,
 )
+from idtrack_web_api.cautions import CAUTIONS
 from idtrack_web_api.errors import CODES, RETRYABLE, TITLES
 from idtrack_web_api.vocabulary import STATUS_MEANINGS
 
@@ -232,6 +233,8 @@ def enum_tables() -> dict[tuple[str, str], list[str]]:
     found[("ShowcaseCase", "kind")] = list(KINDS)
     found[("ErrorBody", "code")] = list(CODES)
     found[("ErrorInfo", "code")] = list(ITEM_ERROR_CODES)
+    found[("Caution", "code")] = list(CAUTIONS)
+    found[("CautionTerm", "code")] = list(CAUTIONS)
     return found
 
 
@@ -407,6 +410,8 @@ def complete(document: dict[str, Any]) -> dict[str, Any]:  # noqa: PLR0912, PLR0
     meanings = {(schema, prop): table for schema, prop, table, _ in _ENUMS}
     meanings[("ErrorBody", "code")] = {c: m for c, (_, m) in CODES.items()}
     meanings[("ErrorInfo", "code")] = meanings[("ErrorBody", "code")]
+    meanings[("Caution", "code")] = {code: meaning for code, (_, meaning, _) in CAUTIONS.items()}
+    meanings[("CautionTerm", "code")] = meanings[("Caution", "code")]
     listed = {(schema, prop): is_list for schema, prop, _, is_list in _ENUMS}
     for (schema, prop), codes in tables.items():
         target = found.get(schema, {}).get("properties", {}).get(prop)

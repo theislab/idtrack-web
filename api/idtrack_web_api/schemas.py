@@ -93,10 +93,46 @@ def _summary(cls: type) -> str:
 
 _MODELS: dict[type, type[BaseModel]] = {}
 
-#: The fields the api adds to idtrack's results, by result class: the one addition to idtrack's ``to_dict()``. A batch
+
+class Caution(BaseModel):
+    """A fact of a result to weigh before trusting its answer: the api's reading of idtrack's fields."""
+
+    model_config = _STRICT
+    code: str = Field(..., description="The class of evidence (`cautions` of `GET /vocabulary` gives its meaning).")
+    tone: Literal["caution", "note"] = Field(
+        ...,
+        description=(
+            "`caution`: it changes how far the answer can be trusted (review it); `note`: an exact fact about the "
+            "answer that is no fault."
+        ),
+    )
+    text: str = Field(..., description="What the result says, with its own values, in one sentence.")
+    limitation: str | None = Field(
+        ...,
+        description=(
+            "The address of the section of idtrack's documented limitations that describes this class, where there is "
+            "one."
+        ),
+    )
+
+
+#: The fields the api adds to idtrack's results, by result class: the additions to idtrack's ``to_dict()``. A batch
 #: item's error carries the api's stable code of its kind, as the same input sent alone would be answered (the
-#: frontend and other programs branch on codes, not on idtrack's class names).
+#: frontend and other programs branch on codes, not on idtrack's class names); a result carries the api's reading of
+#: its evidence (:py:mod:`idtrack_web_api.cautions`).
 API_FIELDS: dict[str, dict[str, tuple[Any, str]]] = {
+    "ConversionResult": {
+        "cautions": (
+            list[Caution],
+            (
+                "The api's reading of this result's evidence, by stated rules (`cautions` of `GET /vocabulary`): each "
+                "fact of the best answer a reader should weigh before trusting it (`tone` `caution`: review the "
+                "answer) or that is worth knowing (`note`), cautions first, with the section of idtrack's documented "
+                "limitations it falls under. Read with the path whatever `explain` asks: every rule holds for every "
+                "answer. Empty: nothing to weigh. Added by the api to idtrack's result."
+            ),
+        )
+    },
     "ErrorInfo": {
         "code": (
             str,
@@ -107,7 +143,7 @@ API_FIELDS: dict[str, dict[str, tuple[Any, str]]] = {
                 "for a fault). Added by the api to idtrack's error record."
             ),
         )
-    }
+    },
 }
 
 
@@ -504,6 +540,20 @@ class StatusTerm(Term):
     )
 
 
+class CautionTerm(BaseModel):
+    """A class of evidence of the cautions, its tone and meaning, and the limitation it falls under."""
+
+    model_config = _STRICT
+    code: str = Field(..., description="The code, as `cautions[].code` carries it.")
+    tone: Literal["caution", "note"] = Field(..., description="`caution` (review the answer) or `note`.")
+    meaning: str = Field(..., description="What it means, in the api's words.")
+    reads_path: bool = Field(..., description="Whether its rule reads the path (its steps, nodes or bridges).")
+    limitation: str | None = Field(
+        ..., description="The address of the section of idtrack's documented limitations of this class, if any."
+    )
+    source: Literal["idtrack-web"] = Field(..., description="The api's own table (`api/idtrack_web_api/cautions.py`).")
+
+
 class CriterionField(BaseModel):
     """A `Candidate` field a criterion compares, and which of its values ranks first."""
 
@@ -617,6 +667,10 @@ class VocabularyResponse(BaseModel):
     source_modes: list[Term] = Field(
         default_factory=list,
         description="The values of `mode` of `POST /organisms/{organism}/source-inference`: what an origin is.",
+    )
+    cautions: list[CautionTerm] = Field(
+        default_factory=list,
+        description="The classes of evidence a result's `cautions` name: the api's reading of idtrack's fields.",
     )
 
 
@@ -1380,6 +1434,8 @@ __all__ = [
     "BatchRequest",
     "BatchResponse",
     "BridgeRuleTerm",
+    "Caution",
+    "CautionTerm",
     "ConversionResultModel",
     "CpuLoad",
     "CriterionField",

@@ -40,6 +40,16 @@ CUT_GRAPH = TESTS / "data" / "graph_sus_scrofa_cut.npz"
 OPENAPI = API_ROOT / "openapi.json"
 
 
+def without_cautions(data: Any) -> Any:
+    """Return the api's answer as idtrack's own record: every result's `cautions` (the api's reading) taken out."""
+    if isinstance(data, list):
+        return [without_cautions(item) for item in data]
+    if isinstance(data, dict):
+        own = "candidates" in data and "cautions" in data
+        return {k: without_cautions(v) for k, v in data.items() if not (own and k == "cautions")}
+    return data
+
+
 def settings_of(root: Path, **changes: Any) -> Settings:
     """Return settings of a folder store with the defaults, and *changes*."""
     return replace(Settings(source="directory", directory=root), **changes)

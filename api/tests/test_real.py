@@ -107,7 +107,19 @@ def test_real_batch_equals_idtrack(pig: tuple[TestClient, API], check_response: 
         response = client.post(f"{P}/organisms/pig/convert/batch", json={"identifiers": identifiers, **arguments})
         check_response(response, f"{P}/organisms/{{organism}}/convert/batch", "post")
         reference = [r.to_dict() for r in api.convert_many(identifiers, **arguments)]
-        same_json(response.content, {"count": len(identifiers), "results": reference})
+        read = {
+            "from_release": None,
+            "to_release": None,
+            "final_database": None,
+            "from_database": None,
+            "explain": False,
+            "allow_bridges": True,
+            "read_copies": True,
+        } | arguments
+        same_json(
+            response.content,
+            {"organism": "sus_scrofa", "arguments": read, "count": len(identifiers), "results": reference},
+        )
 
 
 def test_real_description_and_names(pig: tuple[TestClient, API], check_response: Callable[..., Any]) -> None:
@@ -118,8 +130,9 @@ def test_real_description_and_names(pig: tuple[TestClient, API], check_response:
     for name in ("INS", "TP53", "GCG", "PDX1"):
         response = client.get(f"{P}/organisms/pig/genes-named", params={"name": name})
         data = check_response(response, f"{P}/organisms/{{organism}}/genes-named")
-        assert data == {"matches": [m.to_dict() for m in api.genes_named(name)]}
+        assert data["matches"] == [m.to_dict() for m in api.genes_named(name)]
+        assert data["organism"] == "sus_scrofa" and data["arguments"]["name"] == name
         for gene in sorted({m["gene"] for m in data["matches"]})[:3]:
             response = client.get(f"{P}/organisms/pig/names-of", params={"gene": gene})
             names = check_response(response, f"{P}/organisms/{{organism}}/names-of")
-            assert names == {"matches": [m.to_dict() for m in api.names_of(gene)]}
+            assert names["matches"] == [m.to_dict() for m in api.names_of(gene)]

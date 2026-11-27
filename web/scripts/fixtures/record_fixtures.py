@@ -1,11 +1,14 @@
 """Record real answers of a running idtrack-web api as the frontend's test fixtures (the bytes the api sent).
 
     python record_fixtures.py <base url> <organism> <scan.json> <out dir> [--curated <json file>]...
+    python record_fixtures.py <base url> <organism> again <out dir>
 
 For every feature of the scan (scan_features.py) the example with the fewest steps (and, for the step kinds, also the
 longest) is asked again of the api with ``explain=true``; then the curated requests; then the organism's description,
 final databases, names endpoints, a batch (JSON and TSV) and error answers. Each answer is written as it came
-(``<name>.json`` or ``.tsv``) and listed in ``index.json`` with its request and status.
+(``<name>.json`` or ``.tsv``) and listed in ``index.json`` with its request and status. With ``again`` in place of the
+scan, the requests of ``index.json`` are asked again (when the api's answers change and the choice of requests does
+not).
 """
 
 from __future__ import annotations
@@ -22,10 +25,15 @@ from typing import Any
 parser = argparse.ArgumentParser()
 parser.add_argument("base")
 parser.add_argument("organism")
-parser.add_argument("scan")
+parser.add_argument(
+    "scan", help="The scan of the graph (scan_features.py); `again`: ask the requests of out/index.json."
+)
 parser.add_argument("out")
 parser.add_argument("--curated", action="append", default=[], help="Curated requests (curated_*.json); repeatable.")
 args = parser.parse_args()
+#: Ask again the requests recorded before (out/index.json), in their order, under their names: the api's answers
+#: changed and the choice of requests did not (a field the api adds, a changed refusal), so no scan of the graph is run.
+again = args.scan == "again"
 
 base = args.base.rstrip("/") + "/api/v1"
 out = Path(args.out)
@@ -80,6 +88,14 @@ def convert(name: str, identifier: str, arguments: dict[str, Any]) -> None:
     seen.add(key)
     ask(name, "GET", f"/organisms/{args.organism}/convert", query)
 
+
+recorded = json.loads((out / "index.json").read_text()) if again else []
+for entry in recorded:
+    ask(entry["name"], entry["method"], entry["path"], entry["query"] or None, entry["body"])
+if again:
+    (out / "index.json").write_text(json.dumps(index, indent=1) + "\n")
+    print("recorded", len(index))
+    raise SystemExit(0)
 
 scan = json.loads(Path(args.scan).read_text())
 for feature, examples in scan["features"].items():

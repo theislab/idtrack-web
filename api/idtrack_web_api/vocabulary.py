@@ -31,6 +31,8 @@ from idtrack_web_api.adapter import (
     STATUSES,
     STEP_REASONS,
 )
+from idtrack_web_api.cautions import vocabulary_terms
+from idtrack_web_api.config import DOCS_URL
 from idtrack_web_api.errors import ALLOWANCES, CODES, RETRYABLE, TITLES
 
 #: The meaning of each value of ``ConversionResult.status``, in the api's words: idtrack's table ``STATUSES`` holds the
@@ -116,8 +118,11 @@ def _terms(table: dict[str, str]) -> list[dict[str, Any]]:
     return [{"code": code, "meaning": schemas.plain_text(text), "source": "idtrack"} for code, text in table.items()]
 
 
-def vocabulary() -> dict[str, Any]:
+def vocabulary(docs_url: str = DOCS_URL) -> dict[str, Any]:
     """Return the body of ``/vocabulary``.
+
+    Args:
+        docs_url: Where idtrack's documentation is published (the cautions' limitations are sections of it).
 
     Returns:
         dict[str, Any]: As :py:class:`idtrack_web_api.schemas.VocabularyResponse` describes it.
@@ -177,6 +182,7 @@ def vocabulary() -> dict[str, Any]:
         "source_modes": [
             {"code": mode, "meaning": SOURCE_MODE_MEANINGS[mode], "source": "idtrack-web"} for mode in SOURCE_MODES
         ],
+        "cautions": vocabulary_terms(docs_url),
     }
 
 
