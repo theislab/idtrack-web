@@ -572,8 +572,6 @@ export function JourneysFigure({
         Math.max(mk.step.old_release ?? 0, mk.step.new_release ?? 0) === e.new &&
         (e.reason === null || mk.step.reason === e.reason),
     ) ?? false;
-  const toHistory = href(`/organisms/${graph.organism}`);
-
   return (
     <div
       className={`journeys__plot fig${motion === "travel" ? " jr-travel" : motion === "held" ? " jr-held" : ""}${narrow ? " journeys__plot--narrow" : ""}`}
@@ -767,16 +765,17 @@ export function JourneysFigure({
           {notes.map((n) => {
             const words = n.lines.join(" ");
             // Each release-wide event leads to the graph's own page, where Ensembl's id history of every gene is drawn
-            // release by release.
+            // release by release, opened on the release the event leads into (its exact counts there).
+            const at = href(`/organisms/${graph.organism}`, { release: n.e.new });
             return (
               <a
                 key={`${n.e.kind}-${n.e.old}-${n.e.reason ?? ""}`}
-                href={toHistory}
+                href={at}
                 className="jr-event__link"
                 aria-label={`${words}: Ensembl's id history of the ${organismName(graph.organism)} graph, release by release`}
                 onClick={(event) => {
                   event.preventDefault();
-                  openAt(toHistory, "history");
+                  openAt(at, "history");
                 }}
               >
                 <text
