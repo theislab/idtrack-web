@@ -5,7 +5,7 @@
 // read from its answer on the card, never written here.
 import type { CaseKind } from "./caseKinds";
 
-/** A conversion as the page's address writes it (`/?organism=&id=&from=&to=&db=`). */
+/** A conversion as the page's address writes it (`/convert?organism=&id=&from=&to=&db=`). */
 export interface CaseQuery {
   organism: string;
   identifier: string;

@@ -22,7 +22,7 @@ interface Result {
 }
 
 test("convert a symbol from the form", async ({ page }, info) => {
-  await page.goto(`/?organism=${data.organism}`);
+  await page.goto(`/convert?organism=${data.organism}`);
   await page.getByLabel("Identifier").fill(data.symbol.identifier);
   await page.getByRole("button", { name: "Convert", exact: true }).click();
   await waitForResult(page);
@@ -44,8 +44,9 @@ test("the path view draws and reads the api's path, step for step", async ({ pag
   const steps = answer.path?.steps ?? [];
   expect(steps.length).toBeGreaterThan(3);
 
-  // The reading lists every step of the best candidate, in order (the others on choice); each score as the api
-  // wrote it.
+  // The reading ("In words") lists every step of the best candidate, in order (the others on choice); each score as
+  // the api wrote it.
+  await page.getByRole("radio", { name: "In words" }).click();
   const reading = page.locator(".reading");
   const best0 = answer.candidates.find((c) => c.best);
   const bestSteps = [...(best0?.path ?? []), ...(best0?.final_path ?? [])];
@@ -61,6 +62,7 @@ test("the path view draws and reads the api's path, step for step", async ({ pag
   }
 
   // The drawing: one element per drawn step, the best answer in the answer column with the deciding criterion.
+  await page.getByRole("radio", { name: "Drawing" }).click();
   const drawing = page.getByRole("group", { name: /^Path of/ });
   await expect(drawing).toBeVisible();
   const drawnSteps = drawing.locator("g.pv-step");
@@ -265,6 +267,7 @@ test("in forced colours, every text of the answer's figures is the system's text
 test("a conversion back in time, through bridges", async ({ page }, info) => {
   await page.goto(convertUrl(data.backward));
   await waitForResult(page);
+  await page.getByRole("radio", { name: "In words" }).click();
   // Each step of Ensembl's history in Ensembl's direction (the releases ascending), the walk's direction marked apart.
   await expect(page.locator(".reading")).toContainText("walked backward");
   for (const when of await page.locator(".reading .steps__when").allInnerTexts()) {
@@ -286,6 +289,9 @@ test("the states of an answer without a target", async ({ page }, info) => {
     await page.goto(convertUrl(query));
     await waitForResult(page);
     const answer = (await (await page.request.get(apiConvertUrl(query))).json()) as Result;
+    // The api's answer as sent, with its reason as the api writes it, is in the answer's record.
+    await page.getByRole("tab", { name: "Record" }).click();
+    await page.getByRole("button", { name: /^The api's answer, as sent/ }).click();
     if (answer.reason) await expect(page.locator(".result")).toContainText(answer.reason);
     for (const version of answer.known_versions) await expect(page.locator(".result")).toContainText(version);
     await expectAccessible(page);
@@ -293,17 +299,19 @@ test("the states of an answer without a target", async ({ page }, info) => {
   }
 });
 
-test("the table of candidates highlights a candidate's path", async ({ page }) => {
+test("the candidate pointed at in the decision is the one the path draws strong", async ({ page }) => {
   await page.goto(convertUrl(data.long));
   await waitForResult(page);
+  await page.getByRole("tab", { name: /^Decision/ }).click();
   const rows = page.getByRole("region", { name: "Candidates, ranked" }).locator("tbody tr");
   expect(await rows.count()).toBeGreaterThan(1);
   await rows.nth(1).hover();
+  await page.getByRole("tab", { name: /^Path/ }).click();
   await expect(page.locator(".pv-answer.pv-strong")).toHaveCount(1);
 });
 
 test("the conversion's address holds every option and reloads", async ({ page }) => {
-  await page.goto(`/?organism=${data.organism}&id=${data.long.identifier}&bridges=false&explain=false`);
+  await page.goto(`/convert?organism=${data.organism}&id=${data.long.identifier}&bridges=false&explain=false`);
   await waitForResult(page);
   await expect(page.getByText("The path was not asked for", { exact: false })).toBeVisible();
   // The options away from their defaults open "More options" by themselves.
@@ -321,7 +329,10 @@ test("every id of an answer is a way on, and a link made on another graph says s
   await id.click();
   const menu = page.locator(".answer__id .idmenu__card");
   await expect(menu).toBeVisible();
-  await expect(menu.getByRole("link", { name: /^Open it in Convert/ })).toHaveAttribute("href", /^\/\?organism=/);
+  await expect(menu.getByRole("link", { name: /^Open it in Convert/ })).toHaveAttribute(
+    "href",
+    /^\/convert\?organism=/,
+  );
   await expectAccessible(page);
   await page.keyboard.press("Escape");
   await expect(menu).toHaveCount(0);

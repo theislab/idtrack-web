@@ -30,6 +30,7 @@ export type StatusResponse = Schemas["StatusResponse"];
 export type ShowcaseResponse = Schemas["ShowcaseResponse"];
 export type ShowcaseQuery = Schemas["ShowcaseQuery"];
 export type HistoryResponse = Schemas["HistoryResponse"];
+export type LineagesResponse = Schemas["LineagesResponse"];
 export type SourceInferenceRequest = Schemas["SourceInferenceRequest"];
 export type SourceInferenceResponse = Schemas["SourceInferenceResponse"];
 

@@ -1,6 +1,7 @@
-// The Convert page before a conversion: one screen, the hero. Its line, its sentence, the form with examples from the
-// showcase and the ways on; the figure of the graph's journeys from the server's showcase (one answer, no conversion
-// asked by the page), with its legend, its caption and its text alternative; nothing between the hero and the footer.
+// The home: one picture of the graph in view, a headline, a sentence and two calls to action, nothing else to press;
+// its picture menu. The Convert page before a conversion: its title, the form with examples from the showcase; the
+// figure of the graph's journeys from the server's showcase (one answer, no conversion asked by the page), with its
+// legend, its caption and its text alternative.
 // At every common window the figure names every row it draws (fewer rows where the room is short, never the rows
 // without their names) and stays inside its frame; every text of the figure stands inside it and over no mark, on the
 // home of every organism the server holds. An example converts a journey of the showcase that travels; a conversion
@@ -41,7 +42,7 @@ async function figureDrawn(page: Page): Promise<void> {
 async function textsWholeAndClear(page: Page): Promise<string[]> {
   return page.evaluate(() => {
     const found: string[] = [];
-    for (const svg of document.querySelectorAll<SVGSVGElement>(".hero .journeys__svg")) {
+    for (const svg of document.querySelectorAll<SVGSVGElement>(".convert-journeys .journeys__svg")) {
       const frame = svg.getBoundingClientRect();
       const texts = [...svg.querySelectorAll<SVGTextElement>("text")].filter(
         (t) => t.getBoundingClientRect().width > 0,
@@ -72,34 +73,72 @@ async function textsWholeAndClear(page: Page): Promise<string[]> {
   });
 }
 
-test("the start page is one screen: the hero, its figure, then the footer", async ({ page }, info) => {
+test("the home is one picture: a headline, a sentence, two calls to action, nothing else to press", async ({
+  page,
+}, info) => {
   const asked = conversionsAsked(page);
-  await page.goto(`/?organism=${data.organism}`);
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText(/^Follow a gene.id through Ensembl's history$/);
-  await expect(page.getByRole("form", { name: "Conversion" })).toBeVisible();
-  await expect(page.getByRole("navigation", { name: "More of idtrack" }).getByRole("link")).toHaveCount(3);
-  await figureDrawn(page);
-  // Nothing stands between the hero and the footer, and the hero ends within the first screen (a little more on a
-  // short window): no long page.
-  await expect(page.locator("main .page > *")).toHaveCount(1);
+  await page.goto("/");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(/^Every gene id\s*has a history\.$/);
+  const hero = page.locator(".hero2");
+  // Exactly two controls in the hero: Convert, and the documentation.
+  const controls = hero.locator("a[href], button, input, select, textarea, [tabindex]:not([tabindex='-1'])");
+  await expect(controls).toHaveCount(2);
+  await expect(hero.getByRole("link", { name: "Convert an identifier" })).toHaveAttribute(
+    "href",
+    new RegExp(`^/convert\\?organism=`),
+  );
+  await expect(hero.getByRole("link", { name: /Read the documentation/ })).toBeVisible();
+  // The picture is hidden from assistive technology; its caption names what is drawn and the endpoint it comes from.
+  await expect(hero.locator(".hero2__field")).toHaveAttribute("aria-hidden", "true");
+  await expect(hero.locator(".hero2__caption")).toContainText(`GET /api/v1/organisms/${data.organism}/lineages`, {
+    timeout: 30_000,
+  });
   const fit = await page.evaluate(() => {
-    const hero = document.querySelector(".hero")?.getBoundingClientRect();
+    const box = document.querySelector(".hero2")?.getBoundingClientRect();
     return {
-      bottom: (hero?.bottom ?? 0) + window.scrollY,
+      bottom: (box?.bottom ?? 0) + window.scrollY,
       viewport: window.innerHeight,
       wide: document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,
     };
   });
-  // On a phone the figure follows the form, with its rows named: about a screen and a half in all.
-  expect(fit.bottom).toBeLessThanOrEqual(fit.viewport * (isPhone(info) ? 1.6 : 1.15));
+  expect(fit.bottom).toBeLessThanOrEqual(fit.viewport + 1);
   expect(fit.wide).toBe(false);
-  // The words read in their order at every width: the line, the sentence, the measured line, the form.
-  const inOrder = await page.evaluate(() => {
-    const top = (s: string) => document.querySelector(s)?.getBoundingClientRect().top ?? Number.NaN;
-    const tops = [".hero__title", ".hero__lede", ".hero__measure-room", ".hero__form"].map(top);
-    return tops.every((t, i) => i === 0 || t > (tops[i - 1] ?? Infinity));
+  await expectAccessible(page);
+  await shot(page, info, "01-home");
+  expect(asked, "the home converts nothing").toEqual([]);
+});
+
+test("the home's picture menu offers three pictures and keeps the choice", async ({ page }) => {
+  await page.goto("/");
+  const button = page.getByRole("button", { name: "Choose the home page picture" });
+  await button.click();
+  const menu = page.getByRole("menu", { name: "Home page picture" });
+  await expect(menu.getByRole("menuitemradio")).toHaveCount(3);
+  await expect(menu.getByRole("menuitemradio", { checked: true })).toHaveText("Lineages through the releases");
+  await page.keyboard.press("ArrowDown");
+  await page.keyboard.press("Enter");
+  await expect(menu).toBeHidden();
+  await expect(button).toBeFocused();
+  await expect(page.locator(".hero2__field")).toHaveAttribute("data-picture", "rings");
+  await expect(page.locator(".hero2__caption")).toContainText(`GET /api/v1/organisms/${data.organism}/history`, {
+    timeout: 30_000,
   });
-  expect(inOrder).toBe(true);
+  await page.reload();
+  await expect(page.locator(".hero2__field")).toHaveAttribute("data-picture", "rings");
+  await page.goto("/method");
+  await expect(page.getByRole("button", { name: "Choose the home page picture" })).toHaveCount(0);
+});
+
+test("the Convert page: its title, the form, then the journeys of the graph", async ({ page }, info) => {
+  const asked = conversionsAsked(page);
+  await page.goto(`/convert?organism=${data.organism}`);
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Convert an identifier");
+  await expect(page.getByRole("form", { name: "Conversion" })).toBeVisible();
+  await figureDrawn(page);
+  const wide = await page.evaluate(
+    () => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,
+  );
+  expect(wide).toBe(false);
   // The figure: its caption names the endpoint, its text alternative says every journey.
   const showcase = await showcaseOf(page, data.organism);
   const list = journeyList(journeySets(showcase));
@@ -112,20 +151,20 @@ test("the start page is one screen: the hero, its figure, then the footer", asyn
   }
   expect(await textsWholeAndClear(page)).toEqual([]);
   await expectAccessible(page);
-  await shot(page, info, "01-start-hero");
-  expect(asked, "the home converts nothing itself").toEqual([]);
+  await shot(page, info, "02-convert");
+  expect(asked, "the Convert page converts nothing by itself").toEqual([]);
 });
 
 test("the journeys: every row the showcase's answer, isolated on focus, opened by Enter", async ({ page }, info) => {
   const showcase = await showcaseOf(page, data.organism);
   test.skip(showcase.journeys.length === 0, "the server's showcase holds no journeys for this graph");
-  await page.goto(`/?organism=${data.organism}`);
+  await page.goto(`/convert?organism=${data.organism}`);
   await figureDrawn(page);
   const asked = conversionsAsked(page);
   const list = journeyList(journeySets(showcase));
   const ids = list.map((j) => (j.model ? j.model.result.query_id : j.identifier));
   // Every row drawn is a journey of the showcase, in its order, a link named by its identifier.
-  const rows = page.locator(".hero .journeys__svg [data-journey][role=link]");
+  const rows = page.locator(".convert-journeys .journeys__svg [data-journey][role=link]");
   const labels = await rows.evaluateAll((gs) => gs.map((g) => g.getAttribute("aria-label") ?? ""));
   expect(labels.length).toBeGreaterThan(0);
   let at = -1;
@@ -151,7 +190,7 @@ test("the journeys: every row the showcase's answer, isolated on focus, opened b
     return;
   }
   await rows.nth(first).locator("rect.fig-hit").hover();
-  await expect(page.locator(".hero .journeys__svg")).toHaveClass(/is-isolating/);
+  await expect(page.locator(".convert-journeys .journeys__svg")).toHaveClass(/is-isolating/);
   await expect(page.getByRole("tooltip")).toContainText(idOf(first));
   await page.keyboard.press("Escape");
   await expect(page.getByRole("tooltip")).toHaveCount(0);
@@ -181,7 +220,7 @@ async function answerTop(page: Page): Promise<{ top: number; height: number }> {
 test("a conversion from the hero: the hero gives way to the answer under the form in one row", async ({
   page,
 }, info) => {
-  await page.goto(`/?organism=${data.organism}`);
+  await page.goto(`/convert?organism=${data.organism}`);
   const form = page.getByRole("form", { name: "Conversion" });
   await form.getByLabel("Identifier").fill(data.symbol.identifier);
   // The releases and the database are folded in one line that says them, and open on a press.
@@ -191,7 +230,7 @@ test("a conversion from the hero: the hero gives way to the answer under the for
   await expect(form.getByLabel("To release")).toBeVisible();
   await form.getByRole("button", { name: "Convert" }).click();
   await waitForResult(page);
-  await expect(page.locator(".hero")).toHaveCount(0);
+  await expect(page.locator(".convert-landing")).toHaveCount(0);
   // No page intro over the answer: the page's name, the form folded in one row, then the answer, on the first screen.
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Convert");
   await expect(page.locator(".page--convert .lede")).toHaveCount(0);
@@ -219,7 +258,7 @@ test("a link to an answer opens on the answer: the form in one row above it", as
 test("the examples are journeys of the showcase that travel, each named by what it shows", async ({ page }, info) => {
   const showcase = await showcaseOf(page, data.organism);
   const examples = examplesOf(showcase, data.organism);
-  await page.goto(`/?organism=${data.organism}`);
+  await page.goto(`/convert?organism=${data.organism}`);
   const group = page.getByRole("group", { name: "Examples from this graph's showcase" });
   if (!examples.length) {
     await expect(group).toHaveCount(0);
@@ -253,13 +292,13 @@ async function heroAt(page: Page): Promise<string[]> {
   return page.evaluate(() => {
     const found: string[] = [];
     const box = (s: string) => document.querySelector(s)?.getBoundingClientRect() ?? null;
-    const svg = box(".hero .journeys__svg");
+    const svg = box(".convert-journeys .journeys__svg");
     const legend = box(".hero__legend .fig-legend:not(.hero__legend-room .fig-legend)");
     const caption = box(".hero__caption");
     const frame = box(".hero__frame");
     if (!svg || !caption || !frame) return ["the figure is not drawn"];
-    const rows = document.querySelectorAll(".hero .journeys__svg [data-journey]").length;
-    const named = [...document.querySelectorAll(".hero .jr-names > g")].filter((g) =>
+    const rows = document.querySelectorAll(".convert-journeys .journeys__svg [data-journey]").length;
+    const named = [...document.querySelectorAll(".convert-journeys .jr-names > g")].filter((g) =>
       [...g.querySelectorAll("text")].some((t) => t.textContent.trim().length > 0),
     ).length;
     if (rows < 1) found.push("no row drawn");
@@ -291,34 +330,20 @@ test("at every common window the figure names the journeys it draws and keeps in
   ];
   for (const [width, height] of windows) {
     await page.setViewportSize({ width, height });
-    await page.goto(`/?organism=${data.organism}`);
+    await page.goto(`/convert?organism=${data.organism}`);
     await figureDrawn(page);
     await page.evaluate(async () => {
       await document.fonts.ready;
     });
     expect(await heroAt(page), `${width}x${height}`).toEqual([]);
     expect(await textsWholeAndClear(page), `${width}x${height}`).toEqual([]);
-    // Two columns down to 900 px; on a desktop window the hero is one screen (a little more on a short one).
-    const fit = await page.evaluate(() => {
-      const text = document.querySelector(".hero__text")?.getBoundingClientRect();
-      const figure = document.querySelector(".hero__figure")?.getBoundingClientRect();
-      const hero = document.querySelector(".hero")?.getBoundingClientRect();
-      return {
-        columns: text && figure ? figure.left >= text.right : false,
-        bottom: (hero?.bottom ?? 0) + window.scrollY,
-      };
-    });
-    if (width > 900) {
-      expect(fit.columns, `${width}x${height}: two columns`).toBe(true);
-      expect(fit.bottom, `${width}x${height}: one screen`).toBeLessThanOrEqual(height * 1.06);
-    }
   }
 });
 
 test("the figure's texts stand inside it and over no mark, on the home of every organism", async ({ page }, info) => {
   test.skip(isPhone(info), "the windows of every size are checked on the desktop project");
   for (const graph of await organisms(page)) {
-    await page.goto(`/?organism=${graph.organism}`);
+    await page.goto(`/convert?organism=${graph.organism}`);
     await figureDrawn(page);
     await page.evaluate(async () => {
       await document.fonts.ready;
@@ -369,7 +394,7 @@ test("a showcase the server refuses is said in its place, with its wait; the for
       }),
     }),
   );
-  await page.goto(`/?organism=${data.organism}`);
+  await page.goto(`/convert?organism=${data.organism}`);
   const place = page.locator(".hero__failed");
   await expect(place).toBeVisible();
   await expect(place.getByRole("button", { name: /Try again in \d+ s/ })).toBeDisabled();

@@ -230,14 +230,10 @@
   min-height: 56px;
 }
 
-/* ---- The form over an answer: one row under the page's name ------------------------------------------------ */
+/* ---- The form over an answer: one row under the section's tabs ------------------------------------------------ */
 
 .page.page--answer {
   padding-top: var(--space-5);
-}
-
-.convert-title.eyebrow {
-  margin: 0 0 var(--space-2);
 }
 
 .convert-form.convert-form--compact {

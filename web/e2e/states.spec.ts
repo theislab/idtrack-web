@@ -1,6 +1,6 @@
 // Every designed state: loading, the api's refusals (each with what to change), the api unreachable, unknown places.
 import { expect, test } from "@playwright/test";
-import { convertUrl, data, expectAccessible, isPhone, shot, withoutPreload } from "./helpers";
+import { convertUrl, data, expectAccessible, shot, withoutPreload } from "./helpers";
 
 test("loading shows the skeleton of the axis", async ({ page }, info) => {
   let release: () => void = () => undefined;
@@ -38,9 +38,9 @@ test("an unknown release: the api's message, the accepted values, what to change
 test("a release that is not a number is said in the graph's terms, and nothing is asked", async ({ page }) => {
   const asked: string[] = [];
   page.on("request", (request) => {
-    if (request.url().includes("/convert")) asked.push(request.url());
+    if (request.url().includes("/api/v1/") && request.url().includes("/convert")) asked.push(request.url());
   });
-  await page.goto(`/?organism=${data.organism}&id=${data.symbol.identifier}&to=abc`);
+  await page.goto(`/convert?organism=${data.organism}&id=${data.symbol.identifier}&to=abc`);
   await expect(page.getByRole("alert")).toContainText("Not a release: abc");
   await expect(page.getByRole("alert")).toContainText("graph holds releases");
   await expect(page.getByRole("button", { name: "Convert without the to release" })).toBeVisible();
@@ -55,7 +55,7 @@ test("an unknown database", async ({ page }) => {
 });
 
 test("an empty identifier is caught before asking", async ({ page }) => {
-  await page.goto(`/?organism=${data.organism}`);
+  await page.goto(`/convert?organism=${data.organism}`);
   await page.getByRole("button", { name: "Convert", exact: true }).click();
   await expect(page.getByText("Enter an identifier to convert.")).toBeVisible();
   await expect(page.getByLabel("Identifier")).toHaveAttribute("aria-invalid", "true");
@@ -114,7 +114,7 @@ test("rate limited: wait and try again", async ({ page }, info) => {
 });
 
 test("an organism the server does not hold", async ({ page }, info) => {
-  await page.goto("/?organism=unicorn");
+  await page.goto("/convert?organism=unicorn");
   await expect(page.getByRole("alert")).toContainText("An organism this server does not hold");
   await page.goto("/organisms/unicorn");
   await expect(page.getByRole("heading", { level: 1 })).toContainText("unicorn");
@@ -133,22 +133,19 @@ test.describe("the theme", () => {
   // A first visit: nothing chosen yet, whatever the project chooses.
   test.use({ storageState: { cookies: [], origins: [] } });
 
-  test("the theme is light by default and can be chosen and kept", async ({ page }, info) => {
-    // On a phone the three choices are in the menu of one button (it closes on a choice).
-    const choose = async (name: string) => {
-      if (isPhone(info)) await page.locator(".theme-menu__button").click();
-      await page.getByRole("radiogroup", { name: "Theme" }).getByRole("radio", { name }).click();
-    };
+  test("the theme is light by default, one button goes round the three, and the choice is kept", async ({ page }) => {
     await page.goto("/method");
     await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
-    await choose("Dark");
+    const button = page.locator(".theme-button");
+    await expect(button).toHaveAccessibleName("Light mode; switch to dark");
+    await button.click();
     await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
     await page.reload();
     await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
-    if (isPhone(info)) await expect(page.locator(".theme-menu__button")).toHaveAccessibleName("Theme: Dark");
-    await choose("System");
+    await expect(button).toHaveAccessibleName("Dark mode; switch to the system's");
+    await button.click();
     await expect(page.locator("html")).toHaveAttribute("data-theme", "system");
-    await choose("Light");
+    await button.click();
     await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
   });
 });

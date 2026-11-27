@@ -209,7 +209,8 @@ describe("the client", () => {
 
 describe("the routes", () => {
   it("are decided from the path alone", () => {
-    expect(routeOf("/").page).toBe("convert");
+    expect(routeOf("/").page).toBe("home");
+    expect(routeOf("/convert").page).toBe("convert");
     expect(routeOf("/method")).toMatchObject({ page: "method" });
     expect(routeOf("/organisms/sus_scrofa")).toMatchObject({ page: "organism", organism: "sus_scrofa" });
     expect(routeOf("/organisms/")).toMatchObject({ page: "redirect", to: "/organisms" });

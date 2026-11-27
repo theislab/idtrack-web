@@ -919,7 +919,7 @@ function EmptyBatch({ organism }: { organism: string }) {
         ))}
       </ol>
       <p className="batch-empty__foot">
-        For one identifier with its whole path drawn, use <Link to={href("/", { organism })}>Convert</Link>.
+        For one identifier with its whole path drawn, use <Link to={href("/convert", { organism })}>Convert</Link>.
       </p>
     </div>
   );

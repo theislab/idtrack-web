@@ -100,14 +100,53 @@
   --radius-lg: 8px;
   --content: 1280px;
 
-  /* The masthead's height at each width (app.css sets it per breakpoint); what scrolls into view stops below it. */
-  --masthead-height: 60px;
+  /* The masthead's height (masthead.css: 56 px below 861 px); what scrolls into view stops below it. */
+  --masthead-height: 64px;
 
   /* Focus: an outline (kept, as Highlight, in forced colours), 2 px of ink 2 px off the element. */
   --focus-width: 2px;
   --focus-offset: 2px;
   --focus-color: var(--ink-1);
   --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+
+  /* v2 (DIRECTION.md, "The visual language"): the display steps of the hero and a page's title, rounder shapes,
+     elevation by soft shadows, and the motion of a change of state. */
+  --text-display: 4.5rem;
+  --text-display-narrow: 2.75rem;
+  --track-display: -0.025em;
+  --track-title: -0.018em;
+  --radius-md: 12px;
+  --radius-xl: 16px;
+  --radius-pill: 999px;
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --dur-1: 120ms;
+  --dur-2: 200ms;
+  --dur-3: 320ms;
+  --dur-4: 900ms;
+
+  /* v2 colours (light): the accent of a selection and a focus within a control, glass, elevations */
+  --accent: #1f4fd1;
+  --accent-soft: rgb(31 79 209 / 9%);
+  --glass: rgb(250 250 248 / 78%);
+  --elev-1: 0 1px 2px rgb(14 17 22 / 4%), 0 8px 24px rgb(14 17 22 / 6%);
+  --elev-2: 0 2px 6px rgb(14 17 22 / 6%), 0 16px 40px rgb(14 17 22 / 12%);
+  --elev-3: 0 4px 12px rgb(14 17 22 / 8%), 0 32px 80px rgb(14 17 22 / 18%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --dur-1: 0ms;
+    --dur-2: 0ms;
+    --dur-3: 0ms;
+    --dur-4: 0ms;
+  }
+}
+
+@media (max-width: 860px) {
+  :root {
+    --masthead-height: 56px;
+  }
 }
 
 /* Below 720 px the page's title and the sections take the next step down (the panels keep theirs). */
@@ -148,6 +187,12 @@
   --state-ok-surface: #13241b;
   --state-danger-surface: #2a1714;
   --state-warn-surface: #2a2113;
+  --accent: #7aa2ff;
+  --accent-soft: rgb(122 162 255 / 14%);
+  --glass: rgb(11 13 16 / 72%);
+  --elev-1: 0 0 0 1px rgb(255 255 255 / 4%), 0 8px 24px rgb(0 0 0 / 35%);
+  --elev-2: 0 0 0 1px rgb(255 255 255 / 6%), 0 16px 40px rgb(0 0 0 / 50%);
+  --elev-3: 0 0 0 1px rgb(255 255 255 / 7%), 0 32px 80px rgb(0 0 0 / 60%);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -180,5 +225,11 @@
     --state-ok-surface: #13241b;
     --state-danger-surface: #2a1714;
     --state-warn-surface: #2a2113;
+    --accent: #7aa2ff;
+    --accent-soft: rgb(122 162 255 / 14%);
+    --glass: rgb(11 13 16 / 72%);
+    --elev-1: 0 0 0 1px rgb(255 255 255 / 4%), 0 8px 24px rgb(0 0 0 / 35%);
+    --elev-2: 0 0 0 1px rgb(255 255 255 / 6%), 0 16px 40px rgb(0 0 0 / 50%);
+    --elev-3: 0 0 0 1px rgb(255 255 255 / 7%), 0 32px 80px rgb(0 0 0 / 60%);
   }
 }

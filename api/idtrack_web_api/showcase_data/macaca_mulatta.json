@@ -2,104 +2,240 @@
   "checked_on": "19866fe1699f8de855226a1f8fbf4dc97c4c6e912bc21095ea1a708f289668fa",
   "journeys": [
     {
-      "identifier": "ENSMMUG00000008639",
+      "identifier": "CRYGA",
       "from_release": 48,
       "to_release": null,
       "final_database": "VGNC Symbol"
     },
     {
-      "identifier": "ENSMMUG00000001329",
+      "identifier": "CYP4F11",
       "from_release": 48,
       "to_release": null,
       "final_database": "VGNC Symbol"
     },
     {
-      "identifier": "ENSMMUG00000022394",
+      "identifier": "HIST1H2AB",
       "from_release": 48,
       "to_release": null,
       "final_database": "VGNC Symbol"
     },
     {
-      "identifier": "ENSMMUG00000018679",
+      "identifier": "HIST1H2BJ",
       "from_release": 48,
       "to_release": null,
       "final_database": "VGNC Symbol"
     },
     {
-      "identifier": "SEPT9",
+      "identifier": "HIST2H2AB",
       "from_release": 48,
       "to_release": null,
       "final_database": "VGNC Symbol"
     },
     {
-      "identifier": "PARK2",
+      "identifier": "HIST2H2BF",
       "from_release": 48,
       "to_release": null,
       "final_database": "VGNC Symbol"
     },
     {
-      "identifier": "GPR98",
+      "identifier": "HIST3H3",
       "from_release": 48,
       "to_release": null,
       "final_database": "VGNC Symbol"
     },
     {
-      "identifier": "FAM46C",
+      "identifier": "LANCL1",
       "from_release": 48,
       "to_release": null,
       "final_database": "VGNC Symbol"
     },
     {
-      "identifier": "NM_001047151",
-      "from_release": 60,
+      "identifier": "PHLDB1",
+      "from_release": 48,
       "to_release": null,
       "final_database": "VGNC Symbol"
     },
     {
-      "identifier": "ENSMMUG00000005166",
+      "identifier": "REG3A",
+      "from_release": 48,
+      "to_release": null,
+      "final_database": "VGNC Symbol"
+    },
+    {
+      "identifier": "ENSMMUG00000001439.2",
       "from_release": null,
       "to_release": null,
       "final_database": null
     },
     {
-      "identifier": "ENSMMUG00000005167",
+      "identifier": "ENSMMUG00000025312.1",
       "from_release": null,
       "to_release": null,
       "final_database": null
     },
     {
-      "identifier": "MT-ND1",
-      "from_release": 97,
+      "identifier": "ENSMMUG00000027809.1",
+      "from_release": null,
       "to_release": null,
       "final_database": null
     },
     {
-      "identifier": "ENSMMUG00000011153",
-      "from_release": 115,
+      "identifier": "ENSMMUG00000031195.1",
+      "from_release": null,
+      "to_release": null,
+      "final_database": null
+    },
+    {
+      "identifier": "ENSMMUG00000033241.1",
+      "from_release": null,
+      "to_release": null,
+      "final_database": null
+    },
+    {
+      "identifier": "ENSMMUG00000035491.1",
+      "from_release": null,
+      "to_release": null,
+      "final_database": null
+    },
+    {
+      "identifier": "ENSMMUG00000035618.1",
+      "from_release": null,
+      "to_release": null,
+      "final_database": null
+    },
+    {
+      "identifier": "ENSMMUG00000035619.1",
+      "from_release": null,
+      "to_release": null,
+      "final_database": null
+    },
+    {
+      "identifier": "ENSMMUG00000035649.1",
+      "from_release": null,
+      "to_release": null,
+      "final_database": null
+    },
+    {
+      "identifier": "ENSMMUG00000035857.1",
+      "from_release": null,
+      "to_release": null,
+      "final_database": null
+    },
+    {
+      "identifier": "ENSMMUG00000035955.1",
+      "from_release": null,
+      "to_release": null,
+      "final_database": null
+    },
+    {
+      "identifier": "ENSMMUG00000036081.1",
+      "from_release": null,
+      "to_release": null,
+      "final_database": null
+    },
+    {
+      "identifier": "ENSMMUG00000036094.1",
+      "from_release": null,
+      "to_release": null,
+      "final_database": null
+    },
+    {
+      "identifier": "ENSMMUG00000036581.1",
+      "from_release": null,
+      "to_release": null,
+      "final_database": null
+    },
+    {
+      "identifier": "ENSMMUG00000049269.1",
+      "from_release": null,
       "to_release": 48,
       "final_database": null
     },
     {
-      "identifier": "ENSMMUG00000003827",
-      "from_release": 115,
+      "identifier": "ENSMMUG00000049315.1",
+      "from_release": null,
+      "to_release": 48,
+      "final_database": null
+    },
+    {
+      "identifier": "ENSMMUG00000049571.1",
+      "from_release": null,
+      "to_release": 48,
+      "final_database": null
+    },
+    {
+      "identifier": "ENSMMUG00000051900.1",
+      "from_release": null,
+      "to_release": 48,
+      "final_database": null
+    },
+    {
+      "identifier": "ENSMMUG00000052603.1",
+      "from_release": null,
+      "to_release": 48,
+      "final_database": null
+    },
+    {
+      "identifier": "ENSMMUG00000053546.1",
+      "from_release": null,
+      "to_release": 48,
+      "final_database": null
+    },
+    {
+      "identifier": "ENSMMUG00000053886.1",
+      "from_release": null,
+      "to_release": 48,
+      "final_database": null
+    },
+    {
+      "identifier": "ENSMMUG00000059906.1",
+      "from_release": null,
       "to_release": 48,
       "final_database": null
     }
   ],
   "cases": [
     {
+      "kind": "split",
+      "identifier": "ENSMMUG00000049409",
+      "from_release": 115,
+      "to_release": 48,
+      "final_database": null
+    },
+    {
       "kind": "lineage",
-      "identifier": "ENSMMUG00000008639",
+      "identifier": "ENSMMUG00000058070",
+      "from_release": 115,
+      "to_release": 48,
+      "final_database": null
+    },
+    {
+      "kind": "renamed",
+      "identifier": "LOC107000794",
+      "from_release": 86,
+      "to_release": null,
+      "final_database": "NCBI gene (formerly Entrezgene)"
+    },
+    {
+      "kind": "new_version",
+      "identifier": "ENSMMUG00000025592",
       "from_release": 48,
       "to_release": null,
       "final_database": null
     },
     {
       "kind": "merge",
-      "identifier": "ENSMMUG00000005166",
-      "from_release": 85,
-      "to_release": null,
+      "identifier": "ENSMMUG00000062911",
+      "from_release": 115,
+      "to_release": 48,
       "final_database": null
+    },
+    {
+      "kind": "final",
+      "identifier": "RNASE3",
+      "from_release": 86,
+      "to_release": null,
+      "final_database": "NCBI gene (formerly Entrezgene)"
     },
     {
       "kind": "handoff",
@@ -107,13 +243,6 @@
       "from_release": 48,
       "to_release": null,
       "final_database": null
-    },
-    {
-      "kind": "final",
-      "identifier": "GPR98",
-      "from_release": 48,
-      "to_release": null,
-      "final_database": "VGNC Symbol"
     },
     {
       "kind": "refused",

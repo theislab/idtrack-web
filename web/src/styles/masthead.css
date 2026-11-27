@@ -1,0 +1,585 @@
+/* The masthead and the footer (DIRECTION.md, "The shell"). One bar of glass over the page: the mark and IDTrack, four
+   sections and the documentation, then the organism, the server's state, the palette and the theme. It stays in view
+   where the screen can spare it (641 px wide and 600 px tall), else it scrolls away with the page. */
+
+.mast {
+  position: relative;
+  z-index: 20;
+  background: var(--glass);
+  backdrop-filter: blur(16px) saturate(1.4);
+  border-bottom: 1px solid color-mix(in srgb, var(--line) 70%, transparent);
+}
+
+@supports not (backdrop-filter: blur(1px)) {
+  .mast {
+    background: var(--paper);
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .mast {
+    background: var(--paper);
+    backdrop-filter: none;
+  }
+}
+
+@media (min-width: 641px) and (min-height: 600px) {
+  :root {
+    --masthead-offset: var(--masthead-height);
+  }
+
+  .mast {
+    position: sticky;
+    top: 0;
+  }
+}
+
+.mast__inner {
+  max-width: var(--content);
+  height: calc(var(--masthead-height) - 1px);
+  margin: 0 auto;
+  padding: 0 var(--space-5);
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+}
+
+.mast__brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  color: var(--ink-1);
+  text-decoration: none;
+}
+
+.mast__mark {
+  width: 26px;
+  height: auto;
+}
+
+.mast__name {
+  font-size: var(--text-lg);
+  font-weight: var(--weight-strong);
+  letter-spacing: -0.01em;
+}
+
+.mast__nav {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.mast__link {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  min-height: 36px;
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-pill);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  color: var(--ink-2);
+  text-decoration: none;
+  transition:
+    background var(--dur-1),
+    color var(--dur-1);
+}
+
+.mast__link[aria-current="page"] {
+  color: var(--ink-1);
+  background: color-mix(in srgb, var(--ink-1) 7%, transparent);
+}
+
+@media (hover: hover) {
+  .mast__link:hover {
+    color: var(--ink-1);
+    background: color-mix(in srgb, var(--ink-1) 5%, transparent);
+  }
+}
+
+.mast__out {
+  margin-left: 3px;
+  font-size: var(--text-xs);
+  color: var(--ink-3);
+}
+
+.mast__tools {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+/* The organism: a chip; its list in a popover. */
+.org-chip__button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 0 var(--space-3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  font: inherit;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  color: var(--ink-1);
+  cursor: pointer;
+}
+
+.org-chip--waiting {
+  width: 92px;
+  height: 36px;
+}
+
+.org-chip__button[aria-expanded="true"] {
+  border-color: var(--line-control);
+}
+
+.org-chip .hovercard__card {
+  right: 0;
+  left: auto;
+  min-width: 260px;
+  padding: var(--space-1);
+}
+
+.org-chip__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.org-chip__option {
+  display: grid;
+  width: 100%;
+  min-height: 44px;
+  padding: var(--space-2) var(--space-3);
+  border: 0;
+  border-radius: var(--radius-lg);
+  background: none;
+  font: inherit;
+  text-align: left;
+  color: var(--ink-1);
+  cursor: pointer;
+}
+
+.org-chip__option[aria-current="true"] {
+  background: var(--accent-soft);
+}
+
+@media (hover: hover) {
+  .org-chip__option:hover {
+    background: color-mix(in srgb, var(--ink-1) 6%, transparent);
+  }
+}
+
+.org-chip__binomial {
+  font-style: italic;
+  font-size: var(--text-sm);
+}
+
+.org-chip__common {
+  font-size: var(--text-xs);
+  color: var(--ink-3);
+}
+
+/* The server's state: its dot alone at rest (its state in the button's name and title); its readings unfold beside it
+   on pointing or focus, over the masthead, so nothing beside it moves (a press opens the load panel, as before). */
+.mast .load-monitor__trigger {
+  position: relative;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  justify-content: center;
+  border-radius: var(--radius-pill);
+}
+
+.mast .load-monitor__shown {
+  position: absolute;
+  top: 50%;
+  right: calc(100% + 4px);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 6px var(--space-3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  background: var(--surface-raised);
+  box-shadow: var(--elev-1);
+  white-space: nowrap;
+  opacity: 0;
+  transform: translate(6px, -50%);
+  pointer-events: none;
+  transition:
+    opacity var(--dur-2) var(--ease-out),
+    transform var(--dur-2) var(--ease-out);
+}
+
+@media (hover: hover) {
+  .mast .load-monitor__trigger:hover .load-monitor__shown {
+    opacity: 1;
+    transform: translate(0, -50%);
+  }
+}
+
+.mast .load-monitor__trigger:focus-visible .load-monitor__shown {
+  opacity: 1;
+  transform: translate(0, -50%);
+}
+
+/* The command palette's button. */
+.mast__palette {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 36px;
+  padding: 0 var(--space-3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  color: var(--ink-2);
+  font: inherit;
+  cursor: pointer;
+}
+
+.mast__kbd {
+  font-family: var(--font-sans);
+  font-size: var(--text-2xs);
+  color: var(--ink-3);
+}
+
+.mast__menu {
+  display: none;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: none;
+  color: var(--ink-1);
+  cursor: pointer;
+}
+
+.mast__drawer-nav {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.mast__drawer-nav .mast__link {
+  min-height: 48px;
+  font-size: var(--text-lg);
+}
+
+@media (max-width: 860px) {
+  .mast__inner {
+    padding: 0 var(--space-4);
+    gap: var(--space-3);
+  }
+
+  .mast__nav {
+    display: none;
+  }
+
+  .mast__menu {
+    display: grid;
+  }
+
+  .mast__kbd {
+    display: none;
+  }
+
+  .mast__palette {
+    width: 40px;
+    padding: 0;
+    justify-content: center;
+  }
+}
+
+@media (max-width: 480px) {
+  .mast__name {
+    display: none;
+  }
+
+  .mast__inner {
+    gap: var(--space-2);
+  }
+
+  .mast__tools {
+    gap: var(--space-1);
+  }
+}
+
+/* Convert's tabs, under the masthead on its three pages. */
+.sections {
+  border-bottom: 1px solid var(--line);
+}
+
+.sections__inner {
+  max-width: var(--content);
+  margin: 0 auto;
+  padding: 0 var(--space-5);
+  display: flex;
+  gap: var(--space-5);
+  overflow-x: auto;
+}
+
+.sections__link {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  min-height: 48px;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  color: var(--ink-3);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.sections__link[aria-current="page"] {
+  color: var(--ink-1);
+}
+
+.sections__link[aria-current="page"]::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--ink-1);
+}
+
+@media (max-width: 640px) {
+  .sections__inner {
+    padding: 0 var(--space-4);
+  }
+}
+
+/* The footer: one quiet row. */
+.foot {
+  border-top: 1px solid var(--line);
+  color: var(--ink-3);
+  font-size: var(--text-xs);
+}
+
+.foot__inner {
+  max-width: var(--content);
+  margin: 0 auto;
+  padding: var(--space-6) var(--space-5);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3) var(--space-6);
+}
+
+.foot__brand {
+  margin: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--ink-2);
+}
+
+.foot__mark {
+  width: 18px;
+  height: auto;
+  color: var(--ink-2);
+}
+
+.foot__quiet {
+  color: var(--ink-3);
+}
+
+.foot__links {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-5);
+}
+
+.foot__links a {
+  color: var(--ink-2);
+  text-decoration: none;
+}
+
+.foot__links .foot__quiet a {
+  color: var(--ink-3);
+  text-decoration: underline;
+  text-decoration-color: var(--line-strong);
+}
+
+@media (hover: hover) {
+  .foot__links a:hover {
+    color: var(--ink-1);
+    text-decoration: underline;
+  }
+}
+
+@media (max-width: 640px) {
+  .foot__inner {
+    padding: var(--space-5) var(--space-4);
+  }
+}
+
+/* The theme: one round button; its icon is the theme in force. */
+.theme-button {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  color: var(--ink-1);
+  cursor: pointer;
+  transition: transform var(--dur-2) var(--ease-out);
+}
+
+.theme-button svg {
+  width: 15px;
+  height: 15px;
+}
+
+.theme-button:active {
+  transform: rotate(-20deg);
+}
+
+/* The home's picture menu: a round button; a glass menu of the three pictures. */
+.hero-menu {
+  position: relative;
+}
+
+.hero-menu__button {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  color: var(--ink-1);
+  cursor: pointer;
+}
+
+.hero-menu__list {
+  position: absolute;
+  z-index: 40;
+  top: calc(100% + 8px);
+  right: 0;
+  min-width: 260px;
+  padding: var(--space-1);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--glass);
+  backdrop-filter: blur(16px) saturate(1.4);
+  box-shadow: var(--elev-2);
+  animation: v2-pop var(--dur-2) var(--ease-out);
+}
+
+.hero-menu__item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 40px;
+  padding: 0 var(--space-3) 0 var(--space-2);
+  border-radius: var(--radius-lg);
+  font-size: var(--text-sm);
+  color: var(--ink-1);
+  cursor: pointer;
+  outline: none;
+}
+
+.hero-menu__item:focus-visible {
+  background: var(--accent-soft);
+  box-shadow: inset 0 0 0 2px var(--focus-color);
+}
+
+@media (hover: hover) {
+  .hero-menu__item:hover {
+    background: color-mix(in srgb, var(--ink-1) 6%, transparent);
+  }
+}
+
+.hero-menu__check {
+  display: grid;
+  place-items: center;
+  width: 18px;
+  color: var(--accent);
+}
+
+.foot__origin {
+  flex-basis: 100%;
+  margin: 0;
+  color: var(--ink-3);
+}
+
+.foot__origin a,
+.consent__text a {
+  color: inherit;
+}
+
+.foot__legal {
+  flex-basis: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-5);
+}
+
+.foot__legal:empty {
+  display: none;
+}
+
+.foot__button {
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: var(--ink-2);
+  cursor: pointer;
+}
+
+@media (hover: hover) {
+  .foot__button:hover {
+    color: var(--ink-1);
+    text-decoration: underline;
+  }
+}
+
+/* The question about counting visits: a calm card at the foot of the window, once. */
+.consent {
+  position: fixed;
+  z-index: 50;
+  left: var(--space-5);
+  bottom: var(--space-5);
+  width: min(420px, calc(100vw - 2 * var(--space-4)));
+  padding: var(--space-4) var(--space-5);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--glass);
+  backdrop-filter: blur(16px) saturate(1.4);
+  box-shadow: var(--elev-2);
+  animation: v2-rise var(--dur-3) var(--ease-out);
+}
+
+.consent__text {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--ink-2);
+}
+
+.consent__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+}
+
+@media (max-width: 640px) {
+  .consent {
+    left: var(--space-4);
+    bottom: var(--space-4);
+  }
+}

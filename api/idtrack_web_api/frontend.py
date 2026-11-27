@@ -60,7 +60,7 @@ HASHED_FOLDER = "assets"
 IMMUTABLE = "public, max-age=31536000, immutable"
 #: The routes of the page (``web/src/lib/routes.ts``: each page, with or without a trailing slash, and one graph's page
 #: ``/organisms/<name>``): any other path without a file extension is answered with the page and ``404``.
-PAGE_ROUTES = re.compile(r"^/(batch|names|organisms|developers|method)?/?$|^/organisms/[^/]+/?$")
+PAGE_ROUTES = re.compile(r"^/(convert|batch|names|organisms|developers|method)?/?$|^/organisms/[^/]+/?$")
 _INLINE_SCRIPT = re.compile(rb"<script(?![^>]*\bsrc=)[^>]*>(.*?)</script>", re.DOTALL | re.IGNORECASE)
 REVALIDATE = "no-cache"
 #: The id of the page's block of the answers written into it (``<script type="application/json" id=...>``): a JSON
@@ -175,13 +175,15 @@ def accepts(header: str | None, wanted: str) -> bool:
 class Frontend:
     """The files of a built frontend, their compressed forms made once, and the answers for them."""
 
-    def __init__(self, root: Path, preload: dict[str, bytes] | None = None) -> None:
+    def __init__(self, root: Path, preload: dict[str, bytes] | None = None, *, analytics: bool = False) -> None:
         """Compress every text file of the build.
 
         Args:
             root: The built frontend (``web/dist``).
             preload: The answers written into the page, by path (their bytes exactly as the api sends them).
+            analytics: Whether the site counts visits with Google Analytics (its hosts are allowed by the policy).
         """
+        self.analytics = analytics
         self.preload = _preload_block(preload or {})
         self._pages_sent: dict[str, tuple[bytes, bytes, bytes, bytes, str]] = {}
         self._frames: tuple[tuple[int, int], dict[str, dict[str, str]]] | None = None
@@ -232,7 +234,7 @@ class Frontend:
         page = self._page()
         if self._policy is None or self._policy[0] != page:
             hashes = (base64.b64encode(hashlib.sha256(s).digest()).decode() for s in _INLINE_SCRIPT.findall(page))
-            self._policy = (page, page_policy(hashes))
+            self._policy = (page, page_policy(hashes, analytics=self.analytics))
         return self._policy[1]
 
     def file(self, path: str) -> Path | None:

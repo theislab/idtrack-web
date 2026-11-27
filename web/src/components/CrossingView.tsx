@@ -140,7 +140,7 @@ export function CrossingView({
       ))}
       {rest > 0 ? (
         <p className="crossing__more muted">
-          and {rest} more candidate{rest === 1 ? "" : "s"}, each listed in the decision (panel d).
+          and {rest} more candidate{rest === 1 ? "" : "s"}, each listed on the Decision tab.
         </p>
       ) : null}
     </div>

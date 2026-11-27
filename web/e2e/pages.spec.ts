@@ -488,7 +488,7 @@ test("Method: the five panels in idtrack's words, the citation, the data, the li
 });
 
 test("keyboard alone: from the page's start to an answer", async ({ page }) => {
-  await page.goto(`/?organism=${data.organism}`);
+  await page.goto(`/convert?organism=${data.organism}`);
   await page.keyboard.press("Tab");
   await expect(page.getByText("Skip to the content")).toBeFocused();
   let found = false;

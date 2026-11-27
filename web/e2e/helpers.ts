@@ -47,7 +47,7 @@ export function convertUrl(query: Query): string {
   if (query.from !== undefined) parameters.set("from", String(query.from));
   if (query.to !== undefined) parameters.set("to", String(query.to));
   if (query.db !== undefined) parameters.set("db", query.db);
-  return `/?${parameters.toString()}`;
+  return `/convert?${parameters.toString()}`;
 }
 
 /** The api's query of the same conversion (explain on, as the page asks). */

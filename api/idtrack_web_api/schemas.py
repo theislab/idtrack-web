@@ -346,6 +346,13 @@ class VersionResponse(BaseModel):
             "`IDTRACK_WEB_DOCS_URL`, by default Read the Docs' stable version)."
         ),
     )
+    analytics_id: str | None = Field(
+        default=None,
+        description=(
+            "The Google Analytics measurement id the site counts visits with, after a visitor's consent "
+            "(`IDTRACK_WEB_ANALYTICS_ID`); `null`: the site counts nothing."
+        ),
+    )
 
 
 class OrganismNames(BaseModel):
@@ -1321,6 +1328,70 @@ class HistoryResponse(BaseModel):
     compute_seconds: float = Field(..., description="The seconds the server took to count it, at its start.")
 
 
+class LineagesResponse(BaseModel):
+    """The lineages of gene ids of one graph as Ensembl's stable id history gives them, whole families at a time."""
+
+    model_config = _STRICT
+    organism: str = Field(..., description="The organism.")
+    content_digest: str | None = Field(..., description="The digest of the graph's content read.")
+    releases: list[int] = Field(..., description="Every release of the graph, ascending.")
+    genes: int = Field(
+        ...,
+        description=(
+            "The stable gene ids of the graph's history (those with a version active at some release: every assembly "
+            "and region the graph holds, alternative loci included), given or not."
+        ),
+    )
+    families: int = Field(
+        ...,
+        description=(
+            "The families of the graph: ids joined by history edges between two ids, through any number of others."
+        ),
+    )
+    focus_families: int = Field(
+        ...,
+        description=(
+            "How many of the families given first hold a gene that the answers of the showcase name "
+            "(`GET /organisms/{organism}/showcase`)."
+        ),
+    )
+    limit: int = Field(..., description="The most gene ids asked for.")
+    ids: list[str] = Field(
+        ...,
+        description=(
+            "The gene ids given: whole families, first those that hold a gene the showcase's answers name (in the "
+            "order they are named), then the others in the order of the SHA-256 digest of each family's smallest "
+            "id, until the next family would pass `limit`; within a family by the first release at which it is active, "
+            "then by the id. Every other list of an id is in this order."
+        ),
+    )
+    family_starts: list[int] = Field(..., description="The index in `ids` of each family's first id, ascending.")
+    active: list[list[list[int]]] = Field(
+        ...,
+        description=(
+            "Per id, the runs of consecutive releases of the graph at which a version of it is active "
+            "(idtrack's `TheGraph.active_releases`), each `[first, last]`."
+        ),
+    )
+    versions: list[list[int]] = Field(
+        ...,
+        description="Per id, the releases at which a history edge leads from one version of it to another, ascending.",
+    )
+    edges: list[list[int | float | None]] = Field(
+        ...,
+        description=(
+            "History edges from a version of one id to a version of another, both given: `[from index, to index, "
+            "old release, new release, score]`, `score` Ensembl's mapping score (the highest between the two ids "
+            "across those releases) or `null` where it gave none. A version's edges to two or more ids at once is "
+            "Ensembl's mapping fanning out, two or more ids' edges to one id fanning in; neither is idtrack's "
+            "classification of a step of a path (`PathStep.reason`)."
+        ),
+    )
+    compute_seconds: float = Field(
+        ..., description="The seconds the server took to read the graph's lineages, at its start."
+    )
+
+
 #: The text of a release argument, the same in the query and in a body.
 RELEASE_TEXT = (
     "An Ensembl release, a whole number from 0 to 999999999 (anything else is `400 invalid_request`); whether the "
@@ -1551,6 +1622,7 @@ __all__ = [
     "IndexResponse",
     "LatencyLoad",
     "LimitsResponse",
+    "LineagesResponse",
     "MemoryLoad",
     "NameMatchModel",
     "NamesOfArguments",

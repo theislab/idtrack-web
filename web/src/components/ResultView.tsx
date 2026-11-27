@@ -1,9 +1,11 @@
-// One conversion's answer, as a figure of lettered panels: (a) the answer and its anatomy, (b) the path through the
-// releases, (c) the path in words, (d) the decision and every candidate, (e) how the identifier was read; then the
-// api's answer as sent. Panels without content for this answer are left out and the letters run on.
-import { memo, startTransition, useEffect, useId, useMemo, useState, useTransition } from "react";
+// One conversion's answer (DIRECTION.md, "The answer"): the verdict first (the query, the answer, its status, the
+// cautions, and the actions), then the rest behind tabs kept in the address (`?tab=`): the path (drawn, or in words),
+// the decision and every candidate, how the identifier was read, the evidence to weigh, and the record (the facts, how
+// the answer was reached, the api's answer as sent). Only the tab shown is drawn, so that the largest answer opens
+// with its verdict and its path alone.
+import { memo, useEffect, useId, useMemo, useState, useTransition } from "react";
 import type { ConversionResult, GraphDescription } from "../api/types";
-import { anatomyOf, type Anatomy } from "../lib/anatomy";
+import { anatomyOf } from "../lib/anatomy";
 import { assemblyBands } from "./figure/releases";
 import { evidenceOf } from "../lib/evidence";
 import { createHighlight } from "../lib/highlight";
@@ -17,49 +19,53 @@ import { useVocabulary } from "../lib/vocabularyContext";
 import { BridgesConsidered, RefusedSteps } from "./PathChecks";
 import { FigureCaption } from "./figure/Legend";
 import { LIMIT_WIDE, PathView } from "./PathView";
-import { AnswerPanel } from "./ResultAnswer";
+import { AnswerPanel, AnswerRecord, DecisionSentence } from "./ResultAnswer";
 import { DecisionPanelBody } from "./ResultDecision";
 import { FigurePanel } from "./ResultParts";
 import { Details, GenePlaces, OtherReadings, ReadingPanel } from "./ResultReading";
 import type { IdContext } from "./IdMenu";
-import { Button, CopyButton, Disclosure } from "./ui";
+import { Button, CopyButton } from "./ui";
+import { CaptionMore } from "./home/CaptionMore";
+import { Evidence } from "./Evidence";
+import { Expandable } from "./v2/Expandable";
+import { Segmented } from "./v2/Segmented";
+import { Tabs, type TabItem } from "./v2/Tabs";
+import { convertHref, plainConversion } from "../lib/convertParameters";
 import "../styles/result.css";
+import "../styles/answer.css";
 
 export { DecisionText } from "./ResultDecision";
 export { ResultSkeleton } from "./ResultSkeleton";
 
 /** The caption of the drawing: what is drawn and how to read it, with this path's own releases and assemblies. */
-function PathCaption({
-  model,
-  description,
-  letter,
-}: {
-  model: PathModel;
-  description: GraphDescription;
-  letter: string;
-}) {
+function PathCaption({ model, description }: { model: PathModel; description: GraphDescription }) {
   const r = model.result;
   const span = model.span;
   const bands = assemblyBands(description).filter((b) => !span || (b.last >= span[0] && b.first <= span[1]));
   const others = model.candidates.length - model.candidates.filter((c) => c.best).length;
   return (
-    <FigureCaption letter={letter} wide>
-      <strong className="fig-caption__lead">
-        The path of <span className="mono">{r.query_id}</span> from release{" "}
-        <span className="mono">{r.from_release ?? "—"}</span> to <span className="mono">{r.to_release}</span>.
-      </strong>{" "}
-      Time runs along Ensembl&apos;s releases (down the page on a narrow screen), over the assemblies that serve them
-      {bands.length ? ` (${bands.map((b) => `${b.name} ${b.first}–${b.last}`).join("; ")})` : ""}. Each bar is an
-      Ensembl gene over the releases the path holds it; each step is the mark of its kind (key above). The chosen path
-      is strong
-      {others
-        ? `, the ${others} other candidate${others === 1 ? "" : "s"} light${others > LIMIT_WIDE ? " (the next in rank drawn, the rest on request)" : ""}`
-        : ""}
-      ; under the lanes, Ensembl&apos;s score of each of its steps, a stem down from 1.0.
-      <span className="fig-caption__how">
-        Every element holds its exact values: tab to the drawing, then the arrow keys, or point at it. The next panel
-        says every step in words.
-      </span>
+    <FigureCaption wide>
+      <CaptionMore
+        lead={
+          <strong className="fig-caption__lead">
+            The path of <span className="mono">{r.query_id}</span> from release{" "}
+            <span className="mono">{r.from_release ?? "—"}</span> to <span className="mono">{r.to_release}</span>.
+          </strong>
+        }
+      >
+        Time runs along Ensembl&apos;s releases (down the page on a narrow screen), over the assemblies that serve them
+        {bands.length ? ` (${bands.map((b) => `${b.name} ${b.first}–${b.last}`).join("; ")})` : ""}. Each bar is an
+        Ensembl gene over the releases the path holds it; each step is the mark of its kind (key above). The chosen path
+        is strong
+        {others
+          ? `, the ${others} other candidate${others === 1 ? "" : "s"} light${others > LIMIT_WIDE ? " (the next in rank drawn, the rest on request)" : ""}`
+          : ""}
+        ; under the lanes, Ensembl&apos;s score of each of its steps, a stem down from 1.0.
+        <span className="fig-caption__how">
+          Every element holds its exact values: tab to the drawing, then the arrow keys, or point at it. “In words” says
+          every step.
+        </span>
+      </CaptionMore>
     </FigureCaption>
   );
 }
@@ -127,30 +133,6 @@ function RawAnswer({ raw, apiUrl }: { raw: string; apiUrl: string | null }) {
   );
 }
 
-/** The panels of a large answer are drawn in stages, one task each, the answer and its path first: an answer of
- *  hundreds of candidates never holds the page in one long task, and what is read first is drawn first. An answer of
- *  less than `STAGED_FROM` characters of text is drawn at once. */
-const STAGES = 4;
-export const STAGED_FROM = 150_000;
-
-function useStages(key: unknown, staged: boolean): number {
-  const [stage, setStage] = useState({ key, n: staged ? 1 : STAGES });
-  const n = stage.key === key ? stage.n : staged ? 1 : STAGES;
-  if (stage.key !== key) setStage({ key, n });
-  useEffect(() => {
-    if (n >= STAGES) return;
-    const timer = window.setTimeout(() => {
-      startTransition(() => {
-        setStage((s) => (s.key === key ? { key, n: s.n + 1 } : s));
-      });
-    }, 0);
-    return () => {
-      window.clearTimeout(timer);
-    };
-  }, [key, n]);
-  return n;
-}
-
 export const ResultView = memo(function ResultView({
   result,
   raw,
@@ -176,7 +158,6 @@ export const ResultView = memo(function ResultView({
   const [received, setReceived] = useState(() => ({ result, at: new Date().toISOString() }));
   if (received.result !== result) setReceived({ result, at: new Date().toISOString() });
   const receivedAt = received.at;
-  const stage = useStages(result, raw.length >= STAGED_FROM);
   const vocabulary = useVocabulary();
   const model = useMemo(() => buildModel(result), [result]);
   const names = useMemo(() => assemblyNames(description.assemblies), [description]);
@@ -233,32 +214,165 @@ export const ResultView = memo(function ResultView({
   const hasPath = model.steps.length > 0;
   const oneRelease = atOneRelease(model);
   const hasCandidates = result.candidates.length > 0;
-
-  // The panels this answer has, lettered in order.
-  const order: string[] = ["answer"];
-  if (hasPath) order.push("path", "words");
-  if (hasCandidates) order.push("decision");
-  order.push("read");
-  const letter = (panel: string) => String.fromCharCode(97 + order.indexOf(panel));
+  const [view, setView] = useState<"drawing" | "words">("drawing");
   const id = (panel: string) => `${base}-${panel}`;
   const readingId = id("words");
-  const links: Record<keyof Anatomy, string | null> = {
-    read: id("read"),
-    walked: hasPath ? id("path") : null,
-    ranked: hasCandidates ? id("decision") : null,
-    answered: hasCandidates ? `${id("decision")}-list` : null,
-  };
+  const steps = model.steps.length;
+  const readAtHref = (release: number) =>
+    convertHref(description.organism, {
+      ...plainConversion(result.query_id),
+      fromRelease: release,
+      toRelease: result.to_release,
+      finalDatabase: requestedDatabase,
+    });
+
+  const items: TabItem[] = [];
+  if (hasPath)
+    items.push({
+      id: "path",
+      label: "Path",
+      count: `${groupedInteger(steps)} step${steps === 1 ? "" : "s"}`,
+      panel: () => (
+        <FigurePanel
+          title={oneRelease !== null ? `The reading at release ${oneRelease}` : "The path through the releases"}
+          id={id("path")}
+          className="result__path"
+          aside={
+            <Segmented
+              label="The path"
+              value={view}
+              onChange={setView}
+              options={[
+                { value: "drawing", label: "Drawing" },
+                { value: "words", label: "In words" },
+              ]}
+            />
+          }
+        >
+          {view === "words" ? (
+            <ReadingPanel model={model} names={names} id={readingId} highlight={highlight} context={context} />
+          ) : oneRelease !== null ? (
+            <figure className="pv-figure">
+              <CrossingView model={model} release={oneRelease} readingId={readingId} context={context} />
+              <FigureCaption wide>
+                <CaptionMore
+                  lead={
+                    <strong className="fig-caption__lead">
+                      The reading of <span className="mono">{result.query_id}</span> at release{" "}
+                      <span className="mono">{oneRelease}</span>.
+                    </strong>
+                  }
+                >
+                  No step of Ensembl&apos;s history: every step holds at this release, so the drawing shows the
+                  databases crossed, not a time axis: the identifier, each database or form it is read through (an
+                  open square, an open circle), the gene it is read as (a bar) and the answer&apos;s id in the database
+                  asked (a filled square).
+                  <span className="fig-caption__how">
+                    Every id opens a menu of where to go from it; “In words” says every step.
+                  </span>
+                </CaptionMore>
+              </FigureCaption>
+            </figure>
+          ) : (
+            <figure className="pv-figure">
+              <PathView
+                model={model}
+                description={description}
+                names={names}
+                highlight={highlight}
+                readingId={readingId}
+                requestedDatabase={requestedDatabase}
+                symbols={symbols}
+              />
+              <PathCaption model={model} description={description} />
+            </figure>
+          )}
+        </FigurePanel>
+      ),
+    });
+  if (hasCandidates)
+    items.push({
+      id: "decision",
+      label: "Decision",
+      count: `${groupedInteger(result.candidates.length)} candidate${result.candidates.length === 1 ? "" : "s"}`,
+      panel: () => (
+        <FigurePanel title="The decision" id={id("decision")} className="result__candidates">
+          <DecisionSentence model={model} context={context} />
+          <DecisionPanelBody
+            result={result}
+            decision={model.decision}
+            highlight={highlight}
+            requestedDatabase={requestedDatabase}
+            listId={`${id("decision")}-list`}
+            context={context}
+          />
+        </FigurePanel>
+      ),
+    });
+  items.push({
+    id: "reading",
+    label: "Reading",
+    panel: () => (
+      <FigurePanel title="How the identifier was read" id={id("read")} className="result__details">
+        <Details result={result} />
+        <OtherReadings result={result} context={context} />
+        {hasPath ? (
+          <Expandable summary="Where the genes lie" meta="places on their assemblies">
+            <GenePlaces model={model} names={names} />
+          </Expandable>
+        ) : null}
+        {result.path ? (
+          <Expandable summary="The bridges the search considered" meta={`${result.path.bridges.length}`}>
+            <BridgesConsidered path={result.path} model={model} id={base} />
+          </Expandable>
+        ) : null}
+        {result.path?.refused.length ? (
+          <Expandable summary="Steps not followed" meta={`${result.path.refused.length}`}>
+            <RefusedSteps path={result.path} model={model} names={names} id={base} />
+          </Expandable>
+        ) : null}
+      </FigurePanel>
+    ),
+  });
+  if (marks.length)
+    items.push({
+      id: "evidence",
+      label: "Evidence",
+      count: groupedInteger(marks.length),
+      panel: () => (
+        <FigurePanel title="The evidence to weigh" id={id("evidence")} className="result__evidence">
+          <Evidence result={result} marks={marks} readAtHref={readAtHref} label="Evidence to weigh" />
+        </FigurePanel>
+      ),
+    });
+  items.push({
+    id: "record",
+    label: "Record",
+    panel: () => (
+      <FigurePanel title="The record of this answer" id={id("record")} className="result__record">
+        <AnswerRecord
+          result={result}
+          description={description}
+          requestedDatabase={requestedDatabase}
+          serverTiming={serverTiming}
+          context={context}
+          anatomy={anatomy}
+          names={names}
+        />
+        <Expandable summary="The api's answer, as sent" meta={`${groupedInteger(raw.length)} characters`}>
+          <RawAnswer raw={raw} apiUrl={apiUrl} />
+        </Expandable>
+      </FigurePanel>
+    ),
+  });
 
   return (
-    <article className="result" aria-label={`The conversion of ${result.query_id}`}>
+    <article className="result result--v2" aria-label={`The conversion of ${result.query_id}`}>
       <AnswerPanel
         result={result}
         model={model}
         description={description}
         requestedDatabase={requestedDatabase}
-        anatomy={anatomy}
-        names={names}
-        links={links}
         apiUrl={apiUrl}
         serverTiming={serverTiming}
         raw={raw}
@@ -278,108 +392,10 @@ export const ResultView = memo(function ResultView({
           </ul>
         </div>
       ) : null}
-      {hasPath ? (
-        <FigurePanel
-          letter={letter("path")}
-          title={oneRelease !== null ? `The reading at release ${oneRelease}` : "The path through the releases"}
-          id={id("path")}
-          className="result__path"
-          aside={
-            <span className="muted">
-              {model.candidates.length > 1
-                ? `all ${groupedInteger(model.candidates.length)} candidates: ${groupedInteger(model.steps.length)} steps, ${groupedInteger(model.nodes.length)} identifiers`
-                : `${model.steps.length} step${model.steps.length === 1 ? "" : "s"}, ${model.nodes.length} identifiers`}
-            </span>
-          }
-        >
-          {oneRelease !== null ? (
-            <figure className="pv-figure">
-              <CrossingView model={model} release={oneRelease} readingId={readingId} context={context} />
-              <FigureCaption letter={letter("path")} wide>
-                <strong className="fig-caption__lead">
-                  The reading of <span className="mono">{result.query_id}</span> at release{" "}
-                  <span className="mono">{oneRelease}</span>.
-                </strong>{" "}
-                No step of Ensembl&apos;s history: every step holds at this release, so the drawing shows the databases
-                crossed, not a time axis: the identifier, each database or form it is read through (an open square, an
-                open circle), the gene it is read as (a bar) and the answer&apos;s id in the database asked (a filled
-                square).
-                <span className="fig-caption__how">
-                  Every id opens a menu of where to go from it; the next panel says every step in words.
-                </span>
-              </FigureCaption>
-            </figure>
-          ) : (
-            <figure className="pv-figure">
-              <PathView
-                model={model}
-                description={description}
-                names={names}
-                highlight={highlight}
-                readingId={readingId}
-                requestedDatabase={requestedDatabase}
-                symbols={symbols}
-              />
-              <PathCaption model={model} description={description} letter={letter("path")} />
-            </figure>
-          )}
-        </FigurePanel>
-      ) : hasCandidates ? (
-        <p className="result__no-path muted">
-          The path was not asked for (Show the path is off): panels of the path and its words are left out.
-        </p>
+      {hasCandidates && !hasPath ? (
+        <p className="result__no-path muted">The path was not asked for (Show the path is off): no path is drawn.</p>
       ) : null}
-      {hasPath && stage >= 2 ? (
-        <ReadingPanel
-          model={model}
-          names={names}
-          id={readingId}
-          letter={letter("words")}
-          highlight={highlight}
-          context={context}
-        />
-      ) : null}
-      {hasCandidates && stage >= 3 ? (
-        <FigurePanel
-          letter={letter("decision")}
-          title="The decision"
-          id={id("decision")}
-          className="result__candidates"
-          aside={
-            <span className="muted">
-              {result.candidates.length} candidate{result.candidates.length === 1 ? "" : "s"}, ranked
-            </span>
-          }
-        >
-          <DecisionPanelBody
-            result={result}
-            decision={model.decision}
-            highlight={highlight}
-            requestedDatabase={requestedDatabase}
-            listId={`${id("decision")}-list`}
-            context={context}
-          />
-        </FigurePanel>
-      ) : null}
-      {stage >= 4 ? (
-        <>
-          <FigurePanel
-            letter={letter("read")}
-            title="How the identifier was read"
-            id={id("read")}
-            className="result__details"
-          >
-            <Details result={result} />
-            <OtherReadings result={result} context={context} />
-            {hasPath ? <GenePlaces model={model} names={names} /> : null}
-            {result.path ? <BridgesConsidered path={result.path} model={model} id={base} /> : null}
-            {result.path ? <RefusedSteps path={result.path} model={model} names={names} id={base} /> : null}
-          </FigurePanel>
-          <Disclosure summary="The api's answer, as sent">
-            <RawAnswer raw={raw} apiUrl={apiUrl} />
-          </Disclosure>
-        </>
-      ) : null}
+      <Tabs items={items} label="The answer in detail" param="tab" className="result__tabs" />
     </article>
   );
 });

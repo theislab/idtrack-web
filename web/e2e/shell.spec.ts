@@ -6,7 +6,7 @@ import { convertUrl, data, expectAccessible, shot, waitForResult, withoutPreload
 
 /** The page is never white: the masthead and a heading are drawn, and no error escaped to the window. */
 async function expectDrawn(page: Page, errors: string[]): Promise<void> {
-  await expect(page.locator("header.masthead")).toBeVisible();
+  await expect(page.locator("header.mast")).toBeVisible();
   expect(await page.locator("#root").evaluate((root) => root.children.length)).toBeGreaterThan(0);
   expect(errors, errors.join("\n")).toEqual([]);
 }
@@ -38,9 +38,9 @@ test.describe("never a white page", () => {
         ? route.fulfill({ status: 404, contentType: "application/json", body: '{"error":{"code":"not_found"}}' })
         : route.continue(),
     );
-    await page.goto(`/?organism=${data.organism}`);
+    await page.goto(`/convert?organism=${data.organism}`);
     await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
-    await page.getByRole("navigation", { name: "Main" }).getByRole("link", { name: "Batch" }).click();
+    await page.getByRole("navigation", { name: "Convert" }).getByRole("link", { name: "A list" }).click();
     // The page reloads once to fetch the site's current code; the part is missing again, so it is stated.
     const alert = page.getByRole("alert");
     await expect(alert.getByRole("heading", { name: "This page could not be loaded" })).toBeVisible();
@@ -58,10 +58,10 @@ test.describe("never a white page", () => {
     context,
   }, info) => {
     const errors = collectErrors(page);
-    await page.goto(`/?organism=${data.organism}`);
+    await page.goto(`/convert?organism=${data.organism}`);
     await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
     await context.setOffline(true);
-    await page.getByRole("navigation", { name: "Main" }).getByRole("link", { name: "Names" }).click();
+    await page.getByRole("navigation", { name: "Convert" }).getByRole("link", { name: "Names" }).click();
     await expect(page.getByRole("heading", { name: /not loaded: the browser is offline/ })).toBeVisible();
     await expectDrawn(page, errors);
     await shot(page, info, "s2-offline-page");
@@ -73,7 +73,7 @@ test.describe("never a white page", () => {
     page,
     context,
   }) => {
-    await page.goto(`/?organism=${data.organism}`);
+    await page.goto(`/convert?organism=${data.organism}`);
     await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
     await context.setOffline(true);
     await page.getByRole("textbox", { name: "Identifier", exact: true }).fill(data.symbol.identifier);
@@ -122,7 +122,7 @@ test.describe("never a white page", () => {
 
 test.describe("focus and one sentence per outcome", () => {
   test("a conversion keeps the form, focuses its answer and says it in one sentence", async ({ page }) => {
-    await page.goto(`/?organism=${data.organism}`);
+    await page.goto(`/convert?organism=${data.organism}`);
     const field = page.getByRole("textbox", { name: "Identifier", exact: true });
     await field.fill(data.symbol.identifier);
     const answered = page.waitForResponse(
@@ -135,6 +135,7 @@ test.describe("focus and one sentence per outcome", () => {
     // The answer's server time is its own response's Server-Timing header, as sent.
     const app = /app;dur=([^,;]+)/.exec(response.headers()["server-timing"] ?? "")?.[1];
     expect(app, "the answer carries Server-Timing").toBeTruthy();
+    await page.getByRole("tab", { name: "Record" }).click();
     await expect(page.locator(".answer__facts")).toContainText(`${app ?? "-"} ms`);
     // The form was not made anew: the field still holds what was sent.
     await expect(field).toHaveValue(data.symbol.identifier);
@@ -146,9 +147,9 @@ test.describe("focus and one sentence per outcome", () => {
   });
 
   test("a route change moves the focus to the new page's heading", async ({ page }) => {
-    await page.goto(`/?organism=${data.organism}`);
+    await page.goto(`/convert?organism=${data.organism}`);
     await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
-    const batch = page.getByRole("navigation", { name: "Main" }).getByRole("link", { name: "Batch" });
+    const batch = page.getByRole("navigation", { name: "Convert" }).getByRole("link", { name: "A list" });
     await batch.focus();
     await page.keyboard.press("Enter");
     await expect.poll(async () => (await focused(page)).tag).toBe("H1");
@@ -166,7 +167,7 @@ test.describe("focus and one sentence per outcome", () => {
       await held;
       await route.continue();
     });
-    await page.goto(`/?organism=${data.organism}`);
+    await page.goto(`/convert?organism=${data.organism}`);
     await page.getByRole("textbox", { name: "Identifier", exact: true }).fill(data.symbol.identifier);
     const convert = page.getByRole("button", { name: "Convert", exact: true });
     await convert.click();
@@ -181,18 +182,23 @@ test.describe("focus and one sentence per outcome", () => {
 
 test.describe("state that survives", () => {
   test("what was typed is kept across an organism switch", async ({ page }) => {
-    await page.goto(`/?organism=${data.organism}`);
-    const picker = page.getByRole("combobox", { name: "Organism" });
-    const options = await picker
-      .locator("option")
-      .evaluateAll((list) => list.map((o) => (o as HTMLOptionElement).value));
-    test.skip(options.length < 2, "the server holds one organism");
+    await page.goto(`/convert?organism=${data.organism}`);
+    const organisms = (
+      (await (await page.request.get("/api/v1/organisms")).json()) as { organisms: { organism: string }[] }
+    ).organisms.map((o) => o.organism);
+    test.skip(organisms.length < 2, "the server holds one organism");
+    const choose = async (organism: string) => {
+      await page.locator(".org-chip__button").click();
+      await page
+        .locator(".org-chip__option", { hasText: organism.replace(/_/g, " ").replace(/^./, (c) => c.toUpperCase()) })
+        .click();
+    };
     await page.getByRole("textbox", { name: "Identifier", exact: true }).fill("BRCA2");
-    const other = options.find((o) => o !== data.organism) ?? "";
-    await picker.selectOption(other);
+    const other = organisms.find((o) => o !== data.organism) ?? "";
+    await choose(other);
     await expect(page).toHaveURL(new RegExp(`organism=${other}`));
     await expect(page.getByRole("textbox", { name: "Identifier", exact: true })).toHaveValue("BRCA2");
-    await picker.selectOption(data.organism);
+    await choose(data.organism);
     await expect(page.getByRole("textbox", { name: "Identifier", exact: true })).toHaveValue("BRCA2");
   });
 
@@ -209,7 +215,7 @@ test.describe("state that survives", () => {
     await expect(page.getByRole("status").filter({ hasText: "The batch of" }).first()).toContainText(
       `The batch of ${data.batch.length} identifiers is answered`,
     );
-    await page.getByRole("navigation", { name: "Main" }).getByRole("link", { name: "Names" }).click();
+    await page.getByRole("navigation", { name: "Convert" }).getByRole("link", { name: "Names" }).click();
     await expect(page.getByRole("heading", { level: 1, name: /What a name names/ })).toBeVisible();
     await page.goBack();
     await expect(page.getByLabel("Identifiers", { exact: true })).toHaveValue(data.batch.join("\n"));
@@ -220,7 +226,7 @@ test.describe("state that survives", () => {
   });
 
   test("a pasted column in the Convert field is offered to Batch as a list", async ({ page }, info) => {
-    await page.goto(`/?organism=${data.organism}`);
+    await page.goto(`/convert?organism=${data.organism}`);
     const field = page.getByRole("textbox", { name: "Identifier", exact: true });
     await field.focus();
     await page.evaluate((text) => {
@@ -310,7 +316,7 @@ test.describe("the page never asks twice", () => {
     });
     await page.goto(convertUrl(data.symbol));
     await waitForResult(page);
-    await page.getByRole("navigation", { name: "Main" }).getByRole("link", { name: "Names" }).click();
+    await page.getByRole("navigation", { name: "Convert" }).getByRole("link", { name: "Names" }).click();
     await expect(page.getByRole("heading", { level: 1, name: /What a name names/ })).toBeVisible();
     await page.goBack();
     await waitForResult(page);
@@ -324,9 +330,9 @@ test.describe("the page never asks twice", () => {
     expect(asked.filter((a) => a.includes("/convert?"))).toHaveLength(1);
   });
 
-  test("a return to the home asks nothing of its figures again", async ({ page }) => {
-    await page.goto(`/?organism=${data.organism}`);
-    await expect(page.locator("footer.footer")).toBeVisible(); // the app, not the page's frame
+  test("a return to the Convert page asks nothing of its figures again", async ({ page }) => {
+    await page.goto(`/convert?organism=${data.organism}`);
+    await expect(page.locator("footer.foot")).toBeVisible(); // the app, not the page's frame
     await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
     await page.waitForLoadState("networkidle");
     const asked: string[] = [];
@@ -334,11 +340,11 @@ test.describe("the page never asks twice", () => {
       const url = new URL(request.url());
       if (/\/(convert|convert\/batch|showcase)$/.test(url.pathname)) asked.push(url.pathname + url.search);
     });
-    const nav = page.getByRole("navigation", { name: "Main" });
-    await nav.getByRole("link", { name: "Batch" }).click();
+    const tabs = page.getByRole("navigation", { name: "Convert" });
+    await tabs.getByRole("link", { name: "A list" }).click();
     await expect(page.getByRole("heading", { level: 1, name: /Many identifiers/ })).toBeVisible();
-    await nav.getByRole("link", { name: "Convert" }).click();
-    await expect(page.getByRole("heading", { level: 1, name: /Follow a gene.id through/ })).toBeVisible();
+    await tabs.getByRole("link", { name: "One identifier" }).click();
+    await expect(page.getByRole("heading", { level: 1, name: /^Convert an identifier$/ })).toBeVisible();
     await page.waitForLoadState("networkidle");
     expect(asked).toEqual([]);
   });

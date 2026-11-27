@@ -1,6 +1,6 @@
-// A caption that says its first sentence on a narrow screen (a phone, a tablet) and the rest on a press ("More about
-// this figure"); on a wider screen the whole caption stands, and the button is not drawn. The rest is in the page either way (a reader of the
-// page's text, a search, a screen reader with the rest shown), never a different text.
+// A caption that says its claim (its first sentence) and the rest on a press ("More about this figure"), at every
+// width (DIRECTION.md, rule 4: captions keep their claim; how to read the figure folds). Opened, the rest is the same
+// text in the same place, never a different one.
 import { useId, useState, type ReactNode } from "react";
 
 export function CaptionMore({ lead, children }: { lead: ReactNode; children: ReactNode }) {

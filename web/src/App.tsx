@@ -1,25 +1,24 @@
 // The shell: the header with the organism and the navigation, the page of the address, the footer. Every part that
 // can fail is inside an error boundary (the page, keyed by its address; the load monitor), so that a failure is said
 // in its place and never leaves a white page; a route change moves the focus to the new page's heading.
-import { BENCHMARKS_SOURCE, docsPage, IDTRACK_PACKAGE, IDTRACK_SOURCE, SITE_SOURCE } from "./lib/links";
 import { Suspense, useEffect, useRef, useState, type ReactNode } from "react";
 import { Announcer } from "./components/Announcer";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { ErrorPanel } from "./components/ErrorPanel";
-import { LoadMonitor } from "./components/LoadMonitor";
-import { Logo, LogoMark } from "./components/Logo";
 import { NotFound } from "./components/NotFound";
-import { OrganismPicker } from "./components/OrganismPicker";
-import { ThemeSwitch } from "./components/ThemeSwitch";
-import { Button, Link, Mono, Skeleton } from "./components/ui";
+import { Consent } from "./components/shell/Consent";
+import { ConvertSections, Masthead } from "./components/shell/Masthead";
+import { SiteFooter } from "./components/shell/SiteFooter";
+import { Button, Mono, Skeleton } from "./components/ui";
 import { takeReloadNotice } from "./lib/chunks";
 import { focusWhenThere, fragmentTarget } from "./lib/focus";
 import { organismName } from "./lib/organismNames";
 import { OrganismsProvider, useOrganisms } from "./lib/organisms";
 import { routeOf } from "./lib/routes";
-import { href, navigate, useLocation } from "./lib/router";
+import { navigate, useLocation } from "./lib/router";
 import { setPageTitle } from "./lib/title";
 import { ConvertPage } from "./pages/ConvertPage";
+import { HomePage } from "./pages/HomePage";
 import { ApiPage, BatchPage, MethodPage, NamesPage, OrganismPage, OrganismsIndex } from "./lib/pageParts";
 
 /** While a page's code loads: the page's frame, as tall as a screen, so the footer does not jump. */
@@ -34,225 +33,10 @@ function PageLoading() {
   );
 }
 
-const NAV: [string, string][] = [
-  ["/", "Convert"],
-  ["/batch", "Batch"],
-  ["/names", "Names"],
-  ["/organisms", "Explore"],
-  ["/developers", "API"],
-  ["/method", "Method"],
-];
-
 /** Whether text from an address reads as an organism's name (an Ensembl production name, or a common name such as
  *  "pig"): at most 40 letters and underscores. Anything else is never echoed into the page. */
 function organismLike(text: string): boolean {
   return /^[A-Za-z][A-Za-z_]{0,39}$/.test(text);
-}
-
-/** Pages whose address carries no organism (the organism is chosen on the page or does not apply). */
-const WITHOUT_ORGANISM = new Set(["/organisms", "/developers", "/method"]);
-
-function isActive(path: string, current: string): boolean {
-  // An address that is no page is no section of the navigation.
-  if (routeOf(current).page === "none") return false;
-  if (path === "/") return current === "/";
-  return current === path || current.startsWith(`${path}/`);
-}
-
-/** Whether a row that scrolls sideways holds more to its left or right (for the fade on that side), from an
- *  IntersectionObserver on its first and last links: no layout is read, during a commit or after one. When `shown`
- *  changes (the page shown), its current link is brought into the row from the observer's own measures (the row only:
- *  the page itself never scrolls for it). */
-function useScrollEdges<T extends HTMLElement>(shown: string) {
-  const ref = useRef<T>(null);
-  const [more, setMore] = useState({ left: false, right: false });
-  useEffect(() => {
-    const row = ref.current;
-    const link = row?.querySelector<HTMLElement>('[aria-current="page"]');
-    if (!row || !link || typeof IntersectionObserver === "undefined") return;
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        observer.disconnect();
-        if (!entry?.rootBounds || entry.intersectionRatio >= 1) return;
-        const { left, right } = entry.boundingClientRect;
-        const edge = 16;
-        if (left < entry.rootBounds.left) row.scrollLeft += left - entry.rootBounds.left - edge;
-        else if (right > entry.rootBounds.right) row.scrollLeft += right - entry.rootBounds.right + edge;
-      },
-      { root: row, threshold: 1 },
-    );
-    observer.observe(link);
-    return () => {
-      observer.disconnect();
-    };
-  }, [shown]);
-  useEffect(() => {
-    const row = ref.current;
-    const links = row?.querySelectorAll(".nav__link");
-    const start = links?.[0];
-    const end = links?.[links.length - 1];
-    if (!row || !start || !end || typeof IntersectionObserver === "undefined") return;
-    const seen = new Map<Element, boolean>([
-      [start, true],
-      [end, true],
-    ]);
-    const observer = new IntersectionObserver(
-      (entries) => {
-        // Whole in view (a link cut by the row's edge intersects it, but is not whole).
-        for (const entry of entries) seen.set(entry.target, entry.intersectionRatio >= 0.99);
-        const left = !seen.get(start);
-        const right = !seen.get(end);
-        setMore((m) => (m.left === left && m.right === right ? m : { left, right }));
-      },
-      { root: row, threshold: [0, 0.99, 1] },
-    );
-    observer.observe(start);
-    observer.observe(end);
-    return () => {
-      observer.disconnect();
-    };
-  }, []);
-  return { ref, more };
-}
-
-export function Header() {
-  const { organisms, current, choose, status } = useOrganisms();
-  const location = useLocation();
-  const { ref: nav, more } = useScrollEdges<HTMLElement>(location.path);
-  const showsOrganism = !location.path.startsWith("/organisms") && !WITHOUT_ORGANISM.has(location.path);
-  return (
-    <header className="masthead">
-      <div className="masthead__inner">
-        <Link to={href("/", current ? { organism: current.organism } : {})} className="brand" label="idtrack, home">
-          <Logo className="brand__logo" title="idtrack" />
-          {/* On a narrow phone the mark alone, so the first row keeps the organism's name whole. */}
-          <LogoMark className="brand__mark" />
-        </Link>
-        <nav
-          className={`nav${more.left ? " nav--more-left" : ""}${more.right ? " nav--more-right" : ""}`}
-          aria-label="Main"
-          ref={nav}
-        >
-          {NAV.map(([path, label]) => {
-            const keep = current && !WITHOUT_ORGANISM.has(path) ? { organism: current.organism } : {};
-            return (
-              <Link key={path} to={href(path, keep)} className="nav__link" current={isActive(path, location.path)}>
-                {label}
-              </Link>
-            );
-          })}
-          {/* idtrack's documentation: the reference of the package this site runs, on its own site. */}
-          <a href={docsPage()} className="nav__link nav__link--out">
-            Docs
-            <span className="nav__out" aria-hidden="true">
-              ↗
-            </span>
-            <span className="visually-hidden"> (idtrack&apos;s documentation, another site)</span>
-          </a>
-        </nav>
-        <div className="masthead__tools">
-          {status === "done" && showsOrganism && organisms.length > 0 ? (
-            <OrganismPicker organisms={organisms} current={current?.organism ?? ""} choose={choose} />
-          ) : status === "loading" && showsOrganism ? (
-            // The organism's room while the organisms come, sized by the stylesheet (no inline style: the page the
-            // server sends draws this before any code runs, under a policy that allows none).
-            <span className="skeleton organism-picker__waiting" aria-hidden="true" />
-          ) : !showsOrganism ? (
-            <p className="organism-picker">
-              <span className="organism-picker__all">All organisms</span>
-            </p>
-          ) : (
-            <span className="organism-picker" aria-hidden="true" />
-          )}
-          <ErrorBoundary part="The load monitor" size="inline">
-            <LoadMonitor />
-          </ErrorBoundary>
-          <ThemeSwitch />
-        </div>
-      </div>
-    </header>
-  );
-}
-
-function Footer() {
-  const { version, facts } = useOrganisms();
-  const releases = version ? [...new Set(version.graphs.map((g) => g.snapshot_release))].join(", ") : null;
-  // While /version is on its way, a placeholder; when it failed, said so (never a placeholder for good).
-  const pending =
-    facts.version === "failed" ? (
-      <span className="muted" title="The request of /api/v1/version failed.">
-        not read
-      </span>
-    ) : (
-      "…"
-    );
-  return (
-    <footer className="footer">
-      <div className="footer__inner">
-        <div className="footer__brand">
-          <Logo className="footer__logo" title="idtrack" />
-          <p className="footer__claim">
-            Gene identifiers followed through Ensembl&apos;s releases, genome assemblies and external databases, with
-            the evidence for every step.
-          </p>
-          {/* Who stands behind the tool, as idtrack's documentation states it (its credits, "Institutional Support"). */}
-          <p className="footer__origin">
-            Developed at the Theis Lab, Institute of Computational Biology, Helmholtz Center Munich (
-            <a href={docsPage("authors.html#institutional-support")}>credits</a>).
-          </p>
-          <p className="footer__note">
-            Conversions and names are idtrack&apos;s own results, shown as the api returns them: no number of a result
-            is rounded. The benchmarks&apos; rates on Method are their repository&apos;s, as it writes them.
-          </p>
-        </div>
-        <nav className="footer__col" aria-label="idtrack">
-          <p className="footer__head">idtrack</p>
-          <a href={docsPage()} className="footer__lead">
-            Documentation
-          </a>
-          <a href={IDTRACK_SOURCE}>Source code on GitHub</a>
-          <a href={IDTRACK_PACKAGE}>Python package on PyPI</a>
-          <Link to="/method">Method and citation</Link>
-        </nav>
-        <nav className="footer__col" aria-label="This server">
-          <p className="footer__head">This server</p>
-          <Link to="/developers">The http api</Link>
-          <a href="/llms.txt">For programs: llms.txt</a>
-          <a href="/api/v1/openapi.json">OpenAPI document</a>
-          <p className="footer__refs">
-            Sources, for reference: <a href={SITE_SOURCE}>this site</a> and{" "}
-            <a href={BENCHMARKS_SOURCE}>idtrack&apos;s benchmarks</a>.
-          </p>
-        </nav>
-        <dl className="footer__facts">
-          <div>
-            <dt>idtrack</dt>
-            <dd>
-              {version ? <Mono>{version.idtrack_version}</Mono> : pending}
-              {version?.idtrack_commit ? (
-                <span className="footer__commit">
-                  {" "}
-                  <Mono>{version.idtrack_commit.slice(0, 7)}</Mono>
-                </span>
-              ) : null}
-            </dd>
-          </div>
-          <div>
-            <dt>Ensembl</dt>
-            <dd>{releases ? <Mono>{releases}</Mono> : pending}</dd>
-          </div>
-          <div>
-            <dt>api</dt>
-            <dd>{version ? <Mono>{version.api_version}</Mono> : pending}</dd>
-          </div>
-          <div>
-            <dt>Licence</dt>
-            <dd>BSD 3-Clause</dd>
-          </div>
-        </dl>
-      </div>
-    </footer>
-  );
 }
 
 /** A lazily loaded page, inside its boundary (started again at another address) and its loading frame. */
@@ -296,6 +80,20 @@ function Page() {
         <ApiPage />
       </Part>
     );
+  if (route.page === "home") {
+    // The home paints its words at once; its picture comes when the organisms (and then its data) arrive. Where the
+    // organisms cannot be read, the words stand and the failure is said under them.
+    return (
+      <ErrorBoundary part="This page" resetKey={path} framed>
+        <HomePage />
+        {status === "failed" && error ? (
+          <div className="page">
+            <ErrorPanel error={error} onRetry={retry} context="The list of organisms" />
+          </div>
+        ) : null}
+      </ErrorBoundary>
+    );
+  }
   if (status === "failed" && error) {
     return (
       <div className="page">
@@ -440,6 +238,7 @@ function Main() {
   useRouteFocus(location.path);
   return (
     <main id="main" tabIndex={-1}>
+      <ConvertSections />
       <ReloadNotice />
       <Page />
     </main>
@@ -452,9 +251,10 @@ export function App() {
       <a className="skip" href="#main">
         Skip to the content
       </a>
-      <Header />
+      <Masthead />
       <Main />
-      <Footer />
+      <SiteFooter />
+      <Consent />
       <Announcer />
     </OrganismsProvider>
   );

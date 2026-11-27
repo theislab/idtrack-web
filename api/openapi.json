@@ -5861,6 +5861,99 @@
         }
       }
     },
+    "/api/v1/organisms/{organism}/lineages": {
+      "get": {
+        "tags": [
+          "organisms"
+        ],
+        "summary": "The lineages of gene ids in the graph: active releases, new versions, edges to other ids",
+        "description": "The lineages of the graph's gene ids as Ensembl's stable id history gives them, read from idtrack's graph: per id the releases at which it is active and those at which a new version of it begins, and the history edges between ids with their releases and Ensembl's scores. Ids joined by such edges form a family, given whole: first the families of the genes the showcase's answers name, then the others in a fixed order (the digest of each one's smallest id), until `limit` ids. No event is classified by idtrack's rules here (a split or a merge is a property of a path; see `PathStep.reason`). Read once per graph when the server started; the home page draws them.",
+        "operationId": "lineages",
+        "parameters": [
+          {
+            "name": "organism",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 100,
+              "examples": [
+                "homo_sapiens"
+              ]
+            },
+            "description": "The organism: its Ensembl production name (`homo_sapiens`), with spaces or in any letter case (`Homo sapiens`), or a short name idtrack declares (`human`, `pig`); the names a server holds: `names` of `GET /organisms`."
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 50000,
+              "minimum": 1,
+              "default": 12000
+            },
+            "description": "The most gene ids to give, from 1 to 50000; omitted: 12000. A family is given whole or not at all."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The lineages of gene ids, whole families at a time.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LineagesResponse"
+                }
+              }
+            },
+            "headers": {
+              "X-Request-ID": {
+                "$ref": "#/components/headers/X-Request-ID"
+              },
+              "Server-Timing": {
+                "$ref": "#/components/headers/Server-Timing"
+              },
+              "RateLimit-Policy": {
+                "$ref": "#/components/headers/RateLimit-Policy"
+              },
+              "RateLimit": {
+                "$ref": "#/components/headers/RateLimit"
+              },
+              "ETag": {
+                "$ref": "#/components/headers/ETag"
+              },
+              "Cache-Control": {
+                "$ref": "#/components/headers/Cache-Control"
+              },
+              "Idtrack-Version": {
+                "$ref": "#/components/headers/Idtrack-Version"
+              },
+              "Idtrack-Graph-Digest": {
+                "$ref": "#/components/headers/Idtrack-Graph-Digest"
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Refusal400_lineages"
+          },
+          "404": {
+            "$ref": "#/components/responses/Refusal404"
+          },
+          "405": {
+            "$ref": "#/components/responses/Refusal405_index"
+          },
+          "414": {
+            "$ref": "#/components/responses/Refusal414_index"
+          },
+          "429": {
+            "$ref": "#/components/responses/Refusal429"
+          },
+          "500": {
+            "$ref": "#/components/responses/Refusal500_index"
+          }
+        }
+      }
+    },
     "/api/v1/organisms/{organism}/convert": {
       "get": {
         "tags": [
@@ -12011,6 +12104,141 @@
         "title": "LimitsResponse",
         "description": "The bounds this server enforces, as configured (SETUP.md, \"Configuration\")."
       },
+      "LineagesResponse": {
+        "properties": {
+          "organism": {
+            "type": "string",
+            "title": "Organism",
+            "description": "The organism."
+          },
+          "content_digest": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Content Digest",
+            "description": "The digest of the graph's content read."
+          },
+          "releases": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Releases",
+            "description": "Every release of the graph, ascending."
+          },
+          "genes": {
+            "type": "integer",
+            "title": "Genes",
+            "description": "The stable gene ids of the graph's history (those with a version active at some release: every assembly and region the graph holds, alternative loci included), given or not."
+          },
+          "families": {
+            "type": "integer",
+            "title": "Families",
+            "description": "The families of the graph: ids joined by history edges between two ids, through any number of others."
+          },
+          "focus_families": {
+            "type": "integer",
+            "title": "Focus Families",
+            "description": "How many of the families given first hold a gene that the answers of the showcase name (`GET /organisms/{organism}/showcase`)."
+          },
+          "limit": {
+            "type": "integer",
+            "title": "Limit",
+            "description": "The most gene ids asked for."
+          },
+          "ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Ids",
+            "description": "The gene ids given: whole families, first those that hold a gene the showcase's answers name (in the order they are named), then the others in the order of the SHA-256 digest of each family's smallest id, until the next family would pass `limit`; within a family by the first release at which it is active, then by the id. Every other list of an id is in this order."
+          },
+          "family_starts": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Family Starts",
+            "description": "The index in `ids` of each family's first id, ascending."
+          },
+          "active": {
+            "items": {
+              "items": {
+                "items": {
+                  "type": "integer"
+                },
+                "type": "array"
+              },
+              "type": "array"
+            },
+            "type": "array",
+            "title": "Active",
+            "description": "Per id, the runs of consecutive releases of the graph at which a version of it is active (idtrack's `TheGraph.active_releases`), each `[first, last]`."
+          },
+          "versions": {
+            "items": {
+              "items": {
+                "type": "integer"
+              },
+              "type": "array"
+            },
+            "type": "array",
+            "title": "Versions",
+            "description": "Per id, the releases at which a history edge leads from one version of it to another, ascending."
+          },
+          "edges": {
+            "items": {
+              "items": {
+                "anyOf": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "type": "array"
+            },
+            "type": "array",
+            "title": "Edges",
+            "description": "History edges from a version of one id to a version of another, both given: `[from index, to index, old release, new release, score]`, `score` Ensembl's mapping score (the highest between the two ids across those releases) or `null` where it gave none. A version's edges to two or more ids at once is Ensembl's mapping fanning out, two or more ids' edges to one id fanning in; neither is idtrack's classification of a step of a path (`PathStep.reason`)."
+          },
+          "compute_seconds": {
+            "type": "number",
+            "title": "Compute Seconds",
+            "description": "The seconds the server took to read the graph's lineages, at its start."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "organism",
+          "content_digest",
+          "releases",
+          "genes",
+          "families",
+          "focus_families",
+          "limit",
+          "ids",
+          "family_starts",
+          "active",
+          "versions",
+          "edges",
+          "compute_seconds"
+        ],
+        "title": "LineagesResponse",
+        "description": "The lineages of gene ids of one graph as Ensembl's stable id history gives them, whole families at a time."
+      },
       "MemoryLoad": {
         "properties": {
           "pss_bytes": {
@@ -13751,6 +13979,18 @@
             "type": "string",
             "title": "Docs Url",
             "description": "The address of idtrack's documentation this server links to (its root, ending in `/`; `IDTRACK_WEB_DOCS_URL`, by default Read the Docs' stable version)."
+          },
+          "analytics_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Analytics Id",
+            "description": "The Google Analytics measurement id the site counts visits with, after a visitor's consent (`IDTRACK_WEB_ANALYTICS_ID`); `null`: the site counts nothing."
           }
         },
         "additionalProperties": false,
@@ -15075,6 +15315,43 @@
           "unknown_parameter",
           "invalid_request",
           "unknown_release"
+        ],
+        "x-retryable": []
+      },
+      "Refusal400_lineages": {
+        "description": "`unknown_parameter`, the request names a parameter the endpoint does not take, or names one twice; `invalid_request`, the request is not in the form the endpoint takes. (What each means and whether to retry: `errors` of `GET /api/v1/vocabulary`.)",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            },
+            "examples": {
+              "unknown_parameter": {
+                "$ref": "#/components/examples/unknown_parameter"
+              },
+              "invalid_request": {
+                "$ref": "#/components/examples/invalid_request"
+              }
+            }
+          }
+        },
+        "headers": {
+          "X-Request-ID": {
+            "$ref": "#/components/headers/X-Request-ID"
+          },
+          "Server-Timing": {
+            "$ref": "#/components/headers/Server-Timing"
+          },
+          "RateLimit-Policy": {
+            "$ref": "#/components/headers/RateLimit-Policy"
+          },
+          "RateLimit": {
+            "$ref": "#/components/headers/RateLimit"
+          }
+        },
+        "x-error-codes": [
+          "unknown_parameter",
+          "invalid_request"
         ],
         "x-retryable": []
       },

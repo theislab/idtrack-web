@@ -12,6 +12,7 @@ import { installChunkWatch } from "./lib/chunks";
 import "./styles/tokens.css";
 import "./styles/app.css";
 import "./styles/shell.css";
+import "./styles/v2.css";
 
 installChunkWatch();
 

@@ -3,13 +3,14 @@
 // other path is "No such page".
 
 export type Route =
-  | { page: "convert" | "batch" | "names" | "organisms" | "developers" | "method"; title: string }
+  | { page: "home" | "convert" | "batch" | "names" | "organisms" | "developers" | "method"; title: string }
   | { page: "organism"; title: string; organism: string }
   | { page: "redirect"; title: string; to: string }
   | { page: "none"; title: string };
 
 const PAGES: Record<string, { page: Exclude<Route["page"], "organism" | "redirect" | "none">; title: string }> = {
-  "/": { page: "convert", title: "Convert" },
+  "/": { page: "home", title: "Gene ids through Ensembl's history" },
+  "/convert": { page: "convert", title: "Convert" },
   "/batch": { page: "batch", title: "Batch" },
   "/names": { page: "names", title: "Names" },
   "/organisms": { page: "organisms", title: "Explore" },

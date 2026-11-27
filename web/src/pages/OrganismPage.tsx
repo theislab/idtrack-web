@@ -928,7 +928,7 @@ function OrganismDetail({
           Ensembl releases <Mono>{releaseRanges(d.releases)}</Mono> over {d.assemblies.length} assemblies, up to the
           snapshot <Mono>{d.snapshot_release}</Mono> on {primary?.name ?? <Mono>{d.primary_assembly}</Mono>}: their id
           history, what the graph holds, and what a conversion to each release can end in.{" "}
-          <Link to={href("/", { organism: d.organism })}>Convert an identifier of this graph</Link>.
+          <Link to={href("/convert", { organism: d.organism })}>Convert an identifier of this graph</Link>.
         </p>
         {others.length > 1 ? (
           <nav className="organism-switch" aria-label="Other graphs">

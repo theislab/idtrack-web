@@ -110,10 +110,10 @@ export function ConvertPage() {
   );
 }
 
-/** The page's title over an answer: the section's name above the form, in the eyebrow's type (the answer below is the
- *  screen's subject; the hero said what idtrack does). */
+/** The page's title over an answer, for a screen reader and the document's outline: the section's tabs above say
+ *  where the page is, and the answer below is the screen's subject. */
 function ConvertTitle() {
-  return <h1 className="convert-title eyebrow">Convert</h1>;
+  return <h1 className="visually-hidden">Convert</h1>;
 }
 
 /** The fields of the address that the api is asked; their refused value can be left out (a way on after a refusal). */

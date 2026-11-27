@@ -12,6 +12,7 @@ import { splitLimitation } from "../src/lib/noTarget";
 import { criterionValue, prose } from "../src/lib/values";
 import { readVocabulary } from "../src/lib/vocabulary";
 import { VocabularyContext } from "../src/lib/vocabularyContext";
+import { expand, openTab, resetAddress } from "./disclose";
 import { conversions as recordedConversions, description, fixture, vocabularyResponse } from "./fixtures";
 
 const vocabulary = readVocabulary(vocabularyResponse());
@@ -27,7 +28,10 @@ function shownText(): string {
   return `${clone.textContent} ${titles.join(" ")} ${labels.join(" ")}`;
 }
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  resetAddress();
+});
 
 function show(organism: string, name: string) {
   const recorded = fixture(organism, name);
@@ -47,6 +51,7 @@ describe("ResultView", () => {
     const best = result.candidates.find((c) => c.best);
     expect(best).toBeDefined();
     expect(screen.getAllByText(best?.target ?? "").length).toBeGreaterThan(0);
+    openTab(/^Decision/);
     expect(screen.getAllByText("Decided by").length).toBeGreaterThan(0);
     const table = screen.getByRole("region", { name: "Candidates, ranked" });
     expect(within(table).getAllByRole("row")).toHaveLength(result.candidates.length + 1);
@@ -87,6 +92,7 @@ describe("ResultView", () => {
 
   it("reads the path in words, every candidate and step", () => {
     const result = show("homo_sapiens", "convert_tp53");
+    fireEvent.click(screen.getByRole("radio", { name: "In words" }));
     const reading = screen.getByText("The path in words").closest(".reading");
     expect(reading).not.toBeNull();
     // One candidate's steps at a time, the best first: one row per step, in order.
@@ -138,6 +144,7 @@ describe("ResultView", () => {
   it("states the deciding criterion with idtrack's text and the pair's values, a tuple by its named parts", () => {
     const result = show("sus_scrofa", "convert_decided_by_annotation");
     expect(result.decided_by).toBe("annotation");
+    openTab(/^Decision/);
     const decision = document.querySelector(".decision")?.textContent ?? "";
     const meaning = vocabulary.criteria.find((c) => c.code === "annotation")?.meaning ?? "-";
     expect(decision).toContain(prose(meaning).replace(/`/g, ""));
@@ -171,6 +178,7 @@ describe("ResultView", () => {
   it("lists the other readings with why each is reported and what it answers", () => {
     const result = show("homo_sapiens", "convert_other_release_rnr1");
     expect(result.other_readings.length).toBeGreaterThan(0);
+    openTab("Reading");
     const table = screen.getByRole("region", { name: "Other readings of the identifier" });
     const rows = within(table).getAllByRole("row").slice(1);
     expect(rows).toHaveLength(result.other_readings.length);
@@ -190,6 +198,8 @@ describe("ResultView", () => {
     if (!entry?.result.path) return;
     const bridges = entry.result.path.bridges;
     show(entry.entry.organism, entry.entry.name);
+    openTab("Reading");
+    expand(/^The bridges the search considered/);
     // Every list is bounded: the rest of each verdict, and every id a bridge shares, on a press.
     const refused = bridges.filter((b) => !b.taken).length;
     fireEvent.click(screen.getByRole("button", { name: `Show the ${refused} refused` }));
@@ -236,6 +246,8 @@ describe("ResultView", () => {
         />
       </VocabularyContext.Provider>,
     );
+    openTab("Reading");
+    expand(/^Steps not followed/);
     const items = document.querySelectorAll(".result__refused li");
     expect(items).toHaveLength(1);
     const text = items[0]?.textContent ?? "";
@@ -294,6 +306,7 @@ describe("ResultView", () => {
     const best = result.candidates.find((c) => c.best);
     const runner = result.candidates.find((c) => !c.best);
     if (!best || !runner) throw new Error("no pair");
+    openTab(/^Decision/);
     const rows = [...document.querySelectorAll(".compare tbody tr")];
     expect(rows).toHaveLength(vocabulary.criteria.length);
     const at = vocabulary.criteria.findIndex((c) => c.code === result.decided_by);
@@ -310,22 +323,27 @@ describe("ResultView", () => {
     });
   });
 
-  it("links each stage of the anatomy to a panel of the figure, lettered in order", () => {
-    show("homo_sapiens", "convert_handoff_long");
-    const links = [...document.querySelectorAll<HTMLAnchorElement>(".anatomy__link[href]")];
-    expect(links.length).toBe(4);
-    for (const link of links) {
-      const id = decodeURIComponent((link.getAttribute("href") ?? "").slice(1));
-      expect(document.getElementById(id)).not.toBeNull();
-    }
-    const letters = [...document.querySelectorAll(".figure-panel__head .panel-letter")].map((e) => e.textContent);
-    expect(letters).toEqual(["a", "b", "c", "d", "e"].slice(0, letters.length));
+  it("keeps the verdict on the surface and each part of the answer behind its tab, one drawn at a time", () => {
+    const result = show("homo_sapiens", "convert_handoff_long");
+    const tabs = screen.getAllByRole("tab").map((t) => t.textContent);
+    expect(tabs[0]).toMatch(/^Path/);
+    expect(tabs).toEqual(expect.arrayContaining([expect.stringMatching(/^Decision/), "Reading", "Record"]));
+    // The Decision tab carries the count of candidates; only the chosen panel is drawn.
+    expect(screen.getByRole("tab", { name: /^Decision/ }).textContent).toContain(String(result.candidates.length));
+    expect(screen.getAllByRole("tabpanel")).toHaveLength(1);
+    // The anatomy (read, walked, ranked, answered) is the record's, stage by stage.
+    openTab("Record");
+    expect(document.querySelectorAll(".anatomy__stage")).toHaveLength(4);
+    expect(document.querySelector(".answer__facts")).not.toBeNull();
+    // No lettered panels: the tabs order the answer.
+    expect(document.querySelectorAll(".figure-panel__head .panel-letter")).toHaveLength(0);
   });
 
   it("opens a candidate's whole ranking record, every criterion in idtrack's order", () => {
     const result = show("sus_scrofa", "convert_refseq_peptide_long");
     const first = result.candidates[0];
     if (!first) throw new Error("no candidate");
+    openTab(/^Decision/);
     const toggle = screen.getAllByRole("button", { name: /^Show the ranking record of candidate 1/ })[0];
     if (!toggle) throw new Error("no toggle");
     fireEvent.click(toggle);
@@ -339,6 +357,8 @@ describe("ResultView", () => {
   it("shows the api's answer as sent", () => {
     const recorded = fixture("sus_scrofa", "convert_symbol_ins");
     show("sus_scrofa", "convert_symbol_ins");
+    openTab("Record");
+    expand(/^The api's answer, as sent/);
     const pre = document.querySelector("pre.raw");
     expect(pre?.textContent).toBe(recorded.raw);
   });

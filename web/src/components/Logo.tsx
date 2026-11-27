@@ -1,5 +1,5 @@
-// The idtrack logo: the mark (a graph of identifiers) and the wordmark, in the current text colour.
-import { LOGO_VIEWBOX, MARK_EDGES, MARK_HEIGHT, MARK_NODES, MARK_STROKE, MARK_WIDTH, WORDMARK } from "./logoPaths";
+// IDTrack's mark (a graph of identifiers), in the current text colour.
+import { MARK_EDGES, MARK_HEIGHT, MARK_NODES, MARK_STROKE, MARK_WIDTH } from "./logoPaths";
 
 function MarkShapes() {
   return (
@@ -26,16 +26,6 @@ export function LogoMark({ className, title }: { className?: string; title?: str
       focusable="false"
     >
       <MarkShapes />
-    </svg>
-  );
-}
-
-/** The mark and the wordmark. */
-export function Logo({ className, title = "idtrack" }: { className?: string; title?: string }) {
-  return (
-    <svg className={className} viewBox={LOGO_VIEWBOX} role="img" aria-label={title} focusable="false">
-      <MarkShapes />
-      <path fill="currentColor" d={WORDMARK} />
     </svg>
   );
 }

@@ -1,4 +1,4 @@
-// The parameters of a conversion in the page's address (`/?organism=&id=&from=&to=&db=&from_db=&bridges=&explain=`), so
+// The parameters of a conversion in the page's address (`/convert?organism=&id=&from=&to=&db=&from_db=&bridges=&explain=`), so
 // that every answer can be linked to and reloaded.
 import { href } from "./router";
 
@@ -34,7 +34,7 @@ export function readParameters(search: URLSearchParams): ConvertParameters {
 }
 
 export function convertHref(organism: string, p: ConvertParameters): string {
-  return href("/", {
+  return href("/convert", {
     organism,
     id: p.identifier,
     from: p.fromRelease,

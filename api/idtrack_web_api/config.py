@@ -10,6 +10,7 @@ from __future__ import annotations
 import ipaddress
 import math
 import os
+import re
 from dataclasses import dataclass, field, fields
 from pathlib import Path
 from typing import TYPE_CHECKING, Literal
@@ -74,6 +75,8 @@ class Settings:
             ``/llms.txt``; ``None``: the address of each request.
         docs_url: The address of idtrack's documentation that the site links to (its root, ending in ``/``):
             Read the Docs' stable version unless the documentation is served under another name.
+        analytics_id: The Google Analytics measurement id of the site (``G-...``); the page counts visits with it only
+            after the visitor's consent. ``None``: no analytics, and the page's policy allows no other host.
         cors_origins: Origins allowed to call the api from a browser: ``*`` (any page: the api is keyless and
             read-only, and sends no credential), or a list.
         log_level: The level of the server's log.
@@ -115,6 +118,7 @@ class Settings:
     static_dir: Path | None = None
     public_url: str | None = None
     docs_url: str = DOCS_URL
+    analytics_id: str | None = None
     cors_origins: tuple[str, ...] = ("*",)
     log_level: str = "INFO"
 
@@ -262,6 +266,16 @@ def _docs_url(environ: Mapping[str, str], name: str) -> str:
     return raw.rstrip("/") + "/"
 
 
+def _analytics_id(environ: Mapping[str, str], name: str) -> str | None:
+    raw = environ.get(PREFIX + name, "").strip()
+    if not raw:
+        return None
+    if not re.fullmatch(r"G-[A-Z0-9]{4,20}", raw):
+        msg = f"{PREFIX}{name}={raw!r} must be a Google Analytics measurement id: G- and 4 to 20 capitals or digits."
+        raise ConfigError(msg)
+    return raw
+
+
 def _public_url(environ: Mapping[str, str], name: str) -> str | None:
     raw = _https_url(environ, name)
     if raw is None:
@@ -371,6 +385,7 @@ def load_settings(environ: Mapping[str, str] | None = None) -> Settings:
         static_dir=_folder(env, "STATIC_DIR", must_exist=True),
         public_url=_public_url(env, "PUBLIC_URL"),
         docs_url=_docs_url(env, "DOCS_URL"),
+        analytics_id=_analytics_id(env, "ANALYTICS_ID"),
         cors_origins=_origins(env, "CORS_ORIGINS"),
         log_level=log_level,
     )

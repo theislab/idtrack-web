@@ -2,91 +2,226 @@
   "checked_on": "881d8af7db843120b8bdbb8c9c503089a449f5694dd321baf06c1233ebf9cccc",
   "journeys": [
     {
-      "identifier": "TP53",
+      "identifier": "HIST1H2AA",
       "from_release": 91,
       "to_release": null,
       "final_database": "NCBI gene (formerly Entrezgene)"
     },
     {
-      "identifier": "BRCA1",
+      "identifier": "HIST1H2BA",
       "from_release": 91,
       "to_release": null,
       "final_database": "NCBI gene (formerly Entrezgene)"
     },
     {
-      "identifier": "EGFR",
+      "identifier": "HIST2H2AB",
       "from_release": 91,
       "to_release": null,
       "final_database": "NCBI gene (formerly Entrezgene)"
     },
     {
-      "identifier": "MYC",
+      "identifier": "LOC102115783",
       "from_release": 91,
       "to_release": null,
       "final_database": "NCBI gene (formerly Entrezgene)"
     },
     {
-      "identifier": "MARCH1",
+      "identifier": "LOC102116804",
       "from_release": 91,
       "to_release": null,
       "final_database": "NCBI gene (formerly Entrezgene)"
     },
     {
-      "identifier": "TP53",
+      "identifier": "LOC102117721",
       "from_release": 91,
       "to_release": null,
-      "final_database": "Uniprot/SWISSPROT"
+      "final_database": "NCBI gene (formerly Entrezgene)"
     },
     {
-      "identifier": "MSTN",
+      "identifier": "LOC102123903",
       "from_release": 91,
       "to_release": null,
-      "final_database": "Uniprot/SWISSPROT"
+      "final_database": "NCBI gene (formerly Entrezgene)"
     },
     {
-      "identifier": "ENSMFAG00000001880",
+      "identifier": "LOC102126513",
       "from_release": 91,
       "to_release": null,
-      "final_database": null
+      "final_database": "NCBI gene (formerly Entrezgene)"
     },
     {
-      "identifier": "ENSMFAG00000000997",
+      "identifier": "LOC102144294",
       "from_release": 91,
       "to_release": null,
-      "final_database": null
+      "final_database": "NCBI gene (formerly Entrezgene)"
     },
     {
-      "identifier": "ENSMFAG00000000841",
+      "identifier": "LOC102144483",
+      "from_release": 91,
+      "to_release": null,
+      "final_database": "NCBI gene (formerly Entrezgene)"
+    },
+    {
+      "identifier": "ENSMFAG00000002621.1",
       "from_release": null,
       "to_release": null,
       "final_database": null
     },
     {
-      "identifier": "ENSMFAG00000030451",
+      "identifier": "ENSMFAG00000004793.1",
       "from_release": null,
       "to_release": null,
       "final_database": null
     },
     {
-      "identifier": "ENSMFAG00000038506",
-      "from_release": 115,
+      "identifier": "ENSMFAG00000005858.1",
+      "from_release": null,
+      "to_release": null,
+      "final_database": null
+    },
+    {
+      "identifier": "ENSMFAG00000009729.1",
+      "from_release": null,
+      "to_release": null,
+      "final_database": null
+    },
+    {
+      "identifier": "ENSMFAG00000009802.1",
+      "from_release": null,
+      "to_release": null,
+      "final_database": null
+    },
+    {
+      "identifier": "ENSMFAG00000011537.1",
+      "from_release": null,
+      "to_release": null,
+      "final_database": null
+    },
+    {
+      "identifier": "ENSMFAG00000011573.1",
+      "from_release": null,
+      "to_release": null,
+      "final_database": null
+    },
+    {
+      "identifier": "ENSMFAG00000013450.1",
+      "from_release": null,
+      "to_release": null,
+      "final_database": null
+    },
+    {
+      "identifier": "ENSMFAG00000013837.1",
+      "from_release": null,
+      "to_release": null,
+      "final_database": null
+    },
+    {
+      "identifier": "ENSMFAG00000015270.1",
+      "from_release": null,
+      "to_release": null,
+      "final_database": null
+    },
+    {
+      "identifier": "ENSMFAG00000015369.1",
+      "from_release": null,
+      "to_release": null,
+      "final_database": null
+    },
+    {
+      "identifier": "ENSMFAG00000020925.1",
+      "from_release": null,
+      "to_release": null,
+      "final_database": null
+    },
+    {
+      "identifier": "ENSMFAG00000024516.1",
+      "from_release": null,
+      "to_release": null,
+      "final_database": null
+    },
+    {
+      "identifier": "ENSMFAG00000040484.1",
+      "from_release": null,
+      "to_release": null,
+      "final_database": null
+    },
+    {
+      "identifier": "ENSMFAG00000047201.1",
+      "from_release": null,
       "to_release": 91,
       "final_database": null
     },
     {
-      "identifier": "ENSMFAG00000034444",
-      "from_release": 115,
+      "identifier": "ENSMFAG00000047928.1",
+      "from_release": null,
+      "to_release": 91,
+      "final_database": null
+    },
+    {
+      "identifier": "ENSMFAG00000048217.1",
+      "from_release": null,
+      "to_release": 91,
+      "final_database": null
+    },
+    {
+      "identifier": "ENSMFAG00000048658.1",
+      "from_release": null,
+      "to_release": 91,
+      "final_database": null
+    },
+    {
+      "identifier": "ENSMFAG00000051728.1",
+      "from_release": null,
+      "to_release": 91,
+      "final_database": null
+    },
+    {
+      "identifier": "ENSMFAG00000052173.1",
+      "from_release": null,
+      "to_release": 91,
+      "final_database": null
+    },
+    {
+      "identifier": "ENSMFAG00000054305.1",
+      "from_release": null,
+      "to_release": 91,
+      "final_database": null
+    },
+    {
+      "identifier": "ENSMFAG00000054735.1",
+      "from_release": null,
       "to_release": 91,
       "final_database": null
     }
   ],
   "cases": [
     {
+      "kind": "split",
+      "identifier": "ENSMFAG00000049932",
+      "from_release": 115,
+      "to_release": 91,
+      "final_database": null
+    },
+    {
       "kind": "lineage",
-      "identifier": "ENSMFAG00000038506",
+      "identifier": "ENSMFAG00000047507",
+      "from_release": 115,
+      "to_release": 91,
+      "final_database": null
+    },
+    {
+      "kind": "merge",
+      "identifier": "ENSMFAG00000049344",
+      "from_release": 115,
+      "to_release": 91,
+      "final_database": null
+    },
+    {
+      "kind": "final",
+      "identifier": "LOC102123379",
       "from_release": 91,
       "to_release": null,
-      "final_database": null
+      "final_database": "NCBI gene (formerly Entrezgene)"
     },
     {
       "kind": "renamed",
@@ -96,25 +231,11 @@
       "final_database": "NCBI gene (formerly Entrezgene)"
     },
     {
-      "kind": "merge",
-      "identifier": "ENSMFAG00000000841",
-      "from_release": 102,
-      "to_release": null,
-      "final_database": null
-    },
-    {
       "kind": "handoff",
       "identifier": "ENSMFAG00000000997",
       "from_release": 91,
       "to_release": null,
       "final_database": null
-    },
-    {
-      "kind": "final",
-      "identifier": "ENSMFAG00000038506",
-      "from_release": 91,
-      "to_release": null,
-      "final_database": "NCBI gene (formerly Entrezgene)"
     }
   ]
 }

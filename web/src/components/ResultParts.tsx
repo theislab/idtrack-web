@@ -19,7 +19,8 @@ export function FigurePanel({
   children,
   className = "",
 }: {
-  letter: string;
+  /** A panel's letter, where the panels stand as a figure's (a, b, c); none inside a tab. */
+  letter?: string;
   title: string;
   id: string;
   aside?: ReactNode;
@@ -29,9 +30,11 @@ export function FigurePanel({
   return (
     <section className={`figure-panel ${className}`} id={id} aria-labelledby={`${id}-title`}>
       <header className="figure-panel__head">
-        <span className="panel-letter" aria-hidden="true">
-          {letter}
-        </span>
+        {letter ? (
+          <span className="panel-letter" aria-hidden="true">
+            {letter}
+          </span>
+        ) : null}
         <h2 id={`${id}-title`} className="figure-panel__title">
           {title}
         </h2>

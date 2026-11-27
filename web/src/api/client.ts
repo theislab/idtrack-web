@@ -17,6 +17,7 @@ import type {
   GraphDescription,
   HealthResponse,
   HistoryResponse,
+  LineagesResponse,
   LimitsResponse,
   ShowcaseResponse,
   SourceInferenceRequest,
@@ -515,6 +516,14 @@ export const api = {
   /** Ensembl's gene id history in a graph, counted once by the server. */
   history: (organism: string, options?: Share) =>
     get<HistoryResponse>(`${organismPath(organism)}/history`, "GET /organisms/{organism}/history", share(options)),
+  /** The lineages of a graph's gene ids (whole families, at most `limit` ids), read once by the server. Checked as an
+   *  object only: its thousands of small arrays are read by the home's layout (lib/hero/lineageLayout.ts), which places
+   *  only what it can, and a check of every element took a long task on a slow phone. */
+  lineages: (organism: string, limit: number, options?: Share) =>
+    get<LineagesResponse>(`${organismPath(organism)}/lineages`, "GET /organisms/{organism}/lineages", share(options), {
+      query: { limit },
+      shape: "object",
+    }),
   batch: (organism: string, body: BatchRequest, signal?: AbortSignal) =>
     request(`${organismPath(organism)}/convert/batch`, {
       method: "POST",

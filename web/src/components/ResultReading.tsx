@@ -355,7 +355,7 @@ export const ReadingPanel = memo(function ReadingPanel({
   model: PathModel;
   names: AssemblyNames;
   id: string;
-  letter: string;
+  letter?: string;
   highlight: Highlight;
   context: IdContext;
 }) {
@@ -386,7 +386,7 @@ export const ReadingPanel = memo(function ReadingPanel({
   );
   return (
     <FigurePanel
-      letter={letter}
+      {...(letter ? { letter } : {})}
       title="The path in words"
       id={id}
       className="reading"

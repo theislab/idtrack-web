@@ -755,32 +755,6 @@
   font-weight: var(--weight-strong);
 }
 
-/* A caption that says its first sentences on a narrow screen, the rest on a press. */
-.caption-more__toggle {
-  display: none;
-}
-
-@media (max-width: 900px) {
-  .caption-more:not(.is-open) .caption-more__rest {
-    display: none;
-  }
-
-  .caption-more__toggle {
-    display: inline;
-    margin-left: var(--space-1);
-    padding: 0;
-    border: 0;
-    background: none;
-    color: var(--ink-1);
-    font: inherit;
-    font-weight: var(--weight-medium);
-    text-decoration: underline;
-    text-underline-offset: 3px;
-    cursor: pointer;
-    min-height: 24px;
-  }
-}
-
 @media (forced-colors: active) {
   .jr-end,
   .jr-answer,

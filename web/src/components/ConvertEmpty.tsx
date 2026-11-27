@@ -1,121 +1,53 @@
-// The Convert page before a conversion: one screen, the hero. On one side what idtrack does, in a line and a sentence,
-// the form (the identifier, examples from the graph's showcase, the organism, the releases and the database folded in
-// one line that says them, Convert) and the ways on; on the other the figure: real identifiers of the graph in view,
-// each drawn as its journey through the releases over the assembly bands, travelling once as the page appears, as this
-// server answered them when it started (`GET /organisms/{organism}/showcase`: the page converts nothing itself). The
-// head paints first, before the server's organisms are known; the figure's room is held and its frame (the bands, the
-// axis) drawn before its journeys arrive, so nothing moves. The longer stories of the showcase (the cases, one journey
-// up close, the server's facts) are on Explore (components/explore/Stories.tsx).
-import { Suspense, useCallback, useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+// The Convert page before a conversion (`/convert`): its title, one sentence and the form (the identifier, examples
+// from the graph's showcase, the organism, the releases and the database folded in one line that says them, Convert);
+// under them, the journeys of the graph in view: real identifiers, each drawn as its journey through the releases over
+// the assembly bands, as this server answered them when it started (`GET /organisms/{organism}/showcase`: the page
+// converts nothing itself). The longer stories of the showcase are on Explore (components/explore/Stories.tsx).
+import { useCallback, useId, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import type { GraphDescription } from "../api/types";
 import { databaseLabel } from "../lib/databases";
 import { isEnsembl } from "../lib/home/journeyModel";
 import { bridgesOf, journeyList, journeySets, legendMarks, type Journey, type LegendMark } from "../lib/home/journeys";
-import { releasesOf } from "../lib/home/links";
 import { plural } from "../lib/home/stepWords";
 import { lazyPart } from "../lib/lazyPart";
-import { groupedInteger, releaseRanges } from "../lib/numbers";
 import { organismName } from "../lib/organismNames";
-import { useOrganisms } from "../lib/organisms";
-import { href } from "../lib/router";
 import { useShowcase } from "../lib/showcase";
 import { ErrorBoundary } from "./ErrorBoundary";
 import { ErrorPanel } from "./ErrorPanel";
 import { FigureLegend, type LegendEntry } from "./figure/Legend";
 import { CaptionMore } from "./home/CaptionMore";
 import type { JourneysDrawn } from "./home/JourneysFigure";
-import { Link, Mono } from "./ui";
+import { Mono } from "./ui";
 import "../styles/home.css";
 
 // The drawing is its own chunk, asked for at once (beside the showcase), so that its frame stands before the journeys
 // arrive; the head and the form paint without it.
 const JourneysFigure = lazyPart(() => import("./home/JourneysFigure").then((m) => ({ default: m.JourneysFigure })));
 void JourneysFigure.preload();
-// The measured line reads the benchmarks' results: its own chunk, asked for once the page is idle (its room is held).
-const HeroMeasure = lazyPart(() => import("./home/HeroMeasure").then((m) => ({ default: m.HeroMeasure })));
 
 export function ConvertEmpty({ description, form }: { description: GraphDescription | null; form: ReactNode }) {
   const id = useId();
-  const { organisms } = useOrganisms();
-  const releases = releasesOf(organisms);
-  const idle = useIdle();
   return (
-    <section className="hero" aria-labelledby={`${id}-title`}>
-      <div className="hero__text">
-        <p className="hero__eyebrow">
-          {organisms.length ? (
-            <>
-              {groupedInteger(organisms.length)} {organisms.length === 1 ? "organism" : "organisms"}{" "}
-              <span aria-hidden="true">·</span> Ensembl releases <span className="mono">{releaseRanges(releases)}</span>
-            </>
-          ) : (
-            "idtrack"
-          )}
-        </p>
-        <h1 id={`${id}-title`} className="hero__title">
-          <span className="hero__line">Follow a gene id</span>{" "}
-          <span className="hero__line">through Ensembl&apos;s</span> <span className="hero__line">history</span>
+    <>
+      <div className="convert-landing">
+        <h1 id={`${id}-title`} className="convert-landing__title">
+          Convert an identifier
         </h1>
-        <p className="hero__lede">
-          Give a gene id or symbol of any release: idtrack follows it through Ensembl&apos;s records to the release and
-          database you ask, within one organism, with the evidence for every step and its own inferences marked.
+        <p className="convert-landing__lede">
+          A gene id, symbol or accession of any release, to the release and database you ask, with the path that led
+          there.
         </p>
-        <div className="hero__measure-room">
-          {description && idle ? (
-            <ErrorBoundary part="The measured line" resetKey={description.organism}>
-              <Suspense fallback={null}>
-                <HeroMeasure organism={description.organism} digest={description.content_digest ?? null} />
-              </Suspense>
-            </ErrorBoundary>
-          ) : null}
-        </div>
-        <div className="hero__form">{form}</div>
-        <nav className="hero__ways" aria-label="More of idtrack">
-          <Link to="/organisms" className="hero__way hero__way--first">
-            Explore Ensembl&apos;s history
-          </Link>
-          <Link to="/method" className="hero__way">
-            How idtrack answers
-          </Link>
-          <Link to={description ? href("/batch", { organism: description.organism }) : "/batch"} className="hero__way">
-            Convert a list
-          </Link>
-        </nav>
+        <div className="convert-landing__form">{form}</div>
       </div>
       {description ? (
-        <ErrorBoundary part="The figure of journeys" resetKey={description.organism}>
-          <HeroFigure graph={description} />
-        </ErrorBoundary>
-      ) : (
-        <div className="hero__figure" aria-hidden="true" />
-      )}
-    </section>
+        <section className="convert-journeys" aria-label="Journeys of this graph">
+          <ErrorBoundary part="The figure of journeys" resetKey={description.organism}>
+            <HeroFigure graph={description} />
+          </ErrorBoundary>
+        </section>
+      ) : null}
+    </>
   );
-}
-
-/** Whether the page has been idle once since this view appeared (what is not needed for the first paint waits for it). */
-function useIdle(): boolean {
-  const [idle, setIdle] = useState(false);
-  useEffect(() => {
-    const w = window as {
-      requestIdleCallback?: (f: () => void, o?: { timeout: number }) => number;
-      cancelIdleCallback?: (h: number) => void;
-    };
-    const done = () => {
-      setIdle(true);
-    };
-    if (w.requestIdleCallback) {
-      const handle = w.requestIdleCallback(done, { timeout: 1500 });
-      return () => {
-        w.cancelIdleCallback?.(handle);
-      };
-    }
-    const timer = window.setTimeout(done, 300);
-    return () => {
-      window.clearTimeout(timer);
-    };
-  }, []);
-  return idle;
 }
 
 /** The legend of the journeys: the line of a journey, then each kind of mark the journeys hold (only those). */

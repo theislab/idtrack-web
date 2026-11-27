@@ -1,0 +1,382 @@
+/* The home (DIRECTION.md, "The home: the hero"): one screen, full-bleed. The lineage field fills it; the words stand
+   in its upper left on a soft veil of the paper; the caption and the release axis at its foot. Nothing here is a
+   control but the two calls to action. */
+
+.hero2 {
+  position: relative;
+  isolation: isolate;
+  min-height: calc(100svh - var(--masthead-height));
+  overflow: hidden;
+  display: grid;
+  align-content: start;
+  background: radial-gradient(120% 80% at 70% 62%, var(--surface) 0%, transparent 60%), var(--paper);
+}
+
+.hero2__stage {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+}
+
+.hero2__field {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  animation: hero2-in var(--dur-4) var(--ease-out) 80ms forwards;
+}
+
+.hero2__canvas {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+/* Where a picture passes under the words it dissolves into the paper (a mask, not a veil). */
+.hero2__field .hero2__canvas {
+  mask-image: radial-gradient(ellipse 44% 40% at 19% 33%, transparent 35%, black 100%);
+}
+
+@keyframes hero2-in {
+  to {
+    opacity: 1;
+  }
+}
+
+/* The words: aligned with the content's left edge, on a veil of the paper that keeps them at 7:1 over the field. */
+.hero2__words {
+  position: relative;
+  z-index: 2;
+  width: min(100%, var(--content));
+  margin: 0 auto;
+  padding: clamp(40px, 9vh, 112px) var(--space-5) 0;
+  pointer-events: none;
+}
+
+.hero2__words > * {
+  max-width: 38rem;
+  pointer-events: auto;
+}
+
+.hero2__kicker {
+  margin: 0 0 var(--space-5);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  color: var(--ink-3);
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.hero2__kicker::before {
+  content: "";
+  width: 28px;
+  height: 2px;
+  border-radius: 2px;
+  background: linear-gradient(90deg, var(--hue-history), var(--hue-event));
+}
+
+.hero2__title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-display);
+  font-weight: var(--weight-regular);
+  line-height: 1.02;
+  letter-spacing: var(--track-display);
+  color: var(--ink-1);
+  text-wrap: balance;
+}
+
+.hero2__lede {
+  margin: var(--space-5) 0 0;
+  max-width: 34rem;
+  font-size: var(--text-lg);
+  line-height: 1.55;
+  color: var(--ink-2);
+}
+
+.hero2__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-5);
+  margin-top: var(--space-6);
+}
+
+.hero2__primary {
+  display: inline-flex;
+  align-items: center;
+  min-height: 48px;
+  padding: 0 var(--space-5);
+  border-radius: var(--radius-pill);
+  font-size: var(--text-md);
+  text-decoration: none;
+  box-shadow: var(--elev-1);
+  transition:
+    transform var(--dur-1) var(--ease-out),
+    box-shadow var(--dur-2) var(--ease-out),
+    background var(--dur-1);
+}
+
+.hero2__secondary {
+  display: inline-flex;
+  align-items: center;
+  min-height: 48px;
+  font-size: var(--text-md);
+  font-weight: var(--weight-medium);
+  color: var(--ink-1);
+  text-decoration: underline;
+  text-decoration-color: var(--line-strong);
+  text-underline-offset: 5px;
+  transition: text-decoration-color var(--dur-1);
+}
+
+@media (hover: hover) {
+  .hero2__primary:hover {
+    transform: translateY(-1px);
+    box-shadow: var(--elev-2);
+  }
+
+  .hero2__secondary:hover {
+    text-decoration-color: var(--ink-1);
+  }
+}
+
+/* The release axis under the field, the assembly changes as faint rules through it (from the graph's description). */
+.hero2__axis {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 32px;
+  pointer-events: none;
+}
+
+.hero2__tick {
+  position: absolute;
+  display: grid;
+  gap: 2px;
+  transform: translateX(-50%);
+  text-align: center;
+  font-size: var(--text-2xs);
+  color: var(--ink-3);
+  white-space: nowrap;
+}
+
+.hero2__tick--first {
+  transform: none;
+  text-align: left;
+}
+
+.hero2__tick--last {
+  transform: translateX(-100%);
+  text-align: right;
+}
+
+.hero2__tick-name {
+  font-size: var(--text-2xs);
+  letter-spacing: 0.02em;
+}
+
+.hero2__change {
+  position: absolute;
+  width: 0;
+  border-left: 1px dashed color-mix(in srgb, var(--hue-handoff) 45%, transparent);
+  pointer-events: none;
+}
+
+/* The lifted line's words, beside the pointer. */
+.hero2__lift {
+  position: absolute;
+  z-index: 3;
+  display: grid;
+  gap: 2px;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-lg);
+  background: var(--glass);
+  backdrop-filter: blur(12px) saturate(1.4);
+  box-shadow: var(--elev-2);
+  transform: translate(16px, -120%);
+  font-size: var(--text-xs);
+  color: var(--ink-2);
+  white-space: nowrap;
+  pointer-events: none;
+  animation: hero2-lift var(--dur-2) var(--ease-out);
+}
+
+.hero2__lift--left {
+  transform: translate(calc(-100% - 16px), -120%);
+}
+
+.hero2__lift-id {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-strong);
+  color: var(--ink-1);
+}
+
+@keyframes hero2-lift {
+  from {
+    opacity: 0;
+  }
+}
+
+/* The caption: what is drawn and where it comes from, in one quiet line at the foot. */
+.hero2__caption {
+  position: absolute;
+  min-height: 2.6em;
+  align-content: end;
+  z-index: 2;
+  left: 50%;
+  bottom: var(--space-4);
+  transform: translateX(-50%);
+  width: min(100%, var(--content));
+  margin: 0;
+  padding: 0 var(--space-5);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-4);
+  font-size: var(--text-xs);
+  color: var(--ink-3);
+}
+
+.hero2__key {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.hero2__key-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--hue-history);
+}
+
+.hero2__key-curve {
+  width: 16px;
+  height: 8px;
+  border: 1.5px solid var(--hue-event);
+  border-color: var(--hue-event) transparent transparent;
+  border-radius: 50% 50% 0 0;
+  transform: translateY(2px);
+}
+
+.hero2__key-star {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--ink-1);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--ink-1) 14%, transparent);
+}
+
+.hero2__key-line {
+  width: 16px;
+  height: 0;
+  border-top: 1.5px solid var(--hue-history);
+}
+
+.hero2__key-line--event {
+  border-color: var(--hue-event);
+}
+
+.hero2__key-line--external {
+  border-color: var(--hue-external);
+}
+
+.hero2__source {
+  margin-left: auto;
+  font-size: var(--text-2xs);
+}
+
+@media (max-width: 899px) {
+  .hero2__title {
+    font-size: var(--text-display-narrow);
+  }
+}
+
+@media (max-width: 719px) {
+  .hero2 {
+    min-height: calc(100svh - var(--masthead-height));
+  }
+
+  .hero2__words {
+    padding: var(--space-6) var(--space-4) 0;
+  }
+
+  .hero2__lede {
+    font-size: var(--text-md);
+  }
+
+  .hero2__actions {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--space-2);
+  }
+
+  .hero2__primary {
+    justify-content: center;
+  }
+
+  .hero2__secondary {
+    justify-content: center;
+  }
+
+  .hero2__caption {
+    min-height: 6.2em;
+    padding: 0 var(--space-4);
+    gap: 2px var(--space-3);
+  }
+
+  .hero2__key-star {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--ink-1);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--ink-1) 14%, transparent);
+  }
+
+  .hero2__key-line {
+    width: 16px;
+    height: 0;
+    border-top: 1.5px solid var(--hue-history);
+  }
+
+  .hero2__key-line--event {
+    border-color: var(--hue-event);
+  }
+
+  .hero2__key-line--external {
+    border-color: var(--hue-external);
+  }
+
+  .hero2__source {
+    margin-left: 0;
+  }
+
+  .hero2__tick-name {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero2__field {
+    animation: none;
+    opacity: 1;
+  }
+
+  .hero2__lift {
+    animation: none;
+  }
+}
+
+.hero2__key-tick {
+  width: 1.5px;
+  height: 9px;
+  background: var(--ink-3);
+}
+
+.hero2__key-tick--out {
+  background: var(--hue-history);
+}

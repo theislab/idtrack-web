@@ -335,6 +335,23 @@ export const SCHEMAS: Record<string, Shape> = {
       sending_max_bytes: "integer",
     },
   },
+  LineagesResponse: {
+    o: {
+      organism: "string",
+      content_digest: { u: ["string", "null"] },
+      releases: { a: "integer" },
+      genes: "integer",
+      families: "integer",
+      focus_families: "integer",
+      limit: "integer",
+      ids: { a: "string" },
+      family_starts: { a: "integer" },
+      active: { a: { a: { a: "integer" } } },
+      versions: { a: { a: "integer" } },
+      edges: { a: { a: { u: ["integer", "number", "null"] } } },
+      compute_seconds: "number",
+    },
+  },
   MemoryLoad: {
     o: {
       pss_bytes: { u: ["integer", "null"] },
@@ -540,6 +557,7 @@ export const SCHEMAS: Record<string, Shape> = {
       graphs: { a: { r: "GraphVersion" } },
       docs_url: "string",
     },
+    opt: { analytics_id: { u: ["string", "null"] } },
   },
   VocabularyResponse: {
     o: {
@@ -612,6 +630,7 @@ export const RESPONSES: Record<string, Shape> = {
   "GET /organisms/{organism}/showcase": { r: "ShowcaseResponse" },
   "GET /organisms/{organism}/showcase/queries": { r: "ShowcaseQueriesResponse" },
   "GET /organisms/{organism}/history": { r: "HistoryResponse" },
+  "GET /organisms/{organism}/lineages": { r: "LineagesResponse" },
   "GET /organisms/{organism}/convert": { r: "ConversionResult" },
   "GET /organisms/{organism}/convert/each-database": { r: "EachDatabaseResponse" },
   "POST /organisms/{organism}/convert/batch": { r: "BatchResponse" },

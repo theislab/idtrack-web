@@ -1,11 +1,12 @@
-// Panel a of a result: what idtrack answered, how sure it is and why, in the result's own words; and the anatomy of
-// the answer (read, walked, ranked, answered), each stage linking to the panel that shows it in full.
+// The verdict of a result: what IDTrack answered, how sure it is and why, in the result's own words; its actions (copy
+// the answer or its link, cite it in a drawer, and under "More" the answer as a file, its provenance, the api's
+// request); and, for the answer's Record tab, the facts and the anatomy (read, walked, ranked, answered).
 //
-// The verdict comes first and keeps its shape whatever the answer's size: the query, the arrow of releases, the answer
-// and the status stand together on the first screen. An answer of many targets reads as the genes they are ids of
-// (each gene at display size with its symbol, its first targets in small type, "and N more" on request), never as a
-// wall of ids. Under the status, the evidence a reader should weigh (`Evidence`), then what the string meant at other
-// releases with a way to read it there.
+// The verdict keeps its shape whatever the answer's size: the query, the arrow of releases, the answer and the status
+// stand together on the first screen. An answer of many targets reads as the genes they are ids of (each gene at
+// display size with its symbol, its first targets in small type, "and N more" on request), never as a wall of ids.
+// Under the status, the cautions a reader must weigh (`Evidence`; the notes are on the Evidence tab), then what the
+// string meant at other releases with a way to read it there.
 import { memo, useEffect, useRef, useState, useTransition } from "react";
 import { api } from "../api/client";
 import type { Candidate, ConversionResult, GraphDescription } from "../api/types";
@@ -28,6 +29,8 @@ import { readerText, statusTone } from "../lib/resultWords";
 import { Evidence } from "./Evidence";
 import { IdMenu, SymbolOf, type IdContext } from "./IdMenu";
 import { FigurePanel, Reasons, Term } from "./ResultParts";
+import { Drawer } from "./v2/Drawer";
+import { HoverCard } from "./v2/HoverCard";
 import { usePhone } from "../lib/usePhone";
 import { answerFileName, kindsText, MATCH_WORDS, pinnedLink, shortDigest } from "../lib/answerLinks";
 import { answerProvenance, citationOf, methodsSentence } from "../lib/answerProvenance";
@@ -64,7 +67,7 @@ function ReasonNotes({ result }: { result: ConversionResult }) {
 }
 
 /** The decision in one sentence, where a criterion decided: from `decided_by` and the pair idtrack compared. */
-function DecisionSentence({ model, context }: { model: PathModel; context: IdContext }) {
+export function DecisionSentence({ model, context }: { model: PathModel; context: IdContext }) {
   const vocabulary = useVocabulary();
   const decision = model.decision;
   if (!decision) return null;
@@ -237,7 +240,7 @@ function Actions({
   requestId: string | null;
   serverTiming: string | null;
   receivedAt: string;
-  /** The citation is shown (below the answer). */
+  /** The citation is open (in its drawer). */
   citing: boolean;
   onCite: () => void;
 }) {
@@ -275,32 +278,55 @@ function Actions({
         label="Copy link"
         what="to this conversion, with its target release and graph"
       />
-      <Button
-        variant="quiet"
-        onClick={() => {
-          saveText(raw, file, "application/json");
-        }}
+      <Button variant="quiet" aria-haspopup="dialog" aria-expanded={citing} onClick={onCite}>
+        Cite<span className="visually-hidden"> IDTrack and this conversion</span>
+      </Button>
+      <HoverCard
+        hover={false}
+        className="answer__more"
+        triggerClassName="button button--quiet"
+        label="More: the answer as a file, its provenance, the api's request"
+        trigger={
+          <>
+            More
+            <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" focusable="false">
+              <circle cx="3.5" cy="8" r="1.3" fill="currentColor" />
+              <circle cx="8" cy="8" r="1.3" fill="currentColor" />
+              <circle cx="12.5" cy="8" r="1.3" fill="currentColor" />
+            </svg>
+          </>
+        }
       >
-        Download JSON<span className="visually-hidden">: the api&apos;s answer as sent</span>
-      </Button>
-      <Button
-        variant="quiet"
-        aria-expanded={citing}
-        aria-controls={citing ? `${file}-cite` : undefined}
-        onClick={onCite}
-      >
-        Cite<span className="visually-hidden"> idtrack and this conversion</span>
-      </Button>
-      <Button variant="quiet" onClick={saveProvenance}>
-        Provenance
-        <span className="visually-hidden">: the server, the graph and the request of this answer, as JSON</span>
-      </Button>
-      {apiUrl ? (
-        <a className="button button--quiet answer__api" href={apiUrl} target="_blank" rel="noreferrer">
-          API<span className="visually-hidden"> — the api&apos;s request and answer (opens in a new tab)</span>
-          <span aria-hidden="true"> ↗</span>
-        </a>
-      ) : null}
+        {(close) => (
+          <div className="answer__more-list">
+            <button
+              type="button"
+              className="answer__more-item"
+              onClick={() => {
+                saveText(raw, file, "application/json");
+                close();
+              }}
+            >
+              Download JSON<span className="answer__more-note">the api&apos;s answer as sent</span>
+            </button>
+            <button
+              type="button"
+              className="answer__more-item"
+              onClick={() => {
+                saveProvenance();
+                close();
+              }}
+            >
+              Provenance<span className="answer__more-note">the server, the graph and the request, as JSON</span>
+            </button>
+            {apiUrl ? (
+              <a className="answer__more-item" href={apiUrl} target="_blank" rel="noreferrer">
+                The api&apos;s answer ↗<span className="answer__more-note">its request, in a new tab</span>
+              </a>
+            ) : null}
+          </div>
+        )}
+      </HoverCard>
     </div>
   );
 }
@@ -423,7 +449,7 @@ function AnswerTargets({
         })}
         {groups.length > shown.length ? (
           <p className="answer__list-more muted">
-            and {groupedInteger(groups.length - shown.length)} more: every one is listed in the decision (panel d).
+            and {groupedInteger(groups.length - shown.length)} more: every one is listed on the Decision tab.
           </p>
         ) : null}
       </div>
@@ -451,8 +477,8 @@ function AnswerTargets({
       ))}
       {moreGenes > 0 ? (
         <p className="answer__list-more muted">
-          and {groupedInteger(moreGenes)} more gene{moreGenes === 1 ? "" : "s"}: every one is listed in the decision
-          (panel d).
+          and {groupedInteger(moreGenes)} more gene{moreGenes === 1 ? "" : "s"}: every one is listed on the
+          Decision tab.
         </p>
       ) : null}
     </div>
@@ -546,7 +572,7 @@ function StatusSentence({
             </Mono>
           </>
         ) : null}
-        . Every candidate is in the decision below.
+        . Every candidate is on the Decision tab.
       </span>
     );
   }
@@ -874,7 +900,7 @@ function OtherGenesReached({
         ))}
       </ul>
       {absent.others.length > 12 ? (
-        <p className="muted">and {absent.others.length - 12} more, listed in the decision (panel d).</p>
+        <p className="muted">and {absent.others.length - 12} more, listed on the Decision tab.</p>
       ) : null}
       {absent.limitation ? (
         <p className="answer__limitation">
@@ -974,9 +1000,6 @@ export const AnswerPanel = memo(function AnswerPanel({
   model,
   description,
   requestedDatabase,
-  anatomy,
-  names,
-  links,
   apiUrl,
   serverTiming,
   raw,
@@ -990,9 +1013,6 @@ export const AnswerPanel = memo(function AnswerPanel({
   model: PathModel;
   description: GraphDescription;
   requestedDatabase: string | null;
-  anatomy: Anatomy;
-  names: AssemblyNames;
-  links: Record<keyof Anatomy, string | null>;
   apiUrl: string | null;
   /** The answer's `Server-Timing` header as sent. */
   serverTiming: string | null;
@@ -1078,10 +1098,18 @@ export const AnswerPanel = memo(function AnswerPanel({
       <StatusSentence result={result} model={model} database={databaseLabel(asked)} context={context} />
     </div>
   );
-  const evidence = marks.length ? (
+  // Only the cautions stand with the verdict (a caution changes how the answer may be used); the notes are on the
+  // answer's Evidence tab.
+  const cautionMarks = marks.filter((m) => m.tone === "caution");
+  const evidence = cautionMarks.length ? (
     <div className="answer__evidence">
-      <p className="answer__label">Evidence to weigh</p>
-      <Evidence result={result} marks={marks} readAtHref={readAtHref} askHref={askHref} />
+      <Evidence
+        result={result}
+        marks={cautionMarks}
+        readAtHref={readAtHref}
+        askHref={askHref}
+        label="Cautions to weigh"
+      />
     </div>
   ) : null;
 
@@ -1167,7 +1195,6 @@ export const AnswerPanel = memo(function AnswerPanel({
         <TieGuidance result={result} />
         {evidence}
         <OtherMeanings result={result} readAtHref={readAtHref} context={context} />
-        <DecisionSentence model={model} context={context} />
         <ReasonNotes result={result} />
       </>
     );
@@ -1190,7 +1217,6 @@ export const AnswerPanel = memo(function AnswerPanel({
   );
   return (
     <FigurePanel
-      letter="a"
       title="The answer"
       id={id}
       className={`answer-panel answer-panel--${shownTone}`}
@@ -1198,7 +1224,14 @@ export const AnswerPanel = memo(function AnswerPanel({
     >
       <div className="answer">{body}</div>
       {phone ? actions : null}
-      {citing ? (
+      <Drawer
+        open={citing}
+        onClose={() => {
+          setCiting(false);
+        }}
+        title="Cite this conversion"
+        subtitle="IDTrack's citation, and a sentence for a methods section"
+      >
         <CiteBlock
           id={citeId}
           result={result}
@@ -1206,9 +1239,7 @@ export const AnswerPanel = memo(function AnswerPanel({
           database={databaseLabel(asked)}
           apiUrl={apiUrl}
         />
-      ) : null}
-      <Facts result={result} description={description} asked={asked} serverTiming={serverTiming} context={context} />
-      <AnatomyStrip anatomy={anatomy} names={names} links={links} database={asked} result={result} />
+      </Drawer>
     </FigurePanel>
   );
 });
@@ -1447,6 +1478,35 @@ function ReadMatch({ match }: { match: string }) {
         .split(":")
         .map((p) => MATCH_WORDS[p] ?? spaced(p))
         .join(", ")}
+    </>
+  );
+}
+
+/** The answer's record (its Record tab): the facts it was asked and answered with, the server's time on it, and how
+ *  it was reached, stage by stage. */
+export function AnswerRecord({
+  result,
+  description,
+  requestedDatabase,
+  serverTiming,
+  context,
+  anatomy,
+  names,
+}: {
+  result: ConversionResult;
+  description: GraphDescription;
+  requestedDatabase: string | null;
+  serverTiming: string | null;
+  context: IdContext;
+  anatomy: Anatomy;
+  names: AssemblyNames;
+}) {
+  const asked = requestedDatabase ?? "ensembl_gene";
+  const links = { read: null, walked: null, ranked: null, answered: null };
+  return (
+    <>
+      <Facts result={result} description={description} asked={asked} serverTiming={serverTiming} context={context} />
+      <AnatomyStrip anatomy={anatomy} names={names} links={links} database={asked} result={result} />
     </>
   );
 }

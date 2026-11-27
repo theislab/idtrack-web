@@ -7,7 +7,7 @@ import { convertUrl, data, expectWholeAndTyped, waitForResult } from "./helpers"
 const PAGES: [string, string, (page: Page) => Promise<void>][] = [
   [
     "home",
-    `/?organism=${data.organism}`,
+    `/convert?organism=${data.organism}`,
     async (page) => {
       await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
     },
@@ -79,7 +79,7 @@ test.describe("every page at every width", () => {
   }
 });
 
-test("the masthead: opaque, the same places on every page, what scrolls into view stops below it", async ({
+test("the masthead: glass, the same places on every page, what scrolls into view stops below it", async ({
   page,
 }, info) => {
   test.skip(info.project.name.startsWith("phone"), "the phone's masthead scrolls away with the page");
@@ -87,24 +87,24 @@ test("the masthead: opaque, the same places on every page, what scrolls into vie
   for (const [name, url, ready] of PAGES.slice(0, 7)) {
     await page.goto(url);
     await ready(page);
-    const masthead = page.locator(".masthead");
+    const masthead = page.locator(".mast");
     const style = await masthead.evaluate((e) => {
       const s = getComputedStyle(e);
       const html = getComputedStyle(document.documentElement);
       return {
-        background: s.backgroundColor,
+        filter: s.backdropFilter,
         position: s.position,
         height: e.getBoundingClientRect().height,
         padding: parseFloat(html.scrollPaddingTop),
       };
     });
-    // Opaque: no alpha below 1 in the computed background.
-    expect(style.background, name).not.toMatch(/\/\s*0?\.\d|rgba\(.*,\s*0?\.\d+\)/);
+    // Glass: the page shows through blurred, never sharp.
+    expect(style.filter, name).toContain("blur");
     expect(style.position).toBe("sticky");
     expect(style.padding).toBeGreaterThanOrEqual(style.height);
-    const theme = await page.locator(".theme-switch").boundingBox();
-    const monitor = await page.locator(".load-monitor").boundingBox();
-    places[name] = Math.round((theme?.x ?? 0) * 10 + (monitor?.x ?? 0));
+    const theme = await page.locator(".theme-button").boundingBox();
+    const palette = await page.locator(".mast__palette").boundingBox();
+    places[name] = Math.round((theme?.x ?? 0) * 10 + (palette?.y ?? 0));
   }
   expect(new Set(Object.values(places)).size, JSON.stringify(places)).toBe(1);
 });
@@ -168,7 +168,7 @@ test("the load monitor keeps one width in every state, so nothing beside it move
     await page.unrouteAll({ behavior: "ignoreErrors" });
     await routeStatus(page, state);
     await page.setViewportSize({ width: 1440, height: 900 });
-    await page.goto(`/?organism=${data.organism}`);
+    await page.goto(`/convert?organism=${data.organism}`);
     const trigger = page.locator(".load-monitor__trigger");
     const word = { waiting: /reading/, ok: /MEM/, busy: /busy/, saturated: /saturated/, late: /late \d+ s/ }[
       state as string
@@ -183,14 +183,15 @@ test("the load monitor keeps one width in every state, so nothing beside it move
     for (const width of widths) {
       await page.setViewportSize({ width, height: 900 });
       const box = await trigger.evaluate((element) => {
-        const shown = element.querySelector(".load-monitor__shown");
+        // At rest the trigger is its dot; the readings unfold over the masthead, outside it, on pointing or focus.
+        const shown = element.querySelector(".load-monitor__dot, .load-dot");
         const inner = element.getBoundingClientRect();
         const content = shown?.getBoundingClientRect();
         const style = getComputedStyle(element);
         // Where the navigation shares the masthead's row with the tools, its last link ends before they begin.
-        const links = [...document.querySelectorAll(".nav__link")];
+        const links = [...document.querySelectorAll(".mast__nav .mast__link")];
         const nav = links[links.length - 1]?.getBoundingClientRect();
-        const tools = document.querySelector(".masthead__tools")?.getBoundingClientRect();
+        const tools = document.querySelector(".mast__tools")?.getBoundingClientRect();
         const sameRow = nav && tools ? nav.top < tools.bottom && tools.top < nav.bottom : false;
         return {
           width: inner.width,
@@ -215,7 +216,7 @@ test("the load monitor keeps one width in every state, so nothing beside it move
 
 test("focus is an outline, kept as the highlight colour in forced colours", async ({ page }) => {
   await page.emulateMedia({ forcedColors: "active" });
-  await page.goto(`/?organism=${data.organism}`);
+  await page.goto(`/convert?organism=${data.organism}`);
   await page.keyboard.press("Tab");
   await page.keyboard.press("Tab");
   const ring = await page.evaluate(() => {
@@ -226,8 +227,8 @@ test("focus is an outline, kept as the highlight colour in forced colours", asyn
   });
   expect(ring?.style).not.toBe("none");
   expect(ring?.width ?? 0).toBeGreaterThanOrEqual(2);
-  // The checked theme option shows its ring too.
-  await page.locator(".theme-switch__option[aria-checked='true']").focus();
+  // The theme button shows its ring too.
+  await page.locator(".theme-button").focus();
   const theme = await page.evaluate(() => getComputedStyle(document.activeElement as HTMLElement).outlineStyle);
   expect(theme).not.toBe("none");
 });
@@ -248,7 +249,6 @@ test.describe("one heading system on every page", () => {
           const face = (e: Element) => getComputedStyle(e).fontFamily.split(",")[0]?.replace(/"/g, "") ?? "";
           const size = (e: Element) => parseFloat(getComputedStyle(e).fontSize);
           const h1 = document.querySelector("main h1");
-          const eyebrowTitle = h1?.classList.contains("eyebrow") ?? false;
           // A section of the page: every h2 of the content but a statement's title and the first request's card.
           const sections = [...document.querySelectorAll("main h2")].filter(
             (e) => !e.closest(".notice") && !e.classList.contains("api-first__title"),
@@ -260,32 +260,30 @@ test.describe("one heading system on every page", () => {
             if (s.display === "none" || s.visibility === "hidden") continue;
             weights.add(s.fontWeight);
           }
-          // The home before a conversion is the hero: its own composition of the same three parts.
-          const head = document.querySelector("main .page-head") ?? document.querySelector("main .hero__text");
+          // The Convert page before a conversion is its own composition: the title and one sentence.
+          const head = document.querySelector("main .page-head") ?? document.querySelector("main .convert-landing");
           return {
-            h1: h1 ? { face: face(h1), size: size(h1), eyebrow: eyebrowTitle, text: h1.textContent } : null,
+            h1: h1 ? { face: face(h1), size: size(h1), text: h1.textContent } : null,
             sections: sections.map((e) => ({ text: e.textContent.slice(0, 30), face: face(e), size: size(e) })),
             weights: [...weights].sort(),
             head: head
               ? {
-                  eyebrow: head.querySelector(":scope > .eyebrow, :scope > .hero__eyebrow") !== null,
+                  eyebrow:
+                    head.querySelector(":scope > .eyebrow") !== null || head.classList.contains("convert-landing"),
                   h1: head.querySelector(":scope > h1") !== null,
-                  lede: head.querySelector(":scope > .lede, :scope > .hero__lede") !== null,
+                  lede: head.querySelector(":scope > .lede, :scope > .convert-landing__lede") !== null,
                 }
               : null,
           };
         });
-        // Over an answer the page's title is its name in the eyebrow's type (the answer is the subject), with no head of
-        // its own; the front page's title is its display line, a step larger from 1180 px.
+        // Over an answer the page's title is its name for a screen reader (the section's tabs say where the page is,
+        // and the answer is the subject), with no head of its own.
         const answer = name === "answer" || name === "backward";
         if (answer) {
-          expect(found.h1?.eyebrow, `${name} ${width}`).toBe(true);
           expect(found.h1?.text, `${name} ${width}`).toBe("Convert");
         } else {
           expect(found.h1?.face, `${name} ${width}`).toBe("Source Serif 4 Variable");
-          expect(found.h1?.size, `${name} ${width}`).toBe(
-            name === "home" && width > 1180 ? 48 : width >= 720 ? 40 : 28,
-          );
+          expect(found.h1?.size, `${name} ${width}`).toBe(width >= 720 ? 40 : 28);
         }
         for (const s of found.sections) {
           expect(s.face, `${name} ${width}: ${s.text}`).toBe("Source Serif 4 Variable");
@@ -298,51 +296,35 @@ test.describe("one heading system on every page", () => {
   }
 });
 
-test("the phone's masthead: two rows, the page's 16 px edges, controls of a finger's size", async ({ page }, info) => {
+test("the phone's masthead: one row, the page's 16 px edges, the sections in a drawer", async ({ page }, info) => {
   test.skip(!info.project.name.startsWith("desktop"), "the widths are set here; once per theme");
   for (const width of [320, 360, 390]) {
     await page.setViewportSize({ width, height: 740 });
-    await page.goto(`/?organism=${data.organism}`);
-    await expect(page.locator(".organism-picker select")).toBeVisible();
+    await page.goto(`/convert?organism=${data.organism}`);
+    await expect(page.locator(".org-chip__button")).toBeVisible();
     const m = await page.evaluate(() => {
       const box = (sel: string) => document.querySelector(sel)?.getBoundingClientRect() ?? null;
-      const links = [...document.querySelectorAll<HTMLElement>(".nav__link")];
-      const first = links[0];
-      const firstText = first
-        ? first.getBoundingClientRect().left + parseFloat(getComputedStyle(first).paddingLeft)
-        : 0;
       return {
-        masthead: box(".masthead")?.height ?? 0,
-        firstText,
-        brand: box(".brand")?.left ?? 0,
-        load: box(".load-monitor__trigger")?.height ?? 0,
-        theme: box(".theme-menu__button")?.height ?? 0,
-        organism: box(".organism-picker select")?.height ?? 0,
+        masthead: box(".mast")?.height ?? 0,
+        brand: box(".mast__brand")?.left ?? 0,
+        right: Math.max(
+          ...[...document.querySelectorAll(".mast__tools > *")].map((e) => e.getBoundingClientRect().right),
+        ),
         scroll: document.documentElement.scrollWidth - document.documentElement.clientWidth,
       };
     });
-    expect(m.masthead, `${width}`).toBeLessThanOrEqual(102);
-    expect(m.firstText, `${width}: the first link's text on the 16 px edge`).toBeGreaterThanOrEqual(15.5);
-    expect(m.firstText, `${width}`).toBeLessThanOrEqual(17);
+    expect(m.masthead, `${width}`).toBeLessThanOrEqual(57);
     expect(m.brand, `${width}`).toBeGreaterThanOrEqual(15.5);
-    for (const control of ["load", "theme", "organism"] as const)
-      expect(m[control], `${width}: ${control}`).toBeGreaterThanOrEqual(44);
+    expect(m.right, `${width}: every tool inside the window`).toBeLessThanOrEqual(width - 15.5);
     expect(m.scroll, `${width}`).toBeLessThanOrEqual(0);
   }
-  // The theme's menu: the three choices by keyboard, Escape back to its button.
-  const before = await page.locator("html").getAttribute("data-theme");
-  await page.locator(".theme-menu__button").click();
-  const menu = page.locator(".theme-menu");
-  await expect(menu.getByRole("radio", { checked: true })).toBeFocused();
-  await page.keyboard.press("ArrowRight");
-  await expect(page.locator("html")).not.toHaveAttribute("data-theme", before ?? "");
-  await expect(menu).toBeVisible();
+  // The sections: a drawer, its links, Escape back to the menu button.
+  await page.getByRole("button", { name: "Sections" }).click();
+  const drawer = page.getByRole("dialog", { name: "IDTrack" });
+  await expect(drawer.getByRole("link", { name: "Explore" })).toBeVisible();
   await page.keyboard.press("Escape");
-  await expect(menu).toBeHidden();
-  await expect(page.locator(".theme-menu__button")).toBeFocused();
-  await page.locator(".theme-menu__button").click();
-  await menu.getByRole("radio", { name: "Light" }).click();
-  await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
+  await expect(drawer).toBeHidden();
+  await expect(page.getByRole("button", { name: "Sections" })).toBeFocused();
 });
 
 /** The pages whose head the build draws into the page the server sends (src/prerender.tsx). */

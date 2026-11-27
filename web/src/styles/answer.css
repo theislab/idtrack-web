@@ -1,0 +1,136 @@
+/* The answer (DIRECTION.md, "The answer"): the verdict as one raised card with its state on its left edge, then the
+   tabs; inside a tab, the panels lie flat on the page (the tab is their frame). */
+
+.result--v2 {
+  gap: var(--space-6);
+}
+
+.result--v2 .answer-panel {
+  overflow: visible;
+  border-radius: var(--radius-md);
+  box-shadow: var(--elev-1);
+  padding: var(--space-6) var(--space-7) var(--space-6) calc(var(--space-7) + 3px);
+}
+
+.result--v2 .answer-panel::before {
+  inset: 0 auto 0 0;
+  width: 3px;
+  height: auto;
+  border-radius: var(--radius-md) 0 0 var(--radius-md);
+}
+
+.result--v2 .answer-panel > .figure-panel__head {
+  border-bottom: 0;
+  padding-bottom: 0;
+  margin-bottom: var(--space-4);
+}
+
+/* The verdict's heading is for the document's outline and a screen reader: the answer itself is the card's title. */
+.result--v2 .answer-panel > .figure-panel__head .figure-panel__title {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.result--v2 .answer-panel > .figure-panel__head .figure-panel__aside {
+  margin-left: auto;
+}
+
+.answer__more {
+  position: relative;
+}
+
+.answer__more .hovercard__card {
+  left: auto;
+  right: 0;
+  min-width: 300px;
+  padding: var(--space-1);
+}
+
+.answer__more-list {
+  display: grid;
+}
+
+.answer__more-item {
+  display: grid;
+  gap: 2px;
+  min-height: 48px;
+  padding: var(--space-2) var(--space-3);
+  border: 0;
+  border-radius: var(--radius-lg);
+  background: none;
+  font: inherit;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  text-align: left;
+  text-decoration: none;
+  color: var(--ink-1);
+  cursor: pointer;
+}
+
+@media (hover: hover) {
+  .answer__more-item:hover {
+    background: color-mix(in srgb, var(--ink-1) 6%, transparent);
+  }
+}
+
+.answer__more-note {
+  font-size: var(--text-xs);
+  font-weight: var(--weight-regular);
+  color: var(--ink-3);
+}
+
+.result__tabs .tabs__panel > .figure-panel {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+}
+
+.result__tabs .tabs__panel > .figure-panel > .figure-panel__head {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+
+.result__tabs .figure-panel .figure-panel {
+  padding: 0;
+  border: 0;
+  background: none;
+}
+
+.result__tabs .expandable:first-of-type {
+  margin-top: var(--space-5);
+  border-top: 1px solid var(--line);
+}
+
+@media (max-width: 640px) {
+  .result--v2 .answer-panel {
+    padding: var(--space-5) var(--space-4) var(--space-5) calc(var(--space-4) + 3px);
+  }
+}
+
+/* On a phone the verdict's actions stay one quiet row of pills (a finger's height), not a grid of cards. */
+@media (max-width: 640px) {
+  .result--v2 .answer__actions {
+    display: flex;
+    flex-wrap: wrap;
+    width: auto;
+    gap: var(--space-2);
+  }
+
+  .result--v2 .answer__actions .button,
+  .result--v2 .answer__actions .hovercard__trigger {
+    min-height: 40px;
+    padding: 0 var(--space-3);
+    border-radius: var(--radius-pill);
+  }
+}
+
+.answer__more .hovercard__trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}

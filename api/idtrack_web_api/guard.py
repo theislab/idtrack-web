@@ -132,20 +132,38 @@ def is_search(method: str, path: str) -> bool:
     return method in _SEARCH_METHODS and SEARCH_PATH.match(path) is not None
 
 
-def page_policy(script_hashes: Iterable[str]) -> bytes:
+#: The hosts Google's tag loads from and sends to, allowed only where the site counts visits (``analytics``).
+ANALYTICS_SCRIPTS = "https://www.googletagmanager.com"
+ANALYTICS_CONNECT = "https://*.google-analytics.com https://*.analytics.google.com https://www.googletagmanager.com"
+
+
+def page_policy(script_hashes: Iterable[str], *, analytics: bool = False) -> bytes:
     """Return the Content-Security-Policy of the page: its own files only, and its inline scripts by their hashes.
+
+    Scripts are typed (Trusted Types): the page has one policy of its own, ``idtrack-worker``, which passes the address
+    of its own worker alone (the home's layout of lineages, run off the page's thread). Where the site counts visits
+    (``IDTRACK_WEB_ANALYTICS_ID``), Google's tag is allowed its hosts, and two policies more: ``idtrack-analytics``
+    (which passes the tag's address alone) and the tag's own (``goog#html``).
 
     Args:
         script_hashes: The base64 SHA-256 of each inline script of ``index.html``.
+        analytics: Whether the site counts visits with Google Analytics.
 
     Returns:
         bytes: The header's value.
     """
     scripts = " ".join(["'self'", *(f"'sha256-{h}'" for h in sorted(set(script_hashes)))])
+    if analytics:
+        return (
+            f"default-src 'none'; script-src {scripts} {ANALYTICS_SCRIPTS}; style-src 'self'; "
+            f"img-src 'self' data: {ANALYTICS_CONNECT}; font-src 'self'; connect-src 'self' {ANALYTICS_CONNECT}; "
+            "manifest-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'; object-src 'none'; "
+            "require-trusted-types-for 'script'; trusted-types idtrack-worker idtrack-analytics goog#html"
+        ).encode()
     return (
         f"default-src 'none'; script-src {scripts}; style-src 'self'; img-src 'self' data:; font-src 'self'; "
         "connect-src 'self'; manifest-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'; "
-        "object-src 'none'; require-trusted-types-for 'script'; trusted-types 'none'"
+        "object-src 'none'; require-trusted-types-for 'script'; trusted-types idtrack-worker"
     ).encode()
 
 

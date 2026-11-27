@@ -13,10 +13,14 @@ import { eventCounts, stableId } from "../src/lib/pathReading";
 import { authorityOf } from "../src/lib/symbols";
 import { readVocabulary } from "../src/lib/vocabulary";
 import { VocabularyContext } from "../src/lib/vocabularyContext";
+import { openTab, resetAddress } from "./disclose";
 import { conversions, description, fixture, vocabularyResponse } from "./fixtures";
 
 const vocabulary = readVocabulary(vocabularyResponse());
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  resetAddress();
+});
 
 function show(organism: string, name: string) {
   const recorded = fixture(organism, name);
@@ -57,6 +61,7 @@ describe("panel a", () => {
 
   it("names the state of the deciding criterion, and says a decision once", () => {
     show("homo_sapiens", "convert_tp53");
+    openTab("Record");
     const facts = document.querySelector(".answer__facts")?.textContent ?? "";
     expect(facts).toContain("— (one candidate)");
     expect(document.querySelector(".answer")?.textContent).not.toContain("no criterion had to decide");
@@ -64,6 +69,7 @@ describe("panel a", () => {
 
   it("states a tie as a tie in the facts", () => {
     show("homo_sapiens", "convert_status_tie");
+    openTab("Record");
     expect(document.querySelector(".answer__facts")?.textContent).toContain("none: a tie");
   });
 

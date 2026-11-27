@@ -124,3 +124,22 @@ def test_docs_url(tmp_path: Path) -> None:
     for wrong in ("docs.example.org", "https://docs.example.org/?v=1", "ftp://docs.example.org/"):
         with pytest.raises(ConfigError, match="DOCS_URL"):
             load_settings({**base, "IDTRACK_WEB_DOCS_URL": wrong})
+
+
+def test_analytics_id(tmp_path: Path) -> None:
+    """The site counts visits only where a measurement id is set; the page's policy allows Google's hosts only then."""
+    from idtrack_web_api.guard import page_policy
+
+    base = {"IDTRACK_WEB_SOURCE": "directory", "IDTRACK_WEB_DIRECTORY": str(tmp_path)}
+    assert load_settings(base).analytics_id is None
+    assert load_settings({**base, "IDTRACK_WEB_ANALYTICS_ID": "G-FYKLWNJBVK"}).analytics_id == "G-FYKLWNJBVK"
+    assert load_settings({**base, "IDTRACK_WEB_ANALYTICS_ID": " "}).analytics_id is None
+    for wrong in ("UA-12345-1", "G-abc", "G-FYK LWN", "https://example.org"):
+        with pytest.raises(ConfigError, match="ANALYTICS_ID"):
+            load_settings({**base, "IDTRACK_WEB_ANALYTICS_ID": wrong})
+    plain = page_policy(["abc"]).decode()
+    counted = page_policy(["abc"], analytics=True).decode()
+    assert "google" not in plain and "trusted-types idtrack-worker" in plain
+    assert "script-src 'self' 'sha256-abc' https://www.googletagmanager.com;" in counted
+    assert "connect-src 'self' https://*.google-analytics.com" in counted
+    assert "trusted-types idtrack-worker idtrack-analytics goog#html" in counted

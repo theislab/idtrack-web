@@ -532,3 +532,38 @@ def test_the_fan_of_ensembls_mapping_is_counted_from_the_edges(client: TestClien
         assert transition["many_to_one"] == sum(1 for e in earlier.get(pair, {}).values() if len(e) > 1)
         fanned += transition["one_to_many"] + transition["many_to_one"]
     assert fanned > 0, "the cut graph holds a fan of Ensembl's mapping"
+
+
+def test_lineages_are_read_from_the_graph(client: TestClient, cut_idtrack: API) -> None:
+    """`/lineages`: every gene id's active releases agree with `/history` release by release when all are given; the
+    families are whole (every edge's two ends given); a smaller `limit` gives a prefix of the same order."""
+    history = client.get(f"{P}/organisms/pig/history").json()
+    whole = client.get(f"{P}/organisms/pig/lineages", params={"limit": 50_000}).json()
+    assert whole["genes"] == len(whole["ids"]) == len(set(whole["ids"]))
+    for row in history["releases"]:
+        release = row["release"]
+        active = sum(1 for runs in whole["active"] if any(a <= release <= b for a, b in runs))
+        assert active == row["genes_active"], release
+    # New versions, recounted from the graph's history edges between two versions of one id.
+    graph = cut_idtrack.graph
+    changes = 0
+    edges = 0
+    for node in graph.nodes:
+        if not graph.is_backbone(node) or graph.version(node) in {"Void", "Retired"}:
+            continue
+        for edge in graph.history_edges(node):
+            if edge.node == node or graph.version(edge.node) in {"Void", "Retired"}:
+                continue
+            if graph.base_id(edge.node) == graph.base_id(node):
+                changes += 1
+            else:
+                edges += 1
+    assert sum(len(v) for v in whole["versions"]) <= changes
+    assert 0 < len(whole["edges"]) <= edges
+    starts = [*whole["family_starts"], len(whole["ids"])]
+    family = {i: f for f in range(len(starts) - 1) for i in range(starts[f], starts[f + 1])}
+    assert all(family[a] == family[b] for a, b, *_ in whole["edges"])
+    some = client.get(f"{P}/organisms/pig/lineages", params={"limit": 100}).json()
+    assert 0 < len(some["ids"]) <= 100
+    assert some["ids"] == whole["ids"][: len(some["ids"])]
+    assert client.get(f"{P}/organisms/pig/lineages", params={"limit": 0}).status_code == 400

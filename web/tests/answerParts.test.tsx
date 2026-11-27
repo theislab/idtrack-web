@@ -13,6 +13,7 @@ import docs from "../src/generated/idtrack_docs.json";
 import { readerText } from "../src/lib/resultWords";
 import { readVocabulary } from "../src/lib/vocabulary";
 import { VocabularyContext } from "../src/lib/vocabularyContext";
+import { openTab, resetAddress } from "./disclose";
 import { description, fixture, recorded, vocabularyResponse } from "./fixtures";
 
 const vocabulary = readVocabulary(vocabularyResponse());
@@ -61,6 +62,7 @@ beforeEach(() => {
 afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
+  resetAddress();
 });
 
 describe("an identifier that converts to nothing", () => {
@@ -85,7 +87,8 @@ describe("words that follow the result", () => {
     expect(status).toContain("One best answer, ranked first of 2 candidates");
     expect(status).toContain("split and merge at 69 → 70");
     expect(status).not.toContain("leads to one target");
-    // The deciding values are given beside the criterion.
+    // The deciding values are given beside the criterion, with the decision.
+    openTab(/^Decision/);
     expect(document.querySelector(".answer__decision")?.textContent).toMatch(
       /by score \(unscored steps 0, score 0\.998716 against unscored steps 0, score 0\.997436\)/,
     );
@@ -93,6 +96,7 @@ describe("words that follow the result", () => {
 
   it("names the other ids of a split or merge, from the api's conversion of the same transition", async () => {
     show("convert_split_and_merge_peers");
+    fireEvent.click(screen.getByRole("radio", { name: "In words" }));
     // A path of few such events names them at once (one conversion each); the press hides them.
     const [button] = screen.getAllByRole("button", { name: "Hide" });
     expect(button).toBeTruthy();
@@ -129,6 +133,7 @@ describe("words that follow the result", () => {
 
   it("marks the answer that is also listed among the copies set apart", () => {
     show("convert_lrg_gene_listed_as_copy");
+    openTab("Reading");
     expect(document.querySelector(".copies-list")?.textContent).toContain("the answer itself, also listed here");
   });
 });

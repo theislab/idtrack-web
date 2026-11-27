@@ -10,6 +10,7 @@ on the request (``app``), and for a request that searched, the time it waited fo
 
 import asyncio
 import collections
+import functools
 import gzip
 import hashlib
 import json
@@ -36,7 +37,7 @@ from starlette.routing import Match
 from starlette.types import ASGIApp
 
 import idtrack_web_api
-from idtrack_web_api import contract, docs, history, schemas, service, showcase, tsv, writing
+from idtrack_web_api import contract, docs, history, lineages, schemas, service, showcase, tsv, writing
 from idtrack_web_api.adapter import FORMAT_VERSION, idtrack_commit, idtrack_version, organism_aliases
 from idtrack_web_api.config import DOCS_URL, Settings
 from idtrack_web_api.errors import ApiError, error_json, listed
@@ -479,7 +480,7 @@ def create_app(  # noqa: PLR0915 - every endpoint, in one place
     app.state.registry = registry
     app.state.slot = slot
     app.state.monitor = monitor
-    version_body = _json_bytes(_version(registry, settings.docs_url))
+    version_body = _json_bytes(_version(registry, settings.docs_url, settings.analytics_id))
     vocabulary_body = _json_bytes(vocabulary(settings.docs_url))
     limits_body = _json_bytes(limits(settings))
     organisms_body = _json_bytes(
@@ -503,6 +504,9 @@ def create_app(  # noqa: PLR0915 - every endpoint, in one place
     showcases = {organism: showcase.compute(graph, settings) for organism, graph in registry.graphs.items()}
     showcase_bodies = {organism: _json_bytes(body) for organism, body in showcases.items()}
     showcase_queries_bodies = {organism: _json_bytes(showcase.queries_of(body)) for organism, body in showcases.items()}
+    lineage_tables = {
+        organism: lineages.compute(graph, showcases.get(organism)) for organism, graph in registry.graphs.items()
+    }
     del showcases
     history_bodies = {organism: _json_bytes(history.compute(graph)) for organism, graph in registry.graphs.items()}
 
@@ -1016,6 +1020,47 @@ def create_app(  # noqa: PLR0915 - every endpoint, in one place
     )
     async def history_endpoint(graph: Annotated[LoadedGraph, Depends(graph_of)]) -> Response:
         return memory(history_bodies[graph.organism], graph)
+
+    @functools.lru_cache(maxsize=16)
+    def lineage_bytes(organism: str, limit: int) -> bytes:
+        return _json_bytes(lineages.body(lineage_tables[organism], limit))
+
+    @app.get(
+        f"{API_PREFIX}/organisms/{{organism}}/lineages",
+        response_model=None,
+        responses=responses(
+            "lineages",
+            {"model": schemas.LineagesResponse, "description": "The lineages of gene ids, whole families at a time."},
+        ),
+        tags=["organisms"],
+        summary="The lineages of gene ids in the graph: active releases, new versions, edges to other ids",
+        operation_id="lineages",
+        description=(
+            "The lineages of the graph's gene ids as Ensembl's stable id history gives them, read from idtrack's "
+            "graph: per id the releases at which it is active and those at which a new version of it begins, and the "
+            "history edges between ids with their releases and Ensembl's scores. Ids joined by such edges form a "
+            "family, given whole: first the families of the genes the showcase's answers name, then the others in "
+            "a fixed order (the digest of each one's smallest id), until `limit` ids. No event is classified by "
+            "idtrack's rules here (a split or a merge is a property of a path; see `PathStep.reason`). Read once per "
+            "graph when the server started; the home page draws them."
+        ),
+        dependencies=[Depends(only("limit"))],
+    )
+    async def lineages_endpoint(
+        graph: Annotated[LoadedGraph, Depends(graph_of)],
+        limit: Annotated[
+            int,
+            Query(
+                ge=1,
+                le=lineages.LIMIT_MAX,
+                description=(
+                    f"The most gene ids to give, from 1 to {lineages.LIMIT_MAX}; omitted: {lineages.DEFAULT_LIMIT}. "
+                    "A family is given whole or not at all."
+                ),
+            ),
+        ] = lineages.DEFAULT_LIMIT,
+    ) -> Response:
+        return memory(lineage_bytes(graph.organism, limit), graph)
 
     from_release_query = _release_query(f"The release it is read at; omitted: inferred. {schemas.FROM_RELEASE_RULE}")
     to_release_query = _release_query("The target release; omitted: the snapshot release.")
@@ -1552,7 +1597,13 @@ def create_app(  # noqa: PLR0915 - every endpoint, in one place
             f"{API_PREFIX}/limits": limits_body,
         }
         _serve_frontend(
-            app, settings.static_dir, methods_at, not_allowed, lambda name: registry.get(name) is not None, preload
+            app,
+            settings.static_dir,
+            methods_at,
+            not_allowed,
+            lambda name: registry.get(name) is not None,
+            preload,
+            analytics=settings.analytics_id is not None,
         )
     return app
 
@@ -1564,6 +1615,8 @@ def _serve_frontend(
     not_allowed: Callable[..., ApiError],
     holds: Callable[[str], bool] = lambda _name: True,
     preload: dict[str, bytes] | None = None,
+    *,
+    analytics: bool = False,
 ) -> None:
     """Serve the built frontend: its files, and ``index.html`` for every other path without a file extension.
 
@@ -1574,7 +1627,7 @@ def _serve_frontend(
     not hold (``/organisms/<name>``: ``404``). Every path under ``/api`` that is no endpoint
     is a JSON ``404`` (``405`` with ``Allow`` where the path takes other methods).
     """
-    files = Frontend(root, preload)
+    files = Frontend(root, preload, analytics=analytics)
     app.state.frontend = files
 
     @app.get("/{path:path}", include_in_schema=False, name="frontend")
@@ -1647,7 +1700,7 @@ def limits(settings: Settings) -> dict[str, Any]:
     }
 
 
-def _version(registry: Registry, docs_url: str = DOCS_URL) -> dict[str, Any]:
+def _version(registry: Registry, docs_url: str = DOCS_URL, analytics_id: str | None = None) -> dict[str, Any]:
     """Return the body of ``/version``."""
     graphs = []
     for graph in registry.graphs.values():
@@ -1672,6 +1725,7 @@ def _version(registry: Registry, docs_url: str = DOCS_URL) -> dict[str, Any]:
         "manifest": registry.manifest_file.model_dump(mode="json"),
         "graphs": graphs,
         "docs_url": docs_url,
+        "analytics_id": analytics_id,
     }
 
 

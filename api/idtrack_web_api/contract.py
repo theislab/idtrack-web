@@ -83,6 +83,7 @@ ENDPOINT_ERRORS: dict[str, tuple[str, ...]] = {
     "showcase": (*_READ, "unknown_organism"),
     "showcase_queries": (*_READ, "unknown_organism"),
     "history": (*_READ, "unknown_organism"),
+    "lineages": (*_READ, "unknown_organism", "invalid_request"),
     "convert": (
         *_SEARCH,
         "unknown_release",

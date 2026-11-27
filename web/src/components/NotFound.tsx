@@ -6,7 +6,7 @@ import { GeneBar } from "./figure/glyphs";
 import { Link, Mono } from "./ui";
 
 const SECTIONS: [string, string, string][] = [
-  ["/", "Convert", "One identifier, to another release or database, with the path that led to its answer."],
+  ["/convert", "Convert", "One identifier, to another release or database, with the path that led to its answer."],
   ["/batch", "Batch", "A list of identifiers at once, with every answer and a table to export."],
   ["/names", "Names", "Every gene a name or a symbol has been attached to, release by release."],
   ["/organisms", "Explore", "The graphs this server holds: their releases, assemblies and databases."],

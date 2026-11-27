@@ -261,6 +261,26 @@ export type paths = {
     patch?: never;
     trace?: never;
   };
+  "/api/v1/organisms/{organism}/lineages": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * The lineages of gene ids in the graph: active releases, new versions, edges to other ids
+     * @description The lineages of the graph's gene ids as Ensembl's stable id history gives them, read from idtrack's graph: per id the releases at which it is active and those at which a new version of it begins, and the history edges between ids with their releases and Ensembl's scores. Ids joined by such edges form a family, given whole: first the families of the genes the showcase's answers name, then the others in a fixed order (the digest of each one's smallest id), until `limit` ids. No event is classified by idtrack's rules here (a split or a merge is a property of a path; see `PathStep.reason`). Read once per graph when the server started; the home page draws them.
+     */
+    get: operations["lineages"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/v1/organisms/{organism}/convert": {
     parameters: {
       query?: never;
@@ -2064,6 +2084,77 @@ export type components = {
       sending_max_bytes: number;
     };
     /**
+     * LineagesResponse
+     * @description The lineages of gene ids of one graph as Ensembl's stable id history gives them, whole families at a time.
+     */
+    LineagesResponse: {
+      /**
+       * Organism
+       * @description The organism.
+       */
+      organism: string;
+      /**
+       * Content Digest
+       * @description The digest of the graph's content read.
+       */
+      content_digest: string | null;
+      /**
+       * Releases
+       * @description Every release of the graph, ascending.
+       */
+      releases: number[];
+      /**
+       * Genes
+       * @description The stable gene ids of the graph's history (those with a version active at some release: every assembly and region the graph holds, alternative loci included), given or not.
+       */
+      genes: number;
+      /**
+       * Families
+       * @description The families of the graph: ids joined by history edges between two ids, through any number of others.
+       */
+      families: number;
+      /**
+       * Focus Families
+       * @description How many of the families given first hold a gene that the answers of the showcase name (`GET /organisms/{organism}/showcase`).
+       */
+      focus_families: number;
+      /**
+       * Limit
+       * @description The most gene ids asked for.
+       */
+      limit: number;
+      /**
+       * Ids
+       * @description The gene ids given: whole families, first those that hold a gene the showcase's answers name (in the order they are named), then the others in the order of the SHA-256 digest of each family's smallest id, until the next family would pass `limit`; within a family by the first release at which it is active, then by the id. Every other list of an id is in this order.
+       */
+      ids: string[];
+      /**
+       * Family Starts
+       * @description The index in `ids` of each family's first id, ascending.
+       */
+      family_starts: number[];
+      /**
+       * Active
+       * @description Per id, the runs of consecutive releases of the graph at which a version of it is active (idtrack's `TheGraph.active_releases`), each `[first, last]`.
+       */
+      active: number[][][];
+      /**
+       * Versions
+       * @description Per id, the releases at which a history edge leads from one version of it to another, ascending.
+       */
+      versions: number[][];
+      /**
+       * Edges
+       * @description History edges from a version of one id to a version of another, both given: `[from index, to index, old release, new release, score]`, `score` Ensembl's mapping score (the highest between the two ids across those releases) or `null` where it gave none. A version's edges to two or more ids at once is Ensembl's mapping fanning out, two or more ids' edges to one id fanning in; neither is idtrack's classification of a step of a path (`PathStep.reason`).
+       */
+      edges: (number | null)[][];
+      /**
+       * Compute Seconds
+       * @description The seconds the server took to read the graph's lineages, at its start.
+       */
+      compute_seconds: number;
+    };
+    /**
      * MemoryLoad
      * @description The server's memory: its processes summed, and the limit it runs under.
      */
@@ -2980,6 +3071,11 @@ export type components = {
        * @description The address of idtrack's documentation this server links to (its root, ending in `/`; `IDTRACK_WEB_DOCS_URL`, by default Read the Docs' stable version).
        */
       docs_url: string;
+      /**
+       * Analytics Id
+       * @description The Google Analytics measurement id the site counts visits with, after a visitor's consent (`IDTRACK_WEB_ANALYTICS_ID`); `null`: the site counts nothing.
+       */
+      analytics_id?: string | null;
     };
     /**
      * VocabularyResponse
@@ -3352,6 +3448,19 @@ export type components = {
     };
     /** @description `unknown_parameter`, the request names a parameter the endpoint does not take, or names one twice; `invalid_request`, the request is not in the form the endpoint takes; `unknown_release`, a release this graph does not cover. (What each means and whether to retry: `errors` of `GET /api/v1/vocabulary`.) */
     Refusal400_final_databases: {
+      headers: {
+        "X-Request-ID": components["headers"]["X-Request-ID"];
+        "Server-Timing": components["headers"]["Server-Timing"];
+        "RateLimit-Policy": components["headers"]["RateLimit-Policy"];
+        RateLimit: components["headers"]["RateLimit"];
+        [name: string]: unknown;
+      };
+      content: {
+        "application/json": components["schemas"]["ErrorResponse"];
+      };
+    };
+    /** @description `unknown_parameter`, the request names a parameter the endpoint does not take, or names one twice; `invalid_request`, the request is not in the form the endpoint takes. (What each means and whether to retry: `errors` of `GET /api/v1/vocabulary`.) */
+    Refusal400_lineages: {
       headers: {
         "X-Request-ID": components["headers"]["X-Request-ID"];
         "Server-Timing": components["headers"]["Server-Timing"];
@@ -8978,6 +9087,46 @@ export interface operations {
         };
       };
       400: components["responses"]["Refusal400_index"];
+      404: components["responses"]["Refusal404"];
+      405: components["responses"]["Refusal405_index"];
+      414: components["responses"]["Refusal414_index"];
+      429: components["responses"]["Refusal429"];
+      500: components["responses"]["Refusal500_index"];
+    };
+  };
+  lineages: {
+    parameters: {
+      query?: {
+        /** @description The most gene ids to give, from 1 to 50000; omitted: 12000. A family is given whole or not at all. */
+        limit?: number;
+      };
+      header?: never;
+      path: {
+        /** @description The organism: its Ensembl production name (`homo_sapiens`), with spaces or in any letter case (`Homo sapiens`), or a short name idtrack declares (`human`, `pig`); the names a server holds: `names` of `GET /organisms`. */
+        organism: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description The lineages of gene ids, whole families at a time. */
+      200: {
+        headers: {
+          "X-Request-ID": components["headers"]["X-Request-ID"];
+          "Server-Timing": components["headers"]["Server-Timing"];
+          "RateLimit-Policy": components["headers"]["RateLimit-Policy"];
+          RateLimit: components["headers"]["RateLimit"];
+          ETag: components["headers"]["ETag"];
+          "Cache-Control": components["headers"]["Cache-Control"];
+          "Idtrack-Version": components["headers"]["Idtrack-Version"];
+          "Idtrack-Graph-Digest": components["headers"]["Idtrack-Graph-Digest"];
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["LineagesResponse"];
+        };
+      };
+      400: components["responses"]["Refusal400_lineages"];
       404: components["responses"]["Refusal404"];
       405: components["responses"]["Refusal405_index"];
       414: components["responses"]["Refusal414_index"];

@@ -61,6 +61,7 @@ Without `from_release` the same symbol is read at 115, where it is a synonym of 
 | `GET /organisms/{organism}/showcase` | Chosen conversions of one graph, answered once when the server started: the home page's figures |
 | `GET /organisms/{organism}/showcase/queries` | The showcase's chosen conversions without their answers: each query, and each case's kind |
 | `GET /organisms/{organism}/history` | Ensembl's gene id history in the graph: genes active per release, history edges per transition |
+| `GET /organisms/{organism}/lineages?limit=` | The lineages of gene ids in the graph: active releases, new versions, edges to other ids |
 | `GET /organisms/{organism}/convert?identifier=&from_release=&to_release=&final_database=&from_database=&explain=&allow_bridges=` | Convert one identifier: every candidate ranked, the best marked, optionally its path |
 | `GET /organisms/{organism}/convert/each-database?identifier=&from_release=&to_release=&from_database=&allow_bridges=` | Convert one identifier into every database a conversion to the target release can end in |
 | `POST /organisms/{organism}/convert/batch?format=&provenance=` | Convert a batch with the same arguments; results in input order, each with its own status |

@@ -31,7 +31,7 @@ interface Status {
 }
 
 test("the load monitor: a quiet reading, its panel by keyboard, Escape back", async ({ page }, info) => {
-  await page.goto(`/?organism=${data.organism}`);
+  await page.goto(`/convert?organism=${data.organism}`);
   const trigger = page.locator(".load-monitor__trigger");
   await expect(trigger).toBeVisible();
   await expect(trigger).toContainText(/Server load: (ok|busy|saturated)/i);
@@ -65,7 +65,7 @@ test("the load monitor: a quiet reading, its panel by keyboard, Escape back", as
 
 test("the load monitor without an answer of /status says so, and never shows a value", async ({ page }, info) => {
   await page.route("**/api/v1/status", (route) => route.abort());
-  await page.goto(`/?organism=${data.organism}`);
+  await page.goto(`/convert?organism=${data.organism}`);
   const trigger = page.locator(".load-monitor__trigger");
   await expect(trigger).toContainText("unreachable");
   await expect(trigger).not.toContainText("GiB");
@@ -104,7 +104,7 @@ test("the load monitor says a reading is late while /status waits, and never sho
     if (hold) await new Promise((r) => setTimeout(r, 12_000));
     await route.continue().catch(() => undefined);
   });
-  await page.goto(`/?organism=${data.organism}`);
+  await page.goto(`/convert?organism=${data.organism}`);
   const trigger = page.locator(".load-monitor__trigger");
   await expect(trigger).toHaveAccessibleName(/Server load: (ok|busy|saturated)\. CPU .* MEM .* GiB/);
   hold = true;
@@ -172,7 +172,7 @@ test("the load panel on a phone: each process a card under its name, the latency
     Object.assign(body.requests.latency, { p50_ms: 1.7, p95_ms: 48, p99_ms: 210, max_ms: 640 });
     await route.fulfill({ response, body: JSON.stringify(body) });
   });
-  await page.goto(`/?organism=${data.organism}`);
+  await page.goto(`/convert?organism=${data.organism}`);
   await page.locator(".load-monitor__trigger").click();
   const panel = page.getByRole("dialog", { name: "Server load" });
   await expect(panel.locator(".load-table__process").first()).toBeVisible();
@@ -242,7 +242,7 @@ test("the api page's contents mark the entry just followed", async ({ page }, in
     expect(await toc.locator('[aria-current="location"]').count()).toBe(1);
     // Every target lands at one offset below the masthead, sections and endpoints alike.
     const top = await page.locator(`#${id}`).evaluate((e) => Math.round(e.getBoundingClientRect().top));
-    const masthead = await page.locator(".masthead").evaluate((e) => Math.round(e.getBoundingClientRect().bottom));
+    const masthead = await page.locator(".mast").evaluate((e) => Math.round(e.getBoundingClientRect().bottom));
     expect(top - masthead, name).toBeGreaterThanOrEqual(0);
     expect(top - masthead, name).toBeLessThanOrEqual(24);
   }
