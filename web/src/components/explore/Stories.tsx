@@ -1,8 +1,8 @@
-// The place of Explore's stories, above the graphs side by side: what can happen to a gene id (the cases, each drawn from
-// its answer), one journey up close with its replay, and what the server holds, built by the home's components
-// (components/home/) from the server's showcase of the organism chosen here (`GET /organisms/{organism}/showcase`, one
-// answer computed when the server started: the page converts nothing itself). The organism is the address's
-// (`?organism=`), chosen with the control beside the title; the page's other panels show every graph at once.
+// Explore's stories, the page's first part: what can happen to a gene id (the cases, each drawn from its answer) and one
+// journey up close with its replay, for the organism chosen in the page's head (`?organism=`), from the server's showcase
+// of that graph (`GET /organisms/{organism}/showcase`, one answer computed when the server started: the page converts
+// nothing itself). The two sections stand in their final order from the first paint, each in the room it will take, so
+// that nothing the reader sees moves when the showcase and the gallery's code arrive.
 import { Suspense, useId } from "react";
 import type { GraphDescription } from "../../api/types";
 import { caseQueryOf } from "../../lib/home/links";
@@ -12,70 +12,84 @@ import { useOrganisms } from "../../lib/organisms";
 import { useShowcase } from "../../lib/showcase";
 import { ErrorBoundary } from "../ErrorBoundary";
 import { ErrorPanel } from "../ErrorPanel";
-import { FactsStrip } from "../home/FactsStrip";
-import { JourneyUpClose } from "../home/JourneyUpClose";
+import { JourneyUpClose } from "./JourneyUpClose";
 import "../../styles/home.css";
 
-// The cases (with the evidence marks' code) are their own chunk, fetched once the page has drawn.
-const CaseGallery = lazyPart(() => import("../home/CaseGallery").then((m) => ({ default: m.CaseGallery })));
+// The cases (with the evidence marks' code) are their own chunk, asked for as soon as this module is, beside the
+// showcase: neither waits for the other.
+const CaseGallery = lazyPart(() => import("./CaseGallery").then((m) => ({ default: m.CaseGallery })));
+CaseGallery.preload();
 
-export function ExploreStories() {
+/** The organism whose stories are told: the select of the page's head (the other panels show every graph at once). */
+export function StoriesOrganism() {
   const { organisms, current, choose } = useOrganisms();
   const id = useId();
-  if (!current || !organisms.length) return null;
+  if (!current || organisms.length < 2) return null;
   return (
-    <section className="stories" aria-labelledby={`${id}-title`}>
-      <header className="stories__head">
-        <h2 id={`${id}-title`} className="stories__title">
-          Stories from Ensembl&apos;s history
-        </h2>
-        <p className="stories__lede">
-          Real identifiers of one graph, answered by this server when it started: what can happen to a gene id, one
-          journey through every assembly with Ensembl&apos;s scores, and what the server holds.
-        </p>
-        {organisms.length > 1 ? (
-          <label className="stories__organism">
-            <span className="field__label">Organism</span>
-            <span className="select">
-              <select
-                className="select__control"
-                value={current.organism}
-                onChange={(e) => {
-                  choose(e.target.value);
-                }}
-              >
-                {organisms.map((o) => (
-                  <option key={o.organism} value={o.organism}>
-                    {organismName(o.organism)}
-                    {commonName(o.organism) ? ` (${commonName(o.organism)})` : ""}
-                  </option>
-                ))}
-              </select>
-            </span>
-          </label>
-        ) : null}
-      </header>
-      <ErrorBoundary part="The stories" resetKey={current.organism}>
-        <StoriesOf graph={current} />
-      </ErrorBoundary>
-    </section>
+    <div className="stories-organism">
+      <label className="field__label" htmlFor={id}>
+        Stories of the graph
+      </label>
+      <span className="select">
+        <select
+          id={id}
+          className="select__control"
+          value={current.organism}
+          onChange={(e) => {
+            choose(e.target.value);
+          }}
+        >
+          {organisms.map((o) => (
+            <option key={o.organism} value={o.organism}>
+              {organismName(o.organism)}
+              {commonName(o.organism) ? ` (${commonName(o.organism)})` : ""}
+            </option>
+          ))}
+        </select>
+      </span>
+    </div>
+  );
+}
+
+/** The room of the gallery while its cases or its code come: at least the window's height, so that what stands below
+ *  it is out of view until it is drawn. */
+function GalleryReserve() {
+  return <div className="stories-reserve stories-reserve--cases" aria-hidden="true" />;
+}
+
+export function ExploreStories() {
+  const { organisms, current } = useOrganisms();
+  if (!current || !organisms.length) return <GalleryReserve />;
+  return (
+    <ErrorBoundary part="The stories" resetKey={current.organism}>
+      <StoriesOf graph={current} />
+    </ErrorBoundary>
   );
 }
 
 function StoriesOf({ graph }: { graph: GraphDescription }) {
-  const { organisms } = useOrganisms();
   const answer = useShowcase(graph.organism);
   if (answer.state === "failed")
-    return <ErrorPanel error={answer.error} onRetry={answer.retry} context="The stories of this graph" level={3} />;
-  const showcase = answer.state === "done" ? answer.answer.data : null;
-  const lineage = showcase?.cases.find((c) => c.kind === "lineage" && c.result) ?? null;
-  const cases = showcase?.cases.filter((c) => c.kind !== "lineage") ?? [];
+    return (
+      <div className="stories">
+        <ErrorPanel error={answer.error} onRetry={answer.retry} context="The stories of this graph" level={2} />
+      </div>
+    );
+  if (answer.state !== "done")
+    return (
+      <div className="stories" aria-busy="true">
+        <GalleryReserve />
+      </div>
+    );
+  const showcase = answer.answer.data;
+  const lineage = showcase.cases.find((c) => c.kind === "lineage" && c.result) ?? null;
+  const cases = showcase.cases.filter((c) => c.kind !== "lineage");
   return (
-    <div className="home stories__body">
+    <div className="home stories">
       {cases.length ? (
         <ErrorBoundary part="The cases" resetKey={graph.organism}>
-          <Suspense fallback={null}>
-            <CaseGallery graph={graph} cases={cases} letter={null} level={3} />
+          <Suspense fallback={<GalleryReserve />}>
+            <CaseGallery graph={graph} cases={cases} letter={null} level={2} />
           </Suspense>
         </ErrorBoundary>
       ) : null}
@@ -86,11 +100,10 @@ function StoriesOf({ graph }: { graph: GraphDescription }) {
             result={lineage.result}
             graph={graph}
             letter={null}
-            level={3}
+            level={2}
           />
         </ErrorBoundary>
       ) : null}
-      <FactsStrip organisms={organisms} letter={null} level={3} />
     </div>
   );
 }

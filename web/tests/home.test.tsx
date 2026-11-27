@@ -7,8 +7,8 @@
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import type { ConversionResult, DatabasesResponse, ShowcaseResponse } from "../src/api/types";
-import { CaseGallery } from "../src/components/home/CaseGallery";
-import { sketchRows, atOneRelease, genesNotDrawn, sketchWindow } from "../src/lib/home/sketch";
+import { CaseGallery } from "../src/components/explore/CaseGallery";
+import { sketchRows, atOneRelease, genesNotDrawn, sketchWindow } from "../src/lib/explore/sketch";
 import { MethodFigure } from "../src/components/method/MethodFigure";
 import { readMatrix } from "../src/lib/explore/databaseMatrix";
 import { runs } from "../src/lib/explore/runs";
@@ -16,8 +16,8 @@ import { releaseScale, shortNames } from "../src/components/figure/releases";
 import { bestSteps, CASE_KINDS, holdsKind, isHandoff, isRenamedAnswer } from "../src/lib/home/caseKinds";
 import { KIND_TEXT } from "../src/lib/home/cases";
 import { placeholderOf } from "../src/lib/home/examples";
-import { facts } from "../src/lib/home/facts";
-import { figureModel, previousOnLane, shortLabel, type FigureGene } from "../src/lib/home/figureModel";
+import { facts } from "../src/lib/explore/facts";
+import { figureModel, previousOnLane, shortLabel, type FigureGene } from "../src/lib/explore/figureModel";
 import {
   candidateSteps,
   eventWords,

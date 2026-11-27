@@ -12,7 +12,7 @@ import {
   shortLabel,
   type FigureModel,
   type FigureStep,
-} from "../../lib/home/figureModel";
+} from "../../lib/explore/figureModel";
 import { groupedInteger, pythonFloat } from "../../lib/numbers";
 import { prose } from "../../lib/values";
 import { spaced } from "../../lib/vocabulary";

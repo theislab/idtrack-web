@@ -1,5 +1,5 @@
 // The model of the Method page's figure of one answer's path: the best candidate's genes and steps (the Convert page's
-// figure model, lib/home/figureModel.ts, kept whole), laid on a window of releases fitted to the path, one lane per
+// figure model, lib/explore/figureModel.ts, kept whole), laid on a window of releases fitted to the path, one lane per
 // stable id, and every label resolving to the gene it names.
 //
 // - **The window** holds the path's releases with two releases of margin on each side, widened about its middle to at
@@ -9,7 +9,7 @@
 //   gutter by the stable id; each bar is labelled by its version alone, which therefore always resolves to its lane's
 //   id. A bridge or a change of id moves to another lane.
 import type { GraphDescription } from "../../api/types";
-import type { FigureGene, FigureModel, FigureStep } from "../home/figureModel";
+import type { FigureGene, FigureModel, FigureStep } from "../explore/figureModel";
 
 const MIN_WIDTH = 14;
 const MARGIN = 2;

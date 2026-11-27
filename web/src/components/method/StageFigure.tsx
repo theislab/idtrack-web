@@ -9,7 +9,7 @@
 // exact values, as the api sent them.
 import { useCallback, useId, useMemo, type ReactNode } from "react";
 import type { ConversionResult, GraphDescription } from "../../api/types";
-import { figureModel, type FigureStep } from "../../lib/home/figureModel";
+import { figureModel, type FigureStep } from "../../lib/explore/figureModel";
 import { stageModel, stepLanes, versionOf, type StageModel } from "../../lib/method/stageFigure";
 import { groupedInteger, pythonFloat } from "../../lib/numbers";
 import { prose } from "../../lib/values";

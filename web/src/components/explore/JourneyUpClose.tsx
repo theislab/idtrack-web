@@ -3,7 +3,7 @@
 // Every value is the case's answer, as the server's showcase gives it.
 import { Suspense, useId, useMemo } from "react";
 import type { ConversionResult, GraphDescription } from "../../api/types";
-import { figureHeight, figureModel, reasonCounts } from "../../lib/home/figureModel";
+import { figureHeight, figureModel, reasonCounts } from "../../lib/explore/figureModel";
 import { apiAddress, caseHref } from "../../lib/home/links";
 import type { CaseQuery } from "../../lib/home/cases";
 import { lazyPart } from "../../lib/lazyPart";

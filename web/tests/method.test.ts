@@ -2,7 +2,7 @@
 // that resolve to their lane's id, the last steps of an answer laid out from the api's path, and idtrack's meanings
 // read for a person.
 import { describe, expect, it } from "vitest";
-import { figureModel } from "../src/lib/home/figureModel";
+import { figureModel } from "../src/lib/explore/figureModel";
 import { answerLayout } from "../src/lib/method/answerLayout";
 import { holdsStage } from "../src/lib/method/cases";
 import { firstSentence, readerText } from "../src/lib/method/readerText";

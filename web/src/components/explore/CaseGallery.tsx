@@ -15,7 +15,7 @@ import { prose } from "../../lib/values";
 import { spaced, type Vocabulary } from "../../lib/vocabulary";
 import { useVocabulary } from "../../lib/vocabularyContext";
 import { Evidence } from "../Evidence";
-import { useShowcaseSymbols } from "../../lib/home/useShowcaseSymbols";
+import { useShowcaseSymbols } from "../../lib/explore/useShowcaseSymbols";
 import { api } from "../../api/client";
 import { authorityOf } from "../../lib/symbols";
 import { useRequest } from "../../lib/useRequest";

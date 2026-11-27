@@ -2,6 +2,44 @@
    database matrix and build, as lettered panels of one figure. */
 @import "./figure.css";
 
+/* ---- The stories (components/explore/Stories.tsx) and the graphs' section ---------------------------------------- */
+
+/* The organism of the stories, in the page's head. */
+.page-head > .stories-organism {
+  display: grid;
+  gap: 6px;
+  max-width: 22rem;
+}
+
+.stories {
+  display: grid;
+  gap: var(--space-8);
+  margin-bottom: var(--space-9);
+}
+
+/* The room the gallery takes while its cases or its code come: at least the window, so that nothing in view moves. */
+.stories-reserve--cases {
+  min-height: max(100svh, 1200px);
+}
+
+.explore-graphs {
+  display: grid;
+  gap: var(--space-5);
+  margin-bottom: var(--space-6);
+  padding-top: var(--space-5);
+  border-top: 1px solid var(--ink-1);
+}
+
+.explore-graphs__head {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.explore-graphs__lede {
+  max-width: var(--measure);
+  color: var(--ink-2);
+}
+
 .explore-panel {
   display: grid;
   grid-template-columns: minmax(0, 1fr);

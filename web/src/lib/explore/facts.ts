@@ -1,7 +1,7 @@
-// What this server holds, summed from its graphs as /organisms describes them (the Convert page's facts).
+// What this server holds, summed from its graphs as /organisms describes them (Explore's facts).
 import type { GraphDescription } from "../../api/types";
 import { groupedInteger, releaseRanges } from "../numbers";
-import { releasesOf } from "./links";
+import { releasesOf } from "../home/links";
 
 export interface Fact {
   key: string;
@@ -46,9 +46,13 @@ export function facts(graphs: readonly GraphDescription[]): Fact[] {
     },
   ];
   const counted: [string, string][] = [
-    ["nodes", "identifiers of every database, at the releases they hold"],
-    ["history_edges", "steps of Ensembl's id history between gene versions"],
-    ["cross_reference_edges", "links from Ensembl's genes to the ids of other databases"],
+    // What idtrack counts (its builder): every identifier of every database, and the markers of an id's creation and
+    // retirement that Ensembl's history writes as nodes (`<id>.Void`, `<id>.Retired`).
+    ["nodes", "identifiers of every database, with the markers of an id's creation and retirement"],
+    // Every edge of the history backbone: from an id's creation marker, between versions (a version kept with
+    // Ensembl's score among them), to its retirement marker, and the edge of an id alive at the last release.
+    ["history_edges", "edges of Ensembl's id history, from each id's creation to its retirement or the last release"],
+    ["cross_reference_edges", "links from Ensembl's genes, transcripts and translations to the ids of other databases"],
   ];
   for (const [count, label] of counted) {
     const total = sum(graphs, count);

@@ -2,7 +2,7 @@
 // it, laid along the releases. Every node and step is the api's object, kept whole; the model only adds where each sits
 // on the release axis (the releases at which the path holds each gene) and which steps cross assemblies.
 import type { Candidate, ConversionResult, PathNode, PathStep } from "../../api/types";
-import { bestSteps, isHandoff } from "./caseKinds";
+import { bestSteps, isHandoff } from "../home/caseKinds";
 
 /** A gene of the path, over the releases the path holds it (from where the walk enters it to where it leaves). */
 export interface FigureGene {

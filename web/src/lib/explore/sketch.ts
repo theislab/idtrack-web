@@ -1,6 +1,6 @@
-// What a case's small figure draws (components/home/CaseSketch.tsx): its rows and the stretch of releases it shows.
+// What a case's small figure draws (components/explore/CaseSketch.tsx): its rows and the stretch of releases it shows.
 import type { ConversionResult } from "../../api/types";
-import { candidateSteps, marksOf } from "./journeyModel";
+import { candidateSteps, marksOf } from "../home/journeyModel";
 
 /** The rows a sketch draws: the best candidate first, then up to two others (a split's or a tie's). */
 export function sketchRows(result: ConversionResult): { candidate: number; strong: boolean; from: number }[] {

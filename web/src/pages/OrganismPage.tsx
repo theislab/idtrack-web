@@ -11,7 +11,8 @@ import type { AssemblyDescription, GraphDescription, GraphVersion, HistoryRespon
 import { AssemblyRows } from "../components/explore/AssemblyRows";
 import { IdHistory } from "../components/explore/IdHistory";
 import { BenchmarkProvenance } from "../components/method/Benchmarks";
-import { ExploreStories } from "../components/explore/Stories";
+import { ExploreStories, StoriesOrganism } from "../components/explore/Stories";
+import { FactsStrip } from "../components/explore/FactsStrip";
 import { caseMarks, changed, historyColumns, historyHeight, niceMax, tallest } from "../lib/explore/history";
 import { ReleaseTicks } from "../components/figure/axis";
 import { releaseScale } from "../components/figure/releases";
@@ -322,16 +323,28 @@ export function OrganismsIndex() {
     <div className="page page--explore">
       <header className="page-head">
         <p className="eyebrow">Explore</p>
-        <h1>The graphs this server holds</h1>
+        <h1>Stories from Ensembl&apos;s history</h1>
         <p className="lede">
-          Each organism is one graph of Ensembl&apos;s releases, built by idtrack from Ensembl&apos;s own tables and
-          verified by its checksum when the server started. Choose one for its assemblies, its id history, the
-          composition of its build, and the databases a conversion to each release can end in. A conversion stays within
-          one graph, one organism: idtrack does not map identifiers between species.
+          What can happen to a gene id, told by real identifiers this server answered; then every graph it holds, side
+          by side, release by release. A conversion stays within one organism.
         </p>
+        <StoriesOrganism />
       </header>
 
       <ExploreStories />
+
+      <section className="explore-graphs" aria-labelledby="graphs">
+        <div className="explore-graphs__head">
+          <h2 id="graphs">The graphs this server holds</h2>
+          <p className="explore-graphs__lede">
+            Each organism is one graph of Ensembl&apos;s releases, built by idtrack from Ensembl&apos;s own tables and
+            verified by its checksum when the server started; idtrack does not map identifiers between species. Each
+            graph&apos;s page draws its assemblies, its id history, the composition of its build and the databases a
+            conversion to each release can end in.
+          </p>
+        </div>
+        <FactsStrip organisms={organisms} letter={null} level={3} heading={false} />
+      </section>
 
       <section className="panel explore-panel" aria-labelledby="graphs-axis">
         <PanelHead

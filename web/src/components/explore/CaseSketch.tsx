@@ -13,7 +13,7 @@ import { useEffect, useState } from "react";
 import type { ConversionResult, GraphDescription } from "../../api/types";
 import { candidateSteps, isEnsembl, marksOf } from "../../lib/home/journeyModel";
 import { clearEnds } from "../../lib/home/rowMarks";
-import { atOneRelease, genesNotDrawn, SKETCH_HEIGHT, sketchRows, sketchWindow } from "../../lib/home/sketch";
+import { atOneRelease, genesNotDrawn, SKETCH_HEIGHT, sketchRows, sketchWindow } from "../../lib/explore/sketch";
 import { ReleaseTicks, Bands } from "../figure/axis";
 import { GeneBar, StepGlyph } from "../figure/glyphs";
 import { isEvent, type Glyph } from "../figure/glyph";
