@@ -53,3 +53,17 @@ export function examplesOf(showcase: ShowcaseResponse | null, organism: string, 
   }
   return found;
 }
+
+/** The identifier field's hint from the examples of the graph in view ("e.g. SEPT9"): their identifiers, shortest
+ *  first, as many as `room` characters hold, joined by "or" (an organism's own ids, never another's); a plain
+ *  description where the server gives no example. */
+export function placeholderOf(examples: readonly Example[], room = 24): string {
+  const ids = [...new Set(examples.map((e) => e.query.identifier))].sort((a, b) => a.length - b.length);
+  let text = "";
+  for (const id of ids) {
+    const next = text ? `${text} or ${id}` : `e.g. ${id}`;
+    if (next.length > room) break;
+    text = next;
+  }
+  return text || "a gene id, symbol or accession";
+}

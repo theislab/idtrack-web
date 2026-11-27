@@ -31,7 +31,7 @@ import { href, navigate, useLocation } from "../lib/router";
 import { setTitleDetail } from "../lib/title";
 import { useRequest } from "../lib/useRequest";
 import { useLimits } from "../lib/vocabularyContext";
-import { examplesOf, type Example } from "../lib/home/examples";
+import { examplesOf, placeholderOf, type Example } from "../lib/home/examples";
 import { useShowcase } from "../lib/showcase";
 import "../styles/convert.css";
 
@@ -545,7 +545,7 @@ function ConvertForm({
               id={id}
               className="input--mono input--large"
               value={identifier}
-              placeholder="a gene id, symbol or accession"
+              placeholder={placeholderOf(examples)}
               autoCapitalize="none"
               autoCorrect="off"
               enterKeyHint="go"
