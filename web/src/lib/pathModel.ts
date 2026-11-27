@@ -235,9 +235,14 @@ export function buildModel(result: ConversionResult): PathModel {
     return { index, api: candidate, steps: steps.filter((s) => s >= 0 && s < apiSteps.length), best: candidate.best };
   });
 
+  // The candidates each step serves (a gene's hundreds of targets share its steps: appended, never copied).
   const usedBy = new Map<number, number[]>();
   for (const candidate of candidates) {
-    for (const step of candidate.steps) usedBy.set(step, [...(usedBy.get(step) ?? []), candidate.index]);
+    for (const step of candidate.steps) {
+      const users = usedBy.get(step);
+      if (users) users.push(candidate.index);
+      else usedBy.set(step, [candidate.index]);
+    }
   }
 
   const steps: ModelStep[] = apiSteps.map((api, index) => {
@@ -281,7 +286,9 @@ export function buildModel(result: ConversionResult): PathModel {
   const releasesOf = new Map<string, number[]>();
   const touch = (id: string | null, release: number) => {
     if (id === null) return;
-    releasesOf.set(id, [...(releasesOf.get(id) ?? []), release]);
+    const releases = releasesOf.get(id);
+    if (releases) releases.push(release);
+    else releasesOf.set(id, [release]);
   };
   for (const step of steps) {
     touch(step.api.source, step.sourceRelease);

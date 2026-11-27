@@ -1,5 +1,6 @@
 // The path in words: every step of every candidate, in order, with the exact values the api sent. The same text is
 // shown beside the drawing, read by screen readers, and copied.
+import { stepWords } from "./resultWords";
 import type { AssemblyDescription, GenePlace } from "../api/types";
 import { databaseLabel } from "./databases";
 import { pythonFloat } from "./numbers";
@@ -155,7 +156,7 @@ export function stepFacts(
   const source = a.source === null ? undefined : model.nodeById.get(a.source);
   const target = model.nodeById.get(a.target);
   const facts: [string, string][] = [
-    ["Step", `${spaced(a.reason)} (${a.kind})`],
+    ["Step", `${stepWords(a.reason)} (${a.kind})`],
     ["Why", prose(vocabulary.stepReasons.get(a.reason) ?? "The api gives no text for this reason.")],
   ];
   if (a.source !== null) facts.push(["From", nodeName(source, a.source)]);
@@ -226,7 +227,7 @@ export function stepSentence(step: ModelStep, model: PathModel, names: AssemblyN
     case "self_loop": {
       // In Ensembl's direction (the earlier id, at the event's old release, first), whichever way the walk went.
       const ids = historyIds(step, model);
-      const what = spaced(a.reason);
+      const what = stepWords(a.reason);
       const score = a.weight === null ? noScoreText(step) : `score ${pythonFloat(a.weight)}`;
       const counts = a.splits || a.merges ? `; ${eventCounts(a.splits, a.merges)}` : "";
       const handoff = step.handoff
@@ -314,7 +315,7 @@ export function stepParts(step: ModelStep, model: PathModel, names: AssemblyName
         when: `${a.old_release ?? "—"} → ${a.new_release ?? "—"}`,
         from: ids.earlier,
         to: ids.later,
-        what: spaced(a.reason),
+        what: stepWords(a.reason),
         facts,
         backward: step.direction === "backward",
       };

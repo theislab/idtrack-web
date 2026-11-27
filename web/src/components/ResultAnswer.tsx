@@ -6,7 +6,7 @@
 // (each gene at display size with its symbol, its first targets in small type, "and N more" on request), never as a
 // wall of ids. Under the status, the evidence a reader should weigh (`Evidence`), then what the string meant at other
 // releases with a way to read it there.
-import { memo, useEffect, useState } from "react";
+import { memo, useEffect, useRef, useState, useTransition } from "react";
 import { api } from "../api/client";
 import type { Candidate, ConversionResult, GraphDescription } from "../api/types";
 import type { Anatomy } from "../lib/anatomy";
@@ -14,9 +14,8 @@ import { convertHref, plainConversion } from "../lib/convertParameters";
 import { databaseLabel } from "../lib/databases";
 import { cautionCount, limitationAt, LIMITATION_OF, type EvidenceAsk, type EvidenceMark } from "../lib/evidence";
 import { docsPage } from "../lib/links";
-import { bestWords, noTargetOf, NOT_HELD_WORDS, notHeldScheme } from "../lib/noTarget";
+import { bestWords, noTargetOf, NOT_HELD_WORDS, notHeldScheme, type NoTarget } from "../lib/noTarget";
 import { looksLikeSpreadsheetDate } from "../lib/batchList";
-import { useOrganisms } from "../lib/organisms";
 import { groupedInteger, releaseRanges } from "../lib/numbers";
 import { commonName, organismName } from "../lib/organismNames";
 import type { PathModel } from "../lib/pathModel";
@@ -29,9 +28,9 @@ import { readerText, statusTone } from "../lib/resultWords";
 import { Evidence } from "./Evidence";
 import { IdMenu, SymbolOf, type IdContext } from "./IdMenu";
 import { FigurePanel, Reasons, Term } from "./ResultParts";
+import { usePhone } from "../lib/usePhone";
 import { answerFileName, kindsText, MATCH_WORDS, pinnedLink, shortDigest } from "../lib/answerLinks";
 import { answerProvenance, citationOf, methodsSentence } from "../lib/answerProvenance";
-import docs from "../generated/idtrack_docs.json";
 import { saveText } from "../lib/save";
 import { useRequest } from "../lib/useRequest";
 import { criterionValue } from "../lib/values";
@@ -172,7 +171,7 @@ function Facts({
         </dd>
       </div>
       <div>
-        <dt>Deciding criterion</dt>
+        <dt>Decided by</dt>
         <dd>{decidedText(result)}</dd>
       </div>
       {context.symbols ? (
@@ -330,6 +329,8 @@ function groupsOf(bests: readonly Candidate[]): GeneGroup[] {
 /** The targets of one gene: the first few in small type, the rest on request (and copied whole). */
 function TargetList({ group, database, context }: { group: GeneGroup; database: string; context: IdContext }) {
   const [all, setAll] = useState(false);
+  // Hundreds of ids are drawn in a transition: the press is answered at once, the list follows.
+  const [pending, startShowing] = useTransition();
   const shown = all ? group.targets : group.targets.slice(0, TARGETS_SHOWN);
   const rest = group.targets.length - TARGETS_SHOWN;
   return (
@@ -348,8 +349,20 @@ function TargetList({ group, database, context }: { group: GeneGroup; database: 
               and {groupedInteger(rest)} more {database} id{rest === 1 ? "" : "s"}{" "}
             </span>
           )}
-          <Button variant="quiet" aria-expanded={all} onClick={() => setAll((v) => !v)}>
-            {all ? `Show the first ${TARGETS_SHOWN}` : `Show all ${groupedInteger(group.targets.length)}`}
+          <Button
+            variant="quiet"
+            aria-expanded={all}
+            onClick={() => {
+              startShowing(() => {
+                setAll((v) => !v);
+              });
+            }}
+          >
+            {pending
+              ? "Showing…"
+              : all
+                ? `Show the first ${TARGETS_SHOWN}`
+                : `Show all ${groupedInteger(group.targets.length)}`}
           </Button>
         </p>
       ) : null}
@@ -387,7 +400,7 @@ function AnswerTargets({
           const target = group.targets[0] ?? group.gene;
           return (
             <div key={group.gene} className={groups.length > 1 ? "answer__group" : undefined}>
-              <p className="answer__target">
+              <h3 className="answer__target">
                 <IdMenu
                   id={target}
                   release={context.toRelease}
@@ -396,7 +409,7 @@ function AnswerTargets({
                   className="answer__id"
                   answer
                 />
-              </p>
+              </h3>
               <p className="answer__gene">
                 {target !== group.gene ? (
                   <>
@@ -429,10 +442,10 @@ function AnswerTargets({
       </p>
       {shownGroups.map((group) => (
         <div key={group.gene} className="answer__group">
-          <p className="answer__target">
+          <h3 className="answer__target">
             <IdMenu id={group.gene} release={context.toRelease} context={context} strong className="answer__id" />{" "}
             <SymbolOf gene={group.gene} context={context} />
-          </p>
+          </h3>
           {own(group) ? null : <TargetList group={group} database={database} context={context} />}
         </div>
       ))}
@@ -594,7 +607,8 @@ function TieGuidance({ result }: { result: ConversionResult }) {
       guess: give the release the list was made with, or the database it comes from, where you know them; else keep
       every gene. Harmonizing a matrix leaves such a feature unconverted, as ambiguous.{" "}
       <a href={docsPage("concepts.html#concept-ties")} target="_blank" rel="noreferrer">
-        The best answer and ties<span className="visually-hidden"> (idtrack&apos;s documentation, opens in a new tab)</span>
+        The best answer and ties
+        <span className="visually-hidden"> (idtrack&apos;s documentation, opens in a new tab)</span>
         <span aria-hidden="true"> ↗</span>
       </a>{" "}
       <a href={docsPage("harmonization.html")} target="_blank" rel="noreferrer">
@@ -621,7 +635,32 @@ function CiteBlock({
 }) {
   const version = useRequest("version", (signal, fresh) => api.version({ signal, fresh }));
   const known = version.state === "done" ? version.answer.data : null;
-  const bibtex = citationOf(docs.citation.bibtex, known);
+  // idtrack's citation is read from its documentation's generated file only when asked for (a chunk of its own).
+  const [citation, setCitation] = useState<{ bibtex: string; source: string } | null>(null);
+  useEffect(() => {
+    let live = true;
+    void import("../generated/idtrack_docs.json").then((m) => {
+      if (live) setCitation(m.default.citation);
+    });
+    return () => {
+      live = false;
+    };
+  }, []);
+  // Opened, the citation is brought into view and its first copy takes the focus (the press is answered where the eye is).
+  const ref = useRef<HTMLElement>(null);
+  const shown = citation !== null;
+  useEffect(() => {
+    const section = ref.current;
+    if (!shown || !section) return;
+    const matchMedia = (window as { matchMedia?: Window["matchMedia"] }).matchMedia;
+    const reduced =
+      typeof matchMedia === "function" && matchMedia.call(window, "(prefers-reduced-motion: reduce)").matches;
+    // A document without layout (a test's DOM) has no scrolling.
+    if (typeof section.scrollIntoView === "function")
+      section.scrollIntoView({ block: "nearest", behavior: reduced ? "auto" : "smooth" });
+    section.querySelector<HTMLElement>("button")?.focus({ preventScroll: true });
+  }, [shown]);
+  const bibtex = citation ? citationOf(citation.bibtex, known) : "";
   const bridges = new URL(apiUrl ?? "/", "http://page.invalid").searchParams.get("allow_bridges") !== "false";
   const sentence = known
     ? methodsSentence({
@@ -634,18 +673,24 @@ function CiteBlock({
       })
     : null;
   return (
-    <section className="answer__cite" id={id} aria-label="How to cite this conversion">
-      <p className="answer__cite-head">
-        Cite idtrack{" "}
-        <a href={docs.citation.source} target="_blank" rel="noreferrer">
-          as its documentation gives it<span className="visually-hidden"> (opens in a new tab)</span>
-          <span aria-hidden="true"> ↗</span>
-        </a>
-        , with the version that answered here <CopyButton text={bibtex} what="the citation" />
-      </p>
-      <pre className="raw raw--cite" role="region" aria-label="Citation in BibTeX" tabIndex={0}>
-        {bibtex}
-      </pre>
+    <section className="answer__cite" id={id} aria-label="How to cite this conversion" ref={ref}>
+      {citation ? (
+        <>
+          <p className="answer__cite-head">
+            Cite idtrack{" "}
+            <a href={citation.source} target="_blank" rel="noreferrer">
+              as its documentation gives it<span className="visually-hidden"> (opens in a new tab)</span>
+              <span aria-hidden="true"> ↗</span>
+            </a>
+            , with the version that answered here <CopyButton text={bibtex} what="the citation" />
+          </p>
+          <pre className="raw raw--cite" role="region" aria-label="Citation in BibTeX" tabIndex={0}>
+            {bibtex}
+          </pre>
+        </>
+      ) : (
+        <p className="muted">Reading idtrack&apos;s citation…</p>
+      )}
       {sentence ? (
         <>
           <p className="answer__cite-head">
@@ -715,9 +760,9 @@ function NotFoundHints({ result, organism }: { result: ConversionResult; organis
     <>
       {authority ? (
         <p className="answer__next answer__hint">
-          <Mono>{result.query_id}</Mono> has the form of {prefix}&apos;s own id of a gene. idtrack&apos;s graphs hold the
-          names and ids Ensembl attaches to genes, and not the name authorities&apos; own ids: ask by the gene&apos;s{" "}
-          {authority} or its Ensembl id.
+          <Mono>{result.query_id}</Mono> has the form of {prefix}&apos;s own id of a gene. idtrack&apos;s graphs hold
+          the names and ids Ensembl attaches to genes, and not the name authorities&apos; own ids: ask by the
+          gene&apos;s {authority} or its Ensembl id.
           <LimitationLink anchors={LIMITATION_OF.not_held} />
         </p>
       ) : null}
@@ -729,8 +774,8 @@ function NotFoundHints({ result, organism }: { result: ConversionResult; organis
       ) : null}
       {date ? (
         <p className="answer__next answer__hint">
-          <Mono>{result.query_id}</Mono> has the form of a date a spreadsheet makes of a cell: a symbol such as MARCH1 or
-          SEPT2 opened in a spreadsheet becomes one. Export the column as text and convert it again.
+          <Mono>{result.query_id}</Mono> has the form of a date a spreadsheet makes of a cell: a symbol such as MARCH1
+          or SEPT2 opened in a spreadsheet becomes one. Export the column as text and convert it again.
         </p>
       ) : null}
       <OtherGraphs result={result} organism={organism} />
@@ -742,8 +787,10 @@ function NotFoundHints({ result, organism }: { result: ConversionResult; organis
  *  where another graph holds it, the page says so and links the conversion there. idtrack converts within one organism;
  *  this is the same string in another organism's graph, never a counterpart. */
 function OtherGraphs({ result, organism }: { result: ConversionResult; organism: string }) {
-  const { organisms } = useOrganisms();
-  const others = organisms.map((o) => o.organism).filter((o) => o !== organism);
+  // The graphs the server holds (the answer the page read at its start, held for the session).
+  const held = useRequest("organisms", (signal, fresh) => api.organisms({ signal, fresh }));
+  const others =
+    held.state === "done" ? held.answer.data.organisms.map((o) => o.organism).filter((o) => o !== organism) : [];
   const key = `${organism}|${result.query_id}|${others.join(",")}`;
   const [found, setFound] = useState<{ key: string; organisms: string[] } | null>(null);
   useEffect(() => {
@@ -764,13 +811,13 @@ function OtherGraphs({ result, organism }: { result: ConversionResult; organism:
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- the organisms and the identifier are named by the key
   }, [key]);
-  const held = found?.key === key ? found.organisms : [];
-  if (!held.length) return null;
+  const holding = found?.key === key ? found.organisms : [];
+  if (!holding.length) return null;
   return (
     <p className="answer__next answer__hint answer__elsewhere">
-      <Mono>{result.query_id}</Mono> is an identifier of {held.length === 1 ? "another graph" : "other graphs"} this
+      <Mono>{result.query_id}</Mono> is an identifier of {holding.length === 1 ? "another graph" : "other graphs"} this
       server holds:{" "}
-      {held.map((other, i) => (
+      {holding.map((other, i) => (
         <span key={other}>
           {i ? ", " : ""}
           <Link to={convertHref(other, plainConversion(result.query_id))}>
@@ -781,6 +828,61 @@ function OtherGraphs({ result, organism }: { result: ConversionResult; organism:
       ))}
       . idtrack converts within one organism, never across species: the answer there is that organism&apos;s gene.
     </p>
+  );
+}
+
+/** The other genes a result without an id in the database asked for reached, ranked below: idtrack takes the target
+ *  from the best answer only, so their ids were not looked up; each is a link that converts it to that database. */
+function OtherGenesReached({
+  absent,
+  organism,
+  result,
+  requestedDatabase,
+  context,
+}: {
+  absent: NoTarget;
+  organism: string;
+  result: ConversionResult;
+  requestedDatabase: string | null;
+  context: IdContext;
+}) {
+  if (!absent.others.length) return null;
+  const asked = requestedDatabase ?? "ensembl_gene";
+  return (
+    <div className="answer__others">
+      <p>
+        {absent.others.length === 1 ? "One other gene was" : `${absent.others.length} other genes were`} reached, ranked
+        below; idtrack takes the target from the best answer only, so{" "}
+        {absent.others.length === 1 ? "its id" : "their ids"} in {databaseLabel(asked)} were not looked up. To have
+        them, convert each to {databaseLabel(asked)}:
+      </p>
+      <ul className="answer__other-genes">
+        {absent.others.slice(0, 12).map((gene) => (
+          <li key={gene}>
+            <Link
+              to={convertHref(organism, {
+                ...plainConversion(gene),
+                toRelease: result.to_release,
+                finalDatabase: requestedDatabase,
+              })}
+            >
+              <Mono>{gene}</Mono>
+              <span className="visually-hidden"> converted to {databaseLabel(asked)}</span>
+            </Link>{" "}
+            <SymbolOf gene={gene} context={context} />
+          </li>
+        ))}
+      </ul>
+      {absent.others.length > 12 ? (
+        <p className="muted">and {absent.others.length - 12} more, listed in the decision (panel d).</p>
+      ) : null}
+      {absent.limitation ? (
+        <p className="answer__limitation">
+          A known limitation of idtrack: <Prose text={absent.limitation} />{" "}
+          <Link to={href("/method")}>idtrack&apos;s limitations</Link>
+        </p>
+      ) : null}
+    </div>
   );
 }
 
@@ -833,6 +935,8 @@ export const AnswerPanel = memo(function AnswerPanel({
   const tone = oneGene ? "ok" : statusTone(result.status);
   const shownTone = tone === "ok" && cautions ? "caution" : tone;
   const [citing, setCiting] = useState(false);
+  // On a phone the actions follow the answer and its evidence; on a wider screen they stand beside the title.
+  const phone = usePhone();
   const citeId = `${answerFileName(result, organism)}-cite`;
   const absent = noTargetOf(result);
   const codes = result.reasons.length ? result.reasons : reason ? [reason] : [];
@@ -927,42 +1031,13 @@ export const AnswerPanel = memo(function AnswerPanel({
         {status}
         <Alerts marks={marks} askHref={askHref} />
         {evidence}
-        {absent.others.length ? (
-          <div className="answer__others">
-            <p>
-              {absent.others.length === 1 ? "One other gene was" : `${absent.others.length} other genes were`} reached,
-              ranked below; idtrack takes the target from the best answer only, so{" "}
-              {absent.others.length === 1 ? "its id" : "their ids"} in {databaseLabel(asked)} were not looked up. To
-              have them, convert each to {databaseLabel(asked)}:
-            </p>
-            <ul className="answer__other-genes">
-              {absent.others.slice(0, 12).map((gene) => (
-                <li key={gene}>
-                  <Link
-                    to={convertHref(organism, {
-                      ...plainConversion(gene),
-                      toRelease: result.to_release,
-                      finalDatabase: requestedDatabase,
-                    })}
-                  >
-                    <Mono>{gene}</Mono>
-                    <span className="visually-hidden"> converted to {databaseLabel(asked)}</span>
-                  </Link>{" "}
-                  <SymbolOf gene={gene} context={context} />
-                </li>
-              ))}
-            </ul>
-            {absent.others.length > 12 ? (
-              <p className="muted">and {absent.others.length - 12} more, listed in the decision (panel d).</p>
-            ) : null}
-            {absent.limitation ? (
-              <p className="answer__limitation">
-                A known limitation of idtrack: <Prose text={absent.limitation} />{" "}
-                <Link to={href("/method")}>idtrack&apos;s limitations</Link>
-              </p>
-            ) : null}
-          </div>
-        ) : null}
+        <OtherGenesReached
+          absent={absent}
+          organism={organism}
+          result={result}
+          requestedDatabase={requestedDatabase}
+          context={context}
+        />
       </>
     );
   } else if (!bests.length) {
@@ -1064,29 +1139,31 @@ export const AnswerPanel = memo(function AnswerPanel({
     );
   }
 
+  const actions = (
+    <Actions
+      result={result}
+      apiUrl={apiUrl}
+      description={description}
+      raw={raw}
+      requestId={requestId}
+      serverTiming={serverTiming}
+      receivedAt={receivedAt}
+      citing={citing}
+      onCite={() => {
+        setCiting((v) => !v);
+      }}
+    />
+  );
   return (
     <FigurePanel
       letter="a"
       title="The answer"
       id={id}
       className={`answer-panel answer-panel--${shownTone}`}
-      aside={
-        <Actions
-          result={result}
-          apiUrl={apiUrl}
-          description={description}
-          raw={raw}
-          requestId={requestId}
-          serverTiming={serverTiming}
-          receivedAt={receivedAt}
-          citing={citing}
-          onCite={() => {
-            setCiting((v) => !v);
-          }}
-        />
-      }
+      aside={phone ? undefined : actions}
     >
       <div className="answer">{body}</div>
+      {phone ? actions : null}
       {citing ? (
         <CiteBlock
           id={citeId}
@@ -1226,7 +1303,7 @@ function AnatomyStrip({
                   {span && span[0] !== span[1] ? (
                     <>
                       , releases{" "}
-                      <span className="mono">
+                      <span className="mono anatomy__range">
                         {span[0]}–{span[1]}
                       </span>
                     </>

@@ -1,8 +1,8 @@
 // The words and links an answer's panels share: the address of a conversion kept in a notebook (its target release
 // and its graph written out), the name of its saved answer, Ensembl's page of a gene's history, counts of the kinds
 // of step, the words of a match.
+import { stepWords } from "./resultWords";
 import type { ConversionResult, GraphDescription } from "../api/types";
-import { spaced } from "./vocabulary";
 
 export const ENSEMBL_GENE = /^ENS[A-Z]*G\d{11}(\.\d+)?$/;
 
@@ -33,7 +33,7 @@ export function kindsText(byReason: readonly { reason: string; count: number }[]
   const sorted = [...byReason].sort((a, b) => b.count - a.count);
   const shown = sorted.length <= 4 ? sorted : sorted.slice(0, 3);
   const rest = byReason.length - shown.length;
-  const text = shown.map((r) => `${r.count} ${spaced(r.reason)}`).join(" · ");
+  const text = shown.map((r) => `${r.count} ${stepWords(r.reason)}`).join(" · ");
   return rest > 0 ? `${text} · ${rest} more kind${rest === 1 ? "" : "s"}` : text;
 }
 

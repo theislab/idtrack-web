@@ -14,6 +14,7 @@ import { select } from "d3-selection";
 import "d3-transition";
 import { zoom as d3zoom, zoomIdentity, type ZoomBehavior, type ZoomTransform } from "d3-zoom";
 import {
+  startTransition,
   useCallback,
   useEffect,
   useId,
@@ -47,6 +48,8 @@ import {
 } from "../lib/pathLayout";
 import type { ModelCandidate, ModelNode, ModelStep, PathModel } from "../lib/pathModel";
 import { candidateTitle, nodeFacts, nodeKindWords, stepFacts, type AssemblyNames } from "../lib/pathReading";
+import { shortScore, stepWords } from "../lib/resultWords";
+import type { Symbols } from "../lib/symbols";
 import { criterionValue, yesNo } from "../lib/values";
 import { spaced, type Vocabulary } from "../lib/vocabulary";
 import { useVocabulary } from "../lib/vocabularyContext";
@@ -90,6 +93,8 @@ const ROW_OFFSET: Record<string, number> = { a0: -12, a1: -25 };
 /** Half the gap between two gene bars that meet at a step. */
 const JOINT = 2;
 const REVEAL_MS = 650;
+/** The height the releases of a drawn path take on a phone's timeline at first, at most (one screen and a little). */
+const PHONE_AXIS = 760;
 
 type ItemKey = `n:${string}` | `s:${number}` | `a:${number}`;
 
@@ -124,12 +129,13 @@ function candidateFacts(candidate: ModelCandidate, model: PathModel, vocabulary:
 }
 
 function stepLabel(step: ModelStep): string {
-  return spaced(step.api.reason);
+  return stepWords(step.api.reason);
 }
 
-/** The kind of a step for a class name (its hue and dash). */
+/** The kind of a step for a class name (its hue and dash); a split or merge of Ensembl's history is also an event,
+ *  drawn at the weight of its importance on every candidate (`pv-event`). */
 function stepClass(step: ModelStep): string {
-  return `pv-step pv-step--${step.hue} pv-kind--${step.kind}`;
+  return `pv-step pv-step--${step.hue} pv-kind--${step.kind}${isEvent(step.api) ? " pv-event" : ""}`;
 }
 
 /** The glyph of a drawn step, by the figure grammar's rule (the node it reads from says whether an entry is a read
@@ -162,10 +168,29 @@ export interface PathViewProps {
   readingId: string;
   /** The database the conversion asked for (`null`: Ensembl genes). */
   requestedDatabase: string | null;
+  /** The genes' symbols at the target release, where they have come (written beside the answers). */
+  symbols?: Symbols | null;
 }
 
-export function PathView({ model, description, names, highlight: store, readingId, requestedDatabase }: PathViewProps) {
-  const { ref: wrapper, width } = useWidth<HTMLDivElement>(0);
+export function PathView({
+  model,
+  description,
+  names,
+  highlight: store,
+  readingId,
+  requestedDatabase,
+  symbols = null,
+}: PathViewProps) {
+  // The frame's width is taken at once (useWidth); the drawing follows it in a transition, so that laying out and
+  // drawing a large path yields to the page instead of holding it in the task that measured the frame.
+  const { ref: wrapper, width: measured } = useWidth<HTMLDivElement>(0);
+  const [width, setWidth] = useState(0);
+  useEffect(() => {
+    if (measured !== width)
+      startTransition(() => {
+        setWidth(measured);
+      });
+  }, [measured, width]);
   const highlight = useSyncExternalStore(store.subscribe, store.candidate);
   const litStep = useSyncExternalStore(store.subscribe, store.step);
   const vertical = width > 0 && width < PHONE_WIDTH;
@@ -193,6 +218,7 @@ export function PathView({ model, description, names, highlight: store, readingI
           onStepShown={store.setStep}
           readingId={readingId}
           requestedDatabase={requestedDatabase}
+          symbols={symbols}
         />
       ) : (
         <HorizontalPath
@@ -208,6 +234,7 @@ export function PathView({ model, description, names, highlight: store, readingI
           onStepShown={store.setStep}
           readingId={readingId}
           requestedDatabase={requestedDatabase}
+          symbols={symbols}
         />
       )}
       {showAll || (drawn !== null && drawn < model.candidates.length) ? (
@@ -215,7 +242,14 @@ export function PathView({ model, description, names, highlight: store, readingI
           {showAll
             ? `All ${model.candidates.length} candidates are drawn.`
             : `${drawn ?? 0} of ${model.candidates.length} candidates are drawn (the best and the next in rank, at most ${rowsPerLane} targets per gene); the reading and the table list all.`}{" "}
-          <Button variant="quiet" onClick={() => setShowAll((v) => !v)}>
+          <Button
+            variant="quiet"
+            onClick={() => {
+              startTransition(() => {
+                setShowAll((v) => !v);
+              });
+            }}
+          >
             {showAll ? "Draw fewer" : `Draw all ${model.candidates.length}`}
           </Button>
         </p>
@@ -240,6 +274,7 @@ interface DrawingProps {
   onStepShown: (index: number | null) => void;
   readingId: string;
   requestedDatabase: string | null;
+  symbols: Symbols | null;
 }
 
 /** The focusable items in reading order, and the keyboard and pointer state over them. */
@@ -325,37 +360,70 @@ function spoken(title: string, facts: [string, string][], wanted: string[]): str
   return said.length ? `${title}; ${said.join("; ")}` : title;
 }
 
+/** The top of the window's free room: the bottom of the sticky masthead (a note never stands under it). */
+function freeTop(): number {
+  const header = document.querySelector(".masthead");
+  return header ? Math.max(0, header.getBoundingClientRect().bottom) : 0;
+}
+
 function Tooltip({
   item,
   width,
   id,
   pinned,
   pointer,
+  mayScroll,
 }: {
   item: Item | null;
   width: number;
   id: string;
   pinned: boolean;
   pointer: { onPointerEnter: () => void; onPointerLeave: () => void };
+  /** The note is shown by focus (not by pointing): the page may scroll to make room for it. */
+  mayScroll: boolean;
 }) {
   const ref = useRef<HTMLDivElement>(null);
-  // Below the element where the window has room for the whole note, else above it, else on the side with more room
-  // and scrolled inside itself; never cut by the figure's frame (the note stands over what follows the figure).
+  // The note stands whole in the window's free room (below the masthead): below its element where the room below holds
+  // it, else above it; where neither does, the page is first scrolled so that the element stands near the top of the
+  // free room and the note opens below it, scrolled inside itself where it is longer than the window (PageUp and
+  // PageDown on the figure scroll it). The element's anchor is the part of it in the window (a long bar's start can be
+  // off screen). Never cut by the figure's frame: the note stands over what follows the figure.
   const [place, setPlace] = useState<{ key: string; top: number; max: number | null } | null>(null);
   useLayoutEffect(() => {
     const element = ref.current;
     const canvas = element?.offsetParent;
     if (!element || !canvas || !item) return;
-    const y = canvas.getBoundingClientRect().top + item.y;
+    const gap = 8;
+    const mast = freeTop();
+    const bottom = window.innerHeight;
     const height = element.scrollHeight;
-    const below = window.innerHeight - (y + 16) - 8;
-    const over = y - 16 - 8;
+    let origin = canvas.getBoundingClientRect().top;
+    let y = Math.min(Math.max(origin + item.y, mast + gap), bottom - gap);
+    const below = bottom - (y + 16) - gap;
+    const over = y - 16 - gap - mast;
+    if (mayScroll && height > below && height > over) {
+      // Neither side holds it: bring the element near the top of the free room, then open below.
+      const shift = y - (mast + 3 * gap);
+      if (shift > 1) {
+        window.scrollBy({ top: shift, behavior: "instant" });
+        origin = canvas.getBoundingClientRect().top;
+        y = Math.min(Math.max(origin + item.y, mast + gap), bottom - gap);
+      }
+    }
+    const room = bottom - (y + 16) - gap;
+    const roomOver = y - 16 - gap - mast;
+    const anchor = y - origin;
     let next: { key: string; top: number; max: number | null };
-    if (height <= below || below >= over)
-      next = { key: item.key, top: item.y + 16, max: height <= below ? null : below };
-    else next = { key: item.key, top: item.y - 16 - Math.min(height, over), max: height <= over ? null : over };
+    if (height <= room || room >= roomOver)
+      next = { key: item.key, top: anchor + 16, max: height <= room ? null : Math.max(120, room) };
+    else
+      next = {
+        key: item.key,
+        top: anchor - 16 - Math.min(height, roomOver),
+        max: height <= roomOver ? null : roomOver,
+      };
     if (place?.key !== next.key || place.top !== next.top || place.max !== next.max) setPlace(next);
-  }, [item, place]);
+  }, [item, place, mayScroll]);
   if (!item) return null;
   // Over the element's column (it starts 20 px before the element), so that the pointer reaches the note by moving
   // straight up or down from the element.
@@ -369,7 +437,7 @@ function Tooltip({
       style={{
         left,
         top: place?.key === item.key ? place.top : item.y + 16,
-        maxHeight: place?.key === item.key && place.max !== null ? Math.max(120, place.max) : undefined,
+        maxHeight: place?.key === item.key && place.max !== null ? place.max : undefined,
       }}
       {...pointer}
     >
@@ -382,16 +450,60 @@ function Tooltip({
           </div>
         ))}
       </dl>
-      <p className="pv-tip__hint">{pinned ? "Pinned · Esc to close" : "Enter pins · arrows move · Esc hides"}</p>
+      <p className="pv-tip__hint">
+        {pinned ? "Pinned · Esc to close" : "Enter pins · arrows move · Esc hides"}
+        {place?.key === item.key && place.max !== null ? " · PageDown scrolls" : ""}
+      </p>
     </div>
   );
+}
+
+/** How long the pointer must rest on another element before its note replaces the note shown: the pointer crosses
+ *  other elements on its way to a note, and the note stays while it does (WCAG 1.4.13, hoverable). */
+const SWITCH_MS = 140;
+
+/** The element under the pointer (`useHover`), steadied: while a note is shown, another element's note replaces it only
+ *  once the pointer rests on that element, and the pointer reaching the note keeps it. */
+function useSteadyHover<K>() {
+  const base = useHover<K>();
+  const pending = useRef<number | null>(null);
+  const cancel = () => {
+    if (pending.current !== null) window.clearTimeout(pending.current);
+    pending.current = null;
+  };
+  useEffect(() => cancel, []);
+  const { hover, enter: baseEnter, leave: baseLeave, drop: baseDrop } = base;
+  const enter = useCallback(
+    (key: K) => {
+      cancel();
+      if (hover === null || hover === key) baseEnter(key);
+      else pending.current = window.setTimeout(() => baseEnter(key), SWITCH_MS);
+    },
+    [hover, baseEnter],
+  );
+  const leave = useCallback(() => {
+    cancel();
+    baseLeave();
+  }, [baseLeave]);
+  const drop = useCallback(() => {
+    cancel();
+    baseDrop();
+  }, [baseDrop]);
+  const note = {
+    onPointerEnter: () => {
+      cancel();
+      base.note.onPointerEnter();
+    },
+    onPointerLeave: base.note.onPointerLeave,
+  };
+  return { hover, enter, leave, drop, note };
 }
 
 /** Keyboard and pointer focus over the items: one tab stop, arrows move, Enter pins, Escape hides the tip (focus stays
  *  where it is); the tip can be pointed at without vanishing. */
 function useFocus(items: Item[], tipId: string) {
   const [active, setActive] = useState<ItemKey | null>(null);
-  const pointer = useHover<ItemKey>();
+  const pointer = useSteadyHover<ItemKey>();
   const [focused, setFocused] = useState(false);
   const [pinned, setPinned] = useState(false);
   const refs = useRef(new Map<string, SVGGElement>());
@@ -426,6 +538,15 @@ function useFocus(items: Item[], tipId: string) {
           pointer.drop();
         },
       };
+      // A note longer than the window scrolls inside itself: PageDown and PageUp on the figure scroll it.
+      if (event.key === "PageDown" || event.key === "PageUp") {
+        const note = document.getElementById(tipId);
+        if (note && note.scrollHeight > note.clientHeight + 1) {
+          event.preventDefault();
+          note.scrollBy({ top: (event.key === "PageDown" ? 1 : -1) * note.clientHeight * 0.8 });
+        }
+        return;
+      }
       const action = keys[event.key];
       if (action) {
         event.preventDefault();
@@ -433,7 +554,7 @@ function useFocus(items: Item[], tipId: string) {
         action();
       }
     },
-    [items, current, move, pointer, dismiss],
+    [items, current, move, pointer, dismiss, tipId],
   );
   const labels = useMemo(() => new Map(items.map((i) => [i.key, i.label])), [items]);
   const bind = (key: ItemKey) => ({
@@ -456,7 +577,7 @@ function useFocus(items: Item[], tipId: string) {
       pointer.enter(key);
       dismiss.reset();
     },
-    onMouseLeave: () => pointer.leave(key),
+    onMouseLeave: () => pointer.leave(),
     onClick: () => {
       setActive(key);
       setPinned(true);
@@ -465,7 +586,16 @@ function useFocus(items: Item[], tipId: string) {
     },
     onKeyDown,
   });
-  return { shown, pinned, onKeyDown, bind, current, focusedKey: focused ? current : null, note: pointer.note };
+  return {
+    shown,
+    pinned,
+    onKeyDown,
+    bind,
+    current,
+    focusedKey: focused ? current : null,
+    note: pointer.note,
+    byPointer: pointer.hover !== null,
+  };
 }
 
 /** The label of the identifier or a form it is read through, with the identifier's databases where they fit. */
@@ -533,6 +663,24 @@ function eventOf(model: PathModel): { span: [number, number]; words: string } | 
   return null;
 }
 
+/** The view over `span` with a release of room on each side, at least `least` releases wide, inside the graph's
+ *  releases (d3's programmatic transform does not keep it inside by itself). */
+function spanTransform(
+  span: [number, number],
+  least: number,
+  [r0, rN]: [number, number],
+  base: (release: number) => number,
+  plotL: number,
+): ZoomTransform {
+  const full = rN - r0 + 1;
+  const wide = Math.min(full, Math.max(least, span[1] - span[0] + 3));
+  let a = (span[0] + span[1]) / 2 - wide / 2;
+  a = Math.min(Math.max(a, r0 - 0.5), rN + 0.5 - wide);
+  const k = full / wide;
+  // The zoomed position of a release is k * base(release) + x: put the window's first release at the plot's left.
+  return zoomIdentity.translate(plotL - k * base(a), 0).scale(k);
+}
+
 /** The releases the drawn candidates' paths touch: the view is fitted to them, not to every candidate's. */
 function drawnSpan(model: PathModel, limit: number): [number, number] | null {
   const shown = shownCandidates(model, limit);
@@ -561,10 +709,10 @@ function HorizontalPath({
   onStepShown,
   readingId,
   requestedDatabase,
+  symbols,
 }: DrawingProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const zoomRef = useRef<ZoomBehavior<SVGSVGElement, unknown> | null>(null);
-  const [transform, setTransform] = useState<ZoomTransform>(zoomIdentity);
   // The view the toolbar last set (pressed), until a zoom or pan by hand.
   const [preset, setPreset] = useState<"fit" | "event" | "all" | null>("fit");
   const tipId = useId();
@@ -596,7 +744,15 @@ function HorizontalPath({
         .range([plotL, plotR]),
     [r0, rN, plotL, plotR],
   );
-  const scale = useMemo(() => transform.rescaleX(base), [transform, base]);
+  // The view opens fitted to the drawn path: its first layout is the fitted one (no layout at the whole range first).
+  const fitSpan = useMemo(() => drawnSpan(model, limit), [model, limit]);
+  const [transform, setTransform] = useState<ZoomTransform>(() =>
+    spanTransform(fitSpan ?? [r0, rN], 10, [r0, rN], base, plotL),
+  );
+  // The scale changes with the transform's values, not with a new object of the same values (d3 sends one when the
+  // view is set to where it stands): a layout is made once per view.
+  const { k: zoomK, x: zoomX } = transform;
+  const scale = useMemo(() => zoomIdentity.translate(zoomX, 0).scale(zoomK).rescaleX(base), [zoomK, zoomX, base]);
   const answerT = width - answerWidth;
   const layout = useMemo(
     () => layoutPath(model, { scale: (r) => scale(r), answerT, metrics, limit, rowsPerLane }),
@@ -640,7 +796,8 @@ function HorizontalPath({
         return !(event as MouseEvent).button;
       })
       .on("zoom", (event: { transform: ZoomTransform; sourceEvent: unknown }) => {
-        setTransform(event.transform);
+        const next = event.transform;
+        setTransform((t) => (t.k === next.k && t.x === next.x ? t : next));
         // A zoom or pan by hand leaves the view of every preset.
         if (event.sourceEvent) setPreset(null);
       });
@@ -666,7 +823,6 @@ function HorizontalPath({
   const revealId = useId().replace(/:/g, "");
   const duration = (ms: number) => (reduced ? 0 : ms);
 
-  const fitSpan = useMemo(() => drawnSpan(model, limit), [model, limit]);
   const event = useMemo(() => eventOf(model), [model]);
   /** Zoom to a window over `span` with a release of room on each side, at least `least` releases wide, inside the
    *  graph's releases (d3's programmatic transform does not keep it inside by itself). */
@@ -675,13 +831,7 @@ function HorizontalPath({
       const svg = svgRef.current;
       const behavior = zoomRef.current;
       if (!svg || !behavior) return;
-      const full = rN - r0 + 1;
-      const wide = Math.min(full, Math.max(least, span[1] - span[0] + 3));
-      let a = (span[0] + span[1]) / 2 - wide / 2;
-      a = Math.min(Math.max(a, r0 - 0.5), rN + 0.5 - wide);
-      const k = full / wide;
-      // The zoomed position of a release is k * base(release) + x: put the window's first release at the plot's left.
-      const target = zoomIdentity.translate(plotL - k * base(a), 0).scale(k);
+      const target = spanTransform(span, least, [r0, rN], base, plotL);
       const selection = select(svg);
       if (animate && !reduced)
         selection
@@ -1004,9 +1154,17 @@ function HorizontalPath({
             x={answerT}
             width={answerWidth}
             requestedDatabase={requestedDatabase}
+            symbols={symbols}
           />
         </svg>
-        <Tooltip item={shownItem} width={width} id={tipId} pinned={focus.pinned} pointer={focus.note} />
+        <Tooltip
+          item={shownItem}
+          width={width}
+          id={tipId}
+          pinned={focus.pinned}
+          pointer={focus.note}
+          mayScroll={!focus.byPointer}
+        />
       </div>
     </div>
   );
@@ -1207,10 +1365,16 @@ function VerticalPath({
   const releases = description.releases;
   const r0 = releases[0] ?? 0;
   const rN = releases[releases.length - 1] ?? 0;
-  const [pixels, setPixels] = useState(26);
   const [all, setAll] = useState(false);
   const tipId = useId();
   const span = drawnSpan(model, limit) ?? [r0, rN];
+  // The pitch of a release: the drawn path's releases take about one screen of a phone (26 px each for a short path,
+  // 14 at the least for a long one, where the labels still stand apart on their leaders); the buttons change it.
+  const [chosen, setChosen] = useState<number | null>(null);
+  const pixels = chosen ?? Math.max(14, Math.min(26, Math.floor(PHONE_AXIS / (span[1] - span[0] + 3))));
+  const setPixels = (change: (p: number) => number) => {
+    setChosen(change(pixels));
+  };
   const a = all ? r0 : Math.max(r0, span[0] - 1);
   const b = all ? rN : Math.min(rN, span[1] + 1);
   const metrics = VERTICAL_METRICS;
@@ -1439,7 +1603,14 @@ function VerticalPath({
             vertical
           />
         </svg>
-        <Tooltip item={shownItem} width={width} id={tipId} pinned={focus.pinned} pointer={focus.note} />
+        <Tooltip
+          item={shownItem}
+          width={width}
+          id={tipId}
+          pinned={focus.pinned}
+          pointer={focus.note}
+          mayScroll={!focus.byPointer}
+        />
       </div>
     </div>
   );
@@ -1502,14 +1673,17 @@ function useStepShown(shown: string | null, onStepShown: (index: number | null) 
 
 /** The other ids of a split or a merge, counted by the api and not named: a short stub per id (at most three) leaving
  *  the event's glyph toward the later releases (a split: the earlier id passed to them too) or entering it from the
- *  earlier ones (a merge: they passed to the later id too). Drawn in the step's hue, light. */
+ *  earlier ones (a merge: they passed to the later id too), with their count at its end. Drawn in the event's hue; the
+ *  path in words names them. */
 function EventStubs({ step, x, y, vertical }: { step: ModelStep; x: number; y: number; vertical: boolean }) {
   const { splits, merges } = step.api;
   if (!splits && !merges) return null;
   // Along time: +1 toward later releases. The walk's direction does not change Ensembl's event.
   const along = (dt: number, ds: number): [number, number] => (vertical ? [x + ds, y + dt] : [x + dt, y + ds]);
   const stubs: string[] = [];
+  const counts: { x: number; y: number; n: number; side: 1 | -1 }[] = [];
   const fan = (n: number, side: 1 | -1) => {
+    if (!n) return;
     const shown = Math.min(3, n);
     for (let i = 0; i < shown; i++) {
       const spread = (Math.floor(i / 2) + 1) * 10;
@@ -1517,6 +1691,8 @@ function EventStubs({ step, x, y, vertical }: { step: ModelStep; x: number; y: n
       const [x2, y2] = along(side * 22, (i % 2 ? 1 : -1) * spread);
       stubs.push(`M${x1},${y1}L${x2},${y2}`);
     }
+    const [cx, cy] = along(side * 25, -10);
+    counts.push({ x: cx, y: cy, n, side });
   };
   fan(splits, 1);
   fan(merges, -1);
@@ -1524,6 +1700,17 @@ function EventStubs({ step, x, y, vertical }: { step: ModelStep; x: number; y: n
     <g className="pv-stubs" aria-hidden="true">
       {stubs.map((d) => (
         <path key={d} d={d} />
+      ))}
+      {counts.map((c) => (
+        <text
+          key={c.side}
+          className="pv-stubs__count"
+          x={c.x}
+          y={c.y + 3}
+          textAnchor={vertical ? "start" : c.side > 0 ? "start" : "end"}
+        >
+          +{c.n}
+        </text>
       ))}
     </g>
   );
@@ -1752,9 +1939,7 @@ function PathMarks({
                 />
               )
             ) : null}
-            {middle && strong && step.kind === "split_merge" ? (
-              <EventStubs step={step} x={mx} y={my} vertical={vertical} />
-            ) : null}
+            {middle && isEvent(step.api) ? <EventStubs step={step} x={mx} y={my} vertical={vertical} /> : null}
             {ringed ? <circle className="fig-focus" cx={mx} cy={my} r={12} /> : null}
             {pointed ? <circle className="pv-lit" cx={mx} cy={my} r={12} /> : null}
           </g>
@@ -1823,6 +2008,21 @@ function PathMarks({
   );
 }
 
+/** The second line of an answer in the answer column: the gene's symbol, whether it is best (and what decided), and
+ *  its score (cut after six digits; the note holds it whole), as much of it as fits the column, in that order. */
+function answerLine(
+  c: ModelCandidate,
+  { symbol, decided, tiedWith, room }: { symbol: string; decided: string | null; tiedWith: number; room: number },
+): string {
+  const parts = [
+    symbol,
+    c.best ? (decided ? `best, by ${decided}` : tiedWith ? `best, tied with ${tiedWith}` : "best") : "",
+    `score ${shortScore(c.api.score).text}`,
+  ].filter(Boolean);
+  while (parts.length > 1 && textWidth(parts.join(" · "), 10, "sans") > room) parts.pop();
+  return parts.join(" · ");
+}
+
 function AnswerColumn({
   layout,
   model,
@@ -1833,6 +2033,7 @@ function AnswerColumn({
   width,
   vertical = false,
   requestedDatabase = null,
+  symbols = null,
 }: {
   layout: PathLayout;
   model: PathModel;
@@ -1843,6 +2044,7 @@ function AnswerColumn({
   width: number;
   vertical?: boolean;
   requestedDatabase?: string | null;
+  symbols?: Symbols | null;
 }) {
   const decision = model.decision;
   return (
@@ -1908,15 +2110,14 @@ function AnswerColumn({
                 <text className={`pv-label ${strong ? "pv-label--strong" : ""}`} x={ax + 32} y={ay + 4}>
                   {text}
                 </text>
-                {decided ? (
-                  <text className="pv-decided" x={ax + 32} y={ay + 18}>
-                    {`best · decided by ${spaced(decision.key)}`}
-                  </text>
-                ) : tied ? (
-                  <text className="pv-decided" x={ax + 32} y={ay + 18}>
-                    {`best · tied with ${model.candidates.filter((x) => x.best).length - 1}`}
-                  </text>
-                ) : null}
+                <text className="pv-decided" x={ax + 32} y={ay + 18}>
+                  {answerLine(c, {
+                    symbol: (symbols?.of.get(c.api.gene) ?? []).filter((x) => x !== c.api.target).join(", "),
+                    decided: decided ? spaced(decision.key) : null,
+                    tiedWith: tied ? model.candidates.filter((x) => x.best).length - 1 : 0,
+                    room: width - 46,
+                  })}
+                </text>
               </g>
             ) : null}
           </g>

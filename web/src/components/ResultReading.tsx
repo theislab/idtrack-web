@@ -20,12 +20,16 @@ import {
   assemblyText,
 } from "../lib/pathReading";
 import { scoreFloor } from "./figure/score";
+import { StepGlyph } from "./figure/glyphs";
+import { glyphOf, isEvent } from "./figure/glyph";
 import { ABSENT } from "../lib/values";
 import { useVocabulary } from "../lib/vocabularyContext";
 import { IdMenu, type IdContext } from "./IdMenu";
 import { FigurePanel, Match, Reasons, Term } from "./ResultParts";
+import { usePhone } from "../lib/usePhone";
 import { Button, CopyButton, Mono, Readout, Select, TableFrame } from "./ui";
 import { useWidth } from "./figure/useWidth";
+import { placeLayout, type PlaceRow } from "../lib/places";
 import { textWidth } from "./figure/labels";
 
 /** An id beside another of the same stable id: the shared part muted, the version strong (`ENSG00000141510` `.6`). */
@@ -83,6 +87,30 @@ function ScoreMark({ weight, floor }: { weight: number; floor: number }) {
   );
 }
 
+/** The kinds of step a reader meets rarely (an event of Ensembl's history, a crossing between assemblies, a bridge):
+ *  their words stand out; the routine ones (a new version, a re-mapping, a reading) are plain. */
+function whatClass(step: ModelStep): string {
+  const rare = isEvent(step.api) || step.handoff !== null || step.kind === "bridge_near" || step.kind === "bridge_far";
+  return `steps__what ${rare ? "steps__what--rare" : ""}`;
+}
+
+/** The step's glyph of the figure grammar, small, so that the table and the drawing name a kind one way. */
+function StepMark({ step, model }: { step: ModelStep; model: PathModel }) {
+  const source = step.api.source === null ? undefined : model.nodeById.get(step.api.source);
+  const glyph = glyphOf(step.api, source?.api.kind);
+  return (
+    <svg className="steps__glyph" width="18" height="16" viewBox="0 0 18 16" aria-hidden="true" focusable="false">
+      <StepGlyph
+        glyph={glyph}
+        x={9}
+        y={glyph === "loop" ? 12 : 8}
+        size="thin"
+        event={glyph === "handoff" && isEvent(step.api)}
+      />
+    </svg>
+  );
+}
+
 function StepRow({
   step,
   number,
@@ -93,6 +121,9 @@ function StepRow({
   context,
   floor,
   standing,
+  nameEvents,
+  firstKind,
+  firstPlace,
 }: {
   step: ModelStep;
   number: number;
@@ -105,6 +136,12 @@ function StepRow({
   floor: number;
   /** The release the walk stood at before this step (null: the first step). */
   standing: number | null;
+  /** A split's or merge's other ids are named at once (a path of few such events), else on a press. */
+  nameEvents: boolean;
+  /** The first row of its kind of step (its words open idtrack's meaning; later rows of the kind say them plainly). */
+  firstKind: boolean;
+  /** The first row of its relation of places (likewise). */
+  firstPlace: boolean;
 }) {
   const vocabulary = useVocabulary();
   const parts = stepParts(step, model, names);
@@ -149,11 +186,16 @@ function StepRow({
         </IdMenu>
       </td>
       <td className="steps__kind" data-label="Step">
-        <Term
-          code={step.api.reason}
-          meaning={vocabulary.stepReasons.get(step.api.reason)}
-          words={<span className="steps__what">{kindWords(step, parts.what)}</span>}
-        />
+        <StepMark step={step} model={model} />
+        {firstKind ? (
+          <Term
+            code={step.api.reason}
+            meaning={vocabulary.stepReasons.get(step.api.reason)}
+            words={<span className={whatClass(step)}>{kindWords(step, parts.what)}</span>}
+          />
+        ) : (
+          <span className={whatClass(step)}>{kindWords(step, parts.what)}</span>
+        )}
         {parts.backward ? (
           <span className="steps__walk" title="The walk took this step from its later id to its earlier one">
             <span aria-hidden="true">← </span>walked backward
@@ -185,9 +227,17 @@ function StepRow({
             <span key={fact.kind} className={`steps__fact steps__fact--${fact.kind}`}>
               {i ? <span className="visually-hidden">, </span> : null}
               {fact.kind === "places" && step.api.places ? (
-                <Term code={step.api.places} meaning={vocabulary.placeRelations.get(step.api.places)} />
+                firstPlace || step.api.places === "places_apart" ? (
+                  <Term
+                    code={step.api.places}
+                    meaning={vocabulary.placeRelations.get(step.api.places)}
+                    className={step.api.places === "places_apart" ? "steps__place--apart" : ""}
+                  />
+                ) : (
+                  <span className="steps__place--again">{fact.text}</span>
+                )
               ) : fact.kind === "counts" ? (
-                <EventPeers step={step} model={model} context={context} text={fact.text} />
+                <EventPeers step={step} model={model} context={context} text={fact.text} named={nameEvents} />
               ) : (
                 fact.text
               )}
@@ -201,6 +251,12 @@ function StepRow({
   );
 }
 
+/** The steps of a path shown at first on a phone, where each is a card. */
+const STEPS_PHONE = 6;
+
+/** The splits and merges of a path whose other ids are named without a press (one request each), at most. */
+const EVENTS_NAMED = 3;
+
 /** The other ids of a split or a merge, named on a press. The api counts them (`splits`, `merges`) without naming them;
  *  they are the answer of the same history transition asked of the api: the earlier id converted from the event's old
  *  release to its new one names every id it passed to (a split), the later id converted back names every id that
@@ -210,13 +266,16 @@ function EventPeers({
   model,
   context,
   text,
+  named,
 }: {
   step: ModelStep;
   model: PathModel;
   context: IdContext;
   text: string;
+  /** Named at once, without a press. */
+  named: boolean;
 }) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(named);
   const { earlier, later } = ensemblPair(step.api, step.direction);
   const a = step.api;
   const asks: { side: "split" | "merge"; id: string; from: number; to: number; self: string }[] = [];
@@ -302,6 +361,8 @@ export const ReadingPanel = memo(function ReadingPanel({
 }) {
   const firstBest = model.candidates.find((c) => c.best) ?? model.candidates[0];
   const [chosen, setChosen] = useState(firstBest?.index ?? 0);
+  const phone = usePhone();
+  const [everyStep, setEveryStep] = useState(false);
   const candidate = model.candidates[chosen] ?? firstBest;
   // The whole reading, every step of every candidate, is written only when it is copied.
   const text = useMemo(() => () => readingText(model, names), [model, names]);
@@ -309,6 +370,14 @@ export const ReadingPanel = memo(function ReadingPanel({
   const shared = firstBest && candidate !== firstBest ? sharedPrefix(candidate, firstBest) : 0;
   const many = model.candidates.length > 1;
   const order = readingOrder(candidate, model);
+  // On a phone each step is a card: the first few, the rest on a press.
+  const rowsShown = phone && !everyStep ? Math.min(order.length, STEPS_PHONE) : order.length;
+  // The splits and merges of this path whose other ids the api counts: named at once where they are few.
+  const scored = order.some((i) => typeof model.steps[i]?.api.weight === "number");
+  const events = order.filter((i) => {
+    const a = model.steps[i]?.api;
+    return a ? a.splits > 0 || a.merges > 0 : false;
+  }).length;
   const floor = scoreFloor(
     order
       .map((i) => model.steps[i])
@@ -393,10 +462,11 @@ export const ReadingPanel = memo(function ReadingPanel({
               </tr>
             </thead>
             <tbody>
-              {order.map((index, i) => {
+              {order.slice(0, rowsShown).map((index, i) => {
                 const step = model.steps[index];
                 if (!step) return null;
                 const before = i > 0 ? model.steps[order[i - 1] ?? -1] : undefined;
+                const earlier = order.slice(0, i).map((j) => model.steps[j]?.api);
                 return (
                   <StepRow
                     key={index}
@@ -409,6 +479,9 @@ export const ReadingPanel = memo(function ReadingPanel({
                     context={context}
                     floor={floor}
                     standing={before ? before.targetRelease : null}
+                    nameEvents={events <= EVENTS_NAMED}
+                    firstKind={!earlier.some((a) => a?.reason === step.api.reason)}
+                    firstPlace={!earlier.some((a) => a?.places === step.api.places)}
                   />
                 );
               })}
@@ -418,13 +491,32 @@ export const ReadingPanel = memo(function ReadingPanel({
       ) : (
         <p className="muted">No path: asked without the path.</p>
       )}
+      {order.length > STEPS_PHONE && phone ? (
+        <p className="reading__more">
+          {rowsShown < order.length ? (
+            <span className="muted">
+              The first {rowsShown} of {order.length} steps.{" "}
+            </span>
+          ) : null}
+          <Button variant="quiet" aria-expanded={rowsShown >= order.length} onClick={() => setEveryStep((v) => !v)}>
+            {rowsShown < order.length ? `Show all ${order.length} steps` : `Show the first ${STEPS_PHONE}`}
+          </Button>
+        </p>
+      ) : null}
       <p className="reading__key muted">
         A step of Ensembl&apos;s history is written as Ensembl recorded it: the earlier id at its last release, then the
         later id at its first, whichever way the walk went; <span aria-hidden="true">←</span> walked backward marks a
         step the walk took from the later id to the earlier one (a conversion to an earlier release). A step without
         Ensembl&apos;s score between two versions of one stable id is not counted among a path&apos;s steps without a
-        score. Ensembl&apos;s score is drawn as in the figure: 1.0 at the left, the floor at{" "}
-        <span className="mono">{pythonFloat(floor)}</span> at the right, the dot at the score.
+        score.
+        {scored ? (
+          <>
+            {" "}
+            Ensembl&apos;s score is drawn as in the figure: 1.0 at the left, the floor at{" "}
+            <span className="mono">{pythonFloat(floor)}</span> at the right, the dot at the score.
+          </>
+        ) : null}{" "}
+        A kind of step or a relation of places opens idtrack&apos;s meaning where the table first names it.
       </p>
     </FigurePanel>
   );
@@ -558,17 +650,24 @@ export function Details({ result }: { result: ConversionResult }) {
   );
 }
 
-/** Where the genes of the best answer's path lie: each gene's places (assembly, region, first and last base, strand,
- *  releases) as the api sent them, so that "same place" and "places apart" can be read on the genome. */
-/** One row of the places' drawing: an assembly and a sequence region, with every distinct span of the path's genes on
- *  it (identical spans of consecutive versions drawn once, named by their versions). */
-interface PlaceRow {
-  assembly: number;
-  region: string;
-  reference: boolean;
-  spans: { start: number; end: number; strand: number; genes: string[] }[];
+/** A part folded behind a one-line summary, laid out only once it is opened (a long table costs nothing until read). */
+function Folded({ summary, children }: { summary: string; children: React.ReactNode }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <details
+      className="disclosure reading-fold"
+      onToggle={(event) => {
+        setOpen(event.currentTarget.open);
+      }}
+    >
+      <summary className="disclosure__summary">{summary}</summary>
+      <div className="disclosure__body">{open ? children : null}</div>
+    </details>
+  );
 }
 
+/** Where the genes of the best answer's path lie: each gene's places (assembly, region, first and last base, strand,
+ *  releases) as the api sent them, so that "same place" and "places apart" can be read on the genome. */
 function placeRows(genes: string[], model: PathModel): PlaceRow[] {
   const rows: PlaceRow[] = [];
   for (const id of genes) {
@@ -602,37 +701,33 @@ function versionsText(genes: string[]): string {
   return `${[...stems][0] ?? ""} ${list}`;
 }
 
-const PLACE_ROW = 40;
-
 /** Where the genes of the chosen path lie, drawn: one row per assembly and region (on its own axis of bases, its first
- *  and last base written), each distinct span a bar with an arrow of its strand, so that "same place", a gene that
- *  moved and the change of assembly are seen at once. The table below holds every value. */
+ *  and last base written under it), each distinct span a bar with an arrow of its strand and its versions over it, so
+ *  that "same place", a gene that moved and the change of assembly are seen at once. The table holds every value. */
 function PlacesFigure({ rows, names }: { rows: PlaceRow[]; names: AssemblyNames }) {
   const { ref, width } = useWidth<HTMLDivElement>(0);
   const rowName = (row: PlaceRow) =>
     `${assemblyText(row.assembly, names)} · ${row.region}${row.reference ? "" : " (outside the reference)"}`;
   // The rows' names stand in a gutter as wide as the longest (measured), where it takes at most a third of the
   // figure; else each name stands above its row.
-  const longest = Math.max(0, ...rows.slice(0, 8).map((r) => textWidth(rowName(r))));
-  const gutter = width >= 640 && longest + 24 <= width / 3 ? Math.ceil(longest) + 12 : 0;
   const shown = rows.slice(0, 8);
-  const heights = shown.map(
-    (r) => PLACE_ROW + Math.max(0, r.spans.length - 1) * 10 + (gutter ? 0 : r.reference ? 14 : 26),
-  );
-  const offsets = heights.map((_, i) => 4 + heights.slice(0, i).reduce((a, b) => a + b, 0));
-  const height = heights.reduce((a, b) => a + b, 0) + 6;
+  const longest = Math.max(0, ...shown.map((r) => textWidth(rowName(r))));
+  const gutter = width >= 640 && longest + 24 <= width / 3 ? Math.ceil(longest) + 12 : 0;
+  const layout = placeLayout(shown, gutter === 0);
   // Bases per pixel, shared by the rows: the widest row's range (with a margin) fills the plot.
   const widest = Math.max(
     1,
     ...shown.map((r) => Math.max(...r.spans.map((sp) => sp.end)) - Math.min(...r.spans.map((sp) => sp.start))),
   );
-  const perPixel = (widest * 1.08) / Math.max(40, width - 24 - gutter);
+  const x0 = gutter + 12;
+  const x1 = width - 12;
+  const perPixel = (widest * 1.08) / Math.max(40, x1 - x0);
   return (
     <div className="places-fig fig" ref={ref}>
       {width > 0 ? (
         <svg
           width={width}
-          height={height}
+          height={layout.height}
           role="img"
           aria-label={`Where the genes of the chosen path lie: ${shown
             .map(
@@ -643,29 +738,25 @@ function PlacesFigure({ rows, names }: { rows: PlaceRow[]; names: AssemblyNames 
             )
             .join(". ")}`}
         >
-          {shown.map((row, index) => {
+          {layout.rows.map(({ row, top, bars, axis, bases }) => {
             const lo = Math.min(...row.spans.map((sp) => sp.start));
             const hi = Math.max(...row.spans.map((sp) => sp.end));
-            const x0 = gutter + 12;
-            const x1 = width - 12;
             // One scale of bases for every row (a short gene is short beside a long one), each row centred on its own
             // range.
             const centre = (lo + hi) / 2;
             const x = (base: number) => (x0 + x1) / 2 + (base - centre) / perPixel;
-            const top = (offsets[index] ?? 0) + (gutter ? 0 : row.reference ? 14 : 26);
-            const name = rowName(row);
             const range = `${groupedInteger(lo)}–${groupedInteger(hi)}`;
-            const apart = x(hi) - x(lo) > textWidth(range) + 24;
+            const apart = x(hi) - x(lo) > textWidth(groupedInteger(lo)) + textWidth(groupedInteger(hi)) + 24;
             return (
               <g key={`${row.assembly}|${row.region}`}>
                 {gutter ? (
-                  <text className="fig-text places-fig__row" x={gutter} y={top + 14} textAnchor="end">
-                    {name}
+                  <text className="fig-text places-fig__row" x={gutter} y={(bars[0] ?? top) + 4} textAnchor="end">
+                    {rowName(row)}
                   </text>
                 ) : (
                   // Above its row on a narrow figure, the assembly and region on one line and whether it is outside
                   // the reference on the next.
-                  <text className="fig-text places-fig__row" x={x0} y={top - (row.reference ? 2 : 14)}>
+                  <text className="fig-text places-fig__row" x={x0} y={top + 11}>
                     {`${assemblyText(row.assembly, names)} · ${row.region}`}
                     {row.reference ? null : (
                       <tspan x={x0} dy={12}>
@@ -674,14 +765,19 @@ function PlacesFigure({ rows, names }: { rows: PlaceRow[]; names: AssemblyNames 
                     )}
                   </text>
                 )}
-                <line className="places-fig__axis" x1={x0} x2={x1} y1={top + 24} y2={top + 24} />
                 {row.spans.map((sp, i) => {
-                  const by = top + 10 + i * 10;
+                  const by = bars[i] ?? top;
                   const a = x(sp.start);
                   const b = Math.max(a + 2, x(sp.end));
+                  const label = versionsText(sp.genes);
+                  // The span's versions over its bar, from its start where they fit before the plot's end.
+                  const lx = Math.min(a, x1 - textWidth(label, 10));
                   return (
                     <g key={`${sp.start}|${sp.end}|${sp.strand}`} className="places-fig__span">
-                      <title>{`${versionsText(sp.genes)}: ${groupedInteger(sp.start)}–${groupedInteger(sp.end)} (${sp.strand > 0 ? "+" : sp.strand < 0 ? "−" : String(sp.strand)} strand)`}</title>
+                      <title>{`${label}: ${groupedInteger(sp.start)}–${groupedInteger(sp.end)} (${sp.strand > 0 ? "+" : sp.strand < 0 ? "−" : String(sp.strand)} strand)`}</title>
+                      <text className="fig-text places-fig__versions" x={Math.max(x0, lx)} y={by - 6}>
+                        {label}
+                      </text>
                       <rect className="places-fig__bar" x={a} y={by - 3} width={b - a} height={6} rx={1.5} />
                       {sp.strand !== 0 ? (
                         <path
@@ -696,22 +792,20 @@ function PlacesFigure({ rows, names }: { rows: PlaceRow[]; names: AssemblyNames 
                     </g>
                   );
                 })}
+                <line className="places-fig__axis" x1={x(lo)} x2={x(hi)} y1={axis} y2={axis} />
+                <line className="places-fig__axis" x1={x(lo)} x2={x(lo)} y1={axis - 3} y2={axis + 3} />
+                <line className="places-fig__axis" x1={x(hi)} x2={x(hi)} y1={axis - 3} y2={axis + 3} />
                 {apart ? (
                   <>
-                    <text className="fig-text places-fig__tick" x={x(lo)} y={top + 24 + 13} textAnchor="start">
+                    <text className="fig-text places-fig__tick" x={x(lo)} y={bases} textAnchor="start">
                       {groupedInteger(lo)}
                     </text>
-                    <text className="fig-text places-fig__tick" x={x(hi)} y={top + 24 + 13} textAnchor="end">
+                    <text className="fig-text places-fig__tick" x={x(hi)} y={bases} textAnchor="end">
                       {groupedInteger(hi)}
                     </text>
                   </>
                 ) : (
-                  <text
-                    className="fig-text places-fig__tick"
-                    x={(x(lo) + x(hi)) / 2}
-                    y={top + 24 + 13}
-                    textAnchor="middle"
-                  >
+                  <text className="fig-text places-fig__tick" x={(x(lo) + x(hi)) / 2} y={bases} textAnchor="middle">
                     {range}
                   </text>
                 )}
@@ -744,64 +838,69 @@ export function GenePlaces({ model, names }: { model: PathModel; names: Assembly
   return (
     <div className="reading-part">
       <h3 className="figure-panel__subtitle">
-        Where the genes of the chosen path lie <span className="muted">{genes.length}</span>
+        Where the genes of the chosen path lie{" "}
+        <span className="muted">
+          {genes.length} gene{genes.length === 1 ? "" : "s"}, {rows.length} place{rows.length === 1 ? "" : "s"}
+        </span>
       </h3>
       <PlacesFigure rows={drawn} names={names} />
       <p className="fig-caption places-fig__caption">
-        Each row is a sequence region of one assembly, every row on one scale of bases (a short gene is short beside a
-        long one), centred on its own first and last base (written under it); each bar is a span where genes of the path
-        lie, drawn once for the versions that share it, its arrow the strand. Point at a bar for its genes and bases
-        {drawn.length > 8 ? `; the first 8 of ${drawn.length} rows are drawn` : ""}. Every place is in the table.
+        <strong className="fig-caption__lead">Each row is a sequence region of one assembly.</strong> Every row is on
+        one scale of bases (a short gene is short beside a long one) and centred on its own first and last base, written
+        under its axis; each bar is a span where genes of the path lie, drawn once for the versions written over it, its
+        arrow the strand{drawn.length > 8 ? `; the first 8 of ${drawn.length} rows are drawn` : ""}.
       </p>
-      <TableFrame label="Where the genes of the chosen path lie" className="table-frame--cards">
-        <table className="table table--places table--cards">
-          <caption className="visually-hidden">
-            Each gene of the best answer's path, in the order of the path, with every place the graph holds for it: the
-            assembly, the sequence region, the first and the last base, the strand and the releases.
-          </caption>
-          <thead>
-            <tr>
-              <th scope="col">Gene</th>
-              <th scope="col">Assembly</th>
-              <th scope="col">Region</th>
-              <th scope="col" className="num">
-                First base
-              </th>
-              <th scope="col" className="num">
-                Last base
-              </th>
-              <th scope="col">Strand</th>
-              <th scope="col">Releases</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map(({ id, place }, i) => (
-              <tr key={`${id}|${i}`}>
-                <td data-label="Gene">
-                  <Mono>{model.nodeById.get(id)?.label ?? id}</Mono>
-                </td>
-                <td data-label="Assembly">{names.get(place.assembly) ?? String(place.assembly)}</td>
-                <td data-label="Region">
-                  <Mono>{place.region}</Mono>
-                  {place.reference ? null : <span className="muted"> outside the reference</span>}
-                </td>
-                <td className="num" data-label="First base">
-                  <Mono title={String(place.start)}>{groupedInteger(place.start)}</Mono>
-                </td>
-                <td className="num" data-label="Last base">
-                  <Mono title={String(place.end)}>{groupedInteger(place.end)}</Mono>
-                </td>
-                <td data-label="Strand">
-                  <Mono>{place.strand > 0 ? "+" : place.strand < 0 ? "−" : String(place.strand)}</Mono>
-                </td>
-                <td data-label="Releases">
-                  <Mono>{place.releases.map(([a, b]) => (a === b ? `${a}` : `${a}–${b}`)).join(", ")}</Mono>
-                </td>
+      <Folded summary={`Every place, as a table (${rows.length})`}>
+        <TableFrame label="Where the genes of the chosen path lie" className="table-frame--cards">
+          <table className="table table--places table--cards">
+            <caption className="visually-hidden">
+              Each gene of the best answer's path, in the order of the path, with every place the graph holds for it:
+              the assembly, the sequence region, the first and the last base, the strand and the releases.
+            </caption>
+            <thead>
+              <tr>
+                <th scope="col">Gene</th>
+                <th scope="col">Assembly</th>
+                <th scope="col">Region</th>
+                <th scope="col" className="num">
+                  First base
+                </th>
+                <th scope="col" className="num">
+                  Last base
+                </th>
+                <th scope="col">Strand</th>
+                <th scope="col">Releases</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </TableFrame>
+            </thead>
+            <tbody>
+              {rows.map(({ id, place }, i) => (
+                <tr key={`${id}|${i}`}>
+                  <td data-label="Gene">
+                    <Mono>{model.nodeById.get(id)?.label ?? id}</Mono>
+                  </td>
+                  <td data-label="Assembly">{names.get(place.assembly) ?? String(place.assembly)}</td>
+                  <td data-label="Region">
+                    <Mono>{place.region}</Mono>
+                    {place.reference ? null : <span className="muted"> outside the reference</span>}
+                  </td>
+                  <td className="num" data-label="First base">
+                    <Mono title={String(place.start)}>{groupedInteger(place.start)}</Mono>
+                  </td>
+                  <td className="num" data-label="Last base">
+                    <Mono title={String(place.end)}>{groupedInteger(place.end)}</Mono>
+                  </td>
+                  <td data-label="Strand">
+                    <Mono>{place.strand > 0 ? "+" : place.strand < 0 ? "−" : String(place.strand)}</Mono>
+                  </td>
+                  <td data-label="Releases">
+                    <Mono>{place.releases.map(([a, b]) => (a === b ? `${a}` : `${a}–${b}`)).join(", ")}</Mono>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </TableFrame>
+      </Folded>
     </div>
   );
 }

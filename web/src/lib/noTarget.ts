@@ -51,7 +51,8 @@ export function notHeldScheme(id: string): NotHeldScheme | null {
   const text = id.trim();
   if (new RegExp(`^${UNIPROT_ACCESSION}$`).test(text)) return "uniprot_accession";
   if (new RegExp(`^${UNIPROT_ACCESSION}-\\d+$`).test(text)) return "uniprot_isoform";
-  if (/^[A-Z0-9]{1,10}_[A-Z0-9]{1,5}$/.test(text) && /[A-Z]/.test(text.split("_")[1] ?? "")) return "uniprot_entry_name";
+  if (/^[A-Z0-9]{1,10}_[A-Z0-9]{1,5}$/.test(text) && /[A-Z]/.test(text.split("_")[1] ?? ""))
+    return "uniprot_entry_name";
   if (/^URS[0-9A-F]{10}(?:_\d+)?$/.test(text)) return "rnacentral";
   return null;
 }
@@ -65,11 +66,13 @@ export const NOT_HELD_WORDS: Record<NotHeldScheme, { what: string; instead: stri
   },
   uniprot_isoform: {
     what: "a UniProt isoform",
-    instead: "The graph holds no UniProt isoforms: ask by the entry's primary accession without the suffix, the symbol or the Ensembl id.",
+    instead:
+      "The graph holds no UniProt isoforms: ask by the entry's primary accession without the suffix, the symbol or the Ensembl id.",
   },
   uniprot_entry_name: {
     what: "a UniProt entry name",
-    instead: "The graph holds no UniProt entry names (but those early releases display as genes' names): ask by the accession, the symbol or the Ensembl id.",
+    instead:
+      "The graph holds no UniProt entry names (but those early releases display as genes' names): ask by the accession, the symbol or the Ensembl id.",
   },
   rnacentral: {
     what: "an RNAcentral id",

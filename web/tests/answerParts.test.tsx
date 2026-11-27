@@ -91,13 +91,13 @@ describe("words that follow the result", () => {
     );
   });
 
-  it("names the other ids of a split or merge on a press, from the api's conversion of the same transition", async () => {
+  it("names the other ids of a split or merge, from the api's conversion of the same transition", async () => {
     show("convert_split_and_merge_peers");
-    const [button] = screen.getAllByRole("button", { name: "Name them" });
+    // A path of few such events names them at once (one conversion each); the press hides them.
+    const [button] = screen.getAllByRole("button", { name: "Hide" });
     expect(button).toBeTruthy();
     if (!button) return;
     // The conversions it asks are recorded where the fixture holds them; here the api answers what it holds.
-    fireEvent.click(button);
     expect(await screen.findAllByText(/the api.s conversion of ENSG00000228654\.1/)).not.toHaveLength(0);
     expect(screen.getAllByText(/the api.s conversion of ENSG00000228654\.1 from release 69 to 70/)).not.toHaveLength(0);
   });
@@ -186,10 +186,12 @@ describe("citing one answer", () => {
     );
   });
 
-  it("opens the citation from the answer's actions", () => {
+  it("opens the citation from the answer's actions", async () => {
     show("convert_tp53");
     fireEvent.click(screen.getByRole("button", { name: /^Cite/ }));
-    expect(screen.getByRole("region", { name: "Citation in BibTeX" }).textContent).toContain("@software{idtrack");
+    expect((await screen.findByRole("region", { name: "Citation in BibTeX" })).textContent).toContain(
+      "@software{idtrack",
+    );
     // The sentence waits for the server's versions (here none is recorded under that address: only the citation).
     expect(screen.getByRole("button", { name: /^Cite/ }).getAttribute("aria-expanded")).toBe("true");
   });

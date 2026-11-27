@@ -20,6 +20,15 @@ export const RECORD: Criterion[] = [
  *  Two candidates of different entry genes are never ranked by them. */
 export const SUCCESSOR_CRITERIA: readonly string[] = ["score", "same_as_query", "annotation"];
 
+/** A kind of step in the page's words where they differ from its code spaced: one name for one concept on every
+ *  figure, legend and table (the hero's key says "re-mapped to itself"). */
+const STEP_WORDS: Record<string, string> = { self_loop: "re-mapped to itself" };
+
+/** A step's reason (or kind) in words. */
+export function stepWords(code: string): string {
+  return STEP_WORDS[code] ?? code.replace(/_/g, " ");
+}
+
 /** The tone of a status, for its colour (the words are the status itself). */
 export function statusTone(status: string): "ok" | "warn" | "danger" | "none" {
   if (status === "converted") return "ok";

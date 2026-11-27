@@ -507,6 +507,7 @@ export function pathLabels(
       if (lane !== null) take(`${lane}:a0`, [edge.mid.t - 9, edge.mid.t + 9]);
       continue;
     }
+    stubExtents(edge, laneOf, take);
     if (edge.from.s === edge.to.s) continue;
     for (const [end, other, id] of [
       [edge.from, edge.to, edge.step.api.source],
@@ -522,6 +523,28 @@ export function pathLabels(
     bounds,
     taken,
   });
+}
+
+/** The stubs of a split's or merge's other ids leave the event's glyph into the label rows above its lane: toward the
+ *  later releases (a split) or from the earlier ones (a merge), along time on the drawing's scale. One or two stubs
+ *  stay in the first row; the third rises into the second. */
+function stubExtents(
+  edge: EdgePlace,
+  laneOf: (id: string | null) => number | null,
+  take: (row: string, span: [number, number]) => void,
+): void {
+  const { splits, merges } = edge.step.api;
+  const lane = laneOf(edge.step.api.target) ?? laneOf(edge.step.api.source);
+  if (lane === null) return;
+  for (const [n, side] of [
+    [splits, 1],
+    [merges, -1],
+  ] as const) {
+    if (!n) continue;
+    const span: [number, number] = side > 0 ? [edge.mid.t + 2, edge.mid.t + 34] : [edge.mid.t - 34, edge.mid.t - 2];
+    take(`${lane}:a0`, span);
+    if (n >= 3) take(`${lane}:a1`, span);
+  }
 }
 
 /** The steps drawn on the score track: the strong steps of Ensembl's history (on the chosen path, or of the candidate
@@ -556,10 +579,8 @@ export function presentMarks(model: PathModel, limit: number): Set<string> {
       seenSteps.add(index);
       if (step.handoff) present.add("handoff");
       else if (step.kind === "history") present.add("version");
-      if (step.kind === "split_merge") {
-        present.add("event");
-        if (candidate.best && (step.api.splits || step.api.merges)) present.add("stubs");
-      }
+      if (step.kind === "split_merge") present.add("event");
+      if (step.api.splits || step.api.merges) present.add("stubs");
       if (step.kind === "self_loop") present.add("loop");
       if (["entry_external", "bridge_near", "bridge_far", "final"].includes(step.kind)) present.add("cross");
       if (step.kind === "bridge_near" || step.kind === "entry_external") present.add("read");

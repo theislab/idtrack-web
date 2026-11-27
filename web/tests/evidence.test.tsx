@@ -46,7 +46,8 @@ describe("evidenceOf", () => {
       const versioned = /^\d+\.\d+$/.test(result.query_id);
       expect(marks.filter((m) => m.kind === "other_release" || m.kind === "other_reading")).toHaveLength(
         result.other_readings.filter(
-          (r) => (r.reason !== "other_release" || r.releases.length) && !(versioned && r.reason === "unversioned_database"),
+          (r) =>
+            (r.reason !== "other_release" || r.releases.length) && !(versioned && r.reason === "unversioned_database"),
         ).length,
       );
       // Where another gene may be the one meant, the mark says so beside the status, with a limitation of idtrack's.
@@ -159,7 +160,10 @@ describe("evidenceOf", () => {
     expect(elsewhere?.alert).toBe(true);
     expect(elsewhere?.label).toBe("the best answer is read only through UniProtKB Gene Name");
     expect(elsewhere?.detail).toContain("the 14 copies on haplotypes, patches or alternative loci");
-    expect(elsewhere?.ask).toEqual({ words: "Ask with HGNC Symbol as the source database", fromDatabase: "HGNC Symbol" });
+    expect(elsewhere?.ask).toEqual({
+      words: "Ask with HGNC Symbol as the source database",
+      fromDatabase: "HGNC Symbol",
+    });
     expect(elsewhere?.limitation?.title).toBe("A name that another source gives another gene");
     // Pig ENSSSCG00000014532 from 56 to 98: the best answer left the id at 66 → 67, the id lived on to 89 → 90.
     const branch = evidenceOf(load("sus_scrofa", "convert_branch_continuation"), vocabulary);
@@ -188,7 +192,9 @@ describe("evidenceOf", () => {
     });
     expect(plain.some((m) => m.kind === "runner_named")).toBe(false);
     // The retired MIR21 id: the way on is an accession the runner-up holds today.
-    const rival = evidenceOf(load("homo_sapiens", "convert_retired_bridge"), vocabulary).find((m) => m.kind === "bridge_rival");
+    const rival = evidenceOf(load("homo_sapiens", "convert_retired_bridge"), vocabulary).find(
+      (m) => m.kind === "bridge_rival",
+    );
     expect(rival?.alert).toBe(true);
     expect(rival?.ask?.identifier).toBe("MI0000077");
   });

@@ -216,6 +216,7 @@
   min-width: 0;
 }
 
+/* The answer's id is the heading of the answer (h3): it keeps the face of an identifier, not of a heading. */
 .answer__target {
   display: flex;
   align-items: baseline;
@@ -223,7 +224,10 @@
   gap: var(--space-1) var(--space-3);
   min-width: 0;
   font-size: var(--text-xl);
+  font-weight: var(--weight-regular);
+  letter-spacing: normal;
   line-height: var(--leading-tight);
+  text-wrap: wrap;
 }
 
 @media (min-width: 900px) {
@@ -482,30 +486,35 @@
   display: inline-flex;
   align-items: center;
   text-decoration: none;
-  font-family: var(--font-mono);
-  letter-spacing: 0.02em;
 }
 
 .answer__facts {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
-  gap: var(--space-3) var(--space-5);
+  gap: 0 var(--space-5);
+  row-gap: var(--space-3);
   margin: var(--space-5) 0 0;
   padding: var(--space-4) 0 0;
   border-top: 1px solid var(--line);
 }
 
+/* Each fact is a label row and a value row of the sheet's grid (subgrid): the values of one row of facts share a
+   baseline whatever their labels' length. */
 .answer__facts > div {
+  display: grid;
+  grid-row: span 2;
+  grid-template-rows: subgrid;
+  row-gap: 2px;
   min-width: 0;
 }
 
 .answer__facts dt {
+  align-self: end;
   font-family: var(--font-mono);
   font-size: var(--text-2xs);
   text-transform: uppercase;
   letter-spacing: 0.12em;
   color: var(--ink-3);
-  margin-bottom: 2px;
 }
 
 .answer__facts dd {
@@ -608,6 +617,10 @@ a.anatomy__link:hover {
 .anatomy__main .code-quiet {
   color: var(--ink-1);
   font-weight: var(--weight-strong);
+}
+
+.anatomy__range {
+  white-space: nowrap;
 }
 
 .anatomy__aside {
@@ -959,6 +972,26 @@ a.anatomy__link:hover .anatomy__go {
   opacity: 0.55;
 }
 
+/* The hierarchy of the drawing: the chosen path, then the events of Ensembl's history (a split or a merge, on every
+   candidate drawn: its line in the event's hue at full strength, its glyph and its stubs unfaded), then the other
+   candidates' genes, thin but legible. */
+.pv-event.pv-weak .pv-line,
+.pv-line.pv-event.pv-weak {
+  stroke-width: 2.4;
+  opacity: 1;
+}
+
+.pv-event.pv-weak .fig-glyph {
+  opacity: 1;
+}
+
+.pv .fig-gene--thin.fig-gene--weak {
+  fill: var(--ink-3);
+  stroke: var(--ink-3);
+  stroke-width: 0.6px;
+  opacity: 0.8;
+}
+
 .pv-answer__text,
 .pv-label,
 .pv-labels {
@@ -1162,6 +1195,11 @@ a.anatomy__link:hover .anatomy__go {
   overflow-wrap: anywhere;
 }
 
+.reading__more {
+  margin-top: var(--space-2);
+  font-size: var(--text-sm);
+}
+
 .reading__key {
   max-width: var(--measure-caption);
   margin-top: var(--space-3);
@@ -1242,9 +1280,24 @@ a.anatomy__link:hover .anatomy__go {
   white-space: nowrap;
 }
 
-.steps__what {
+/* The kind of a step: its glyph (as the figure draws it), then its words, plain for the routine kinds and marked for
+   the rare ones (an event, a crossing between assemblies, a bridge), where the eye should stop. */
+.steps__glyph {
+  --fig-ground: var(--surface);
+
   display: inline-block;
+  vertical-align: -3px;
+  margin-right: 6px;
+  overflow: visible;
+}
+
+.steps__what {
   font-size: var(--text-xs);
+  color: var(--ink-2);
+}
+
+.steps__what--rare {
+  display: inline-block;
   font-weight: var(--weight-medium);
   color: var(--ink-1);
   padding: 0 7px;
@@ -1252,6 +1305,16 @@ a.anatomy__link:hover .anatomy__go {
   border: 1px solid color-mix(in srgb, var(--step) 45%, transparent);
   background: color-mix(in srgb, var(--step) 8%, transparent);
   line-height: 1.6;
+}
+
+/* A relation of places said again after its first row: quiet; one that puts the gene elsewhere: marked. */
+.steps__place--again {
+  color: var(--ink-3);
+}
+
+.steps__place--apart {
+  font-weight: var(--weight-medium);
+  color: var(--ink-1);
 }
 
 .steps__walk {
@@ -1600,10 +1663,13 @@ a.anatomy__link:hover .anatomy__go {
   color: var(--ink-2);
 }
 
-/* The candidates: a compact table, each row opening its whole ranking record. */
-.table--candidates th,
-.table--candidates td {
-  padding: 8px 10px;
+/* The candidates: a compact table, each row opening its whole ranking record. On a phone each row is a card, whose
+   cells keep the cards' padding (the column's name stands in the left column of the cell). */
+@media (min-width: 641px) {
+  .table--candidates th,
+  .table--candidates td {
+    padding: 8px 10px;
+  }
 }
 
 .table--candidates .mono {
@@ -1964,6 +2030,11 @@ a.anatomy__link:hover .anatomy__go {
     text-align: left;
   }
 
+  /* A cell without a column's name (the record's press, the record itself) takes the card's whole width. */
+  .table--candidates td[data-label=""] {
+    padding-left: var(--space-3);
+  }
+
   .cand__through {
     max-width: none;
   }
@@ -2057,10 +2128,19 @@ a.anatomy__link:hover .anatomy__go {
 .pv-stubs path {
   fill: none;
   stroke: var(--hue-event);
-  stroke-width: 1.8;
+  stroke-width: 2;
   stroke-linecap: round;
-  opacity: 0.75;
   pointer-events: none;
+}
+
+.pv-stubs__count {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  fill: var(--hue-event);
+  paint-order: stroke;
+  stroke: var(--fig-ground, var(--surface));
+  stroke-width: 3px;
+  stroke-linejoin: round;
 }
 
 .pv-legend-dot {
@@ -2071,6 +2151,11 @@ a.anatomy__link:hover .anatomy__go {
   .pv-lit,
   .pv-stubs path {
     stroke: CanvasText;
+  }
+
+  .pv-stubs__count {
+    fill: CanvasText;
+    stroke: Canvas;
   }
 
   .pv-legend-dot {
@@ -2357,9 +2442,14 @@ a.anatomy__link:hover .anatomy__go {
   .life__label,
   .life__target-label,
   .places-fig__row,
+  .places-fig__versions,
   .places-fig__tick {
+    /* The system's text colour, with a halo of the canvas drawn behind the glyphs (never over them). */
     fill: CanvasText;
     stroke: Canvas;
+    stroke-width: 3px;
+    stroke-linejoin: round;
+    paint-order: stroke;
   }
 
   .pv-label__db,
@@ -2399,7 +2489,9 @@ a.anatomy__link:hover .anatomy__go {
     border-color: CanvasText;
   }
 
+  /* The pressed view: the highlight's ground and text, drawn as given (no backplate of the canvas behind the text). */
   .pv-preset.button--quiet[aria-pressed="true"] {
+    forced-color-adjust: none;
     background: Highlight;
     color: HighlightText;
     border-color: Highlight;
@@ -2496,6 +2588,11 @@ a.anatomy__link:hover .anatomy__go {
   fill: none;
   stroke: var(--ink-2);
   stroke-width: 1.3;
+}
+
+.places-fig__versions {
+  font-size: 10px;
+  fill: var(--ink-3);
 }
 
 .places-fig__caption {
@@ -2629,15 +2726,18 @@ a.anatomy__link:hover .anatomy__go {
 /* ---- On a phone, the answer's actions in a grid of two ------------------------------------------------------- */
 
 @media (max-width: 640px) {
+  /* After the answer and its evidence (the answer first), in rows of three of a finger's height. */
   .answer__actions {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     width: 100%;
+    margin-top: var(--space-1);
   }
 
   .answer__actions .button {
     justify-content: center;
     min-height: 44px;
+    padding-inline: var(--space-2);
   }
 }
 
@@ -2681,4 +2781,12 @@ a.anatomy__link:hover .anatomy__go {
 .answer__cite-sentence {
   max-width: var(--measure);
   font-size: var(--text-sm);
+}
+
+/* A caption's instruction line: how to read the figure by hand, apart from what it shows. */
+.fig-caption__how {
+  display: block;
+  margin-top: var(--space-1);
+  color: var(--ink-3);
+  font-size: var(--text-xs);
 }

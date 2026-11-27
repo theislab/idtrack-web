@@ -1,7 +1,7 @@
 // One conversion's answer, as a figure of lettered panels: (a) the answer and its anatomy, (b) the path through the
 // releases, (c) the path in words, (d) the decision and every candidate, (e) how the identifier was read; then the
 // api's answer as sent. Panels without content for this answer are left out and the letters run on.
-import { memo, startTransition, useEffect, useId, useMemo, useState } from "react";
+import { memo, startTransition, useEffect, useId, useMemo, useState, useTransition } from "react";
 import type { ConversionResult, GraphDescription } from "../api/types";
 import { anatomyOf, type Anatomy } from "../lib/anatomy";
 import { assemblyBands } from "./figure/releases";
@@ -50,20 +50,18 @@ function PathCaption({
         The path of <span className="mono">{r.query_id}</span> from release{" "}
         <span className="mono">{r.from_release ?? "—"}</span> to <span className="mono">{r.to_release}</span>.
       </strong>{" "}
-      Time runs along Ensembl&apos;s releases (the axis; top to bottom on a narrow screen), over the assemblies that
-      serve them
-      {bands.length ? ` (${bands.map((b) => `${b.name}, releases ${b.first}–${b.last}`).join("; ")})` : ""}. Each bar is
-      an Ensembl gene over the releases the path holds it, on a lane named by the id of its first gene; each step is its
-      mark in the colour of its kind (key above), with a line where it joins releases or lanes apart. The chosen path is
-      drawn strong
+      Time runs along Ensembl&apos;s releases (down the page on a narrow screen), over the assemblies that serve them
+      {bands.length ? ` (${bands.map((b) => `${b.name} ${b.first}–${b.last}`).join("; ")})` : ""}. Each bar is an
+      Ensembl gene over the releases the path holds it; each step is the mark of its kind (key above). The chosen path
+      is strong
       {others
-        ? `; the ${others} other candidate${others === 1 ? "" : "s"} the search reached light${others > LIMIT_WIDE ? " (the next in rank are drawn, the rest on request)" : ""}`
+        ? `, the ${others} other candidate${others === 1 ? "" : "s"} light${others > LIMIT_WIDE ? " (the next in rank drawn, the rest on request)" : ""}`
         : ""}
-      . Under the lanes, Ensembl&apos;s score of each step of the chosen path: a stem from 1.0 down to the score (an
-      open circle on 1.0 where Ensembl gave none); the digits are on focus and in the next panel. A gene after a gene of
-      the same id on its lane is labelled by its version; a label with no room at this zoom is left out. Every element
-      shows its exact values on focus or hover (one tab stop, then the arrow keys); the next panel says every step in
-      words.
+      ; under the lanes, Ensembl&apos;s score of each of its steps, a stem down from 1.0.
+      <span className="fig-caption__how">
+        Every element holds its exact values: tab to the drawing, then the arrow keys, or point at it. The next panel
+        says every step in words.
+      </span>
     </FigureCaption>
   );
 }
@@ -76,6 +74,8 @@ export const RAW_SHOWN = 40_000;
 function RawAnswer({ raw, apiUrl }: { raw: string; apiUrl: string | null }) {
   const [indented, setIndented] = useState(false);
   const [whole, setWhole] = useState(false);
+  // A long answer is indented or shown whole in a transition: the press is answered at once, the text follows.
+  const [pending, startShowing] = useTransition();
   const text = useMemo(() => {
     if (!indented) return raw;
     const tokens = indentJson(raw);
@@ -92,7 +92,15 @@ function RawAnswer({ raw, apiUrl }: { raw: string; apiUrl: string | null }) {
             GET {apiUrl}
           </a>
         ) : null}
-        <Button variant="quiet" aria-pressed={indented} onClick={() => setIndented((v) => !v)}>
+        <Button
+          variant="quiet"
+          aria-pressed={indented}
+          onClick={() => {
+            startShowing(() => {
+              setIndented((v) => !v);
+            });
+          }}
+        >
           {indented ? "As sent" : "Indented"}
         </Button>
         <CopyButton text={raw} what="the api's answer" />
@@ -105,8 +113,15 @@ function RawAnswer({ raw, apiUrl }: { raw: string; apiUrl: string | null }) {
           <span className="muted">
             The first {groupedInteger(cut + 1)} of {groupedInteger(text.length)} characters.{" "}
           </span>
-          <Button variant="quiet" onClick={() => setWhole(true)}>
-            Show the whole answer
+          <Button
+            variant="quiet"
+            onClick={() => {
+              startShowing(() => {
+                setWhole(true);
+              });
+            }}
+          >
+            {pending ? "Showing…" : "Show the whole answer"}
           </Button>
         </p>
       ) : null}
@@ -312,6 +327,7 @@ export const ResultView = memo(function ResultView({
                 highlight={highlight}
                 readingId={readingId}
                 requestedDatabase={requestedDatabase}
+                symbols={symbols}
               />
               <PathCaption model={model} description={description} letter={letter("path")} />
             </figure>

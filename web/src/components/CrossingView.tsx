@@ -75,17 +75,38 @@ function Chain({ candidate, model, context }: { candidate: ModelCandidate; model
                 ) : null}
               </span>
               <span className="crossing__kind">
-                {last && node?.role === "target"
-                  ? `${databaseLabel(context.finalDatabase ?? "ensembl_gene")}: the answer`
-                  : node?.api.kind === "external" || node?.api.kind === "synonym"
-                    ? node.api.databases.slice(0, 2).map(databaseLabel).join(", ") || nodeKindWords(node.api.kind)
-                    : nodeKindWords(node?.api.kind ?? "")}
+                {last && node?.role === "target" ? (
+                  `${databaseLabel(context.finalDatabase ?? "ensembl_gene")}: the answer`
+                ) : node?.api.kind === "external" || node?.api.kind === "synonym" ? (
+                  node.api.databases.length ? (
+                    <DatabaseList databases={node.api.databases} />
+                  ) : (
+                    nodeKindWords(node.api.kind)
+                  )
+                ) : (
+                  nodeKindWords(node?.api.kind ?? "")
+                )}
               </span>
             </span>
           </li>
         );
       })}
     </ol>
+  );
+}
+
+/** The databases that hold an id: three at most by name, the rest counted ("and 2 more"), every one on hover and
+ *  read out. */
+function DatabaseList({ databases }: { databases: readonly string[] }) {
+  const names = databases.map(databaseLabel);
+  if (names.length <= 3) return <>{names.join(", ")}</>;
+  return (
+    <span title={names.join(", ")}>
+      <span aria-hidden="true">
+        {names.slice(0, 2).join(", ")} and {names.length - 2} more
+      </span>
+      <span className="visually-hidden">{names.join(", ")}</span>
+    </span>
   );
 }
 

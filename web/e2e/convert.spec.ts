@@ -161,11 +161,26 @@ test("every note of the path view stands whole in the window, and every element 
         )
           clipped = true;
       }
-      return { top: b.top, bottom: b.bottom, height: innerHeight, clipped };
+      const mast = document.querySelector(".masthead")?.getBoundingClientRect().bottom ?? 0;
+      return {
+        top: b.top,
+        bottom: b.bottom,
+        height: innerHeight,
+        clipped,
+        mast,
+        scrolls: el.scrollHeight > el.clientHeight + 1,
+      };
     });
-    expect(box.top).toBeGreaterThanOrEqual(0);
+    // Below the sticky masthead and inside the window.
+    expect(box.top).toBeGreaterThanOrEqual(box.mast - 1);
     expect(box.bottom).toBeLessThanOrEqual(box.height + 1);
     expect(box.clipped).toBe(false);
+    if (box.scrolls) {
+      // A note longer than its room is read whole by keyboard: PageDown scrolls it.
+      const before = await tip.evaluate((el) => el.scrollTop);
+      await page.keyboard.press("PageDown");
+      expect(await tip.evaluate((el) => el.scrollTop)).toBeGreaterThan(before);
+    }
     // The element shown is named with its facts and described by the note.
     const focused = page.locator(":focus");
     await expect(focused).toHaveAttribute("aria-describedby", /.+/);
@@ -230,6 +245,17 @@ test("in forced colours, every text of the answer's figures is the system's text
       }),
   );
   expect(dark).toEqual([]);
+  // A text drawn with a stroke (a halo of the canvas) draws it behind its glyphs, never over them.
+  const eroded = await page.evaluate(() =>
+    [...document.querySelectorAll(".result svg text")]
+      .map((t) => ({ name: t.getAttribute("class") ?? "", style: getComputedStyle(t) }))
+      .filter(({ style }) => style.stroke !== "none" && !style.paintOrder.startsWith("stroke"))
+      .map(({ name }) => name),
+  );
+  expect(eroded).toEqual([]);
+  // The pressed view of the toolbar keeps its text: the highlight's colours, without the canvas's backplate.
+  const pressed = page.locator('.pv-preset[aria-pressed="true"]').first();
+  if (await pressed.count()) expect(await pressed.evaluate((b) => getComputedStyle(b).forcedColorAdjust)).toBe("none");
   await context.close();
 });
 

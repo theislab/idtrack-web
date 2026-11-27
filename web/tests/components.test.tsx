@@ -47,7 +47,7 @@ describe("ResultView", () => {
     const best = result.candidates.find((c) => c.best);
     expect(best).toBeDefined();
     expect(screen.getAllByText(best?.target ?? "").length).toBeGreaterThan(0);
-    expect(screen.getByText("Decided by")).toBeTruthy();
+    expect(screen.getAllByText("Decided by").length).toBeGreaterThan(0);
     const table = screen.getByRole("region", { name: "Candidates, ranked" });
     expect(within(table).getAllByRole("row")).toHaveLength(result.candidates.length + 1);
     // Each candidate's score as the api wrote it, beside the steps without a score that the criterion compares first.

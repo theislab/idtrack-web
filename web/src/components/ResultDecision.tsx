@@ -13,6 +13,7 @@ import { useVocabulary } from "../lib/vocabularyContext";
 import { RECORD, SUCCESSOR_CRITERIA } from "../lib/resultWords";
 import { IdMenu, SymbolOf, type IdContext } from "./IdMenu";
 import { CriterionValue, ScoreValue, Term } from "./ResultParts";
+import { usePhone } from "../lib/usePhone";
 import { Button, Mono, Prose, TableFrame } from "./ui";
 
 export function DecisionText({ decision }: { decision: Decision }) {
@@ -199,20 +200,6 @@ function RecordGrid({
 /** The candidates of one page of the table (fewer on a phone, where each is a card). */
 const PAGE_SIZE = 25;
 const PAGE_SIZE_PHONE = 10;
-
-/** The page's width is a phone's (the tables turn into cards). */
-function usePhone(): boolean {
-  const query = "(max-width: 640px)";
-  const media =
-    typeof window !== "undefined" && typeof window.matchMedia === "function" ? window.matchMedia(query) : null;
-  return useSyncExternalStore(
-    (listener) => {
-      media?.addEventListener("change", listener);
-      return () => media?.removeEventListener("change", listener);
-    },
-    () => media?.matches ?? false,
-  );
-}
 
 function CandidateRow({
   c,
@@ -403,6 +390,7 @@ function Candidates({
             rows={rows.length}
             total={result.candidates.length}
             onPage={setPage}
+            where="above"
           />
         </div>
       ) : null}
@@ -464,6 +452,7 @@ function Candidates({
             rows={rows.length}
             total={result.candidates.length}
             onPage={setPage}
+            where="below"
           />
         </div>
       ) : null}
@@ -483,6 +472,7 @@ function Pager({
   rows,
   total,
   onPage,
+  where,
 }: {
   at: number;
   pages: number;
@@ -490,11 +480,13 @@ function Pager({
   rows: number;
   total: number;
   onPage: (page: number) => void;
+  /** Above or below the table: each pager is named apart. */
+  where: "above" | "below";
 }) {
   const first = rows ? at * size + 1 : 0;
   const last = Math.min(rows, (at + 1) * size);
   return (
-    <nav className="pager" aria-label="Pages of the candidates">
+    <nav className="pager" aria-label={`Pages of the candidates, ${where} the table`}>
       <span className="pager__where mono" aria-live="polite">
         {groupedInteger(first)}–{groupedInteger(last)} of {groupedInteger(rows)}
         {rows !== total ? ` (of ${groupedInteger(total)})` : ""}
@@ -515,7 +507,8 @@ function Pager({
 function NoDecision({ result }: { result: ConversionResult }) {
   const vocabulary = useVocabulary();
   const bests = result.candidates.filter((c) => c.best);
-  if (result.candidates.length === 1) return <p className="decision-none">One candidate was reached: nothing was compared.</p>;
+  if (result.candidates.length === 1)
+    return <p className="decision-none">One candidate was reached: nothing was compared.</p>;
   if (bests.length !== result.candidates.length)
     return <p className="decision-none">The api names no deciding criterion for this answer.</p>;
   const entries = new Set(bests.map((c) => c.entry_gene));

@@ -174,7 +174,8 @@ function contextOf(result: ConversionResult, vocabulary: Vocabulary, facts: Evid
   const all = result.path?.steps ?? [];
   const seen = new Set<number>();
   const steps: { step: PathStep; index: number }[] = [];
-  for (const candidate of bests) {
+  // One candidate of each distinct path to its gene (a gene's hundreds of targets share it; the marks read its steps).
+  for (const candidate of distinctPaths(bests)) {
     for (const index of [...candidate.path, ...candidate.final_path]) {
       const step = all[index];
       if (step && !seen.has(index)) {
@@ -250,10 +251,22 @@ export function bridgesTaken(result: ConversionResult, candidate: Candidate): { 
   return out;
 }
 
+/** The candidates of distinct paths to their gene (the targets of one gene share it: a gene's hundreds of ids are one
+ *  path), the first of each. */
+function distinctPaths(candidates: readonly Candidate[]): Candidate[] {
+  const seen = new Set<string>();
+  return candidates.filter((x) => {
+    const key = x.path.join(",");
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
 /** The bridges the best answer's paths take, each pair of genes once (a tie shares them). */
 function bestBridges(c: Context): { source: string; target: string }[] {
   const out: { source: string; target: string }[] = [];
-  for (const candidate of c.bests)
+  for (const candidate of distinctPaths(c.bests))
     for (const pair of bridgesTaken(c.result, candidate))
       if (!out.some((p) => p.source === pair.source && p.target === pair.target)) out.push(pair);
   return out;
@@ -266,7 +279,9 @@ const bridge: Rule = (c) => {
   const bridged = c.bests.filter((x) => x.bridges > 0);
   if (!bridged.length || c.result.no_target) return null;
   const most = Math.max(...bridged.map((x) => x.bridges));
-  const through = [...new Set(c.steps.filter(({ step }) => step.kind === "bridge_near").map(({ step }) => step.target))];
+  const through = [
+    ...new Set(c.steps.filter(({ step }) => step.kind === "bridge_near").map(({ step }) => step.target)),
+  ];
   return {
     kind: "bridge",
     tone: "caution",
@@ -298,7 +313,10 @@ const bridgeBeside: Rule = (c) => {
   return {
     kind: "bridge_beside",
     tone: "caution",
-    label: beside.length === 1 ? "the bridge joins two genes of one time" : `${beside.length} bridges join genes of one time`,
+    label:
+      beside.length === 1
+        ? "the bridge joins two genes of one time"
+        : `${beside.length} bridges join genes of one time`,
     detail: `${beside.join("; ")}: the bridge joins two genes that lived side by side, so the gene it enters did not take the place of the gene it leaves in Ensembl's records; their shared ids are no sign of succession.`,
     meaning: c.field("bridges"),
     code: "path.nodes[].active",
@@ -354,9 +372,7 @@ const runnerNamed: Rule = (c) => {
   const typed = c.result.query_id.toLowerCase();
   const named = (gene: string) => (symbols.of.get(gene) ?? []).some((s) => s.toLowerCase() === typed);
   if (c.bests.some((x) => named(x.gene))) return null;
-  const below = c.result.candidates
-    .map((x, i) => ({ x, rank: i + 1 }))
-    .filter(({ x }) => !x.best && named(x.gene));
+  const below = c.result.candidates.map((x, i) => ({ x, rank: i + 1 })).filter(({ x }) => !x.best && named(x.gene));
   const first = below[0];
   if (!first) return null;
   const to = c.result.to_release;
@@ -383,7 +399,11 @@ const runnerNamed: Rule = (c) => {
     meaning: null,
     code: `${symbols.database} at ${to}`,
     limitation: limitationAt(
-      atOwnRelease ? LIMITATION_OF.authority_other_gene : split ? LIMITATION_OF.split_place : LIMITATION_OF.other_release,
+      atOwnRelease
+        ? LIMITATION_OF.authority_other_gene
+        : split
+          ? LIMITATION_OF.split_place
+          : LIMITATION_OF.other_release,
     ),
     ask: { words: `Ask ${c.result.query_id} at release ${to}`, fromRelease: to, toRelease: to },
   };
@@ -405,8 +425,12 @@ const nameElsewhere: Rule = (c) => {
     .filter(({ x }) => !x.best && x.entry_databases.some((d) => left.includes(d)));
   const copies = r.alternative_locus_genes.length;
   const where = [
-    below.length ? `${plural(new Set(below.map((b) => b.x.gene)).size, "gene")} ranked below (${rankWords(below.map((b) => b.rank))})` : "",
-    copies ? `the ${plural(copies, "copy", "copies")} on haplotypes, patches or alternative loci the result sets apart` : "",
+    below.length
+      ? `${plural(new Set(below.map((b) => b.x.gene)).size, "gene")} ranked below (${rankWords(below.map((b) => b.rank))})`
+      : "",
+    copies
+      ? `the ${plural(copies, "copy", "copies")} on haplotypes, patches or alternative loci the result sets apart`
+      : "",
   ].filter(Boolean);
   // The database to name: the organism's name authority where the page knows it and it is among those left out.
   const authority = c.facts.symbolDatabases?.[0];
@@ -447,12 +471,19 @@ const ownContinuation: Rule = (c) => {
         )
         .map((s) => s.new_release ?? -1),
     );
-  const left = c.bests.map(leaves);
+  const bests = distinctPaths(c.bests);
+  const left = bests.map(leaves);
   if (left.some((s) => !s)) return null;
   const leftAt = Math.max(...left.map((s) => s?.old_release ?? -1));
-  if (c.bests.some((x) => lives(x) > leftAt)) return null;
+  if (bests.some((x) => lives(x) > leftAt)) return null;
+  const livesOf = new Map<string, number>();
   const continuing = r.candidates
-    .map((x, i) => ({ x, rank: i + 1, at: lives(x) }))
+    .map((x, i) => {
+      const key = x.path.join(",");
+      const at = livesOf.get(key) ?? lives(x);
+      livesOf.set(key, at);
+      return { x, rank: i + 1, at };
+    })
     .filter(({ x, at }) => !x.best && at > leftAt);
   const first = left[0];
   if (!continuing.length || !first) return null;
@@ -511,7 +542,9 @@ const placesUnknown: Rule = (c) => {
     label: n === 1 ? "places not compared across assemblies" : `${n} steps across assemblies, places not compared`,
     detail: `${listWords(parts)} of the best answer's path join${n === 1 ? "s" : ""} genes that never lie on one assembly at the same time, and nothing tells them apart: where Ensembl publishes no mapping of the two assemblies, their places cannot be compared.`,
     meaning: c.vocabulary.placeRelations.get("other_assemblies") ?? null,
-    code: bridges ? "path.steps[].places, path.bridges[].places = other_assemblies" : "path.steps[].places = other_assemblies",
+    code: bridges
+      ? "path.steps[].places, path.bridges[].places = other_assemblies"
+      : "path.steps[].places = other_assemblies",
     limitation: limitationAt(LIMITATION_OF.places_unknown),
   };
 };
@@ -596,9 +629,13 @@ const number: Rule = (c) => {
     ? ` Read without its version, as ${code(digits)}, it answers ${others
         .flatMap((o) => o.genes)
         .map((g) => `${code(g)}${symbol(g)}`)
-        .join(", ")}: another gene${others.some((o) => o.genes.length > 1) ? "s" : ""}, reported by idtrack beside the answer.`
+        .join(
+          ", ",
+        )}: another gene${others.some((o) => o.genes.length > 1) ? "s" : ""}, reported by idtrack beside the answer.`
     : "";
-  const what = version ? `${code(r.query_id)} is a number written with the version ${version}` : `${code(r.query_id)} is a bare number`;
+  const what = version
+    ? `${code(r.query_id)} is a number written with the version ${version}`
+    : `${code(r.query_id)} is a bare number`;
   return {
     kind: "bare_number",
     tone: old || others.length ? "caution" : "note",
@@ -635,7 +672,9 @@ const oneGene: Rule = (c) => {
  *  successors by Ensembl's scores and the evidence of the candidates, not by which of them lies where the old gene lay. */
 const splitRanked: Rule = (c) => {
   if (!c.explained || c.result.no_target) return null;
-  const split = c.steps.find(({ step }) => step.kind === "history" && ["split", "split_and_merge"].includes(step.reason));
+  const split = c.steps.find(
+    ({ step }) => step.kind === "history" && ["split", "split_and_merge"].includes(step.reason),
+  );
   const others = new Set(c.result.candidates.filter((x) => !x.best).map((x) => x.gene));
   if (!split || !others.size) return null;
   return {
@@ -705,9 +744,19 @@ const match: Rule = (c) => {
   const v = c.vocabulary;
   const found: { label: string; tone: EvidenceTone; meaning: string | null; code: string }[] = [];
   if (synonym)
-    found.push({ label: "read as a synonym", tone: "caution", meaning: v.matchPrefixes.get("synonym") ?? null, code: "synonym" });
+    found.push({
+      label: "read as a synonym",
+      tone: "caution",
+      meaning: v.matchPrefixes.get("synonym") ?? null,
+      code: "synonym",
+    });
   if (parts.includes("copy"))
-    found.push({ label: "read as a copy of another item", tone: "caution", meaning: v.matchPrefixes.get("copy") ?? null, code: "copy" });
+    found.push({
+      label: "read as a copy of another item",
+      tone: "caution",
+      meaning: v.matchPrefixes.get("copy") ?? null,
+      code: "copy",
+    });
   if (loose)
     found.push({
       label: step === "case" ? "read without letter case" : "read with separators taken as one",
@@ -731,7 +780,8 @@ const match: Rule = (c) => {
     lrg: "LRG record read as its gene",
   };
   for (const [prefix, label] of Object.entries(notes))
-    if (parts.includes(prefix)) found.push({ label, tone: "note", meaning: v.matchPrefixes.get(prefix) ?? null, code: prefix });
+    if (parts.includes(prefix))
+      found.push({ label, tone: "note", meaning: v.matchPrefixes.get(prefix) ?? null, code: prefix });
   return found.map((m) => ({
     kind: "match" as const,
     tone: m.tone,
@@ -767,7 +817,10 @@ const readings: Rule = (c) => {
       return {
         kind: "other_reading",
         tone: reading.reason === "same_step" ? "note" : "caution",
-        label: reading.reason === "same_step" ? `also read as \`${reading.graph_id}\`` : `another reading: \`${reading.graph_id}\``,
+        label:
+          reading.reason === "same_step"
+            ? `also read as \`${reading.graph_id}\``
+            : `another reading: \`${reading.graph_id}\``,
         detail: `\`${r.query_id}\` is also read as \`${reading.graph_id}\` (matched as \`${reading.match}\`; its answer: ${genes}).`,
         meaning: c.vocabulary.readingReasons.get(reading.reason) ?? null,
         code: `other_readings[].reason = ${reading.reason}`,
