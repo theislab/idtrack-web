@@ -18,7 +18,7 @@ import "../../styles/home.css";
 // The cases (with the evidence marks' code) are their own chunk, asked for as soon as this module is, beside the
 // showcase: neither waits for the other.
 const CaseGallery = lazyPart(() => import("./CaseGallery").then((m) => ({ default: m.CaseGallery })));
-CaseGallery.preload();
+void CaseGallery.preload();
 
 /** The organism whose stories are told: the select of the page's head (the other panels show every graph at once). */
 export function StoriesOrganism() {
