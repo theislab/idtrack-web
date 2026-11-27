@@ -400,7 +400,9 @@ function useFollow(
 
 /** One-click examples under a form: identifiers of the Convert page's figures for this organism. */
 function Examples({ label, values, onPick }: { label: string; values: string[]; onPick: (value: string) => void }) {
-  if (!values.length) return null;
+  // The row holds its height before the examples come (the showcase is asked beside the page), so that nothing under
+  // it moves when they arrive.
+  if (!values.length) return <p className="names-examples" aria-hidden="true" />;
   return (
     <p className="names-examples">
       <span className="names-examples__label">{label}</span>

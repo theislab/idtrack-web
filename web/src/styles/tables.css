@@ -2715,3 +2715,7 @@ th[aria-sort] .sort__mark {
   color: var(--ink-2);
   max-width: var(--measure-caption);
 }
+
+.names-examples:empty {
+  min-height: 34px;
+}

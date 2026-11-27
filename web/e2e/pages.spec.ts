@@ -53,7 +53,7 @@ test("a batch: results in order with each status, exported as the api returned t
     graphs: { organism: string; content_digest: string }[];
   };
   const downloadTable = page.waitForEvent("download");
-  await page.getByRole("button", { name: /^Table, one row per identifier/ }).click();
+  await page.getByRole("button", { name: "Save the table as TSV" }).click();
   const exported = readFileSync(await (await downloadTable).path(), "utf8")
     .trimEnd()
     .split("\n");
@@ -72,12 +72,16 @@ test("a batch: results in order with each status, exported as the api returned t
     expect(cells[columns.indexOf("status")]).toBe(result.status);
   }
   const downloadProvenance = page.waitForEvent("download");
-  await page.getByRole("button", { name: "Provenance (JSON)" }).click();
+  await page.getByRole("button", { name: "Save the provenance" }).click();
   const provenance = JSON.parse(readFileSync(await (await downloadProvenance).path(), "utf8")) as {
     graph: { content_digest: string };
-    request: { body: { identifiers: string[] } };
+    request: { body: { identifiers: string[] }; resolved: { to_release: number } };
   };
   expect(provenance.graph.content_digest).toBe(digest);
+  // The target the server answered at is pinned beside the request as sent.
+  expect(provenance.request.resolved.to_release).toBe(
+    (parsed.results[0] as unknown as { to_release: number }).to_release,
+  );
   expect(provenance.request.body.identifiers).toEqual(data.batch);
   // The TSV was a second request: the provenance names it.
   expect((provenance as unknown as { tsv: { request_id: string | null } | null }).tsv?.request_id).toBeTruthy();
@@ -153,7 +157,10 @@ test("a batch's figure: the statuses counted, sorted, filtered, opened to every 
     await expect(rows.nth(i).locator(".emark", { hasText: /through .*bridge/ })).toHaveCount(bridged ? 1 : 0);
   }
 
-  // Panel b: a status shows only its rows; the sort by status follows the vocabulary's order.
+  // Panel b: a status shows only its rows; the sort by status follows the vocabulary's order. The tools of a short
+  // table are folded behind one line, so that its rows come first.
+  const tools = page.locator("details.batch-tools");
+  if ((await tools.getAttribute("open")) === null) await tools.locator("summary").click();
   for (const [status, n] of counts) {
     const chip = page
       .locator(".batch-tools__filters")
@@ -283,15 +290,15 @@ test("a pasted table: its header found by the form of its cells, its column read
   const rows = page.getByRole("region", { name: /^Results: / }).locator("tbody:not(.batch-spacer) > tr");
   await expect(rows).toHaveCount(data.batch.length);
   const download = page.waitForEvent("download");
-  await page.getByRole("button", { name: /^Table, one row per identifier/ }).click();
+  await page.getByRole("button", { name: "Save the table as TSV" }).click();
   const lines = readFileSync(await (await download).path(), "utf8")
     .trimEnd()
     .split("\n")
     .filter((l) => !l.startsWith("#"));
-  expect(lines[0]?.split("\t").slice(0, 3)).toEqual(["line", "identifier", "log2FC"]);
+  expect(lines[0]?.split("\t").slice(0, 4)).toEqual(["index", "line", "identifier", "log2FC"]);
   for (const [i, id] of data.batch.entries()) {
     const cells = lines[i + 1]?.split("\t") ?? [];
-    expect(cells.slice(0, 3)).toEqual([String(i + 2), id, String(-1.5 + i)]);
+    expect(cells.slice(0, 4)).toEqual([String(i + 1), String(i + 2), id, String(-1.5 + i)]);
   }
   // The person can say otherwise: with the header switched off, its line is an identifier too.
   await page.getByRole("switch", { name: "First line is a header" }).uncheck();

@@ -2778,15 +2778,22 @@ function Downloads({
             with <Mono>#</Mono>: where it came from, what each column holds and every code it writes.
           </p>
           <div className="file__actions">
+            {namesPending ? (
+              <span className="file__wait">Waiting for the names…</span>
+            ) : (
+              <span className="file__save">Save as</span>
+            )}
             <Button
+              aria-label="Save the table as TSV"
               onClick={() => {
                 saveTable("tsv");
               }}
               disabled={namesPending}
             >
-              {namesPending ? "Waiting for the names…" : "Save as TSV"}
+              TSV
             </Button>
             <Button
+              aria-label="Save the table as CSV"
               onClick={() => {
                 saveTable("csv");
               }}
@@ -2822,7 +2829,9 @@ function Downloads({
             first line; the file is as sent).
           </p>
           <div className="file__actions">
-            <Button onClick={saveJson}>Save</Button>
+            <Button onClick={saveJson} aria-label="Save the api's JSON">
+              Save
+            </Button>
           </div>
         </li>
         <li className="file">
@@ -2846,7 +2855,11 @@ function Downloads({
             )}
           </p>
           <div className="file__actions">
-            <Button onClick={saveTsv} disabled={tsv.state === "loading"}>
+            <Button
+              onClick={saveTsv}
+              disabled={tsv.state === "loading"}
+              aria-label={tsv.state === "loading" ? undefined : "Ask and save the api's TSV"}
+            >
               {tsv.state === "loading" ? "Asking for the TSV…" : "Ask and save"}
             </Button>
           </div>
@@ -2863,7 +2876,9 @@ function Downloads({
             sent and as answered (target <Mono>{resolvedTo}</Mono>), and every other request the table holds answers of.
           </p>
           <div className="file__actions">
-            <Button onClick={saveProvenance}>Save</Button>
+            <Button onClick={saveProvenance} aria-label="Save the provenance">
+              Save
+            </Button>
           </div>
         </li>
       </ul>

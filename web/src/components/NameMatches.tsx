@@ -321,6 +321,12 @@ function GenesNamed({
   const page = found.slice(0, shown);
   const today = useToday(description, page);
   const turnNames = useTurnNames(description, page);
+  // The figure is first drawn once what the genes are called today has come (one short request per database), so that
+  // its sentence and its genes' heads are drawn at their height once, and nothing under them moves; more genes shown
+  // later say they are being asked in their own heads.
+  const [drawn, setDrawn] = useState(false);
+  if (!drawn && today !== "loading") setDrawn(true);
+  if (!drawn && today === "loading") return <div className="names-skeleton" aria-hidden="true" />;
   return (
     <>
       <p className="names-verdict">
