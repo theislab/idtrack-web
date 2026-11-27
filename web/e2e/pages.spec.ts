@@ -120,15 +120,15 @@ test("a batch's figure: the statuses counted, sorted, filtered, opened to every 
   await expect(page.locator(".batch-figure-head__time")).toContainText(`answered in ${timing?.[1] ?? "-"}\u00a0ms`);
   // The counts: one numeral face, words for people (no field names), each count of rows from the answer.
   const inferred = parsed.results.filter((r) => r.from_release !== null && r.from_release_inferred).length;
-  await expect(
-    page.locator(".tile", { hasText: "Read at a release inferred" }).locator(".tile__value .mono"),
-  ).toHaveText(String(inferred));
-  for (const sub of await page.locator(".tile__label, .tile__sub").allInnerTexts())
+  const inferredCount = page.locator(".count", { hasText: "Read at a release inferred" });
+  if (inferred) await expect(inferredCount.locator(".count__value .mono")).toHaveText(String(inferred));
+  else await expect(page.locator(".counts__none")).toContainText("read at a release inferred");
+  for (const sub of await page.locator(".count__label, .count__sub").allInnerTexts())
     expect(sub, "a count's words name no field of the api").not.toMatch(/[a-z]+_[a-z]+|\[|\]|≠/);
-  const tileFaces = await page
-    .locator(".tile__value .mono")
+  const countFaces = await page
+    .locator(".count__value .mono")
     .evaluateAll((els) => [...new Set(els.map((e) => getComputedStyle(e).fontFamily))]);
-  expect(tileFaces).toHaveLength(1);
+  expect(countFaces.length).toBeLessThanOrEqual(1);
   // A count's button keeps its name when pressed (its state is aria-pressed), and shows only its rows.
   const care = page.getByRole("button", { name: /^Show only these rows: Answers that need care/ });
   if ((await care.count()) > 0) {
@@ -221,7 +221,7 @@ test("a batch of 1000 results draws the rows in view and reaches every row", asy
   expect(await rows.count()).toBeLessThan(200);
   await expect(page.locator(".batch-tools__shown")).toContainText("All 1 000 rows");
   const last = await page.evaluate(async () => {
-    const wrap = document.querySelector<HTMLElement>(".table-frame--tall .table-wrap");
+    const wrap = document.querySelector<HTMLElement>(".table--batch")?.closest<HTMLElement>(".table-wrap");
     wrap?.scrollIntoView({ block: "end" });
     for (let k = 0; k < 6; k++) {
       if (wrap && getComputedStyle(wrap).maxHeight !== "none") wrap.scrollTop = wrap.scrollHeight;
@@ -234,7 +234,7 @@ test("a batch of 1000 results draws the rows in view and reaches every row", asy
   expect(last).toBe("1000");
   // Deep in the middle, the rows there are drawn, numbered as in the input, and the columns stand where they stood.
   const middle = await page.evaluate(async () => {
-    const wrap = document.querySelector<HTMLElement>(".table-frame--tall .table-wrap");
+    const wrap = document.querySelector<HTMLElement>(".table--batch")?.closest<HTMLElement>(".table-wrap");
     const table = document.querySelector<HTMLElement>(".table--batch");
     const head = [...document.querySelectorAll(".table--batch thead th")].map((th) => th.getBoundingClientRect().width);
     if (wrap && getComputedStyle(wrap).maxHeight !== "none") wrap.scrollTop = wrap.scrollHeight / 2;

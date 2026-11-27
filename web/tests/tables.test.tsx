@@ -64,7 +64,12 @@ function answerOf(results: ConversionResult[], serverTiming: string | null): Bat
 function shownText(): string {
   const titles = [...document.querySelectorAll("[title]")].map((e) => e.getAttribute("title") ?? "");
   const labels = [...document.querySelectorAll("[aria-label]")].map((e) => e.getAttribute("aria-label") ?? "");
-  return `${document.body.textContent} ${titles.join(" ")} ${labels.join(" ")}`;
+  // A file's own bytes shown as they are (pre.raw) are no words of the page, as in the end-to-end checks.
+  const clone = document.body.cloneNode(true) as HTMLElement;
+  clone.querySelectorAll("pre.raw").forEach((e) => {
+    e.remove();
+  });
+  return `${clone.textContent} ${titles.join(" ")} ${labels.join(" ")}`;
 }
 
 describe("the batch's counts", () => {

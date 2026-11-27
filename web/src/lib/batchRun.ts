@@ -283,8 +283,7 @@ export function startBatch(
       if (controller.signal.aborted || isAbort(error) || !current()) return;
       const failure = asRequestError(error);
       // The one automatic ask after a wait the api named; a refusal of that ask is the person's to answer.
-      const wait =
-        !options.afterWait && waitsToRetry(failure) && (failure.retryAfter ?? 0) <= AUTO_RETRY_MAX_SECONDS;
+      const wait = !options.afterWait && waitsToRetry(failure) && (failure.retryAfter ?? 0) <= AUTO_RETRY_MAX_SECONDS;
       set(organism, {
         id,
         run: { state: "failed", request: body, error: failure },
@@ -293,7 +292,7 @@ export function startBatch(
         seen: false,
         retry: wait ? { state: "waiting", until: failure.receivedAt + (failure.retryAfter ?? 0) * 1000 } : retry,
       });
-      recover(organism, id, request, source, failure, wait, refused);
+      recover({ organism, id, request, source, failure, wait, refused });
     }
   })();
   return id;
@@ -302,15 +301,23 @@ export function startBatch(
 /** Ask a failed batch again by itself where waiting is the remedy, as long as it is still the organism's run: when the
  *  browser is back online or the tab is shown again (nothing answered), or once after the wait a refusal named, when
  *  the tab is shown (`wait`). A run the person asked without the paths is asked so again. */
-function recover(
-  organism: string,
-  id: number,
-  request: Required<BatchRequest>,
-  source: BatchSource | null,
-  failure: AnyRequestError,
-  wait: boolean,
-  refused: PathsRefused | null,
-): void {
+function recover({
+  organism,
+  id,
+  request,
+  source,
+  failure,
+  wait,
+  refused,
+}: {
+  organism: string;
+  id: number;
+  request: Required<BatchRequest>;
+  source: BatchSource | null;
+  failure: AnyRequestError;
+  wait: boolean;
+  refused: PathsRefused | null;
+}): void {
   const stillFailed = () => {
     const run = runs.get(organism);
     return run?.id === id && run.run.state === "failed";
@@ -365,9 +372,7 @@ export function retryBatch(organism: string, withoutPaths = false): void {
     organism,
     { ...request, explain: true },
     run.source,
-    withoutPaths
-      ? { withoutPaths: { code: refusal?.code ?? "", message: refusal?.message ?? "", chosen: true } }
-      : {},
+    withoutPaths ? { withoutPaths: { code: refusal?.code ?? "", message: refusal?.message ?? "", chosen: true } } : {},
   );
 }
 

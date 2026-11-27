@@ -312,7 +312,10 @@ function BatchPanels({ description, answer }: { description: GraphDescription; a
   const rows = useBatchRows(results, vocabulary);
   const summary = useMemo(() => summaryOf(rows ?? []), [rows]);
   const names = useGeneNames(description, rows ?? [], request);
-  const renamed = useMemo(() => renamedOf(description, request, rows ?? [], names), [description, request, rows, names]);
+  const renamed = useMemo(
+    () => renamedOf(description, request, rows ?? [], names),
+    [description, request, rows, names],
+  );
   const lives = useRetiredLives(description, rows ?? [], names.authority);
   const [filter, setFilter] = useState<Filter>(NO_FILTER);
   const table = useRef<HTMLElement>(null);
@@ -364,14 +367,7 @@ function BatchPanels({ description, answer }: { description: GraphDescription; a
         filter={filter}
         show={show}
       />
-      <Downloads
-        description={description}
-        answer={answer}
-        rows={rows}
-        names={names}
-        lives={lives}
-        counts={counts}
-      />
+      <Downloads description={description} answer={answer} rows={rows} names={names} lives={lives} counts={counts} />
     </>
   );
 }
@@ -654,11 +650,10 @@ function Summary({
       sub: "the runner-up is another gene, equal to the best in every criterion before Ensembl's score",
       how: (
         <>
-          Converted answers decided by the criterion <em>score</em> (<Mono>decided_by</Mono>) whose runner-up is
-          another gene: the two are equal in every criterion before it, and the gene with the higher product of
-          Ensembl&rsquo;s mapping scores along its path is the answer. The column <em>Decided by</em> gives both
-          scores, exactly as the api sends them; for a count matrix, keeping both genes may be wiser where they are
-          close.
+          Converted answers decided by the criterion <em>score</em> (<Mono>decided_by</Mono>) whose runner-up is another
+          gene: the two are equal in every criterion before it, and the gene with the higher product of Ensembl&rsquo;s
+          mapping scores along its path is the answer. The column <em>Decided by</em> gives both scores, exactly as the
+          api sends them; for a count matrix, keeping both genes may be wiser where they are close.
         </>
       ),
       pressed: filter.byScore,
@@ -721,8 +716,8 @@ function Summary({
               ),
             how: (
               <>
-                Identifiers read as a name of {databaseLabel(renamed.database)} (the database is among the result&rsquo;s{" "}
-                <Mono>from_databases</Mono>) whose answer that database names otherwise at release{" "}
+                Identifiers read as a name of {databaseLabel(renamed.database)} (the database is among the
+                result&rsquo;s <Mono>from_databases</Mono>) whose answer that database names otherwise at release{" "}
                 <Mono>{target}</Mono>: none of the gene&rsquo;s ids there is the name as read (<Mono>graph_id</Mono>).
                 {renamed.fromAnswers
                   ? " The names at the target are the batch's own answers."
@@ -825,7 +820,7 @@ function Summary({
   ];
   // The counts that hold rows are drawn; those of none are named on one quiet line (a spreadsheet's dates and copies
   // only where there are any: they are rare and their absence says nothing); those that cannot be counted, on another.
-  const shown = all.filter((c) => c.value === null ? c.key === "renamed" : c.value > 0);
+  const shown = all.filter((c) => (c.value === null ? c.key === "renamed" : c.value > 0));
   const none = all.filter((c) => c.value === 0 && c.key !== "dates" && c.key !== "copies");
   const unknown = all.filter((c) => c.value === null && c.key !== "renamed");
   return (
@@ -904,8 +899,8 @@ function Summary({
         ) : null}
       </div>
       <p className="fig-caption">
-        Counts of rows, from the answer of <Mono>{endpoint}</Mono> at release <Mono>{target}</Mono>; <em>Show</em>{" "}
-        shows only a count&rsquo;s rows in panel b, a count&rsquo;s name says how it is counted.
+        Counts of rows, from the answer of <Mono>{endpoint}</Mono> at release <Mono>{target}</Mono>; <em>Show</em> shows
+        only a count&rsquo;s rows in panel b, a count&rsquo;s name says how it is counted.
       </p>
     </section>
   );
@@ -941,7 +936,11 @@ function CountRow({ label, value, unit, sub, how, pressed = false, onShow }: Omi
         <span className="mono">{value === null ? "…" : groupedInteger(value)}</span>
       </span>
       <span className="count__text">
-        <Toggletip className="count__label" label={`How it is counted: ${label}`} tip={<span className="toggletip__text">{how}</span>}>
+        <Toggletip
+          className="count__label"
+          label={`How it is counted: ${label}`}
+          tip={<span className="toggletip__text">{how}</span>}
+        >
           {label}
         </Toggletip>
         {unit ? <span className="count__unit"> {unit}</span> : null}
@@ -1207,9 +1206,9 @@ function ResultsTable({
   // The table scrolls with the page, its head held under the masthead, wherever it fits its frame (and as cards on a
   // phone): no scrolling box inside the page. Only a table wider than its frame scrolls in a frame of its own, both
   // ways, so that its head stays in view as it scrolls sideways.
-  const frameWidth = useWidth<HTMLDivElement>(1232);
+  const { ref: frameRef, width: frameWidth } = useWidth<HTMLDivElement>(1232);
   const phone = typeof window.matchMedia === "function" && window.matchMedia("(max-width: 640px)").matches;
-  const pageScroll = phone || tableWidth <= frameWidth.width;
+  const pageScroll = phone || tableWidth <= frameWidth;
   // Each row's place among the rows of the table (the head is row 1; an opened row's candidates are a row too).
   const rowIndex = useMemo(() => {
     const at = new Map<number, number>();
@@ -1289,9 +1288,13 @@ function ResultsTable({
           ) : null}
         </p>
       </div>
-      <details className="batch-tools" open={toolsOpen} onToggle={(e) => {
-        setToolsOpen(e.currentTarget.open);
-      }}>
+      <details
+        className="batch-tools"
+        open={toolsOpen}
+        onToggle={(e) => {
+          setToolsOpen(e.currentTarget.open);
+        }}
+      >
         <summary className="batch-tools__summary">
           Filter and sort
           <span className="batch-tools__summary-state">
@@ -1300,207 +1303,207 @@ function ResultsTable({
           </span>
         </summary>
         <div className="batch-tools__body">
-        <ChipGroup label="Status">
-          <button
-            type="button"
-            className="chip"
-            aria-pressed={!isFiltered(filter)}
-            onClick={() => {
-              setFilter(NO_FILTER);
-            }}
-          >
-            All <span className="chip__count mono">{groupedInteger(rows.length)}</span>
-          </button>
-          {counts.map(([status, n]) => (
+          <ChipGroup label="Status">
             <button
-              key={status}
               type="button"
               className="chip"
-              aria-pressed={filter.statuses.has(status)}
+              aria-pressed={!isFiltered(filter)}
               onClick={() => {
-                setFilter({ ...filter, statuses: toggle(filter.statuses, status) });
+                setFilter(NO_FILTER);
               }}
             >
-              <span className={`chip__swatch ${statusFill(status)}`} aria-hidden="true" />
-              {statusTitle(status)} <span className="chip__count mono">{groupedInteger(n)}</span>
+              All <span className="chip__count mono">{groupedInteger(rows.length)}</span>
             </button>
-          ))}
-        </ChipGroup>
-        {reads.length > 1 ? (
-          <ChipGroup label="Read">
-            {reads.map(([kind, n]) => (
+            {counts.map(([status, n]) => (
               <button
-                key={kind}
+                key={status}
                 type="button"
                 className="chip"
-                aria-pressed={filter.reads.has(kind)}
+                aria-pressed={filter.statuses.has(status)}
                 onClick={() => {
-                  setFilter({ ...filter, reads: toggle(filter.reads, kind) });
+                  setFilter({ ...filter, statuses: toggle(filter.statuses, status) });
                 }}
               >
-                {READ_WORDS[kind]} <span className="chip__count mono">{groupedInteger(n)}</span>
+                <span className={`chip__swatch ${statusFill(status)}`} aria-hidden="true" />
+                {statusTitle(status)} <span className="chip__count mono">{groupedInteger(n)}</span>
               </button>
             ))}
           </ChipGroup>
-        ) : null}
-        {criteria.some(([code]) => code !== "") ? (
-          <ChipGroup label="Decided by">
-            {criteria.map(([code, n]) => (
-              <button
-                key={code || "none"}
-                type="button"
-                className="chip"
-                aria-pressed={filter.decided.has(code)}
-                onClick={() => {
-                  setFilter({ ...filter, decided: toggle(filter.decided, code) });
+          {reads.length > 1 ? (
+            <ChipGroup label="Read">
+              {reads.map(([kind, n]) => (
+                <button
+                  key={kind}
+                  type="button"
+                  className="chip"
+                  aria-pressed={filter.reads.has(kind)}
+                  onClick={() => {
+                    setFilter({ ...filter, reads: toggle(filter.reads, kind) });
+                  }}
+                >
+                  {READ_WORDS[kind]} <span className="chip__count mono">{groupedInteger(n)}</span>
+                </button>
+              ))}
+            </ChipGroup>
+          ) : null}
+          {criteria.some(([code]) => code !== "") ? (
+            <ChipGroup label="Decided by">
+              {criteria.map(([code, n]) => (
+                <button
+                  key={code || "none"}
+                  type="button"
+                  className="chip"
+                  aria-pressed={filter.decided.has(code)}
+                  onClick={() => {
+                    setFilter({ ...filter, decided: toggle(filter.decided, code) });
+                  }}
+                >
+                  {code ? spaced(code) : "no runner-up"} <span className="chip__count mono">{groupedInteger(n)}</span>
+                </button>
+              ))}
+            </ChipGroup>
+          ) : null}
+          {crossingCounts.length ? (
+            <ChipGroup label="Path crosses">
+              {crossingCounts.map(([kind, n]) => (
+                <button
+                  key={kind}
+                  type="button"
+                  className="chip"
+                  aria-pressed={filter.crossings.has(kind)}
+                  onClick={() => {
+                    setFilter({ ...filter, crossings: toggle(filter.crossings, kind) });
+                  }}
+                >
+                  {CROSSING_WORDS[kind]} <span className="chip__count mono">{groupedInteger(n)}</span>
+                </button>
+              ))}
+            </ChipGroup>
+          ) : null}
+          <div className="batch-tools__line">
+            <div className="batch-tools__sort">
+              <label className="batch-tools__sort-label" htmlFor="batch-sort">
+                Sort by
+              </label>
+              <Select
+                id="batch-sort"
+                value={`${sort.key}|${sort.descending ? "desc" : "asc"}`}
+                onChange={(e) => {
+                  const [key = "order", direction] = e.target.value.split("|");
+                  setSort({ key: key as SortKey, descending: direction === "desc" });
                 }}
               >
-                {code ? spaced(code) : "no runner-up"} <span className="chip__count mono">{groupedInteger(n)}</span>
-              </button>
-            ))}
-          </ChipGroup>
-        ) : null}
-        {crossingCounts.length ? (
-          <ChipGroup label="Path crosses">
-            {crossingCounts.map(([kind, n]) => (
-              <button
-                key={kind}
-                type="button"
-                className="chip"
-                aria-pressed={filter.crossings.has(kind)}
-                onClick={() => {
-                  setFilter({ ...filter, crossings: toggle(filter.crossings, kind) });
+                {columns
+                  .filter((c) => c.sort)
+                  .flatMap((c) => [
+                    <option key={`${c.key}|asc`} value={`${String(c.sort)}|asc`}>
+                      {c.sort === "order" ? "Input order" : `${c.title}, ascending`}
+                    </option>,
+                    <option key={`${c.key}|desc`} value={`${String(c.sort)}|desc`}>
+                      {c.sort === "order" ? "Input order, reversed" : `${c.title}, descending`}
+                    </option>,
+                  ])}
+              </Select>
+            </div>
+            <div className="batch-tools__find">
+              <label className="visually-hidden" htmlFor="batch-find">
+                Find in the results
+              </label>
+              <TextInput
+                id="batch-find"
+                className="input--mono input--small"
+                placeholder="Find an identifier or answer"
+                value={text}
+                onChange={(e) => {
+                  setText(e.target.value);
                 }}
-              >
-                {CROSSING_WORDS[kind]} <span className="chip__count mono">{groupedInteger(n)}</span>
-              </button>
-            ))}
-          </ChipGroup>
-        ) : null}
-        <div className="batch-tools__line">
-          <div className="batch-tools__sort">
-            <label className="batch-tools__sort-label" htmlFor="batch-sort">
-              Sort by
-            </label>
-            <Select
-              id="batch-sort"
-              value={`${sort.key}|${sort.descending ? "desc" : "asc"}`}
-              onChange={(e) => {
-                const [key = "order", direction] = e.target.value.split("|");
-                setSort({ key: key as SortKey, descending: direction === "desc" });
-              }}
-            >
-              {columns
-                .filter((c) => c.sort)
-                .flatMap((c) => [
-                  <option key={`${c.key}|asc`} value={`${String(c.sort)}|asc`}>
-                    {c.sort === "order" ? "Input order" : `${c.title}, ascending`}
-                  </option>,
-                  <option key={`${c.key}|desc`} value={`${String(c.sort)}|desc`}>
-                    {c.sort === "order" ? "Input order, reversed" : `${c.title}, descending`}
-                  </option>,
-                ])}
-            </Select>
+              />
+            </div>
           </div>
-          <div className="batch-tools__find">
-            <label className="visually-hidden" htmlFor="batch-find">
-              Find in the results
-            </label>
-            <TextInput
-              id="batch-find"
-              className="input--mono input--small"
-              placeholder="Find an identifier or answer"
-              value={text}
-              onChange={(e) => {
-                setText(e.target.value);
-              }}
-            />
-          </div>
-        </div>
         </div>
       </details>
       <p className="batch-tools__shown" aria-live="polite">
         {shownWords}.
       </p>
-      <div ref={frameWidth.ref}>
-      <TableFrame
-        label={`Results: ${shownWords}`}
-        className={`table-frame--cards ${
-          pageScroll ? "table-frame--page" : visible.length + open.size * 4 > 24 ? "table-frame--tall" : ""
-        }`}
-      >
-        <table
-          className="table table--batch table--cards"
-          ref={table}
-          style={{ width: `max(100%, ${String(tableWidth)}px)` }}
-          aria-rowcount={span.windowed ? rowIndex.total : undefined}
+      <div ref={frameRef}>
+        <TableFrame
+          label={`Results: ${shownWords}`}
+          className={`table-frame--cards ${
+            pageScroll ? "table-frame--page" : visible.length + open.size * 4 > 24 ? "table-frame--tall" : ""
+          }`}
         >
-          <colgroup>
-            {columns.map((c) => (
-              <col key={c.key} style={{ width: `${String(c.width)}px` }} />
-            ))}
-          </colgroup>
-          <thead>
-            <tr aria-rowindex={span.windowed ? 1 : undefined}>
-              {columns.map((c) =>
-                c.sort ? (
-                  <th
-                    key={c.key}
-                    scope="col"
-                    className={c.className}
-                    aria-sort={sort.key === c.sort ? (sort.descending ? "descending" : "ascending") : undefined}
-                  >
-                    <button
-                      type="button"
-                      className="sort"
-                      onClick={() => {
-                        if (c.sort) sortBy(c.sort);
-                      }}
+          <table
+            className="table table--batch table--cards"
+            ref={table}
+            style={{ width: `max(100%, ${String(tableWidth)}px)` }}
+            aria-rowcount={span.windowed ? rowIndex.total : undefined}
+          >
+            <colgroup>
+              {columns.map((c) => (
+                <col key={c.key} style={{ width: `${String(c.width)}px` }} />
+              ))}
+            </colgroup>
+            <thead>
+              <tr aria-rowindex={span.windowed ? 1 : undefined}>
+                {columns.map((c) =>
+                  c.sort ? (
+                    <th
+                      key={c.key}
+                      scope="col"
+                      className={c.className}
+                      aria-sort={sort.key === c.sort ? (sort.descending ? "descending" : "ascending") : undefined}
                     >
-                      {c.title}
-                      {c.key === "gene" && beside ? (
-                        <span className="sort__beside"> · {databaseLabel(beside)}</span>
-                      ) : null}
-                      <span className="sort__mark" aria-hidden="true">
-                        {sort.key === c.sort ? (sort.descending ? "↓" : "↑") : "↕"}
-                      </span>
-                    </button>
-                  </th>
-                ) : (
-                  <th key={c.key} scope="col" className={c.className}>
-                    {c.title || <span className="visually-hidden">Path</span>}
-                  </th>
-                ),
-              )}
-            </tr>
-          </thead>
-          {span.above ? <Spacer height={span.above} span={columnCount} /> : null}
-          {visible.slice(span.start, span.end).map((row) => (
-            <Row
-              key={row.index}
-              row={row}
-              organism={organism}
-              request={request}
-              database={database}
-              names={names}
-              life={lives?.byRow.get(row.index) ?? null}
-              livesPending={lives === null}
-              columns={columnCount}
-              showRead={!reading}
-              showEvidence={anyEvidence}
-              rowIndex={span.windowed ? rowIndex.at.get(row.index) : undefined}
-              open={open.has(row.index)}
-              flash={flash === row.index}
-              onToggle={() => {
-                toggleRow(row.index);
-              }}
-              goTo={goTo}
-              onSize={span.windowed ? span.measured : undefined}
-            />
-          ))}
-          {span.below ? <Spacer height={span.below} span={columnCount} /> : null}
-        </table>
-      </TableFrame>
+                      <button
+                        type="button"
+                        className="sort"
+                        onClick={() => {
+                          if (c.sort) sortBy(c.sort);
+                        }}
+                      >
+                        {c.title}
+                        {c.key === "gene" && beside ? (
+                          <span className="sort__beside"> · {databaseLabel(beside)}</span>
+                        ) : null}
+                        <span className="sort__mark" aria-hidden="true">
+                          {sort.key === c.sort ? (sort.descending ? "↓" : "↑") : "↕"}
+                        </span>
+                      </button>
+                    </th>
+                  ) : (
+                    <th key={c.key} scope="col" className={c.className}>
+                      {c.title || <span className="visually-hidden">Path</span>}
+                    </th>
+                  ),
+                )}
+              </tr>
+            </thead>
+            {span.above ? <Spacer height={span.above} span={columnCount} /> : null}
+            {visible.slice(span.start, span.end).map((row) => (
+              <Row
+                key={row.index}
+                row={row}
+                organism={organism}
+                request={request}
+                database={database}
+                names={names}
+                life={lives?.byRow.get(row.index) ?? null}
+                livesPending={lives === null}
+                columns={columnCount}
+                showRead={!reading}
+                showEvidence={anyEvidence}
+                rowIndex={span.windowed ? rowIndex.at.get(row.index) : undefined}
+                open={open.has(row.index)}
+                flash={flash === row.index}
+                onToggle={() => {
+                  toggleRow(row.index);
+                }}
+                goTo={goTo}
+                onSize={span.windowed ? span.measured : undefined}
+              />
+            ))}
+            {span.below ? <Spacer height={span.below} span={columnCount} /> : null}
+          </table>
+        </TableFrame>
       </div>
       {visible.length === 0 ? <p className="empty empty--small">No result matches the filter.</p> : null}
       <p className="fig-caption">
@@ -1529,9 +1532,9 @@ function ResultsTable({
             documented limitation where there is one)
           </>
         ) : null}
-        . Open a row for its notes (exact facts that are no fault, such as the lowest of Ensembl&rsquo;s mapping
-        scores on the path) and every candidate, ranked as idtrack ranks them; <em>Path</em> opens the conversion with
-        the path that leads to each answer (for an item read as another item&rsquo;s copy, the path of that item).
+        . Open a row for its notes (exact facts that are no fault, such as the lowest of Ensembl&rsquo;s mapping scores
+        on the path) and every candidate, ranked as idtrack ranks them; <em>Path</em> opens the conversion with the path
+        that leads to each answer (for an item read as another item&rsquo;s copy, the path of that item).
       </p>
     </section>
   );
@@ -1976,7 +1979,8 @@ function DecisionWords({ result }: { result: ConversionResult }) {
 /** What an identifier that converts to nothing was at its release: the last release of its gene, the assembly, and
  *  the name the organism's name authority gave it there. */
 function LifeLine({ life, pending }: { life: Life | null; pending: boolean }) {
-  if (!life) return pending ? <span className="sub muted">asking what it was…</span> : <span className="muted">{ABSENT}</span>;
+  if (!life)
+    return pending ? <span className="sub muted">asking what it was…</span> : <span className="muted">{ABSENT}</span>;
   const [gene, ...others] = life.genes;
   if (!gene) return <span className="muted">{ABSENT}</span>;
   return (
@@ -2000,7 +2004,9 @@ function LifeLine({ life, pending }: { life: Life | null; pending: boolean }) {
           {life.authority ? ` in ${databaseLabel(life.authority)}` : ""}
         </span>
       ) : life.names ? (
-        <span className="sub">no name in {databaseLabel(life.authority ?? "")} at {life.release}</span>
+        <span className="sub">
+          no name in {databaseLabel(life.authority ?? "")} at {life.release}
+        </span>
       ) : null}
       {others.length ? (
         <span className="sub">
@@ -2508,8 +2514,8 @@ function Releases({
           )}
           <p className="fig-caption">
             The number of identifiers whose best path (every best candidate&rsquo;s, a tie&rsquo;s too) holds each kind
-            of step at least once, drawn with its glyph of the site&rsquo;s figures (a new version and a replacement share
-            the tick across the bar, as in every figure); a bar is as long as its count, the longest{" "}
+            of step at least once, drawn with its glyph of the site&rsquo;s figures (a new version and a replacement
+            share the tick across the bar, as in every figure); a bar is as long as its count, the longest{" "}
             {groupedInteger(most)}. <em>Show</em> shows only those rows in panel b.
           </p>
         </figure>
@@ -2544,11 +2550,12 @@ function EventData({ events }: { events: BatchSummary["events"] }) {
 
 // ---- Panel d ----------------------------------------------------------------------------------------------------
 
-/** The first lines of a file as it will be saved, each cut where the card ends (the file holds them whole). */
+/** The first lines of a file as it will be saved, each cut where the card ends (the file holds them whole): the file's
+ *  own bytes, as the api's raw answers are shown (`pre.raw`), JSON's spellings and all. */
 function FilePreview({ text, lines, label }: { text: string; lines: number; label: string }) {
   const shown = text.split("\n").slice(0, lines);
   return (
-    <pre className="file__preview" aria-label={label} tabIndex={0}>
+    <pre className="file__preview raw" aria-label={label}>
       {shown.map((line, i) => (
         <span key={i} className={`file__line ${line.startsWith("#") ? "file__line--comment" : ""}`}>
           {line || " "}
@@ -2567,7 +2574,11 @@ function TablePreview({ text }: { text: string }) {
   const [head = [], ...body] = lines;
   const shown = 6;
   return (
-    <div className="file__preview file__preview--table" role="img" aria-label={`The table's columns: ${head.join(", ")}`}>
+    <div
+      className="file__preview file__preview--table"
+      role="img"
+      aria-label={`The table's columns: ${head.join(", ")}`}
+    >
       <table>
         <thead>
           <tr>
@@ -2704,7 +2715,6 @@ function Downloads({
   };
   const namesPending =
     (names.database !== null && names.state === "loading") || (lives === null && rows.some(isRetired));
-  const vocabulary = useVocabulary();
   // The previews are the files' own first lines, made from the first rows (the files hold every row).
   const preview = useMemo(() => {
     const { made } = provenance();
@@ -2736,9 +2746,8 @@ function Downloads({
           : `in ${databaseLabel(request.final_database)}, beside the Ensembl genes`,
     });
   })();
-  void vocabulary;
   const copySentence = () => {
-    void navigator.clipboard?.writeText(sentence).then(
+    void navigator.clipboard.writeText(sentence).then(
       () => {
         setCopied(true);
         window.setTimeout(() => {
@@ -2769,14 +2778,20 @@ function Downloads({
             with <Mono>#</Mono>: where it came from, what each column holds and every code it writes.
           </p>
           <div className="file__actions">
-            <Button onClick={() => {
-              saveTable("tsv");
-            }} disabled={namesPending}>
+            <Button
+              onClick={() => {
+                saveTable("tsv");
+              }}
+              disabled={namesPending}
+            >
               {namesPending ? "Waiting for the names…" : "Save as TSV"}
             </Button>
-            <Button onClick={() => {
-              saveTable("csv");
-            }} disabled={namesPending}>
+            <Button
+              onClick={() => {
+                saveTable("csv");
+              }}
+              disabled={namesPending}
+            >
               CSV
             </Button>
           </div>
@@ -2786,9 +2801,23 @@ function Downloads({
             <span className="file__name">The api&rsquo;s JSON</span>
             <span className="file__kind">the answer, byte for byte</span>
           </div>
-          <FilePreview text={raw.slice(0, 600).replace(/,"/g, ',\n "')} lines={4} label="The first characters of the api's answer" />
+          <FilePreview
+            text={raw.slice(0, 600).replace(/,"/g, ',\n "')}
+            lines={4}
+            label="The first characters of the api's answer"
+          />
           <p className="file__facts">
-            <Mono>{groupedInteger(jsonBytes)}</Mono> bytes; <Mono>{groupedInteger(count)}</Mono> results
+            <Mono>{groupedInteger(jsonBytes)}</Mono> bytes;{" "}
+            {source?.places ? (
+              <>
+                the answer of the <Mono>{groupedInteger(request.identifiers.length)}</Mono> different identifiers sent
+                (each once)
+              </>
+            ) : (
+              <>
+                <Mono>{groupedInteger(count)}</Mono> results
+              </>
+            )}
             {request.explain ? ", each with every candidate's path" : ", without the paths"} (the preview breaks its
             first line; the file is as sent).
           </p>
@@ -2802,15 +2831,15 @@ function Downloads({
             <span className="file__kind">one row per candidate</span>
           </div>
           <p className="file__about">
-            Every field of each result, one row per candidate (<Mono>input_index</Mono> counts from 0), as the api writes
-            its table: a second request of the same body without the paths, answered by the same graph. Its cells are
-            as given: a spreadsheet may read a cell that begins with <Mono>=</Mono> as a formula.
+            Every field of each result, one row per candidate (<Mono>input_index</Mono> counts from 0), as the api
+            writes its table: a second request of the same body without the paths, answered by the same graph. Its cells
+            are as given: a spreadsheet may read a cell that begins with <Mono>=</Mono> as a formula.
           </p>
           <p className="file__facts">
             {tsvAsked ? (
               <>
-                Saved: <Mono>{groupedInteger(tsvAsked.bytes)}</Mono> bytes, request <Mono>{tsvAsked.request_id ?? ABSENT}</Mono>{" "}
-                (in the provenance).
+                Saved: <Mono>{groupedInteger(tsvAsked.bytes)}</Mono> bytes, request{" "}
+                <Mono>{tsvAsked.request_id ?? ABSENT}</Mono> (in the provenance).
               </>
             ) : (
               "Asked when saved; its request id goes into the provenance."

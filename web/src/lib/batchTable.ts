@@ -362,9 +362,7 @@ export function renamedRows(
     const r = row.result;
     if ((r.status !== "converted" && r.status !== "tie") || r.graph_id === null) continue;
     if (!r.from_databases.includes(database)) continue;
-    const now = names
-      ? [...new Set(row.genes.flatMap((g) => names.get(g) ?? []))]
-      : [...new Set(row.answers)];
+    const now = names ? [...new Set(row.genes.flatMap((g) => names.get(g) ?? []))] : [...new Set(row.answers)];
     if (!now.length || now.includes(r.graph_id)) continue;
     out.push({ index: row.index, read: r.graph_id, now });
   }

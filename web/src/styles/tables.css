@@ -1875,7 +1875,6 @@ th[aria-sort] .sort__mark {
   }
 }
 
-
 @media (max-width: 640px) {
   .batch-names__select {
     width: 100%;
@@ -2707,4 +2706,12 @@ th[aria-sort] .sort__mark {
   .counts__list {
     columns: 1;
   }
+}
+
+.batch-form__once {
+  margin: var(--space-2) 0 0;
+  font-size: var(--text-xs);
+  line-height: var(--leading-caption);
+  color: var(--ink-2);
+  max-width: var(--measure-caption);
 }

@@ -211,7 +211,14 @@ describe("the rows of a batch", () => {
     for (const kind of new Set(rows.flatMap((r) => r.evidence.map((m) => m.kind))))
       expect(comments.some((c) => c.startsWith(`#   ${kind}: `))).toBe(true);
     // The same table as CSV: a cell with a comma is quoted.
-    const csv = rowTable(rows, provenance, { ...source, rows: source.rows.map((r) => ({ ...r, cells: [r.cells[0] ?? "", "a,b"] })) }, null, null, "csv");
+    const csv = rowTable(
+      rows,
+      provenance,
+      { ...source, rows: source.rows.map((r) => ({ ...r, cells: [r.cells[0] ?? "", "a,b"] })) },
+      null,
+      null,
+      "csv",
+    );
     expect(csv.split("\n").find((l) => l.startsWith("1,"))).toContain('"a,b"');
   });
 

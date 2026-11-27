@@ -18,7 +18,7 @@ export interface RowWindow {
   offsetOf: (key: number) => number | null;
 }
 
-const OVERSCAN = 12;
+const OVERSCAN = 6;
 
 export function useRowWindow(
   table: RefObject<HTMLTableElement | null>,

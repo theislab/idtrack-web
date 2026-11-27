@@ -23,6 +23,9 @@ export interface BatchSource {
   rows: { line: number; cells: string[] }[];
   /** The release read at, as idtrack's source inference of the list gave it (`POST …/source-inference`). */
   inferred?: InferredRelease | null;
+  /** Where each different identifier was sent once (a list over the server's bound by its repeats alone): for each
+   *  place of the list, the index of its identifier among those sent. */
+  places?: number[] | null;
 }
 
 /** The release of a list from idtrack's source inference: the best release, the band of releases the list cannot
@@ -155,20 +158,26 @@ export function batchProvenance({
 
 /** Which column of what the person gave was read, in words. */
 function sourceWords(source: BatchSource | null): string {
-  if (!source?.separator) return "One identifier per line of the list given.";
+  const once = source?.places
+    ? ` Each different identifier was sent once, and its answer is given at every place of its identifier (${String(source.places.length)} places).`
+    : "";
+  if (!source?.separator) return `One identifier per line of the list given.${once}`;
   const name = source.header?.[source.column];
-  return `Column ${String(source.column + 1)}${name ? ` (${name})` : ""} of a ${SEPARATOR_WORDS[source.separator]}-separated table${source.header ? ", whose first line was taken as its header" : ""}.`;
+  return `Column ${String(source.column + 1)}${name ? ` (${name})` : ""} of a ${SEPARATOR_WORDS[source.separator]}-separated table${source.header ? ", whose first line was taken as its header" : ""}.${once}`;
 }
 
 /** The evidence codes of the table: this page's classes of evidence (`src/lib/evidence.ts`), each in a sentence. A
  *  unit test checks that every class has its sentence. */
 export const EVIDENCE_CODES: Record<EvidenceMark["kind"], string> = {
-  bridge: "the best answer is reached through a bridge: an id two genes carry, idtrack's inference where Ensembl's history ends",
+  bridge:
+    "the best answer is reached through a bridge: an id two genes carry, idtrack's inference where Ensembl's history ends",
   bridge_beside: "a bridge joins two genes that existed at the same releases, so neither took the other's place",
-  bridge_rival: "another gene, reached by a bridge from the same gene through ids the bridge taken does not pass, ranks below only by the bridge's gap",
+  bridge_rival:
+    "another gene, reached by a bridge from the same gene through ids the bridge taken does not pass, ranks below only by the bridge's gap",
   places_apart: "a step of Ensembl's history on the path joins genes that do not lie at one place",
   places_unknown: "a step across assemblies whose places cannot be compared (no published mapping of the assemblies)",
-  outside_reference: "every gene of the best answer lies outside the reference sequence (a haplotype, patch or alternative locus)",
+  outside_reference:
+    "every gene of the best answer lies outside the reference sequence (a haplotype, patch or alternative locus)",
   listed_as_copy: "the best answer is also listed among the copies the result sets apart (alternative_locus_genes)",
   bare_number: "a bare number, read in every database whose ids are numbers",
   one_gene: "the targets are every id of one gene in the database asked, not the identifier's counterpart alone",

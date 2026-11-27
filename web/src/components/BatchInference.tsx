@@ -56,9 +56,7 @@ export function BatchInference({
         >
           {asking.state === "loading" ? "Reading the list…" : "Infer it from the list"}
         </Button>
-        <span className="infer__assemblies">
-          The graph&rsquo;s assemblies serve releases: {assemblies.join("; ")}.
-        </span>
+        <span className="infer__assemblies">The graph&rsquo;s assemblies serve releases: {assemblies.join("; ")}.</span>
       </div>
       {asking.state === "failed" ? <ErrorPanel error={asking.error} context="The inference" level={3} /> : null}
       {answer && !inference ? (
@@ -115,8 +113,8 @@ export function BatchInference({
           />
           <figcaption className="fig-caption">
             The list&rsquo;s distinct identifiers found at each release, on the assembly that serves it (the tallest
-            column <Mono>{groupedInteger(Math.max(...inference.counts.values()))}</Mono>); in ink, the releases it cannot
-            tell apart from the best. <Mono>POST …/source-inference</Mono>
+            column <Mono>{groupedInteger(Math.max(...inference.counts.values()))}</Mono>); in ink, the releases it
+            cannot tell apart from the best. <Mono>POST …/source-inference</Mono>
             {answer.requestId ? (
               <>
                 , request <Mono>{answer.requestId}</Mono>

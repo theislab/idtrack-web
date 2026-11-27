@@ -186,7 +186,11 @@ describe("a batch's run", () => {
     expect(asked).toEqual([true, true, false]);
     const run = batchRun("sus_scrofa");
     expect(run.run.state).toBe("done");
-    expect(run.pathsRefused).toEqual({ code: "request_budget_exceeded", message: "request_budget_exceeded.", chosen: true });
+    expect(run.pathsRefused).toEqual({
+      code: "request_budget_exceeded",
+      message: "request_budget_exceeded.",
+      chosen: true,
+    });
   });
 
   it("asks without the paths at once where the refusal names them", async () => {

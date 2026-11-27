@@ -24,7 +24,7 @@ test("a batch that got no answer is asked again when the browser is back online"
   fail = false;
   await context.setOffline(true);
   await context.setOffline(false);
-  await expect(page.locator(".batch-figure-head__title")).toBeVisible();
+  await expect(page.locator(".batch-figure-head__line")).toBeVisible();
   expect(posts).toBeGreaterThan(before);
 });
 
@@ -53,7 +53,7 @@ test("a batch under way goes on when the organism is switched, and is there on i
   release();
   await expect(page.locator(".batch-elsewhere")).toContainText("is done");
   await page.locator(".batch-elsewhere").getByRole("link").click();
-  await expect(page.locator(".batch-figure-head__title")).toContainText(`${String(data.batch.length)} identifiers`);
+  await expect(page.locator(".batch-figure-head__line")).toContainText(`${String(data.batch.length)} identifiers`);
 });
 
 test("the answer is kept for the session once: typing in the list does not write it again", async ({ page }) => {
@@ -79,7 +79,7 @@ test("the answer is kept for the session once: typing in the list does not write
   expect(await page.evaluate(() => (window as unknown as { __writes: number }).__writes)).toBe(0);
   // After a reload the answer is still there.
   await page.reload();
-  await expect(page.locator(".batch-figure-head__title")).toBeVisible();
+  await expect(page.locator(".batch-figure-head__line")).toBeVisible();
 });
 
 test("a row named in another row ('also the answer of #3') is reached by a press", async ({ page }) => {
@@ -116,4 +116,131 @@ test("a thousand lines inserted at once never hold the page, and the result has 
   await expect(page.getByRole("region", { name: /^Results: / })).toBeVisible();
   await expectWholeAndTyped(page);
   await expectAccessible(page);
+});
+
+test("a refusal that names its wait is asked again once by itself, then left to the person", async ({ page }) => {
+  const posts: number[] = [];
+  const start = Date.now();
+  await page.route("**/convert/batch?format=json", (route) => {
+    posts.push(Date.now() - start);
+    return route.fulfill({
+      status: 503,
+      contentType: "application/json",
+      headers: { "retry-after": "1", "x-request-id": "e2e" },
+      body: JSON.stringify({
+        error: {
+          code: "server_busy",
+          message: "The server is busy; retry later.",
+          argument: null,
+          allowed: null,
+          details: null,
+          request_id: "e2e",
+          retry_after: 1,
+          allowance: null,
+        },
+      }),
+    });
+  });
+  await page.goto(`/batch?organism=${data.organism}`);
+  await page.getByLabel("Identifiers", { exact: true }).fill(list());
+  await page.getByRole("button", { name: /^Convert/ }).click();
+  await expect(page.locator(".batch-retry")).toContainText("asked again by itself at");
+  await page.waitForTimeout(4000);
+  expect(posts).toHaveLength(2);
+});
+
+test("a refusal for time is waited out with the paths, and asked without them only at the person's word", async ({
+  page,
+}) => {
+  const explains: boolean[] = [];
+  await page.route("**/convert/batch?format=json", (route) => {
+    const body = route.request().postDataJSON() as { explain: boolean };
+    explains.push(body.explain);
+    if (body.explain)
+      return route.fulfill({
+        status: 503,
+        contentType: "application/json",
+        headers: { "retry-after": "1", "x-request-id": "e2e" },
+        body: JSON.stringify({
+          error: {
+            code: "request_budget_exceeded",
+            message:
+              "The request waited its whole time budget (20 s) for the server before its search began; retry later.",
+            argument: null,
+            allowed: null,
+            details: null,
+            request_id: "e2e",
+            retry_after: 1,
+            allowance: null,
+          },
+        }),
+      });
+    return route.continue();
+  });
+  await page.goto(`/batch?organism=${data.organism}`);
+  await page.getByLabel("Identifiers", { exact: true }).fill(list());
+  await page.getByRole("button", { name: /^Convert/ }).click();
+  await expect(page.locator(".batch-retry")).toContainText("asked again by itself at");
+  // Never at once without the paths: two asks, both with them.
+  expect(explains).toEqual([true, true]);
+  await page.getByRole("button", { name: "Ask without the paths" }).click();
+  await expect(page.locator(".batch-figure-head__line")).toBeVisible();
+  expect(explains).toEqual([true, true, false]);
+  await expect(page.locator(".batch-figure-head__setting")).toContainText("not sent (why?)");
+});
+
+test("an item read as another item's copy opens the path of that item, whose answer is the row's", async ({ page }) => {
+  const name = data.symbol.identifier;
+  await page.goto(`/batch?organism=${data.organism}`);
+  await page.getByLabel("Identifiers", { exact: true }).fill(`${name}\n${name}-1`);
+  await page.getByRole("button", { name: /^Convert/ }).click();
+  const row = page.locator('tbody[data-row="1"]');
+  await expect(row).toBeVisible();
+  test.skip(!(await row.locator(".b-id").innerText()).includes("read as"), "not read as a copy here");
+  const word = /(Converted|Tie|No target|Not found|Unknown version|No conversion)/.exec(
+    await row.locator(".b-status .status").first().innerText(),
+  )?.[1];
+  const href = await row.getByRole("link", { name: /^Path/ }).getAttribute("href");
+  expect(new URL(href ?? "", "http://x").searchParams.get("id")).toBe(name);
+  await row.getByRole("link", { name: /^Path/ }).click();
+  await expect(page.locator("main .status").first()).toContainText(word ?? "?");
+});
+
+test("panel a draws only the counts that hold rows; the others are one quiet line", async ({ page }) => {
+  await page.goto(`/batch?organism=${data.organism}`);
+  await page.getByLabel("Identifiers", { exact: true }).fill(list());
+  await page.getByRole("button", { name: /^Convert/ }).click();
+  await expect(page.locator(".counts")).toBeVisible();
+  for (const value of await page.locator(".count__value .mono").allInnerTexts())
+    expect(value === "…" || Number(value.replace(/\s/g, "")) > 0, `a drawn count is no zero: ${value}`).toBe(true);
+  // The lettered panels are set in the section's tier, as the answer's.
+  const faces = await page
+    .locator(".batch-panel h2.panel-head__title")
+    .evaluateAll((els) => [...new Set(els.map((e) => getComputedStyle(e).fontFamily))]);
+  expect(faces).toHaveLength(1);
+  expect(faces[0]).toContain("Source Serif");
+});
+
+test("a table that fits its frame scrolls with the page, never in a box of its own", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 800 });
+  await page.goto(`/batch?organism=${data.organism}`);
+  await page.getByLabel("Identifiers", { exact: true }).fill(list());
+  await page.getByRole("button", { name: /^Convert/ }).click();
+  const wrap = page.locator(".table--batch").locator("xpath=ancestor::*[contains(@class,'table-wrap')]");
+  await expect(wrap).toBeVisible();
+  const overflowY = await wrap.evaluate((e) => getComputedStyle(e).overflowY);
+  expect(["visible", "clip"]).toContain(overflowY);
+});
+
+test("Names refuses a release that is no whole number without asking the api", async ({ page }) => {
+  let asked = 0;
+  await page.route("**/names-of**", (route) => {
+    asked += 1;
+    return route.continue();
+  });
+  await page.goto(`/names?organism=${data.organism}&gene=${data.unknownVersion.identifier}&release=abc`);
+  await expect(page.getByRole("heading", { name: "Not a release: abc" })).toBeVisible();
+  expect(asked).toBe(0);
+  await page.getByRole("button", { name: "List the names at every release" }).click();
+  await expect(page).not.toHaveURL(/release=abc/);
 });

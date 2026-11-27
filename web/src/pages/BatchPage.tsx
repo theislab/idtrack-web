@@ -15,7 +15,7 @@ import {
   type SyntheticEvent,
 } from "react";
 import { api, ApiError } from "../api/client";
-import type { BatchRequest, GraphDescription } from "../api/types";
+import type { BatchRequest, ConversionResult, GraphDescription } from "../api/types";
 import { BatchInference } from "../components/BatchInference";
 import { BatchResults, type BatchAnswer } from "../components/BatchResults";
 import { ErrorPanel } from "../components/ErrorPanel";
@@ -177,7 +177,9 @@ const ListText = memo(function ListText({
     caret.current = null;
   });
   const edited = useRef(onEdit);
-  edited.current = onEdit;
+  useEffect(() => {
+    edited.current = onEdit;
+  });
   useEffect(() => {
     const element = field.current;
     if (!element) return;
@@ -347,9 +349,13 @@ function BatchForOrganism({ description }: { description: GraphDescription }) {
     );
   };
 
-  const over = limits !== null && identifiers.length > limits.batch_max;
+  // A list over the server's bound whose different identifiers fit it is sent once per different identifier, and each
+  // answer drawn at every place of its identifier (the api answers a repeated identifier alike at each place, a copy
+  // too: the items of a batch are the same set). A list of more different identifiers than the bound is refused.
+  const over = limits !== null && distinct > limits.batch_max;
+  const onceEach = limits !== null && !over && identifiers.length > limits.batch_max;
   const overWords = limits
-    ? `The list has ${groupedInteger(identifiers.length)} identifiers; this server converts at most ${groupedInteger(limits.batch_max)} per request. The page does not split a list: a batch's answers can depend on its members (an item that is another item with a separator and a number appended, -1, .2 or _3, is read as that item's copy). To convert more, use idtrack's convert_many in Python, which takes a list of any length, or the http api in requests of at most ${groupedInteger(limits.batch_max)}, keeping such names in one request (API page).`
+    ? `The list has ${groupedInteger(distinct)} different identifiers; this server converts at most ${groupedInteger(limits.batch_max)} per request. The page does not split a list: a batch's answers can depend on its members (an item that is another item with a separator and a number appended, -1, .2 or _3, is read as that item's copy), and the server's bound is its own. To convert more, use idtrack's convert_many in Python, which takes a list of any length, or the http api in requests of at most ${groupedInteger(limits.batch_max)}, keeping each name with its copies in one request (API page).`
     : "";
   const submit = (event: SyntheticEvent) => {
     event.preventDefault();
@@ -361,7 +367,8 @@ function BatchForOrganism({ description }: { description: GraphDescription }) {
       list.current?.focus();
       return;
     }
-    if (limits && now.identifiers.length > limits.batch_max) {
+    const different = [...new Set(now.identifiers)];
+    if (limits && different.length > limits.batch_max) {
       setProblem(overWords);
       list.current?.focus();
       return;
@@ -386,8 +393,11 @@ function BatchForOrganism({ description }: { description: GraphDescription }) {
     }
     setProblem(null);
     list.current?.keep();
+    // Over the bound by repeats alone: each different identifier once, its answer drawn at each of its places.
+    const sendOnce = limits !== null && now.identifiers.length > limits.batch_max;
+    const place = new Map(different.map((id, i) => [id, i]));
     const body: Required<BatchRequest> = {
-      identifiers: now.identifiers,
+      identifiers: sendOnce ? different : now.identifiers,
       from_release: fromRelease.trim() ? Number(fromRelease.trim()) : null,
       to_release: toRelease.trim() ? Number(toRelease.trim()) : null,
       final_database: finalDatabase || null,
@@ -403,6 +413,7 @@ function BatchForOrganism({ description }: { description: GraphDescription }) {
       column: now.column,
       rows: now.rows,
       inferred: inferred && fromRelease.trim() === String(inferred.release) ? inferred : null,
+      places: sendOnce ? now.identifiers.map((id) => place.get(id) ?? 0) : null,
     });
     window.requestAnimationFrame(() => {
       revealArea(area.current);
@@ -430,8 +441,8 @@ function BatchForOrganism({ description }: { description: GraphDescription }) {
     (): BatchAnswer | null =>
       run.state === "done"
         ? {
-            results: run.answer.data.results,
-            count: run.answer.data.count,
+            results: expand(run.answer.data.results, batch.source?.places ?? null),
+            count: batch.source?.places?.length ?? run.answer.data.count,
             request: run.request,
             raw: run.answer.raw,
             serverTiming: run.answer.serverTiming,
@@ -504,12 +515,19 @@ function BatchForOrganism({ description }: { description: GraphDescription }) {
               <span className="batch-form__gauge" aria-hidden="true">
                 <span
                   className={`batch-form__gauge-fill ${over ? "is-over" : ""}`}
-                  style={{ width: `${Math.min(100, (identifiers.length / limits.batch_max) * 100)}%` }}
+                  style={{ width: `${Math.min(100, (distinct / limits.batch_max) * 100)}%` }}
                 />
               </span>
             ) : null}
           </div>
           {over && !problem ? <p className="batch-form__over">{overWords}</p> : null}
+          {onceEach ? (
+            <p className="batch-form__once">
+              More identifiers than one request takes (<Mono>{groupedInteger(limits.batch_max)}</Mono>), but only{" "}
+              <Mono>{groupedInteger(distinct)}</Mono> different ones: each is sent once, and its answer is drawn at
+              every place of the list where it stands (the api answers a repeated identifier alike at each place).
+            </p>
+          ) : null}
           {table.separator !== null || table.header ? (
             <div className="batch-form__table" role="group" aria-label="How the table is read">
               <p className="batch-form__table-note">
@@ -808,10 +826,22 @@ function BatchForOrganism({ description }: { description: GraphDescription }) {
             ) : null}
           </>
         ) : null}
-        {run.state === "done" && answer ? <BatchResults key={batch.id} description={description} answer={answer} /> : null}
+        {run.state === "done" && answer ? (
+          <BatchResults key={batch.id} description={description} answer={answer} />
+        ) : null}
       </section>
     </div>
   );
+}
+
+/** The results at every place of the list, where each different identifier was sent once (`places`: for each place,
+ *  the index of its identifier among those sent); else the results as they came. */
+function expand(results: ConversionResult[], places: readonly number[] | null): ConversionResult[] {
+  if (!places) return results;
+  return places.flatMap((i) => {
+    const result = results[i];
+    return result ? [result] : [];
+  });
 }
 
 /** A time of day as the browser's clock writes it, to the second (`17:02:11`). */
