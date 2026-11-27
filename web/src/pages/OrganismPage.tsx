@@ -10,7 +10,7 @@ import { api, ApiError, TimeoutError, UnreachableError, type AnyRequestError } f
 import type { AssemblyDescription, GraphDescription, GraphVersion, HistoryResponse } from "../api/types";
 import { AssemblyRows } from "../components/explore/AssemblyRows";
 import { IdHistory } from "../components/explore/IdHistory";
-import { BenchmarkProvenance } from "../components/method/Benchmarks";
+import { BenchmarkProvenance } from "../components/method/BenchmarkProvenance";
 import { ExploreStories, StoriesOrganism } from "../components/explore/Stories";
 import { FactsStrip } from "../components/explore/FactsStrip";
 import {
@@ -42,7 +42,7 @@ import {
   TableFrame,
 } from "../components/ui";
 import docs from "../generated/idtrack_docs.json";
-import { BENCHMARKS } from "../lib/benchmarks";
+import { BENCHMARKS_META } from "../lib/benchmarksMeta";
 import {
   DATA_SOURCES_SOURCE,
   DATABASE_FILING_SOURCE,
@@ -1111,7 +1111,7 @@ function OrganismDetail({
           <span className="mono">/api/v1/version</span>): the digest of the graph&apos;s content, the idtrack that built
           it (its commit, and the version as the file records it), and the file&apos;s SHA-256, verified at start; and
           whether the benchmarks measured a graph of the same content digest (their published results at{" "}
-          <Mono>{BENCHMARKS.commit.slice(0, 12)}</Mono>). The content digest names the graph: two files of the same
+          <Mono>{BENCHMARKS_META.commit.slice(0, 12)}</Mono>). The content digest names the graph: two files of the same
           digest answer alike.
         </p>
       </section>

@@ -5,8 +5,15 @@ import { describe, expect, it } from "vitest";
 import benchmarks from "../src/generated/benchmarks.json";
 import {
   BENCHMARKS,
+  comparable,
   familyRows,
   hardest,
+  powerParts,
+  shownInterval,
+  stratumMeaning,
+  taskComparison,
+  wrongOnly,
+  wrongOnlyCounts,
   idtrackWrongShare,
   judged,
   measuredGraph,
@@ -20,8 +27,14 @@ import {
 } from "../src/lib/benchmarks";
 import { description } from "./fixtures";
 import {
+  firstClause,
   firstSentence,
+  openWithinOf,
   percent,
+  readingOf,
+  readJudgeOf,
+  strataMeaningsOf,
+  strataPattern,
   releaseOf,
   tableRows,
   totalsOf,
@@ -92,8 +105,8 @@ describe("the benchmarks' published results", () => {
 });
 
 describe("the benchmarks as the page shows them", () => {
-  it("show the families in the order users ask: real-world inputs first, robustness last", () => {
-    expect(BENCHMARKS.families.map((f) => f.key)).toEqual(["d", "b", "c", "a", "astar", "e"]);
+  it("show the families in the order of the method's claim: history travel first, robustness last", () => {
+    expect(BENCHMARKS.families.map((f) => f.key)).toEqual(["a", "astar", "b", "c", "d", "e"]);
   });
 
   it("never write a rate the source rounded to 1 or 0 as 1 or 0 where its counts say otherwise", () => {
@@ -128,7 +141,12 @@ describe("the benchmarks as the page shows them", () => {
         expect(Number(rows[i]?.high)).toBeGreaterThanOrEqual(Number(rows[i - 1]?.high));
       for (const o of Object.keys(family.strata.clean)) {
         const h = hardest(family, o);
-        if (h) expect(rows.filter((s) => s.organism === o).every((s) => Number(s.high) >= Number(h.high))).toBe(true);
+        if (h)
+          expect(
+            rows
+              .filter((s) => s.organism === o && !wrongOnly(family, s.stratum))
+              .every((s) => Number(s.high) >= Number(h.high)),
+          ).toBe(true);
       }
     }
     const a = BENCHMARKS.families.find((f) => f.key === "a");
@@ -198,5 +216,127 @@ describe("the benchmarks as the page shows them", () => {
       items: [{ lead: "The walk", text: "the strict walk." }],
       history: true,
     });
+  });
+});
+
+describe("the benchmarks' rules for what a rate may say", () => {
+  it("never take as the weakest part a stratum in which no line can be judged right, and say it as a count", () => {
+    for (const family of BENCHMARKS.families) {
+      const right = new Map<string, boolean>();
+      for (const s of family.strata.rows) right.set(s.stratum, (right.get(s.stratum) ?? false) || s.right > 0);
+      for (const code of family.strata.wrongOnly) expect(right.get(code) ?? false).toBe(false);
+      for (const o of BENCHMARKS.tools.organisms) {
+        const h = hardest(family, o);
+        if (h) expect(wrongOnly(family, h.stratum)).toBe(false);
+      }
+    }
+    const d = BENCHMARKS.families.find((f) => f.key === "d");
+    expect(d?.strata.wrongOnly.every((code) => code.endsWith("_open"))).toBe(true);
+    expect(d && wrongOnlyCounts(d, "sus_scrofa").wrong).toBeGreaterThan(0);
+    expect(d?.truth.openWithin).toMatch(/a gene elsewhere wrong/);
+    expect(
+      openWithinOf("## Truth\n\njudged with F0's `open_within` (nothing is undetermined, elsewhere wrong).\n"),
+    ).toBe("nothing is undetermined, elsewhere wrong");
+  });
+
+  it("write no interval of zero width: exact bounds for all right or all wrong, Wilson otherwise, from the counts", () => {
+    const allWrong = shownInterval({ low: "0.0000", high: "0.0000", rate: "0.0000", right: 0, wrong: 123 });
+    expect(allWrong.method).toBe("exact");
+    // Clopper-Pearson for 0 of 123: the upper end 1 - 0.025^(1/123) = 0.02955...
+    expect(allWrong.text).toBe("0.0000–0.0296");
+    const allRight = shownInterval({ low: "1.0000", high: "1.0000", rate: "1.0000", right: 70324868, wrong: 0 });
+    expect(allRight.method).toBe("exact");
+    expect(allRight.text).toMatch(/^0\.9999999–1\.0+$/);
+    const rounded = shownInterval({ low: "0.9997", high: "0.9997", rate: "0.9997", right: 1703782, wrong: 527 });
+    expect(rounded.method).toBe("wilson");
+    const [lo, hi] = rounded.text.split("–").map(Number);
+    expect(lo).toBeLessThan(hi ?? 0);
+    expect(shownInterval({ low: "0.9", high: "0.95", rate: "0.92", right: 9, wrong: 1 })).toEqual({
+      text: "0.9–0.95",
+      method: "published",
+    });
+    for (const family of BENCHMARKS.families)
+      for (const s of family.strata.rows) {
+        const [a, b] = shownInterval(s)
+          .text.replace(/^within /, "")
+          .split("–");
+        expect(a).not.toBe(b);
+      }
+  });
+
+  it("head B and E by the judge their document says to read, and read it from the document", () => {
+    const e = BENCHMARKS.families.find((f) => f.key === "e");
+    expect(e?.readJudge).toBe("decided");
+    expect(e?.rows[0]?.judge).toBe("decided");
+    expect(e?.strata.judge).toBe("decided");
+    const b = BENCHMARKS.families.find((f) => f.key === "b");
+    expect(b?.readJudge).toBeNull();
+    expect(b?.rows[0]?.judge).toBe("now");
+    expect(readJudgeOf("### On main\n\nmain builds them, so its `decided` rate is the one to read.\n")).toBe("decided");
+    expect(readJudgeOf("### On main\n\nTotals.\n")).toBeNull();
+  });
+
+  it("name every part by what its lines ask, in its document's words", () => {
+    expect(strataPattern("d1_<id\\|symbol>_<same\\|cross>_<one\\|dominant\\|open>").test("d1_id_cross_open")).toBe(
+      true,
+    );
+    expect(strataPattern("b1_atR_<c>").test("b1_atR_unique")).toBe(true);
+    expect(strataPattern("c5_ccds_*").test("c5_ccds_retired")).toBe(true);
+    expect(strataPattern("c1_at").test("c1_at_v")).toBe(false);
+    expect(firstClause("every handoff (last release L): every id present; more")).toBe("every handoff");
+    const doc = [
+      "## The sets",
+      "",
+      "| part | strata | rule |",
+      "| --- | --- | --- |",
+      "| c1 NCBI gene ids | `c1_at` (every id where held), `c1_retired` | `set` |",
+      "",
+      "## Truth",
+      "",
+      "Nothing of idtrack.",
+    ].join("\n");
+    expect(strataMeaningsOf(doc, ["c1_at", "c1_retired", "c9"])).toEqual({
+      c1_at: "NCBI gene ids; every id where held",
+      c1_retired: "NCBI gene ids",
+      c9: null,
+    });
+    const a = BENCHMARKS.families.find((f) => f.key === "a");
+    expect(a && stratumMeaning(a, "A1")).toMatch(/^every gene id at every release R/);
+  });
+
+  it("compare a tool with idtrack only where its kept lines hold answers, and read G's reading of the wrong lines", () => {
+    for (const t of BENCHMARKS.tools.tools)
+      for (const c of t.cells)
+        if (c) {
+          expect(c.right + c.wrong + c.undetermined + c.error).toBe(c.kept);
+          expect(comparable(c)).toBe(!(c.kept > 0 && Number(c.coverage) === 0));
+        }
+    const apart = BENCHMARKS.tools.tools.flatMap((t) => t.cells.filter((c) => c && !comparable(c)));
+    expect(apart.length).toBeGreaterThan(0);
+    expect(BENCHMARKS.tools.tools.filter((t) => t.task !== "b").every((t) => t.reading !== null)).toBe(true);
+    const c = taskComparison("c");
+    expect(c.compared + c.apart).toBe(
+      BENCHMARKS.tools.tools.filter((t) => t.task === "c").flatMap((t) => t.cells.filter(Boolean)).length,
+    );
+    expect(c.more + c.same + c.fewer).toBe(c.compared);
+    const reading = readingOf(
+      [
+        "## The reading of the disagreements",
+        "",
+        "<!-- table g:reading -->",
+        "| tool | task | tool wrong, read | truly wrong | right under another reading | not a question the tool claims | the service failed | idtrack wrong, read | of them a known limitation |",
+        "| --- | --- | --- | --- | --- | --- | --- | --- | --- |",
+        "| BioMart | c | 311 | 16 | 18 | 66 | 0 | 110 | 83 |",
+        "",
+      ].join("\n"),
+    );
+    expect(reading).toEqual([
+      { tool: "BioMart", task: "c", read: 311, truly: 16, another: 18, notClaimed: 66, failed: 0 },
+    ]);
+  });
+
+  it("write a tick's exponent apart, with a true minus, so it is drawn at the type scale's floor", () => {
+    expect(powerParts(-6)).toEqual({ base: "10", exponent: "−6" });
+    expect(powerParts(0)).toBeNull();
   });
 });

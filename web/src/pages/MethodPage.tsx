@@ -12,6 +12,7 @@ import { href } from "../lib/router";
 import { useLimits } from "../lib/vocabularyContext";
 import docs from "../generated/idtrack_docs.json";
 import { AccuracyPanel, ToolsPanel } from "../components/method/Benchmarks";
+import { EvidenceSummary } from "../components/method/EvidenceSummary";
 import { MethodFigure } from "../components/method/MethodFigure";
 import { BENCHMARKS, benchmarkFile, measuredGraph } from "../lib/benchmarks";
 import "../styles/method.css";
@@ -116,6 +117,7 @@ export function MethodPage() {
           ).
         </p>
       </header>
+      <EvidenceSummary />
 
       <MethodFigure />
       <AccuracyPanel />

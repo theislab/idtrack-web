@@ -1,6 +1,7 @@
 // The benchmarks' published results (src/generated/benchmarks.json, made by scripts/benchmarks.ts from the files of
 // idtrack-reproducibility at the commit it names): what the Method page and the organism pages read of them.
 import data from "../generated/benchmarks.json" with { type: "json" };
+import { commonName, organismName } from "./organismNames";
 
 export type FamilyRow = (typeof data.families)[number]["rows"][number];
 export type Family = (typeof data.families)[number];
@@ -8,14 +9,13 @@ type ToolRow = (typeof data.tools.tools)[number];
 
 export const BENCHMARKS = data;
 
+export { BENCHMARK_ORGANISMS, measuredGraph } from "./benchmarksMeta";
+
 /** The repository's address of a file at the commit the results were read at. */
 export function benchmarkFile(path: string): string {
   const [file = "", anchor] = path.split("#");
   return `${data.repository}/blob/${data.commit}/${file}${anchor ? `#${anchor}` : ""}`;
 }
-
-/** The organisms in the repository's order. */
-export const BENCHMARK_ORGANISMS: string[] = data.tools.organisms;
 
 /** A family's rows of its main measurement (not of a part measured apart), by judge where it has two. */
 export function familyRows(family: Family): { judge: string | null; rows: Map<string, FamilyRow> }[] {
@@ -36,12 +36,6 @@ export function familyParts(family: Family): string[] {
 export function judged(row: Pick<FamilyRow, "right" | "wrong">): { judged: number; wrongShare: number } {
   const n = row.right + row.wrong;
   return { judged: n, wrongShare: n ? row.wrong / n : 0 };
-}
-
-/** Whether the benchmarks measured the graph this server holds: the same content digest. */
-export function measuredGraph(organism: string, digest: string | null): boolean {
-  const graphs: Record<string, string> = data.graphs;
-  return digest !== null && graphs[organism] === digest;
 }
 
 /** The decades of the wrong-share axis both panels share: from one in a million (10⁻⁶) to every answer wrong (1). */
@@ -87,9 +81,77 @@ export function strataByRate(family: Family): Stratum[] {
   );
 }
 
-/** The stratum of a family that is surely the weakest in an organism: the lowest upper end of its interval. */
+/** Whether a stratum is one in which no line is judged right in any organism (the generator's `wrongOnly`): its
+ *  lines can only be judged wrong or undetermined (D's open lines, judged by open_within), so its rate is 0 whatever
+ *  idtrack answers. Such a stratum is no measure of agreement: it is said as a count, never as a rate. */
+export function wrongOnly(family: Family, stratum: string): boolean {
+  const codes: readonly string[] = family.strata.wrongOnly;
+  return codes.includes(stratum);
+}
+
+/** The stratum of a family that is surely the weakest in an organism: the lowest upper end of its interval, among
+ *  the strata that can be judged right (`wrongOnly` ones are counts, not rates). */
 export function hardest(family: Family, organism: string): Stratum | null {
-  return strataByRate(family).find((s) => s.organism === organism) ?? null;
+  return strataByRate(family).find((s) => s.organism === organism && !wrongOnly(family, s.stratum)) ?? null;
+}
+
+/** The lines of an organism in the strata where no answer can be judged right: how many, and how many of them are
+ *  answered wrong (the rest undetermined). */
+export function wrongOnlyCounts(family: Family, organism: string): { strata: number; wrong: number; n: number } {
+  const rows = family.strata.rows.filter((s) => s.organism === organism && wrongOnly(family, s.stratum));
+  return {
+    strata: rows.length,
+    wrong: rows.reduce((t, s) => t + s.wrong, 0),
+    n: rows.reduce((t, s) => t + s.n, 0),
+  };
+}
+
+/** What a stratum asks, in its family document's words, or null where the document does not describe it. */
+export function stratumMeaning(family: Family, stratum: string): string | null {
+  const meanings: Record<string, string | null | undefined> = family.strata.meanings;
+  return meanings[stratum] ?? null;
+}
+
+/** The 95 % interval of a stratum as the page writes it: the published one, unless its two ends are written alike
+ *  (a cluster bootstrap whose units all answer alike, or ends rounded to one value), which is no interval: then,
+ *  from the counts, the exact (Clopper–Pearson) interval where every judged line is right or every one wrong, and
+ *  Wilson's otherwise, each with as many decimals as its two ends need to differ (at least the published ones). */
+export function shownInterval(row: { low: string; high: string; rate: string; right: number; wrong: number }): {
+  text: string;
+  method: "published" | "exact" | "wilson";
+} {
+  if (row.low !== row.high) return { text: intervalText(row), method: "published" };
+  const n = row.right + row.wrong;
+  const alpha = 0.05;
+  let low: number;
+  let high: number;
+  let method: "exact" | "wilson";
+  if (row.right === 0) {
+    [low, high, method] = [0, 1 - (alpha / 2) ** (1 / n), "exact"];
+  } else if (row.wrong === 0) {
+    [low, high, method] = [(alpha / 2) ** (1 / n), 1, "exact"];
+  } else {
+    [low, high] = wilsonInterval(row.right, n);
+    method = "wilson";
+  }
+  const published = Math.max(1, (row.low.split(".")[1] ?? "").length);
+  let digits = published;
+  while (digits < 8 && low.toFixed(digits) === high.toFixed(digits)) digits += 1;
+  // Ends written outward, so that the written interval holds the computed one.
+  const floor = (x: number) => (Math.floor(x * 10 ** digits) / 10 ** digits).toFixed(digits);
+  const ceil = (x: number) => Math.min(1, Math.ceil(x * 10 ** digits) / 10 ** digits).toFixed(digits);
+  return { text: `${floor(low)}–${ceil(high)}`, method };
+}
+
+/** Wilson's 95 % interval of a share. */
+function wilsonInterval(right: number, judged: number): [number, number] {
+  const z = 1.959963984540054;
+  if (!judged) return [0, 1];
+  const p = right / judged;
+  const d = 1 + (z * z) / judged;
+  const c = (p + (z * z) / (2 * judged)) / d;
+  const h = (z * Math.sqrt((p * (1 - p)) / judged + (z * z) / (4 * judged * judged))) / d;
+  return [Math.max(0, c - h), Math.min(1, c + h)];
 }
 
 /** An interval as published, written so that it never says more than its counts: where the source rounded its rate
@@ -109,6 +171,69 @@ export function cleanStrata(family: Family): [string, number][] {
 }
 
 export type ToolCell = NonNullable<ToolRow["cells"][number]>;
+export type Tool = ToolRow;
+
+/** Whether a tool's cell can be set beside idtrack's: not where no kept line has an answer (coverage 0 on kept
+ *  lines), for then every right line is one whose truth is nothing and the tool named no gene of the graph's
+ *  annotation (G's reading names why: another annotation's genes only); its rate there measures no answer. */
+export function comparable(cell: ToolCell): boolean {
+  return !(cell.kept > 0 && Number(cell.coverage) === 0);
+}
+
+/** For one task, the comparisons of the tools with idtrack on the same lines, every organism together: how many
+ *  find the tool wrong more often, as often (both none wrong), or less often, and the smallest and largest ratio of
+ *  the wrong shares with their tool and organism; the cells that cannot be compared are counted apart. */
+export function taskComparison(task: string): {
+  compared: number;
+  more: number;
+  same: number;
+  fewer: number;
+  apart: number;
+  least: { tool: string; organism: string; ratio: string } | null;
+  most: { tool: string; organism: string; ratio: string } | null;
+  tools: number;
+  /** The tool's name where only one poses the task. */
+  only: string | null;
+} {
+  let compared = 0;
+  let more = 0;
+  let same = 0;
+  let fewer = 0;
+  let apart = 0;
+  const ratios: { tool: string; organism: string; value: number; ratio: string }[] = [];
+  const rows = data.tools.tools.filter((t) => t.task === task);
+  for (const t of rows)
+    for (const c of t.cells) {
+      if (!c) continue;
+      if (!comparable(c)) {
+        apart += 1;
+        continue;
+      }
+      compared += 1;
+      const tool = toolWrongShare(c);
+      const ours = idtrackWrongShare(c);
+      if (tool === 0 && ours.share === 0) same += 1;
+      else if (tool > ours.share) more += 1;
+      else if (tool < ours.share) fewer += 1;
+      else same += 1;
+      const ratio = wrongRatio(tool, ours.share);
+      if (ratio && ours.share > 0) ratios.push({ tool: t.tool, organism: c.organism, value: tool / ours.share, ratio });
+    }
+  ratios.sort((a, b) => a.value - b.value);
+  const pick = (r: (typeof ratios)[number] | undefined) =>
+    r ? { tool: r.tool, organism: r.organism, ratio: r.ratio } : null;
+  return {
+    compared,
+    more,
+    same,
+    fewer,
+    apart,
+    least: pick(ratios[0]),
+    most: pick(ratios[ratios.length - 1]),
+    tools: new Set(rows.map((t) => t.tool)).size,
+    only: new Set(rows.map((t) => t.tool)).size === 1 ? (rows[0]?.tool ?? null) : null,
+  };
+}
 
 /** A tool's wrong share on its kept lines, from its counts: (wrong + error) / (right + wrong + error). */
 export function toolWrongShare(cell: ToolCell): number {
@@ -137,4 +262,22 @@ export function wrongRatio(tool: number, idtrack: number, half = 0.5e-4): string
   const hi = tool / (idtrack - half);
   if (hi / lo <= 1.1) return `about ${two(tool / idtrack)}×`;
   return `${two(lo)}–${two(hi)}×`;
+}
+
+/** An organism as the page names it: its common name, else its binomial. */
+export const organismWord = (o: string): string => commonName(o) ?? organismName(o);
+
+/** A power of ten as its label writes it: the base and the exponent (with a true minus sign), the exponent drawn
+ *  raised at the floor of the type scale and the base a step above it, so no text is under 11 px; null for 1. */
+export function powerParts(exponent: number): { base: string; exponent: string } | null {
+  if (exponent === 0) return null;
+  return { base: "10", exponent: String(exponent).replace("-", "−") };
+}
+
+/** What a judge measures, by its role (the commit and the repository's own words are in the provenance). */
+export function judgeWords(judge: string): string {
+  if (judge === "decided")
+    return "with the rules idtrack has decided: a line a decided rule changes expects its answer";
+  if (judge === "now") return "by the base set: each line as idtrack documented it before its decided rules";
+  return judge;
 }

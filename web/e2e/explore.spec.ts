@@ -7,7 +7,7 @@ import { expect, test, type Page } from "@playwright/test";
 import type { ConversionResult, DatabasesResponse, GraphDescription, HistoryResponse } from "../src/api/types";
 import { databaseLabel } from "../src/lib/databases";
 import { readMatrix } from "../src/lib/explore/databaseMatrix";
-import { BENCHMARKS, familyRows, measuredGraph, rateText } from "../src/lib/benchmarks";
+import { BENCHMARKS, comparable, familyRows, measuredGraph, rateText } from "../src/lib/benchmarks";
 import { handoffsOf, MAPPING_WORDS } from "../src/lib/explore/handoffs";
 import { historyColumns } from "../src/lib/explore/history";
 import { apiQuery } from "../src/lib/home/links";
@@ -93,8 +93,23 @@ test("Method: the benchmarks' rates as published, and whether this server's grap
     for (const row of family.rows)
       if (row.wrong > 0 && Number(row.rate) >= 1)
         await expect(table.locator("tbody", { hasText: family.title })).toContainText("> 0.99999");
+  // No interval of zero width is written, and no part where no answer can be judged right is the weakest.
+  const zeroWidth = await table.evaluate((t: HTMLElement) =>
+    [...t.innerText.matchAll(/(\d\.\d+)–(\d\.\d+)/g)].filter((m) => m[1] === m[2]).map((m) => m[0]),
+  );
+  expect(zeroWidth).toEqual([]);
+  for (const family of BENCHMARKS.families)
+    for (const code of family.strata.wrongOnly)
+      await expect(table.locator(".bench__hard", { hasText: code })).toHaveCount(0);
+  // The evidence in brief, at the top: every family's headline rates.
+  const summary = page.locator(".evidence");
+  for (const family of BENCHMARKS.families) {
+    await expect(summary).toContainText(family.title);
+    const [first] = familyRows(family);
+    for (const row of first?.rows.values() ?? []) await expect(summary).toContainText(rateText(row.rate, row).text);
+  }
   // What each family is judged against, and the one source a truth shares with idtrack, are on the page.
-  await expect(page.locator(".bench-caveat")).toContainText("stable_id_event");
+  await expect(page.locator(".bench-caveat").first()).toContainText("stable_id_event");
   await expect(table.getByText("What it is judged against")).toHaveCount(BENCHMARKS.families.length);
   const all = graphs.every((g) => measuredGraph(g.organism, g.content_digest));
   await expect(page.locator(".bench__graphs")).toContainText(
@@ -105,6 +120,10 @@ test("Method: the benchmarks' rates as published, and whether this server's grap
   for (const task of Object.keys(BENCHMARKS.tools.tasks)) {
     await page.getByRole("radio", { name: new RegExp(`^${task} `) }).click();
     await expect(tools.locator("tbody tr")).toHaveCount(BENCHMARKS.tools.tools.filter((t) => t.task === task).length);
+    const apart = BENCHMARKS.tools.tools
+      .filter((t) => t.task === task)
+      .flatMap((t) => t.cells.filter((c) => c !== null && !comparable(c)));
+    await expect(tools.locator(".tools__apart")).toHaveCount(apart.length);
   }
   await expect(page.locator("pre.raw--cite")).toContainText("year = {");
   await expectAccessible(page);

@@ -156,11 +156,121 @@
   color: var(--ink-2);
 }
 
+.bench__headline {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0 var(--space-2);
+}
+
 .bench__rate {
-  display: block;
   font-size: var(--text-md);
   font-weight: var(--weight-strong);
   color: var(--ink-1);
+}
+
+/* What the number is, said in the cell where no header stands over it (the cards below 1000 px). */
+.bench__what {
+  display: none;
+  font-size: var(--text-2xs);
+  color: var(--ink-3);
+}
+
+.bench__key {
+  display: grid;
+  gap: 2px;
+  font-size: var(--text-2xs);
+  line-height: var(--leading-caption);
+  color: var(--ink-3);
+}
+
+.bench__key strong {
+  color: var(--ink-2);
+}
+
+.bench__second th,
+.bench__second td {
+  border-top: 1px dotted var(--line-strong);
+}
+
+.bench__second .bench__rate {
+  font-size: var(--text-sm);
+  color: var(--ink-2);
+}
+
+.bench__judge-read {
+  color: var(--ink-1);
+}
+
+/* The dot's own value: its key (the dot's red) before the counts it is drawn from. */
+.bench__counts--dot {
+  color: var(--ink-2);
+}
+
+.bench__dot-key {
+  display: inline-block;
+  inline-size: 6px;
+  block-size: 6px;
+  margin-inline-end: var(--space-1);
+  border-radius: 50%;
+  background: var(--state-danger);
+  vertical-align: 1px;
+}
+
+.bench__apart {
+  display: block;
+  margin-top: var(--space-2);
+  padding-top: var(--space-1);
+  border-top: 1px dotted var(--line-strong);
+  font-size: var(--text-2xs);
+  color: var(--ink-2);
+}
+
+.bench__hard-lead {
+  color: var(--ink-3);
+}
+
+.bench__stratum {
+  color: var(--ink-2);
+}
+
+/* A part's code: a quiet tag after its words, so that parts of one kind stay apart. */
+.bench__code,
+.bench__hard code.bench__code {
+  white-space: normal;
+  word-break: break-all;
+  font-size: var(--text-2xs);
+  font-size-adjust: none;
+  color: var(--ink-3);
+  overflow-wrap: anywhere;
+}
+
+.bench__method {
+  color: var(--ink-3);
+}
+
+.bench__note {
+  max-width: var(--measure);
+  margin: var(--space-3) 0 var(--space-2);
+}
+
+.bench-commits {
+  margin: var(--space-2) 0;
+  padding-inline-start: var(--space-4);
+  color: var(--ink-2);
+}
+
+.bench-commits li + li {
+  margin-top: var(--space-1);
+}
+
+.bench-lede,
+.bench-caption p {
+  max-width: var(--measure);
+}
+
+.bench-caption p + p {
+  margin-top: var(--space-2);
 }
 
 .bench__interval,
@@ -229,7 +339,7 @@
 .wrong-axis--labels {
   position: relative;
   display: block;
-  block-size: 18px;
+  block-size: 24px;
   inline-size: 100%;
   max-inline-size: 10rem;
   border-top: 1px solid var(--line-strong);
@@ -239,16 +349,25 @@
   inset-block: -1px auto;
 }
 
+/* 4 px under the ticks; the exponent in superscript characters of the label's own size (never under 11 px). */
 .wrong-axis__label {
   position: absolute;
-  inset-block-start: 5px;
+  inset-block-start: 9px;
   inset-inline-start: 0;
   transform: translateX(-50%);
   font-family: var(--font-mono);
-  font-size: var(--text-2xs);
+  font-size: var(--text-xs);
   line-height: 1;
   color: var(--ink-3);
   white-space: nowrap;
+}
+
+/* The exponent: raised, at the floor of the type scale (11 px), never smaller. */
+.wrong-axis__exp {
+  position: relative;
+  inset-block-start: -0.45em;
+  margin-inline-start: 1px;
+  font-size: var(--text-2xs);
 }
 
 .wrong-axis__tick:first-child .wrong-axis__label {
@@ -358,6 +477,22 @@
 .tools th[scope="row"] {
   inline-size: 16%;
   font-weight: var(--weight-medium);
+}
+
+/* What the family's reading of a sample of the tool's wrong lines found: under its name. */
+.tools__reading {
+  display: block;
+  margin-top: var(--space-1);
+  font-size: var(--text-2xs);
+  font-weight: var(--weight-regular);
+  line-height: var(--leading-caption);
+  color: var(--ink-3);
+}
+
+.tools__apart {
+  display: block;
+  font-size: var(--text-2xs);
+  color: var(--ink-2);
 }
 
 .tools__values,
@@ -492,6 +627,10 @@
     margin: 0 0 var(--space-2);
   }
 
+  .bench__what {
+    display: inline;
+  }
+
   .bench-strata {
     min-width: 0;
   }
@@ -523,12 +662,6 @@
     border: 0;
   }
 
-  /* A card's cell: the organism's name on a line of its own above its values, so no drawing runs into it. */
-  .bench.table--cards td,
-  .tools.table--cards td {
-    padding: var(--space-2) var(--space-3);
-  }
-
   .bench.table--cards td::before,
   .tools.table--cards td::before {
     position: static;
@@ -550,6 +683,57 @@
     grid-template-columns: minmax(0, 1fr);
     gap: 0;
   }
+
+  /* One level of cards only: the families' and the tools' frame keeps no border or inset of its own inside the
+     panel, and each family's organisms stand two to a row. */
+  .bench-frame .table-wrap {
+    border: 0;
+    border-radius: 0;
+    background: none;
+  }
+
+  .bench > tbody > tr,
+  .tools > tbody > tr {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: var(--space-3);
+  }
+
+  /* A card's cell: the organism's name on a line of its own above its values, so no drawing runs into it. */
+  .bench.table--cards td,
+  .tools.table--cards td {
+    width: auto;
+    min-width: 0;
+    padding-block: var(--space-2);
+  }
+
+  .bench.table--cards td,
+  .tools.table--cards td,
+  .bench.table--cards th,
+  .tools.table--cards th {
+    padding-inline: 0;
+  }
+
+  /* One level of cards only: the parts' table inside a family's card keeps the card's width (no frame, no inset of
+     its own), its cells' names above their values. */
+  .bench-strata__frame,
+  .bench__strata td {
+    padding-inline: 0;
+    border: 0;
+  }
+
+  .bench-strata.table--cards td {
+    padding: 2px 0;
+  }
+
+  .bench-strata.table--cards td::before {
+    position: static;
+    display: block;
+    width: auto;
+  }
+
+  .bench-strata.table--cards tr {
+    padding: var(--space-2) 0;
+  }
 }
 
 @media (forced-colors: active) {
@@ -564,6 +748,185 @@
 
   .tools__segment {
     background: GrayText;
+    forced-color-adjust: none;
+  }
+}
+
+/* ---- The evidence in brief, at the top of the Method page (components/method/EvidenceSummary.tsx) ------------ */
+
+.evidence {
+  display: grid;
+  gap: var(--space-4);
+  margin: 0 0 var(--space-7);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--ink-1);
+}
+
+.evidence__head {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.evidence__lede,
+.evidence__note {
+  max-width: var(--measure);
+  color: var(--ink-2);
+}
+
+.evidence__frame {
+  overflow-x: auto;
+}
+
+.evidence__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+.evidence__table th,
+.evidence__table td {
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+  vertical-align: top;
+}
+
+.evidence__table thead th {
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  font-weight: var(--weight-medium);
+  letter-spacing: var(--track-label);
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+.evidence__table thead th:first-child {
+  inline-size: 38%;
+}
+
+.evidence__table tbody th {
+  font-weight: var(--weight-regular);
+}
+
+.evidence__family {
+  display: block;
+  font-weight: var(--weight-strong);
+  color: var(--ink-1);
+}
+
+.evidence__measures {
+  display: block;
+  font-size: var(--text-xs);
+  line-height: var(--leading-caption);
+  color: var(--ink-3);
+}
+
+.evidence__rate {
+  display: block;
+  color: var(--ink-1);
+}
+
+.evidence__mark {
+  position: relative;
+  display: block;
+  block-size: 10px;
+  inline-size: 100%;
+  max-inline-size: 7rem;
+  margin-top: var(--space-1);
+  border-bottom: 1px solid var(--line-strong);
+}
+
+.evidence__mark .bench__dot {
+  inset-block-start: 1px;
+  inline-size: 7px;
+  block-size: 7px;
+  inset-inline-start: calc(var(--at) * (100% - 7px));
+}
+
+.evidence__none {
+  font-size: var(--text-xs);
+}
+
+.evidence__sub {
+  margin-top: var(--space-2);
+}
+
+.evidence__tasks {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 34rem), 1fr));
+  gap: 0 var(--space-6);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.evidence__task {
+  display: grid;
+  align-content: start;
+  gap: var(--space-1);
+  max-width: 68ch;
+  padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--line);
+  font-size: var(--text-sm);
+}
+
+.evidence__task-name {
+  color: var(--ink-1);
+  font-weight: var(--weight-medium);
+}
+
+.evidence__task-words {
+  color: var(--ink-2);
+}
+
+@media (max-width: 760px) {
+  .evidence__table thead {
+    position: absolute;
+    inline-size: 1px;
+    block-size: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+
+  .evidence__table,
+  .evidence__table tbody {
+    display: block;
+  }
+
+  .evidence__table tbody tr {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    border-bottom: 1px solid var(--line);
+    padding-bottom: var(--space-2);
+  }
+
+  .evidence__table tbody th {
+    grid-column: 1 / -1;
+    border: 0;
+    padding-inline: 0;
+  }
+
+  .evidence__table tbody td {
+    min-width: 0;
+    border: 0;
+    padding: var(--space-1) var(--space-2) var(--space-1) 0;
+  }
+
+  .evidence__table tbody td::before {
+    content: attr(data-label);
+    display: block;
+    font-family: var(--font-mono);
+    font-size: var(--text-2xs);
+    letter-spacing: var(--track-label);
+    text-transform: uppercase;
+    color: var(--ink-3);
+  }
+}
+
+@media (forced-colors: active) {
+  .bench__dot-key {
+    background: CanvasText;
     forced-color-adjust: none;
   }
 }
