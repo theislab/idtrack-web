@@ -368,10 +368,6 @@
   color: var(--ink-1);
 }
 
-.batch-figure-head__line:focus {
-  outline: none;
-}
-
 .batch-figure-head__distinct {
   font-size: var(--text-sm);
   font-weight: var(--weight-regular);
@@ -2539,7 +2535,14 @@ th[aria-sort] .sort__mark {
 .file__actions {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: var(--space-2);
+}
+
+.file__save,
+.file__wait {
+  font-size: var(--text-sm);
+  color: var(--ink-2);
 }
 
 .cite {
@@ -2718,4 +2721,9 @@ th[aria-sort] .sort__mark {
 
 .names-examples:empty {
   min-height: 34px;
+}
+
+/* A panel's heading takes the focus by script when the answer comes (it is no control): no ring. */
+.batch-panel .panel-head__title:focus {
+  outline: none;
 }

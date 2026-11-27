@@ -294,7 +294,8 @@ function BatchForOrganism({ description }: { description: GraphDescription }) {
     if (followed.current !== batch.id || (run.state !== "done" && run.state !== "failed")) return;
     followed.current = null;
     if (run.state === "done") announce(batchSentence(run.answer.data.results));
-    moveFocus(() => area.current, '.batch-figure-head__line, [role="alert"] .notice__title');
+    // Focus on the figure's first heading (panel a), the results' head above it brought to the top of the window.
+    moveFocus(() => area.current, '#batch-summary, [role="alert"] .notice__title');
     // The results' head at the top of the window, so that the answers come first (on a phone too).
     window.requestAnimationFrame(() => {
       const head = area.current;

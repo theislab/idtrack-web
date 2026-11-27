@@ -139,7 +139,7 @@ export const BatchResults = memo(function BatchResults({
     <div className="batch-results">
       <header className="batch-figure-head">
         <p className="eyebrow">The batch</p>
-        <p className="batch-figure-head__line" tabIndex={-1}>
+        <p className="batch-figure-head__line">
           <Mono>{groupedInteger(count)}</Mono> {count === 1 ? "identifier" : "identifiers"} of{" "}
           <i>{organismName(description.organism)}</i>
           {distinct !== count ? (
