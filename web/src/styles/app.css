@@ -1899,6 +1899,19 @@ code {
   }
 }
 
+/* On a touch screen each of the footer's links is a row of a finger's height. */
+@media (pointer: coarse) {
+  .footer__col {
+    gap: 0;
+  }
+
+  .footer__col > a {
+    display: flex;
+    align-items: center;
+    min-height: 44px;
+  }
+}
+
 /* ---- Narrow screens ------------------------------------------------------------------------------------------- */
 
 @media (max-width: 640px) {

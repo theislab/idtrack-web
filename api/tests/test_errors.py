@@ -283,6 +283,29 @@ def test_queue_full(make_client: Callable[..., TestClient], check_response: Call
     assert response.headers["retry-after"] == "2"
 
 
+def test_a_refusal_for_the_servers_capacity_costs_no_search_of_the_allowance(
+    make_client: Callable[..., TestClient], check_response: Callable[..., Any]
+) -> None:
+    """A search refused because the worker holds too many answers not yet taken (the server's own capacity) gives its
+    client's search back: after the refusals, the client still has its whole burst."""
+    client = make_client(rate_per_minute=6, rate_burst=3, rate_search_seconds=0.0)
+    guard = client.app.guard  # type: ignore[attr-defined]  # the outer layer: it holds the answers not yet taken
+    held = guard.sending
+    guard.sending = guard.settings.sending_max_bytes + 1
+    try:
+        for i in range(5):
+            response = client.get(f"{P}/organisms/pig/convert", params={"identifier": GENE, "to_release": str(70 + i)})
+            assert response.status_code == 503
+            assert error_of(response, check_response, CONVERT)["code"] == "server_busy"
+    finally:
+        guard.sending = held
+    for i in range(3):
+        params = {"identifier": GENE, "to_release": str(60 + i)}  # distinct: never an answer kept in memory
+        assert client.get(f"{P}/organisms/pig/convert", params=params).status_code == 200, i
+    response = client.get(f"{P}/organisms/pig/convert", params={"identifier": GENE, "to_release": "80"})
+    assert response.status_code == 429
+
+
 def test_response_too_large(make_client: Callable[..., TestClient], check_response: Callable[..., Any]) -> None:
     client = make_client(rate_per_minute=0, response_max_bytes=600)
     response = client.get(f"{P}/organisms/pig/convert", params={"identifier": GENE, "explain": "true"})
