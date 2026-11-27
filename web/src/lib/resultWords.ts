@@ -48,7 +48,7 @@ export function readerText(text: string): string {
 }
 
 /** The significant digits a score is shown with in a table before "…" (Ensembl writes its scores with six). */
-export const SCORE_DIGITS = 6;
+const SCORE_DIGITS = 6;
 
 /** A score as a table shows it: idtrack's text of the float (`pythonFloat`), cut after its sixth significant digit
  *  (trailing zeros left out) with "…" where more digits follow, so that a product's floating-point tail (`0.8019000000000001`)

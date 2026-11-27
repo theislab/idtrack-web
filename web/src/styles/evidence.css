@@ -100,8 +100,9 @@
   font-size: var(--text-xs);
 }
 
+/* A table cell's marks keep a finger's target (24 px, WCAG 2.5.8) in their smaller type. */
 .evidence--compact .toggletip__term {
-  min-height: 20px;
+  min-height: 24px;
 }
 
 /* The card a mark opens */

@@ -170,7 +170,7 @@ function drawKind(step: PathStep, source: PathNode | undefined): DrawKind {
 }
 
 /** The direction of a history step: forward when the source lives on the old side of Ensembl's event. */
-export function historyDirection(
+function historyDirection(
   step: PathStep,
   nodes: Map<string, PathNode>,
   result: ConversionResult,

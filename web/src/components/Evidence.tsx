@@ -37,7 +37,7 @@ function Glyph({ tone }: { tone: EvidenceMark["tone"] }) {
 
 /** The addresses a mark's ways on lead to: the identifier read at another release, a conversion that answers what the
  *  mark doubts. */
-export interface EvidenceLinks {
+interface EvidenceLinks {
   readAtHref?: ((release: number) => string) | undefined;
   askHref?: ((ask: EvidenceAsk) => string) | undefined;
 }
