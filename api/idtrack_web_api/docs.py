@@ -53,44 +53,90 @@ def _endpoints(document: dict[str, Any]) -> list[tuple[str, str, dict[str, Any]]
 
 
 def _short(path: str) -> str:
-    return path.removeprefix("/api/v1") or "/"
+    """Return an endpoint's path as the texts write it: the whole path for the index, else from ``/api/v1`` on."""
+    return path.removeprefix("/api/v1") or "/api/v1 (the index)"
 
 
-def llms_txt(base: str, document: dict[str, Any]) -> str:
+def _kilobytes(text: str) -> str:
+    return f"about {max(1, round(len(text.encode('utf-8')) / 1000))} KB"
+
+
+def held_line(held: list[dict[str, Any]]) -> str:
+    """Return the organisms a server holds, in one line: each with its short names and its releases.
+
+    Args:
+        held: Per organism ``organism``, ``aliases`` and ``releases`` (ascending).
+
+    Returns:
+        str: The line (``none`` for a server that holds no graph).
+    """
+    if not held:
+        return "none"
+    parts = []
+    for o in held:
+        aliases = f" ({', '.join(f'`{a}`' for a in o['aliases'])})" if o["aliases"] else ""
+        releases = o["releases"]
+        span = f"releases {releases[0]} to {releases[-1]}" if releases else "no release"
+        parts.append(f"`{o['organism']}`{aliases}: {span}")
+    return "; ".join(parts)
+
+
+def llms_txt(base: str, document: dict[str, Any], held: list[dict[str, Any]] | None = None) -> str:
     """Return ``/llms.txt``.
 
     Args:
         base: The site's address (``https://<domain>``).
         document: The OpenAPI document.
+        held: The organisms this server holds (:py:func:`held_line`).
 
     Returns:
         str: The text.
     """
+    full = llms_full_txt(base, document, held)
+    openapi = json.dumps(document, ensure_ascii=False, separators=(",", ":"))
     lines = [
         "# idtrack web api",
         "",
         "> " + _summary_line(document["info"]["description"]),
         "",
+        f"This server holds: {held_line(held or [])}. One organism at a time: there is no mapping between species.",
+        "",
         (
-            f"The api is under `{base}/api/v1`; `GET {base}/api/v1` names every endpoint. JSON in, JSON out (a batch also "
-            'as TSV); every failure is `{"error": {"code", ...}}` with a stable `code`. One identifier: '
-            f"`GET {base}/api/v1/organisms/homo_sapiens/convert?identifier=TP53&final_database=HGNC%20Symbol`. A list: "
-            f"`POST {base}/api/v1/organisms/homo_sapiens/convert/batch` with the body "
-            '`{"identifiers": ["TP53", "BRCA1"], "final_database": "HGNC Symbol"}`. Read an answer from the candidates '
-            'with `"best": true`, and only when `status` is `converted` or `tie`. Read `llms-full.txt` before relying on '
-            "an answer: it says which release an identifier is read at, what a batch's answer depends on, and what the "
-            "graph does not hold."
+            f"The api is under `{base}/api/v1`: JSON in, JSON out (a batch also as TSV); keyless and read-only, callable "
+            'from any page (CORS); every failure is `{"error": {"code", ...}}` with a stable `code`, and a client '
+            "keeps within its allowances where the server sets them (`allowances_enforced` of `GET /api/v1/limits`). "
+            f"Start with `GET {base}/api/v1` (every endpoint, about 3 KB) and `llms-full.txt` (the rules, "
+            f"{_kilobytes(full)}); the OpenAPI document ({_kilobytes(openapi)}) has every field of every answer."
+        ),
+        "",
+        (
+            f"One identifier: `GET {base}/api/v1/organisms/homo_sapiens/convert?identifier=TP53&final_database=HGNC%20Symbol`. "
+            "A list from a paper or a dataset, in three steps:"
+        ),
+        "",
+        (
+            f'1. `POST {base}/api/v1/organisms/homo_sapiens/source-inference` with `{{"identifiers": [...]}}`: the '
+            "release the list fits best is `from_release` of the answer."
+        ),
+        (
+            f'2. `POST {base}/api/v1/organisms/homo_sapiens/convert/batch` with `{{"identifiers": [...], '
+            '"from_release": <that release>, "final_database": "HGNC Symbol"}`, at most `batch_max` per request.'
+        ),
+        (
+            '3. Per result, the answer is the `target` of the candidates with `"best": true`, and only where `status` '
+            "is `converted` or `tie`; weigh its evidence (`match`, `reasons`, `other_readings`, each candidate's "
+            "`bridges`) as `llms-full.txt` says, and keep the `Idtrack-Graph-Digest` header with the results."
         ),
         "",
         "## Docs",
         "",
         (
             f"- [The api's rules and examples]({base}/llms-full.txt): every endpoint and parameter, how to read an answer, "
-            "every error code, bounds, a client that follows the rules, real examples (Markdown)"
+            f"every error code, bounds, a client that follows the rules, real examples (Markdown, {_kilobytes(full)})"
         ),
         (
             f"- [OpenAPI document]({base}/api/v1/openapi.json): every endpoint, parameter, field, enumeration, error code "
-            "and example (JSON)"
+            f"and example (JSON, {_kilobytes(openapi)})"
         ),
         f"- [Vocabulary]({base}/api/v1/vocabulary): the meaning of every code an answer carries (JSON)",
         f"- [Bounds]({base}/api/v1/limits): this server's limits and each client's allowances (JSON)",
@@ -171,13 +217,15 @@ def error_lines() -> list[str]:
 
 _READING_TEXT = """## Reading an answer
 
-- A conversion's `status` is one of `converted`, `tie`, `no_target`, `not_found`, `unknown_version`, `no_conversion`, `error` (meanings: `GET /api/v1/vocabulary`, `statuses`). An identifier that is not in the graph is not an error: it is a result with status `not_found` and its `reason`.
-- **The release an identifier is read at.** With `from_release`, it is read at that release. {FROM_RELEASE_RULE}
+- A conversion's `status` is one of `converted`, `tie`, `no_target`, `not_found`, `unknown_version`, `no_conversion`, `error` (meanings: `statuses` of `GET /api/v1/vocabulary`, where `answers_requested_database` says which answer in the database asked). An identifier that is not in the graph is not an error: it is a result with status `not_found` and its `reason`.
+- **The release an identifier is read at.** With `from_release`, it is read at that release (where the graph does not hold it there, at another release: `reasons` holds `read_at_another_release`, `from_release_fallback` is `true`, and `from_release_given` keeps the one sent). {FROM_RELEASE_RULE} `from_release_inferred` is `true` whenever the release read was chosen by the engine: no release was given, or the one given was replaced.
 - **Only `converted` and `tie` answer in the requested database.** Read the answer from `candidates`: each candidate with `"best": true` holds an answer in `target` (a `tie` has several). For `no_target`, `final_database` becomes `ensembl_gene` and the best candidates are the genes reached, standing in for the missing id: check `status` (or `final_database`) before reading `target`. `unknown_version` answers no gene (the versions that exist are in `known_versions`); `no_conversion` has none (`reasons` says why).
-- **How the string was read** is in `match` (a step after its prefixes, each followed by `:`; meanings: `match_steps`, `match_prefixes` of the vocabulary). A `match` that holds `synonym:` was read as a synonym; `copy:` (a batch only) as the copy of another item; `version_newer_than_graph` means an Ensembl version newer than any the graph holds was read as the latest version (its `reasons` may be empty: check `match`). `other_readings`, when not empty, lists what the same string means elsewhere (another release, another gene).
-- **The strength of the evidence** is in each candidate's ranking record (meanings: `candidate_fields`): `bridges` above 0 means the answer crossed between genes through an id two genes carried, which is idtrack's inference, not Ensembl's history; with `explain=true`, a step's `places` of `places_apart` means Ensembl's history moved the gene to another place. `score` is the product of Ensembl's mapping scores along the history of the path (1.0 without a scored event), as sent: one of the criteria that rank the candidates (`criteria` of the vocabulary), in their order. `decided_by` names the criterion that separated the best answer from the runner-up.
+- **How the string was read** is in `match` (a step after its prefixes, each followed by `:`; meanings: `match_steps`, `match_prefixes` of the vocabulary). A `match` that holds `synonym:` was read as a synonym; `copy:` (a batch only) as the copy of another item; `version_newer_than_graph` means an Ensembl version newer than any the graph holds was read as the latest version (its `reasons` may be empty: check `match`). `other_readings`, when not empty, lists what the same string means elsewhere (another release, another gene). `from_databases` (and a candidate's `entry_databases`) names the databases that read the string; it is empty for a versioned Ensembl gene id, which is read as the gene itself.
+- **A `from_database` the identifier is not an id of** answers as if the string were absent from that database (`no_conversion` with `no_gene_at_start`, or `not_found`), not as a retired id: send it without `from_database` to read it in every database. Some databases come in two forms, a database of accessions and one of their labels (`RefSeq_peptide` and `RefSeq peptide`; `kind` and `labels` of `GET /api/v1/organisms/{organism}/databases` say which is which).
+- **The strength of the evidence** is in each candidate's ranking record (meanings: `candidate_fields`): `bridges` above 0 means the answer crossed between genes through an id two genes carried, which is idtrack's inference, not Ensembl's history; with `explain=true`, a step's `places` of `places_apart` means Ensembl's history moved the gene to another place, and a node's `non_reference` that the gene lies outside the reference sequence (a haplotype, a patch). `score` is the product of Ensembl's mapping scores along the history of the path (1.0 without a scored event), as sent: one of the criteria that rank the candidates (`criteria` of the vocabulary), in their order. `decided_by` names the criterion that separated the best answer from the runner-up.
+- **A converted answer can still be the wrong gene where idtrack documents a limitation**, and the answer then carries its sign: treat such an answer as one to review, and read the limitation: bridges ([Answers that only a bridge reaches](https://idtrack.readthedocs.io/en/stable/limitations.html#answers-that-only-a-bridge-reaches)), a bare number read in several numbering schemes ([Numbers that several numbering schemes share](https://idtrack.readthedocs.io/en/stable/limitations.html#numbers-that-several-numbering-schemes-share)), a symbol read without a release ([Without a release, a string is what it means today](https://idtrack.readthedocs.io/en/stable/limitations.html#without-a-release-a-string-is-what-it-means-today)), an answer on a patch or haplotype ([Copies on patches and alternative loci](https://idtrack.readthedocs.io/en/stable/limitations.html#copies-on-patches-and-alternative-loci)), a gene Ensembl moved ([An id that Ensembl moves to another place](https://idtrack.readthedocs.io/en/stable/limitations.html#an-id-that-ensembl-moves-to-another-place)), the successors of a split ([Among the successors of a split, the best answer does not look at the old place](https://idtrack.readthedocs.io/en/stable/limitations.html#among-the-successors-of-a-split-the-best-answer-does-not-look-at-the-old-place)); every limitation: [idtrack's limitations](https://idtrack.readthedocs.io/en/stable/limitations.html).
 - **A batch's answer depends on the batch** while `read_copies` is `true` (the default): an item that is another item of the same batch with `-1`, `.1` or `_1` appended, and is itself no exact name, is answered as that item's copy (`match` begins with `copy:`). Keep such names in one batch, or send `"read_copies": false` to convert every item alone, as `GET .../convert` does.
-- **What the graph does not hold answers nothing** (idtrack's documentation, limitations, "Databases the graph does not hold"): the name authorities' own ids (HGNC, MGI and VGNC ids such as `HGNC:11998`), UniProt's secondary accessions and entry names, RNAcentral, UniProt's isoforms. Ask by the symbol, the primary accession or the Ensembl id. The databases a graph holds: `external_databases` of `GET /api/v1/organisms/{organism}`; the values `final_database` takes at a release: `GET .../final-databases?to_release=`. Database names are matched as idtrack matches them; send them as these lists write them. What each holds: `kind` of `GET /api/v1/organisms/{organism}/databases` (`ensembl`: an Ensembl gene id, `versioned` or not; `accession`; `label`: symbols and other names). For NCBI Gene ids ask `EntrezGene`; `NCBI gene (formerly Entrezgene)` holds NCBI's official symbols (its `labels_of` is `EntrezGene`).
+- **What the graph does not hold answers nothing** ([Databases the graph does not hold](https://idtrack.readthedocs.io/en/stable/limitations.html#databases-the-graph-does-not-hold)): the name authorities' own ids (HGNC, MGI and VGNC ids such as `HGNC:11998`), UniProt's secondary accessions, entry names and isoforms (`Q9Y6K9-2`), RNAcentral, and microarray probe sets (Affymetrix, Illumina and Agilent probes such as `201746_at`, which Ensembl maps but the graphs do not select): each is `not_found`; map them elsewhere, or ask by the symbol, the primary accession or the Ensembl id. The databases a graph holds: `external_databases` of `GET /api/v1/organisms/{organism}`; the values `final_database` takes at a release: `GET .../final-databases?to_release=`. Database names are matched as idtrack matches them; send them as these lists write them. What each holds: `kind` of `GET /api/v1/organisms/{organism}/databases` (`ensembl`: an Ensembl gene id, `versioned` or not; `accession`; `label`: symbols and other names). For NCBI Gene ids ask `EntrezGene`; `NCBI gene (formerly Entrezgene)` holds NCBI's official symbols (its `labels_of` is `EntrezGene`).
 - One organism at a time: idtrack converts within the organism's own graph; it does not map between species.
 """
 _READING = _READING_TEXT.replace("{FROM_RELEASE_RULE}", FROM_RELEASE_RULE)
@@ -258,12 +306,13 @@ def _example_section() -> list[str]:
     return lines
 
 
-def llms_full_txt(base: str, document: dict[str, Any]) -> str:
+def llms_full_txt(base: str, document: dict[str, Any], held: list[dict[str, Any]] | None = None) -> str:
     """Return ``/llms-full.txt``: every rule and example of the api as one Markdown text.
 
     Args:
         base: The site's address.
         document: The OpenAPI document.
+        held: The organisms this server holds (:py:func:`held_line`).
 
     Returns:
         str: The text.
@@ -274,9 +323,10 @@ def llms_full_txt(base: str, document: dict[str, Any]) -> str:
         "> " + _summary_line(document["info"]["description"]),
         "",
         (
-            f"The api is under `{base}/api/v1`; paths below are relative to it. `{{organism}}` is an organism's Ensembl "
-            "production name (`homo_sapiens`) or a short name idtrack knows (`human`); `GET /organisms` lists those this "
-            "server holds. The OpenAPI document (`/api/v1/openapi.json`) holds the same, with every field of every answer."
+            f"The api is under `{base}/api/v1`; the paths below are relative to it (`GET /api/v1 (the index)` is that "
+            "address itself). `{organism}` is an organism's Ensembl production name (`homo_sapiens`) or a short name "
+            f"idtrack knows (`human`); this server holds: {held_line(held or [])}. The OpenAPI document "
+            "(`/api/v1/openapi.json`) holds the same, with every field of every answer."
         ),
         "",
         "## Endpoints",
@@ -288,7 +338,7 @@ def llms_full_txt(base: str, document: dict[str, Any]) -> str:
         "",
         (
             'Every answer that is not a success is `{"error": {"code", "message", "argument", "allowed", '
-            '"details", "request_id"}}`. The codes:'
+            '"details", "request_id", "retry_after", "allowance"}}`. The codes:'
         ),
         "",
         *error_lines(),

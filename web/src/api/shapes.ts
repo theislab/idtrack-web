@@ -470,6 +470,9 @@ export const SCHEMAS: Record<string, Shape> = {
       unavailable: { a: "string" },
     },
   },
+  StatusTerm: {
+    o: { code: "string", meaning: { u: ["string", "null"] }, source: "string", answers_requested_database: "boolean" },
+  },
   Term: { o: { code: "string", meaning: { u: ["string", "null"] }, source: "string" } },
   ValidationDetail: { o: { location: { a: { u: ["string", "integer"] } }, message: "string" } },
   VersionResponse: {
@@ -485,7 +488,7 @@ export const SCHEMAS: Record<string, Shape> = {
   },
   VocabularyResponse: {
     o: {
-      statuses: { a: { r: "Term" } },
+      statuses: { a: { r: "StatusTerm" } },
       reasons: { a: { r: "Term" } },
       step_reasons: { a: { r: "Term" } },
       criteria: { a: { r: "CriterionTerm" } },

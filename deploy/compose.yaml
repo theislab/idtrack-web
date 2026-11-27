@@ -17,9 +17,9 @@ services:
     env_file:
       - idtrack-web.env
     environment:
-      # Only Caddy, on this compose network, may name the client in X-Forwarded-For (and the scheme in
-      # X-Forwarded-Proto).
-      IDTRACK_WEB_FORWARDED_ALLOW_IPS: 172.30.80.0/24
+      # Only Caddy, on this compose network (by its IPv4 or its IPv6 address), may name the client in
+      # X-Forwarded-For (and the scheme in X-Forwarded-Proto).
+      IDTRACK_WEB_FORWARDED_ALLOW_IPS: 172.30.80.0/24,fd30:80::/64
       # The site's address, for the absolute links of /llms.txt.
       IDTRACK_WEB_PUBLIC_URL: https://${IDTRACK_WEB_DOMAIN:?set IDTRACK_WEB_DOMAIN to the site's domain name}
     volumes:
@@ -80,9 +80,14 @@ services:
 
 networks:
   web:
+    # IPv6 as well as IPv4, so that a visitor who comes over IPv6 reaches Caddy by its own address (Docker forwards
+    # the published ports to the container's IPv6 address): on a network of IPv4 alone, Docker's proxy would hand
+    # Caddy every IPv6 visitor as the network's gateway, one client for the allowances (SETUP.md, section 10.6).
+    enable_ipv6: true
     ipam:
       config:
         - subnet: 172.30.80.0/24
+        - subnet: fd30:80::/64
 
 volumes:
   graph-cache:

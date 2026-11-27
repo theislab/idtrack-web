@@ -490,6 +490,20 @@ class Term(BaseModel):
     )
 
 
+class StatusTerm(Term):
+    """A status of a conversion, what it means, and whether its best candidates answer in the database asked."""
+
+    answers_requested_database: bool = Field(
+        ...,
+        description=(
+            "Whether the best candidates of a result with this status hold answers in the database asked "
+            "(`final_database` as requested): `true` for `converted` and `tie`; for `no_target` the candidates are "
+            "genes standing in for the missing id (`final_database` is then `ensembl_gene`), and the other statuses "
+            "have no best candidate."
+        ),
+    )
+
+
 class CriterionField(BaseModel):
     """A `Candidate` field a criterion compares, and which of its values ranks first."""
 
@@ -569,7 +583,7 @@ class VocabularyResponse(BaseModel):
     """
 
     model_config = _STRICT
-    statuses: list[Term] = Field(..., description="The values of `ConversionResult.status`, in idtrack's order.")
+    statuses: list[StatusTerm] = Field(..., description="The values of `ConversionResult.status`, in idtrack's order.")
     reasons: list[Term] = Field(..., description="The values of `ConversionResult.reasons` and `reason`.")
     step_reasons: list[Term] = Field(..., description="The values of `PathStep.reason`.")
     criteria: list[CriterionTerm] = Field(
@@ -1228,7 +1242,10 @@ class BatchRequest(BaseModel):
         json_schema_extra={"minLength": 1, "maxLength": DATABASE_MAX_LENGTH},
         description=(
             "The database the identifiers are meant in; `null`: any. The values: `external_databases` of "
-            "`GET /organisms/{organism}` (a database's synonyms are read under its name)."
+            "`GET /organisms/{organism}` (a database's synonyms are read under its name). An identifier that is not "
+            "an id of the database named is read as absent from it (`no_conversion` with `no_gene_at_start`, or "
+            "`not_found`), not as retired; some databases come in two forms, accessions and their labels "
+            "(`RefSeq_peptide` and `RefSeq peptide`: `kind` of `GET /organisms/{organism}/databases`)."
         ),
     )
     explain: bool = Field(
@@ -1406,6 +1423,7 @@ __all__ = [
     "SourceInferenceRequest",
     "SourceInferenceResponse",
     "StatusResponse",
+    "StatusTerm",
     "Term",
     "ValidationDetail",
     "VersionResponse",

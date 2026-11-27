@@ -6,22 +6,15 @@ Contents: 1 What a working setup is · 2 Prerequisites · 3 The idtrack commit �
 
 ## 1. What a working setup is
 
-From `api/`, with the environment of section 4:
+From the repository, with the api's environment of section 4 and the frontend's of section 14:
 
 ```console
-$ uv run --no-sync pytest -q
-262 passed, 20 skipped in about five minutes
-```
-
-(20 skipped: the tests of the real graphs, which run when `IDTRACK_WEB_TEST_GRAPHS` names them: section 5.) From `web/`, with the Node toolchain of section 14:
-
-```console
-$ npm ci && npm run types:check && npm test
+$ scripts/check.sh
 ...
-      Tests  2118 passed (2118)
+Every check passed.
 ```
 
-A running server answers `GET /api/v1/health` with `{"status":"ok","organisms":[...]}` and serves the page at `/`.
+`scripts/check.sh` runs every check of the api (ruff format, ruff, mypy, pytest) and of the frontend (`npm run check`), each whatever the ones before found, then prints one table of them all with what each counted (tests passed and skipped, files formatted, errors) and how long it took; its exit status is 1 when any failed. The counts are those of the tree checked, so this document quotes none (the tests of the real graphs are skipped unless `IDTRACK_WEB_TEST_GRAPHS` names them: section 5). A running server answers `GET /api/v1/health` with `{"status":"ok","organisms":[...]}` and serves the page at `/`.
 
 ## 2. Prerequisites
 
@@ -92,13 +85,12 @@ From an empty environment folder and an empty uv cache this took 37 s (95 packag
 From `api/` (all with `uv run --no-sync`, or the environment's `bin/` on the `PATH`):
 
 ```console
-$ uv run --no-sync pytest -q                        # 284 tests, 20 of them skipped without the real graphs; about three minutes
+$ uv run --no-sync pytest -q                        # the tests of the real graphs skipped without them; a few minutes
 $ uv run --no-sync ruff format --check . ../scripts ../web/scripts/fixtures
-46 files already formatted
 $ uv run --no-sync ruff check . ../scripts ../web/scripts/fixtures
 All checks passed!
 $ uv run --no-sync mypy
-Success: no issues found in 46 source files
+Success: no issues found in ...
 $ ../scripts/check.sh api                           # the four in one run, then one table of them (without `api`: the frontend's too)
 ```
 
@@ -114,8 +106,7 @@ $ IDTRACK_ENSEMBL_ACCESS=https uv run --no-sync idtrack build pig 115 --reposito
 <idtrack repository>/graph_sus_scrofa_assembly111_min56_max115.npz
 $ mkdir -p <graphs folder>/sus_scrofa && ln -s <idtrack repository>/graph_sus_scrofa_assembly111_min56_max115.npz <graphs folder>/sus_scrofa/
 $ mkdir -p <graphs folder>/homo_sapiens && ln -s <idtrack repository>/graph_homo_sapiens_assembly38_min48_max115.npz <graphs folder>/homo_sapiens/   # built as the pig's, `idtrack build human 115`
-$ IDTRACK_WEB_TEST_GRAPHS=<graphs folder> uv run --no-sync pytest -q
-282 passed in about seven minutes
+$ IDTRACK_WEB_TEST_GRAPHS=<graphs folder> uv run --no-sync pytest -q   # nothing skipped where every graph is there
 ```
 
 The OpenAPI document after a change of the api: `uv run --no-sync idtrack-web openapi --output openapi.json`.
@@ -141,7 +132,8 @@ Environment variables only, all read and checked at start; a misspelt `IDTRACK_W
 | `IDTRACK_WEB_FORWARDED_ALLOW_IPS` | `127.0.0.1` | addresses, networks or `*` | Proxies whose `X-Forwarded-For` names the client (for the allowances and the log) and whose `X-Forwarded-Proto` the scheme |
 | `IDTRACK_WEB_PUBLIC_URL` | the address of each request (its `Host`, where it is a plain name or address; else links relative to the site) | an origin, `https://<domain>` | The site's address, for the absolute links of `/llms.txt` and `/llms-full.txt`; set it wherever the server is reached by its name |
 | `IDTRACK_WEB_DOCS_URL` | `https://idtrack.readthedocs.io/en/stable/` | an address, `https://<domain>[/<path>]/` | Where idtrack's documentation is published: every link of the page to it (the masthead's "Docs", the footer, the pages' references) and of `/llms.txt` goes there, and `/version` reports it as `docs_url`; set it when the documentation moves to a name of its own (a page reloaded reads the new address; nothing is rebuilt) |
-| `IDTRACK_WEB_REQUEST_SECONDS` | `20` | more than 0, at most 600 | Time budget of a request, from arrival to its last search |
+| `IDTRACK_WEB_REQUEST_SECONDS` | `20` | more than 0, at most 600 | Time budget of a request's search, from when it begins to its last conversion (a batch out of it: `503 request_budget_exceeded`) |
+| `IDTRACK_WEB_QUEUE_SECONDS` | `10` | more than 0, at most 600 | The longest a search waits for a worker free of searches: one that would wait longer, by the estimate of the searches queued and the recent searches' mean time, is answered `503 server_busy` at once, and one that waited longer is answered so without being searched |
 | `IDTRACK_WEB_SEARCH_SECONDS` | `10` | more than 0, at most 600 and at most the request's | Time budget of one identifier's search |
 | `IDTRACK_WEB_SEARCH_STATES` | `200000` | 1,000 to 100,000,000 | State budget of one identifier's search |
 | `IDTRACK_WEB_BATCH_MAX` | `1000` | 1 to 100,000 | Identifiers per batch |
@@ -152,7 +144,7 @@ Environment variables only, all read and checked at start; a misspelt `IDTRACK_W
 | `IDTRACK_WEB_RATE_BURST` | `30` | 1 to 1,000,000 | Searching requests a client may make at once (other requests: ten times as many) |
 | `IDTRACK_WEB_RATE_SEARCH_SECONDS` | `30` | 0 to 3,600 | Seconds of search per minute per client, charged after each search (`0`: not limited) |
 | `IDTRACK_WEB_RATE_SEARCH_BURST_SECONDS` | `60` | 0 to 3,600 | The most seconds of search a client's balance holds |
-| `IDTRACK_WEB_RATE_CONCURRENT_SEARCHES` | `2` | 0 to 1,000,000 | Searching requests a client may have in progress at once, from admission until the answer is sent (`0`: not limited) |
+| `IDTRACK_WEB_RATE_CONCURRENT_SEARCHES` | `2` | 0 to 1,000,000 | Searching requests a client may have in progress at once, from admission until the answer is sent (`0`: not limited); a worker killed in a search gives its places back |
 | `IDTRACK_WEB_QUEUE_MAX` | `64` | 1 to 100,000 | Searches per worker that may wait for a worker free of searches (the queue the workers share holds `QUEUE_MAX` times the workers) before a search is answered `503 server_busy` (README.md, "How it runs") |
 | `IDTRACK_WEB_HEAD_SECONDS` | `5` | more than 0, at most 600 | The longest a taken connection may take to send its request's head; it is closed after |
 | `IDTRACK_WEB_BODY_SECONDS` | `30` | more than 0, at most 600 | The longest a request's body may take to arrive (`408 request_timeout` after) |
@@ -162,6 +154,8 @@ Environment variables only, all read and checked at start; a misspelt `IDTRACK_W
 | `IDTRACK_WEB_STATIC_DIR` | (image: the built frontend) | an existing absolute folder | Serve the built frontend from this folder at `/` |
 | `IDTRACK_WEB_CORS_ORIGINS` | `*` | `*`, origins, or `none` | The pages that may call the api from a browser: `*` any page (the api is keyless, read-only and sends no credential), a list of origins (`https://a.example`), or `none` |
 | `IDTRACK_WEB_LOG_LEVEL` | `INFO` | `DEBUG`, `INFO`, `WARNING`, `ERROR` | The level of the log |
+
+**Many people behind one address.** The allowances are per client address (an IPv6 address by its `/64`): a course, a workshop or a campus behind one NAT shares them, and its users then meet `429 rate_limited` sooner. A search takes milliseconds to a few seconds, so the searches at once (2) rarely bind; the 30 searches at once and 120 a minute are what a room meets first. For such an event raise them for the whole server (`IDTRACK_WEB_RATE_BURST=200`, `IDTRACK_WEB_RATE_PER_MINUTE=600`, `IDTRACK_WEB_RATE_SEARCH_SECONDS=120`, then restart), and set them back after; the seconds of search per client still bound the work any one address makes the server do.
 
 The server logs its settings at start with every secret shown as `<set>`. Each request is logged as `client method path status seconds request-id`, every value from the client escaped (a control character as `\n`, `\x1b`, ...: one request, one line; the path as sent, percent-encoded); an internal error's traceback is logged with the request id that the client was given. A value outside its accepted range stops the server at start with a message naming the variable.
 
@@ -234,7 +228,7 @@ $ curl -s http://127.0.0.1:8000/api/v1/health
 $ curl -s "http://127.0.0.1:8000/api/v1/organisms/pig/convert?identifier=ENSSSCG00000040076.1&to_release=80"
 {"query_id":"ENSSSCG00000040076.1","graph_id":"ENSSSCG00000040076.1","match":"exact",...,"to_release":80,"final_database":"ensembl_gene","candidates":[{"gene":"ENSSSCG00000026013.1",...,"score":1.0,...}],...,"status":"tie",...}
 $ curl -s "http://127.0.0.1:8000/api/v1/organisms/pig/convert?identifier=X&to_release=999"
-{"error":{"code":"unknown_release","message":"`to_release`=999 is not a release of this graph, which covers the Ensembl releases 56 to 115.","argument":"to_release","allowed":[56,...,115],"details":null,"request_id":"..."}}
+{"error":{"code":"unknown_release","message":"`to_release`=999 is not a release of this graph, which covers the Ensembl releases 56 to 115.","argument":"to_release","allowed":[56,...,115],"details":null,"request_id":"...","retry_after":null,"allowance":null}}
 $ curl -s -X POST -H 'Content-Type: application/json' -d '{"identifiers": ["ENSSSCG00000040076.1", "NOT_A_GENE"]}' \
   "http://127.0.0.1:8000/api/v1/organisms/pig/convert/batch?format=tsv" | cut -f1-6
 input_index	query_id	status	reason	reasons	graph_id
@@ -391,6 +385,15 @@ $ curl -sI http://<domain>/ | head -n 1
 HTTP/1.1 308 Permanent Redirect
 ```
 
+Where the domain has an `AAAA` record, check that a visitor who comes over IPv6 reaches the api as itself: the compose network holds IPv6 (`enable_ipv6`, the private network `fd30:80::/64`), so Docker forwards the published ports to Caddy's IPv6 address and Caddy names the visitor's own address in `X-Forwarded-For`; a client's allowances are then those of its own `/64`. From a machine with IPv6:
+
+```console
+$ curl -6 -s https://<domain>/api/v1/health                                  # on the visitor's machine
+$ sudo docker compose logs api | tail -n 1                                    # on the server: the visitor's IPv6 address first
+```
+
+If the line names `172.30.80.1` (the network's gateway) instead, IPv6 reaches Caddy through Docker's proxy, and every IPv6 visitor shares one client's allowances: remove the `AAAA` record until it does (Docker Engine 27 or later with its default `ip6tables`, 10.2). Not rehearsed here (10.12): the machine of the rehearsal had no IPv6 route.
+
 `up -d` returns once the api is healthy (Caddy waits for it): the api answered 135 to 144 s after its start with the five graphs (10.7), and the container's check, every 5 s until then (`start_interval`), sees it within 5 s; on the first `up -d`, which also fetches Caddy's image, it returned after 175 s. Then `sudo /opt/idtrack-web/deploy/vm/check.sh` (10.10).
 
 ### 10.7 Sizing on this machine
@@ -482,14 +485,15 @@ check: ok
 | `permission denied while trying to connect to the docker API at unix:///var/run/docker.sock` | Docker's commands need root: `sudo` |
 | `required variable IDTRACK_WEB_DOMAIN is missing a value` | `deploy/.env` is missing, or compose ran outside `deploy/`: `cd /opt/idtrack-web/deploy`, then `sudo docker compose ...` |
 | `... is not a graph this idtrack reads: ... PermissionError` when publishing | The publication ran as the image's user: `--user 0:0` (10.4) |
-| Caddy answers `502`, its log says `cannot assign requested address` | Caddy ran out of local ports for its connections to the api (one per request, each held 60 s by TCP afterwards; measured at 560 requests a second without the remedy): `deploy/compose.yaml` sets `net.ipv4.tcp_tw_reuse` and a wider port range in Caddy's container; a Caddy started otherwise lacks them |
+| Caddy answers `502`, its log says `cannot assign requested address` | Caddy ran out of local ports for its connections to the api (one per request, each held 60 s by TCP afterwards; measured at 560 requests a second without the remedy): `deploy/compose.yaml` sets `net.ipv4.tcp_tw_reuse` and a wider port range in Caddy's container, and `deploy/systemd/60-idtrack-web.conf` on a machine without containers (section 12) |
 | Caddy answers `503` for about 2.5 minutes after a start, an update or a reboot | The api is loading the graphs (10.7); `sudo docker compose ps` shows `health: starting` |
 | Let's Encrypt fails (`sudo docker compose logs caddy`: `challenge failed`, a timeout) | The domain does not point at the machine, or 80 and 443 are closed from outside (10.1) |
 | `Forbidden: this server answers the institute's proxy only.` (`403`) | Way (c): the request did not come from an address of `IDTRACK_WEB_TRUSTED_PROXIES` |
 | Every client limited as one (`429 rate_limited`) behind the institute's proxy | The proxy's address is missing from `IDTRACK_WEB_TRUSTED_PROXIES`, or the proxy sends no `X-Forwarded-For` |
+| Every IPv6 visitor logged as `172.30.80.1`, and limited as one | IPv6 reaches Caddy through Docker's proxy rather than the network's own IPv6 (10.6): a Docker Engine before 27, or `ip6tables` turned off in `/etc/docker/daemon.json`; until fixed, publish no `AAAA` record |
 | `dmesg`: `Memory cgroup out of memory: Killed process ... (idtrack-web)` | The server reached its 12 GiB: fewer workers (10.7) or fewer organisms (`IDTRACK_WEB_ORGANISMS`) |
 
-Not rehearsed: the institute's DNS, firewall and reverse proxy themselves (way (c) was run with the machine's host as the proxy), and a certificate from Let's Encrypt (no public name). Everything else in this section ran on a machine of this size from Ubuntu's own image.
+Not rehearsed: the institute's DNS, firewall and reverse proxy themselves (way (c) was run with the machine's host as the proxy), a certificate from Let's Encrypt (no public name), and visitors over IPv6 (10.6: how to check it on the machine). Everything else in this section ran on a machine of this size from Ubuntu's own image.
 
 ## 11. Deploy on the Hetzner node
 
@@ -562,12 +566,13 @@ v2.11.9 h1:bhZtcRKQOq0fuLvEgCdPYvUxXyGn9kzjG4lh2332DTE=
 $ sudo install -D -m 644 /opt/idtrack-web/src/deploy/systemd/caddy-idtrack-web.conf /etc/systemd/system/caddy.service.d/idtrack-web.conf
 $ sudo sed -i 's/<domain>/<the domain>/' /etc/systemd/system/caddy.service.d/idtrack-web.conf
 $ sudo install -m 644 /opt/idtrack-web/src/deploy/Caddyfile /etc/caddy/Caddyfile
+$ sudo install -m 644 /opt/idtrack-web/src/deploy/systemd/60-idtrack-web.conf /etc/sysctl.d/ && sudo sysctl --system
 $ sudo systemctl daemon-reload && sudo systemctl restart caddy
 $ curl -s https://<domain>/api/v1/health
 {"status":"ok","organisms":["homo_sapiens","macaca_fascicularis","macaca_mulatta","mus_musculus","sus_scrofa"]}
 ```
 
-Caddy comes from Caddy's own repository: Ubuntu 26.04's package (Caddy 2.6.2) refuses `deploy/Caddyfile` (`unrecognized subdirective request_buffers`). The drop-in `caddy-idtrack-web.conf` gives Caddy the domain and the api's address on this machine (`IDTRACK_WEB_UPSTREAM=127.0.0.1:8000`, in place of the compose service `api`); the Caddy files of section 10.5 serve the same way (for (b), with the certificate's paths in their `tls` line). The unit runs the server as `idtrack-web` with a read-only system and a writable cache folder only, the built frontend from `/opt/idtrack-web/web` (`IDTRACK_WEB_STATIC_DIR`), and restarts it after any exit (`Restart=always`); both services are enabled at boot. Measured there: the service answered 130 s after `enable --now` (two workers, five graphs) and the site 167 s after a reboot; a worker stopped with `SIGKILL` (as the kernel stops one for want of memory) was replaced by the server while the service stayed up (`OOMPolicy=continue`), and the server itself stopped so was started again by systemd, answering 154 s later. Bound its memory as section 10.7 does the container's: `sudo systemctl set-property idtrack-web MemoryMax=12G` (12 GiB; applied at once, kept across reboots). Updates, the reboot window, the journal's bounds and the weekly check of section 10 apply unchanged (`check.sh` reads the containers; read `systemctl status idtrack-web caddy` instead).
+Caddy comes from Caddy's own repository: Ubuntu 26.04's package (Caddy 2.6.2) refuses `deploy/Caddyfile` (`unrecognized subdirective request_buffers`). The kernel settings of `60-idtrack-web.conf` are those the compose file gives Caddy's container (local ports reused after a closed connection, a wider range of them): without them Caddy answers `502` past about 470 requests a second, since the api closes every connection. The drop-in `caddy-idtrack-web.conf` gives Caddy the domain and the api's address on this machine (`IDTRACK_WEB_UPSTREAM=127.0.0.1:8000`, in place of the compose service `api`); the Caddy files of section 10.5 serve the same way (for (b), with the certificate's paths in their `tls` line). The unit runs the server as `idtrack-web` with a read-only system and a writable cache folder only, the built frontend from `/opt/idtrack-web/web` (`IDTRACK_WEB_STATIC_DIR`), and restarts it after any exit (`Restart=always`); both services are enabled at boot. Measured there: the service answered 130 s after `enable --now` (two workers, five graphs) and the site 167 s after a reboot; a worker stopped with `SIGKILL` (as the kernel stops one for want of memory) was replaced by the server while the service stayed up (`OOMPolicy=continue`), and the server itself stopped so was started again by systemd, answering 154 s later. Bound its memory as section 10.7 does the container's: `sudo systemctl set-property idtrack-web MemoryMax=12G` (12 GiB; applied at once, kept across reboots). Updates, the reboot window, the journal's bounds and the weekly check of section 10 apply unchanged (`check.sh` reads the containers; read `systemctl status idtrack-web caddy` instead).
 
 ## 13. Troubleshooting
 
@@ -671,19 +676,21 @@ $ npm run check
 The frontend's checks (web/):
 check         result  count                  time
 ------------  ------  ---------------------  -------
-types         pass    current                13.5 s
-limitations   pass    current                3.0 s
-idtrack-docs  pass    current                3.1 s
-benchmarks    pass    current                7.1 s
-prettier      pass    0 files                15.3 s
-eslint        pass    0 errors, 29 warnings  251.4 s
-stylelint     pass    0 problems             16.1 s
-typecheck     pass    0 errors               18.8 s
-knip          pass    0 findings             18.7 s
-unit tests    pass    2202 passed            43.7 s
+types         pass    current                ...
+limitations   pass    current                ...
+idtrack-docs  pass    current                ...
+benchmarks    pass    current                ...
+prettier      pass    0 files                ...
+eslint        pass    0 errors, ... warnings ...
+stylelint     pass    0 problems             ...
+typecheck     pass    0 errors               ...
+knip          pass    0 findings             ...
+unit tests    pass    ... passed             ...
 
 Every check passed.
 ```
+
+(The counts and times are the tree's and the machine's: the table states them on each run, so they are not quoted here.)
 
 | Check | What it holds the code to |
 | --- | --- |
@@ -700,12 +707,12 @@ $ npm run build                  # into web/dist
 ✓ built in ...
 $ npm run size
    ...
-  2172.0 KiB   1247.1 KiB gzip  all files (73, source maps left out)
-   505.6 KiB    209.5 KiB gzip  a first visit of the home (10 files: the page, the files it names, the Latin faces of its fonts)
-   739.3 KiB    214.0 KiB gzip  scripts loaded when a page needs them (25; the largest 170.7 KiB)
+   ... KiB   ... KiB gzip  all files (..., source maps left out)
+   ... KiB   ... KiB gzip  loaded by every page before its own scripts (... files: the page, the files it names, the Latin faces of its fonts)
+   ... KiB   ... KiB gzip  scripts loaded when a page needs them (...; the largest ... KiB)
 ```
 
-`npm run size` lists every file of the build, raw and compressed, then three totals: all files (source maps left out); a first visit of the home, which is `index.html`, every file it names (its script, the scripts it preloads, its style) and the Latin faces of its three fonts at their normal style (what a page in English draws); and the scripts loaded only when a page needs them (each other page, the answer's figures). The figures grow a little with each change; the largest file stays under Vite's warning of 400 kB.
+`npm run size` lists every file of the build, raw and compressed, then three totals: all files (source maps left out); what every page loads before its own scripts, which is `index.html`, every file it names (its script, the scripts it preloads, its style) and the Latin faces of its three fonts at their normal style (what a page in English draws); and the scripts loaded only when a page needs them (each page's own, the figures). A visit transfers the first total, the scripts of the page visited and the answers of the api it asks (the home: its figure's script and `/showcase`; and a font's italic face where the page sets italic type): measure it in a browser (the network panel, or Lighthouse), on the build being shipped. The largest file stays under Vite's warning of 400 kB.
 
 What the unit tests prove, on 130 recorded conversions of the real pig and human graphs of format 6 (120 with a path, holding every reason of step but a final step through a transcript of another release and a refused step, every place relation of a graph file and every bridge rule but two; web/DESIGN.md, "Accuracy"): each candidate's drawn path is its api path then final path, step for step, a continuous line at the releases the api gives; every score shown is the api's own text (compared with the raw JSON; floats are written as Python writes them, checked on 114 values); the reading lists every step of every candidate in order; the deciding criterion is shown between the pair idtrack compared, with every field it compares; every bridge considered, refused step, other reading and reason is listed with its values; a field the api's document does not name is kept and shown; the limitations on the Method page are those of the pinned idtrack commit; every status, reason, step reason, criterion and error code of the answers has its entry in the api's vocabulary, read as served; no value is shown in a programming language's spelling; the four hues of the path view stay apart for colour-blind readers and at contrast in both themes.
 
@@ -746,7 +753,7 @@ The page keeps its state in its address (`/?organism=sus_scrofa&id=INS&to=80&db=
 
 ### 14.6 End-to-end tests
 
-The end-to-end tests run headless Chromium (or Firefox or WebKit: `E2E_BROWSER`) against a server that serves the api and the built page, as in production, at four sizes and themes (1440 px and 390 px wide, light and dark): every main flow (convert, the path view with real data, by keyboard alone, zoom and pan, the phone's timeline, a conversion back in time, every state without an answer, the loading state, the api's refusals, the api unreachable, a rate limit, a batch with its exports compared byte for byte with the api's own, a file upload, names, the organism page, the about page, the theme), real paths of every kind of step whose every number the page must state as the api sent it (`web/e2e/cases.spec.ts`, the `cases` of the graph's data: version changes with and without a score, a replacement, a split, a merge, a handoff, bridges with their checks and places, a split whose first-ranked gene has no id in the database asked for, a name read at another release, a tie, an answer in an external database), axe-core on every state with no violation of serious or critical impact, a check of every screen that no value is cut by its box, that a table wider than its frame says so, that the page never scrolls sideways, that no figure's text runs out of its figure or overlaps another (the figure grammar, `web/DESIGN.md`) and that no value is written in a programming language's spelling; every page again at 320, 768, 1024 and 2560 px, the masthead (opaque, one layout on every page, what scrolls into view stopping below it) and focus in forced colours (`web/e2e/system.spec.ts`); and a full-page screenshot of each flow at each size and theme.
+The end-to-end tests run headless Chromium (or Firefox or WebKit: `E2E_BROWSER`) against a server that serves the api and the built page, as in production, at four sizes and themes (1440 px and 390 px wide, light and dark): every main flow (convert, the path view with real data, by keyboard alone, zoom and pan, the phone's timeline, a conversion back in time, every state without an answer, the loading state, the api's refusals, the api unreachable, a rate limit, a batch with its exports compared byte for byte with the api's own, a file upload, names, the organism page, the about page, the theme), real paths of every kind of step whose every number the page must state as the api sent it (`web/e2e/cases.spec.ts`, the `cases` of the graph's data: version changes with and without a score, a replacement, a split, a merge, a handoff, bridges with their checks and places, a split whose first-ranked gene has no id in the database asked for, a name read at another release, a tie, an answer in an external database), axe-core on every state (the rules of WCAG 2.0, 2.1 and 2.2, A and AA, and axe's best practices) with no violation of any impact but a rule `web/e2e/helpers.ts` accepts with its reason (none), a check of every screen that no value is cut by its box, that a table wider than its frame says so, that the page never scrolls sideways, that no figure's text runs out of its figure or overlaps another (the figure grammar, `web/DESIGN.md`) and that no value is written in a programming language's spelling; every page again at 320, 768, 1024 and 2560 px, the masthead (opaque, one layout on every page, what scrolls into view stopping below it) and focus in forced colours (`web/e2e/system.spec.ts`); and a full-page screenshot of each flow at each size and theme.
 
 ```console
 $ npx playwright install chromium            # once; on Linux without the browser's system libraries: npx playwright install --with-deps chromium (as root)

@@ -41,12 +41,9 @@ from idtrack_web_api.errors import CODES, RETRYABLE, TITLES
 from idtrack_web_api.vocabulary import STATUS_MEANINGS
 
 DESCRIPTION = (
-    "Converts gene identifiers (Ensembl gene, transcript and protein ids with or without version, symbols, and the "
-    "ids of the external databases a graph holds) between Ensembl releases, genome assemblies and databases, one "
-    "organism at a time, with idtrack. Every result is idtrack's own record, field for field (the one field the api "
-    'adds: `error.code` of a batch item); every error is `{"error": {...}}` with a stable `code`. Keyless and '
-    "read-only: any page may call it (CORS), each client within its allowances (`GET /api/v1/limits`). The rules and "
-    "examples as one text: `/llms-full.txt`."
+    "Converts gene identifiers (Ensembl gene, transcript and protein ids, symbols, other databases' ids) between "
+    "Ensembl releases, genome assemblies and databases, within one organism at a time, with idtrack: every answer is "
+    "idtrack's own record, with the path that led to it."
 )
 
 #: Codes every endpoint can answer: a path and query too long, an unknown or repeated query parameter, a wrong method at

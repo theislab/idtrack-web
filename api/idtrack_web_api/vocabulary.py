@@ -58,6 +58,11 @@ STATUS_MEANINGS: dict[str, str] = {
     "error": "In a batch: the conversion of this identifier raised an error (`error`); the batch went on.",
 }
 
+#: The statuses whose best candidates answer in the database asked (the api's reading of idtrack's documentation of
+#: ``ConversionResult.status``: every other status has no best candidate, or, for ``no_target``, the genes reached in
+#: place of the missing id); a test ties it to :py:data:`STATUS_MEANINGS`.
+ANSWERING_STATUSES: frozenset[str] = frozenset({"converted", "tie"})
+
 First = Literal["yes", "lower", "higher"]
 
 #: For each criterion of idtrack's ``CRITERIA``: the ``Candidate`` fields the ranking compares, in order, each with the
@@ -119,7 +124,15 @@ def vocabulary() -> dict[str, Any]:
     """
     candidate = schemas.attribute_docs(RESULT_CLASSES["Candidate"])
     return {
-        "statuses": [{"code": code, "meaning": STATUS_MEANINGS[code], "source": "idtrack-web"} for code in STATUSES],
+        "statuses": [
+            {
+                "code": code,
+                "meaning": STATUS_MEANINGS[code],
+                "source": "idtrack-web",
+                "answers_requested_database": code in ANSWERING_STATUSES,
+            }
+            for code in STATUSES
+        ],
         "reasons": _terms(REASONS),
         "step_reasons": _terms(STEP_REASONS),
         "criteria": [
@@ -169,6 +182,7 @@ def vocabulary() -> dict[str, Any]:
 
 __all__ = [
     "ANNOTATION_TEXT",
+    "ANSWERING_STATUSES",
     "CRITERION_FIELDS",
     "DATABASE_KINDS",
     "SOURCE_MODE_MEANINGS",

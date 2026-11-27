@@ -8,7 +8,7 @@ import inspect
 from idtrack import results
 from idtrack.engine import ranking
 
-from idtrack_web_api.vocabulary import ANNOTATION_TEXT, CRITERION_FIELDS, STATUS_MEANINGS
+from idtrack_web_api.vocabulary import ANNOTATION_TEXT, ANSWERING_STATUSES, CRITERION_FIELDS, STATUS_MEANINGS
 
 
 def test_status_meanings_are_idtracks_statuses() -> None:
@@ -16,6 +16,12 @@ def test_status_meanings_are_idtracks_statuses() -> None:
     assert isinstance(results.STATUSES, tuple)
     assert set(STATUS_MEANINGS) == set(results.STATUSES)
     assert all(text.strip() for text in STATUS_MEANINGS.values())
+    # The statuses that answer in the database asked are statuses, and their meanings say so.
+    assert set(results.STATUSES) >= ANSWERING_STATUSES
+    assert all(
+        "requested database" in STATUS_MEANINGS[code] or "Several" in STATUS_MEANINGS[code]
+        for code in ANSWERING_STATUSES
+    )
 
 
 def test_criterion_fields_are_idtracks_criteria() -> None:

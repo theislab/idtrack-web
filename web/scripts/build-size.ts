@@ -1,6 +1,8 @@
-// The size of the production build (dist/): every file, raw and gzip-compressed; what a first visit of the home loads
-// (index.html, every file it names: its script, the scripts it preloads, its style; and the Latin faces of the three
-// fonts at their normal style, which a page in English uses); and the scripts loaded only when a page needs them.
+// The size of the production build (dist/): every file, raw and gzip-compressed; what every page loads before its own
+// scripts (index.html, every file it names: its script, the scripts it preloads, its style; and the Latin faces of the
+// three fonts at their normal style, which a page in English uses); and the scripts loaded only when a page needs them
+// (each page's own, the figures). What one visit transfers is that first part, the scripts of the page visited and the
+// api's answers it asks, measured in a browser (SETUP.md, 14.4).
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -43,7 +45,7 @@ console.log(
   `${kb(sum(rows, "raw"))} KiB ${kb(sum(rows, "gzip"))} KiB gzip  all files (${rows.length}, source maps left out)`,
 );
 console.log(
-  `${kb(sum(first, "raw"))} KiB ${kb(sum(first, "gzip"))} KiB gzip  a first visit of the home (${first.length} files: the page, the files it names, the Latin faces of its fonts)`,
+  `${kb(sum(first, "raw"))} KiB ${kb(sum(first, "gzip"))} KiB gzip  loaded by every page before its own scripts (${first.length} files: the page, the files it names, the Latin faces of its fonts)`,
 );
 console.log(
   `${kb(sum(later, "raw"))} KiB ${kb(sum(later, "gzip"))} KiB gzip  scripts loaded when a page needs them (${later.length}; the largest ${kb(later[0]?.raw ?? 0).trim()} KiB)`,

@@ -152,13 +152,18 @@ export async function shot(page: Page, info: TestInfo, name: string): Promise<vo
   });
 }
 
-/** axe-core over the page: no violation of serious or critical impact. */
+/** The rules of axe-core the site does not hold to, each with why (empty: every rule holds). A rule enters only with a
+ *  reason a reviewer can check, never to make a run pass. */
+export const AXE_ACCEPTED: Readonly<Record<string, string>> = {};
+
+/** axe-core over the page: the rules of WCAG 2.0, 2.1 and 2.2 at levels A and AA and axe's best practices, and no
+ *  violation of any impact (minor and moderate too) but a rule of {@link AXE_ACCEPTED}. */
 export async function expectAccessible(page: Page): Promise<void> {
   const results = await new AxeBuilder({ page })
-    .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "best-practice"])
+    .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22a", "wcag22aa", "best-practice"])
     .analyze();
-  const grave = results.violations
-    .filter((v) => v.impact === "serious" || v.impact === "critical")
+  const found = results.violations
+    .filter((v) => !(v.id in AXE_ACCEPTED))
     .map(
       (v) =>
         `${v.id} (${v.impact ?? ""}): ${v.help} — ${v.nodes
@@ -166,7 +171,7 @@ export async function expectAccessible(page: Page): Promise<void> {
           .slice(0, 5)
           .join(" | ")}`,
     );
-  expect(grave, grave.join("\n")).toEqual([]);
+  expect(found, found.join("\n")).toEqual([]);
 }
 
 /** Wait until a conversion's answer is shown (or its state without answer). */

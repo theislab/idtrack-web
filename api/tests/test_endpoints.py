@@ -85,7 +85,13 @@ def test_vocabulary_is_idtracks_own_tables(client: TestClient, check_response: C
     data = check_response(client.get(f"{P}/vocabulary"), f"{P}/vocabulary")
     # idtrack's STATUSES carries no texts: the meanings are the api's, and say so.
     assert data["statuses"] == [
-        {"code": k, "meaning": STATUS_MEANINGS[k], "source": "idtrack-web"} for k in results.STATUSES
+        {
+            "code": k,
+            "meaning": STATUS_MEANINGS[k],
+            "source": "idtrack-web",
+            "answers_requested_database": k in {"converted", "tie"},
+        }
+        for k in results.STATUSES
     ]
     tables = {
         "reasons": results.REASONS,

@@ -2062,12 +2062,14 @@
       {
        "code": "converted",
        "meaning": "One best answer: the identifier leads to one target in the requested database.",
-       "source": "idtrack-web"
+       "source": "idtrack-web",
+       "answers_requested_database": true
       },
       {
        "code": "tie",
        "meaning": "Several genes or targets are equal in all the evidence that decides; all of them are the best answer, in ascending order of gene id and target id.",
-       "source": "idtrack-web"
+       "source": "idtrack-web",
+       "answers_requested_database": true
       }
      ],
      "reasons": [

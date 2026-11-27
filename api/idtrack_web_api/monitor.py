@@ -86,8 +86,8 @@ _NAN = math.nan
 _MADE_WALL, _MADE_MONO, _RETIRED_REQUESTS, _RETIRED_4XX, _RETIRED_5XX = 0, 1, 2, 3, 4
 _EXITS, _LAST_EXIT_WALL, _LOST, _RETIRED_STATUS, _LOCK_HOLDER = 5, 6, 7, 8, 9
 # The mean time of the recent searches (each weighted by :py:data:`SEARCH_WEIGHT`), and the searches measured.
-_SEARCH_MEAN, _SEARCHES_MEASURED = 10, 11
-_SERVER = 12
+_SEARCH_MEAN, _SEARCHES_MEASURED = 12, 13
+_SERVER = 14
 #: The weight of the latest search in the mean of recent searches' time (an exponential moving mean: the last ten or so
 #: searches carry most of it), which estimates how long a search waits in the queue (:py:mod:`idtrack_web_api.server`).
 SEARCH_WEIGHT = 0.2

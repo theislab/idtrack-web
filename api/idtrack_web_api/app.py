@@ -1014,14 +1014,20 @@ def create_app(  # noqa: PLR0915 - every endpoint, in one place
     )
     from_database_query = database_query(
         "The database the identifier is meant in; omitted: any. The values: `external_databases` of "
-        "`GET /organisms/{organism}` (a database's synonyms are read under its name)."
+        "`GET /organisms/{organism}` (a database's synonyms are read under its name). An identifier that is not an id "
+        "of the database named is read as absent from it (`no_conversion` with `no_gene_at_start`, or `not_found`), "
+        "not as retired; some databases come in two forms, accessions and their labels (`RefSeq_peptide` and "
+        "`RefSeq peptide`: `kind` of `GET /organisms/{organism}/databases`)."
     )
     identifier_query = Annotated[
         str,
         Query(
             description=(
                 "An Ensembl id (with or without version), a symbol or another id of a database the graph holds "
-                "(`external_databases` of `GET /organisms/{organism}`). White space at its ends is no part of it."
+                "(`external_databases` of `GET /organisms/{organism}`). White space at its ends is no part of it. Ids "
+                "of databases the graph does not hold are `not_found`: the name authorities' own ids (`HGNC:11998`), "
+                "UniProt's secondary accessions, entry names and isoforms, RNAcentral, microarray probe sets "
+                "(`201746_at`)."
             ),
             examples=["TP53", "ENSG00000141510.5", "NM_000546"],
         ),
@@ -1454,12 +1460,21 @@ def create_app(  # noqa: PLR0915 - every endpoint, in one place
 
     texts: dict[tuple[str, str], tuple[bytes, bytes, str]] = {}
 
-    def text_answer(request: Request, kind: str, make: Callable[[str, dict[str, Any]], str]) -> Response:
+    held = [
+        {
+            "organism": organism,
+            "aliases": list(organism_aliases(organism)),
+            "releases": list(graph.description.get("releases", [])),
+        }
+        for organism, graph in registry.graphs.items()
+    ]
+
+    def text_answer(request: Request, kind: str, make: Callable[..., str]) -> Response:
         """A text for programs: made once per site address, compressed for a client that accepts it, revalidated."""
         base = base_url(request)
         found = texts.get((kind, base))
         if found is None:
-            body = make(base, openapi()).replace(DOCS_URL, settings.docs_url).encode("utf-8")
+            body = make(base, openapi(), held).replace(DOCS_URL, settings.docs_url).encode("utf-8")
             found = (
                 body,
                 gzip.compress(body, compresslevel=9, mtime=0),

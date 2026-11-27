@@ -367,12 +367,23 @@ def test_llms_full_txt_holds_every_rule(client: TestClient) -> None:
     document = client.get(f"{P}/openapi.json").json()
     for path, operations in document["paths"].items():
         for method in operations:
-            assert f"`{method.upper()} {path.removeprefix('/api/v1') or '/'}`" in text, path
+            assert f"`{method.upper()} {path.removeprefix('/api/v1') or '/api/v1 (the index)'}`" in text, path
             for parameter in operations[method].get("parameters", []):
                 assert f"`{parameter['name']}`" in text
     for code, (status, _) in CODES.items():
         assert f"| `{code}` | {status} |" in text
-    for words in ("no_target", "read_copies", "HGNC:11998", "Retry-After", "If-None-Match", "places_apart"):
+    for words in (
+        "no_target",
+        "read_copies",
+        "HGNC:11998",
+        "201746_at",
+        "Retry-After",
+        "If-None-Match",
+        "places_apart",
+        "limitations.html#answers-that-only-a-bridge-reaches",
+        "answers_requested_database",
+        "sus_scrofa",  # the organisms this server holds
+    ):
         assert words in text, words
 
 

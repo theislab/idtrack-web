@@ -2550,6 +2550,33 @@ export type components = {
       unavailable: string[];
     };
     /**
+     * StatusTerm
+     * @description A status of a conversion, what it means, and whether its best candidates answer in the database asked.
+     */
+    StatusTerm: {
+      /**
+       * Code
+       * @description The code, as answers carry it.
+       */
+      code: string;
+      /**
+       * Meaning
+       * @description What it means, in the defining table's words; `null` where that table gives no text.
+       */
+      meaning: string | null;
+      /**
+       * Source
+       * @description Whose words `meaning` is: `idtrack` (its own table of the codes), or `idtrack-web` (the api's own table, kept where idtrack gives no text, and tested against idtrack's set of codes).
+       * @enum {string}
+       */
+      source: "idtrack" | "idtrack-web";
+      /**
+       * Answers Requested Database
+       * @description Whether the best candidates of a result with this status hold answers in the database asked (`final_database` as requested): `true` for `converted` and `tie`; for `no_target` the candidates are genes standing in for the missing id (`final_database` is then `ensembl_gene`), and the other statuses have no best candidate.
+       */
+      answers_requested_database: boolean;
+    };
+    /**
      * Term
      * @description A code of the api's answers and what it means, from the one place that defines it.
      */
@@ -2639,7 +2666,7 @@ export type components = {
        * Statuses
        * @description The values of `ConversionResult.status`, in idtrack's order.
        */
-      statuses: components["schemas"]["Term"][];
+      statuses: components["schemas"]["StatusTerm"][];
       /**
        * Reasons
        * @description The values of `ConversionResult.reasons` and `reason`.
@@ -2824,7 +2851,7 @@ export type components = {
       final_database?: string | null;
       /**
        * From Database
-       * @description The database the identifiers are meant in; `null`: any. The values: `external_databases` of `GET /organisms/{organism}` (a database's synonyms are read under its name).
+       * @description The database the identifiers are meant in; `null`: any. The values: `external_databases` of `GET /organisms/{organism}` (a database's synonyms are read under its name). An identifier that is not an id of the database named is read as absent from it (`no_conversion` with `no_gene_at_start`, or `not_found`), not as retired; some databases come in two forms, accessions and their labels (`RefSeq_peptide` and `RefSeq peptide`: `kind` of `GET /organisms/{organism}/databases`).
        */
       from_database?: string | null;
       /**
@@ -3672,12 +3699,14 @@ export interface operations {
            *         {
            *           "code": "converted",
            *           "meaning": "One best answer: the identifier leads to one target in the requested database.",
-           *           "source": "idtrack-web"
+           *           "source": "idtrack-web",
+           *           "answers_requested_database": true
            *         },
            *         {
            *           "code": "tie",
            *           "meaning": "Several genes or targets are equal in all the evidence that decides; all of them are the best answer, in ascending order of gene id and target id.",
-           *           "source": "idtrack-web"
+           *           "source": "idtrack-web",
+           *           "answers_requested_database": true
            *         }
            *       ],
            *       "reasons": [
@@ -8176,7 +8205,7 @@ export interface operations {
     parameters: {
       query: {
         /**
-         * @description An Ensembl id (with or without version), a symbol or another id of a database the graph holds (`external_databases` of `GET /organisms/{organism}`). White space at its ends is no part of it.
+         * @description An Ensembl id (with or without version), a symbol or another id of a database the graph holds (`external_databases` of `GET /organisms/{organism}`). White space at its ends is no part of it. Ids of databases the graph does not hold are `not_found`: the name authorities' own ids (`HGNC:11998`), UniProt's secondary accessions, entry names and isoforms, RNAcentral, microarray probe sets (`201746_at`).
          * @example ENSG00000141510
          */
         identifier: string;
@@ -8192,7 +8221,7 @@ export interface operations {
          * @example HGNC Symbol
          */
         final_database?: string | null;
-        /** @description The database the identifier is meant in; omitted: any. The values: `external_databases` of `GET /organisms/{organism}` (a database's synonyms are read under its name). */
+        /** @description The database the identifier is meant in; omitted: any. The values: `external_databases` of `GET /organisms/{organism}` (a database's synonyms are read under its name). An identifier that is not an id of the database named is read as absent from it (`no_conversion` with `no_gene_at_start`, or `not_found`), not as retired; some databases come in two forms, accessions and their labels (`RefSeq_peptide` and `RefSeq peptide`: `kind` of `GET /organisms/{organism}/databases`). */
         from_database?: string | null;
         /** @description Add the path of every candidate (`path`); it makes answers much larger. Written true or false. */
         explain?: boolean;
@@ -8298,7 +8327,7 @@ export interface operations {
     parameters: {
       query: {
         /**
-         * @description An Ensembl id (with or without version), a symbol or another id of a database the graph holds (`external_databases` of `GET /organisms/{organism}`). White space at its ends is no part of it.
+         * @description An Ensembl id (with or without version), a symbol or another id of a database the graph holds (`external_databases` of `GET /organisms/{organism}`). White space at its ends is no part of it. Ids of databases the graph does not hold are `not_found`: the name authorities' own ids (`HGNC:11998`), UniProt's secondary accessions, entry names and isoforms, RNAcentral, microarray probe sets (`201746_at`).
          * @example TP53
          */
         identifier: string;
@@ -8309,7 +8338,7 @@ export interface operations {
          * @example 115
          */
         to_release?: number | null;
-        /** @description The database the identifier is meant in; omitted: any. The values: `external_databases` of `GET /organisms/{organism}` (a database's synonyms are read under its name). */
+        /** @description The database the identifier is meant in; omitted: any. The values: `external_databases` of `GET /organisms/{organism}` (a database's synonyms are read under its name). An identifier that is not an id of the database named is read as absent from it (`no_conversion` with `no_gene_at_start`, or `not_found`), not as retired; some databases come in two forms, accessions and their labels (`RefSeq_peptide` and `RefSeq peptide`: `kind` of `GET /organisms/{organism}/databases`). */
         from_database?: string | null;
         /** @description Allow bridges through ids two genes share when history ends. Written true or false. */
         allow_bridges?: boolean;
