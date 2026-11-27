@@ -30,7 +30,7 @@ import "../styles/home.css";
 // The drawing is its own chunk, asked for at once (beside the showcase), so that its frame stands before the journeys
 // arrive; the head and the form paint without it.
 const JourneysFigure = lazyPart(() => import("./home/JourneysFigure").then((m) => ({ default: m.JourneysFigure })));
-JourneysFigure.preload();
+void JourneysFigure.preload();
 // The measured line reads the benchmarks' results: its own chunk, asked for once the page is idle (its room is held).
 const HeroMeasure = lazyPart(() => import("./home/HeroMeasure").then((m) => ({ default: m.HeroMeasure })));
 

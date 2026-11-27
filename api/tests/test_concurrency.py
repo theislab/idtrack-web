@@ -421,9 +421,11 @@ def test_reads_never_wait_behind_queued_searches(cut_store: Path) -> None:
     # the kernel's queue, nor as searches waiting for a worker's own thread.
     assert status["requests"]["connections_waiting"] == 0, status["requests"]
     assert status["requests"]["searches_waiting"] == 0, status["requests"]
-    # The server's own samples of the recent past: taken while nobody asked.
+    # The server's own samples of the recent past: taken while nobody asked (a value its processes had not measured
+    # yet is null, never made up).
     samples = status["history"]["samples"]
-    assert samples and samples[-1]["pss_bytes"] > 0, status["history"]
+    assert samples, status["history"]
+    assert all(s["pss_bytes"] is None or s["pss_bytes"] > 0 for s in samples), samples
 
 
 def test_a_search_waits_only_for_the_first_free_worker(cut_store: Path) -> None:
