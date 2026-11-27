@@ -426,6 +426,8 @@ function Tooltip({
         top: anchor - REACH - Math.min(height, roomOver),
         max: height <= roomOver ? null : roomOver,
       };
+    // A note shown for another element opens at its start (one element serves every note).
+    if (place?.key !== next.key) element.scrollTop = 0;
     if (place?.key !== next.key || place.top !== next.top || place.max !== next.max) setPlace(next);
   }, [item, place, mayScroll]);
   if (!item) return null;
@@ -1776,11 +1778,14 @@ function EventStubLayer({
   toXY,
   vertical,
   isStrong,
+  bounds,
 }: {
   edges: readonly EdgePlace[];
   toXY: (t: number, s: number) => [number, number];
   vertical: boolean;
   isStrong: (candidates: number[], best: boolean) => boolean;
+  /** The plot's extent across the drawing (x): a count that would run out of it is left out. */
+  bounds: [number, number] | null;
 }) {
   // The events of the path drawn strongly (the chosen path, or the candidate pointed at); the alternatives' events are
   // drawn at their weight by their own marks, their other ids counted in their notes.
@@ -1806,6 +1811,7 @@ function EventStubLayer({
         if (placed.some((p) => meets(p, fan))) return null;
         const counts = stubCounts(edge.step, x, y, vertical).filter((c) => {
           const box = countBox(c);
+          if (bounds && (box[0] < bounds[0] || box[2] > bounds[1])) return false;
           if (placed.some((p) => meets(p, box))) return false;
           placed.push(box);
           return true;
@@ -2045,7 +2051,13 @@ function PathMarks({
           </g>
         );
       })}
-      <EventStubLayer edges={edges} toXY={toXY} vertical={vertical} isStrong={isStrong} />
+      <EventStubLayer
+        edges={edges}
+        toXY={toXY}
+        vertical={vertical}
+        isStrong={isStrong}
+        bounds={!vertical && plot ? plot : null}
+      />
       {/* The identifier, the forms it is read through and the ids bridges pass through. */}
       {[...layout.nodes.values()].map((place) => {
         if (place.node.role === "gene") return null;
