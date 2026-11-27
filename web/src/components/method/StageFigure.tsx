@@ -122,8 +122,8 @@ function StageDrawing({ stage, graph }: { stage: StageModel; graph: GraphDescrip
   const top = OVERVIEW + 44;
   // The assemblies' names stand in a header of their own over the bands (two rows: the names that fit inside, then
   // those of the narrow bands), and the lanes start under it, so that no name is drawn on a lane, a bar or an edge. On a
-  // phone each lane's id stands on a line of its own above its bar.
-  const laneY = (lane: number) => top + NAMES + (phone ? 34 : 20) + lane * (phone ? LANE + 18 : LANE);
+  // phone each lane's id stands on a line of its own above its bar and above the mark of the identifier read.
+  const laneY = (lane: number) => top + NAMES + (phone ? 48 : 20) + lane * (phone ? LANE + 24 : LANE);
   const lastLane = laneY(lanes.length - 1);
   const history = model.steps.filter((s) => s.family !== "cross");
   const scoreTop = lastLane + 34;
@@ -412,7 +412,7 @@ function StageDrawing({ stage, graph }: { stage: StageModel; graph: GraphDescrip
           <text
             key={lane.id}
             x={phone ? 4 : 4}
-            y={phone ? laneY(i) - 12 : laneY(i) + 4}
+            y={phone ? laneY(i) - 36 : laneY(i) + 4}
             className="fig-text stage-fig__lane"
           >
             {lane.id}

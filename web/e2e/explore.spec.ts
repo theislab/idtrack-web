@@ -218,6 +218,61 @@ test("Explore: an address that names no graph is a page with its own heading, ti
   await expectAccessible(page);
 });
 
+test("Explore: another name of a graph shows its page at the graph's own address, as the api reads the name", async ({
+  page,
+}) => {
+  const answer = (await (await page.request.get("/api/v1/organisms")).json()) as {
+    organisms: GraphDescription[];
+    names: { organism: string; aliases: string[] }[];
+  };
+  const organism = data.organism;
+  const asked = [
+    organism.toUpperCase(),
+    organism.replace(/_/g, " "),
+    ...(answer.names.find((n) => n.organism === organism)?.aliases ?? []),
+  ];
+  for (const name of asked) {
+    // The api answers the same name with the same graph.
+    const api = (await (
+      await page.request.get(`/api/v1/organisms/${encodeURIComponent(name)}`)
+    ).json()) as GraphDescription;
+    expect(api.organism).toBe(organism);
+    await page.goto(`/organisms/${encodeURIComponent(name)}`);
+    await expect(page).toHaveURL(new RegExp(`/organisms/${organism}$`));
+    await expect(page.getByRole("heading", { level: 1 })).toContainText("release by release");
+  }
+});
+
+test("Explore: the page's title says what it holds; the stories, then the graphs side by side", async ({ page }) => {
+  await page.goto("/organisms");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Stories from Ensembl's history");
+  await expect(page.getByRole("heading", { level: 2, name: "The graphs this server holds" })).toBeVisible();
+  // The sums say what idtrack counts: the history's markers of creation and retirement are among them.
+  await expect(page.locator(".home-facts")).toContainText("with the markers of an id's creation and retirement");
+  await expect(page.locator(".home-facts")).toContainText(
+    "from each id's creation to its retirement or the last release",
+  );
+  await expectAccessible(page);
+});
+
+test("Method: the terms of each stage folded behind one line, and a way back to the contents", async ({ page }) => {
+  await page.goto("/method");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("How idtrack answers, and how often it is right");
+  const glossaries = page.locator(".method-glossary > details");
+  await expect(glossaries).toHaveCount(5);
+  for (const g of await glossaries.all()) {
+    await expect(g).not.toHaveAttribute("open", "");
+    await expect(g.locator("summary")).toContainText("The terms of this stage:");
+  }
+  await expect(page.getByRole("link", { name: /^Contents/ })).toHaveCount(0);
+  await page.locator("#known-limitations").scrollIntoViewIfNeeded();
+  const back = page.getByRole("link", { name: /^Contents/ });
+  await expect(back).toBeVisible();
+  await back.click();
+  await expect(page.locator("#method-contents")).toBeInViewport();
+  await expectAccessible(page);
+});
+
 test("Organism: the counts are text, not stops; the build says how to check a graph file", async ({ page }) => {
   await page.goto(`/organisms/${data.organism}`);
   await expect(page.locator(".counts__row").first()).toBeVisible();

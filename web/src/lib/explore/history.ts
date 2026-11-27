@@ -69,6 +69,15 @@ export function fansCounted(columns: readonly HistoryColumn[]): boolean {
   return columns.length > 0 && columns.every((c) => c.fanOut !== null && c.fanIn !== null);
 }
 
+/** The release where Ensembl's mapping fans out and in the most (versions mapped to two or more, and two or more
+ *  mapped to one, together); null where the fan is not counted or none fans. */
+export function largestFan(columns: readonly HistoryColumn[]): HistoryColumn | null {
+  if (!fansCounted(columns)) return null;
+  const total = (c: HistoryColumn) => (c.fanOut ?? 0) + (c.fanIn ?? 0);
+  const best = [...columns].sort((a, b) => total(b) - total(a) || a.release - b.release)[0];
+  return best && total(best) > 0 ? best : null;
+}
+
 /** What changed into a release: the version changes, the changes of id and the retirements (an edge that keeps an id
  *  and its version, a re-mapping to itself, is counted apart: `kept`). */
 export function changed(c: HistoryColumn): number {

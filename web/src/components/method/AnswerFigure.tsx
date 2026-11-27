@@ -9,8 +9,7 @@ import { answerLayout, FORMS, HEADS, type Column, type Placed } from "../../lib/
 import { databaseLabel } from "../../lib/databases";
 import { useVocabulary } from "../../lib/vocabularyContext";
 import { GlyphSwatch, StepGlyph } from "../figure/glyphs";
-import { Term } from "../ResultParts";
-import { Prose } from "../ui";
+import { Prose, StatusBadge } from "../ui";
 import { FigureLegend } from "../figure/Legend";
 import { middleCut, textWidth } from "../figure/labels";
 import { useWidth } from "../figure/useWidth";
@@ -51,8 +50,7 @@ export function AnswerFigure({ result }: { result: ConversionResult }) {
   );
   const status = (
     <p className="answer-fig__status">
-      <span className="label">Status</span>{" "}
-      <Term code={result.status} meaning={vocabulary.statuses.get(result.status)} />{" "}
+      <span className="label">Status</span> <StatusBadge status={result.status} said />{" "}
       <span className="muted">
         {layout.rows} {layout.rows === 1 ? "answer" : "answers"} of one gene
         {vocabulary.statuses.get(result.status) ? (

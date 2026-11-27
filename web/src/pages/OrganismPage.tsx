@@ -20,6 +20,7 @@ import {
   historyColumns,
   historyHeight,
   kindWords,
+  largestFan,
   niceMax,
   tallest,
 } from "../lib/explore/history";
@@ -763,6 +764,7 @@ function HistoryPanel({ description: d }: { description: GraphDescription }) {
   if (absent) return null;
   const data: HistoryResponse | null = answer.state === "done" ? answer.answer.data : null;
   const top = data ? tallest(historyColumns(data), d.serving_assembly) : [];
+  const fan = data ? largestFan(historyColumns(data)) : null;
   return (
     <section className="panel explore-panel" aria-labelledby="history" aria-busy={answer.state === "loading"}>
       <PanelHead
@@ -820,6 +822,13 @@ function HistoryPanel({ description: d }: { description: GraphDescription }) {
                   .join(
                     ", ",
                   )} ${top.filter((t) => !t.newAssembly).length === 1 ? "is a release" : "are releases"} within one assembly.`}
+          </>
+        ) : null}
+        {fan ? (
+          <>
+            {" "}
+            The largest fan is at release <Mono>{fan.release}</Mono>: <Mono>{groupedInteger(fan.fanOut ?? 0)}</Mono>{" "}
+            versions mapped to two or more, <Mono>{groupedInteger(fan.fanIn ?? 0)}</Mono> two or more mapped to one.
           </>
         ) : null}{" "}
         These are plain facts of Ensembl&apos;s records, counted from the ends of its edges, not idtrack&apos;s reading

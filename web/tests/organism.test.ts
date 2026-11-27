@@ -13,6 +13,7 @@ import {
   fansCounted,
   historyColumns,
   kindWords,
+  largestFan,
   shares,
   tallest,
 } from "../src/lib/explore/history";
@@ -180,6 +181,7 @@ describe("Ensembl's id history, read for a person", () => {
     };
     const columns = historyColumns(fanned);
     expect(fansCounted(columns)).toBe(true);
+    expect(largestFan(columns)?.release).toBe(3);
     expect(columns.map((c) => [c.fanOut, c.fanIn, c.kept])).toEqual([
       [0, 0, 0],
       [1, 2, 7],
