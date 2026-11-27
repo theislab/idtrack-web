@@ -43,10 +43,10 @@ test("a very large answer: the verdict on the first screen, every list bounded, 
   await page.getByRole("button", { name: "Next" }).first().click();
   await expect(rows.first()).toContainText(isPhone(info) ? "11" : "26");
   await expect(page.locator(".pv__more")).toContainText(`of ${answer.candidates.length} candidates are drawn`);
+  // The path in words: every step of the best candidate (on a phone, its first six; the rest on a press).
   const best = answer.candidates[0];
-  await expect(page.locator(".reading .steps__row")).toHaveCount(
-    (best?.path.length ?? 0) + (best?.final_path.length ?? 0),
-  );
+  const steps = (best?.path.length ?? 0) + (best?.final_path.length ?? 0);
+  await expect(page.locator(".reading .steps__row")).toHaveCount(isPhone(info) ? Math.min(6, steps) : steps);
   // The page stays light: a bounded number of elements.
   expect(await page.evaluate(() => document.getElementsByTagName("*").length)).toBeLessThan(6000);
   await page.getByRole("button", { name: `Show all ${answer.candidates.length}` }).click();

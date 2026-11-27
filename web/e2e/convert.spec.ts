@@ -49,6 +49,9 @@ test("the path view draws and reads the api's path, step for step", async ({ pag
   const reading = page.locator(".reading");
   const best0 = answer.candidates.find((c) => c.best);
   const bestSteps = [...(best0?.path ?? []), ...(best0?.final_path ?? [])];
+  // On a phone the first steps are shown, the rest on a press.
+  const everyStep = reading.getByRole("button", { name: /^Show all \d+ steps$/ });
+  if (await everyStep.count()) await everyStep.click();
   await expect(reading.locator(".steps__row")).toHaveCount(bestSteps.length);
   const weights = [...raw.slice(raw.indexOf('"steps":')).matchAll(/"weight":(null|[-0-9.eE+]+)/g)].map((m) => m[1]);
   const readingText = await reading.innerText();

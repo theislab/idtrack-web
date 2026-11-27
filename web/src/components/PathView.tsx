@@ -471,6 +471,9 @@ const SWITCH_MS = 140;
 function useSteadyHover<K>() {
   const base = useHover<K>();
   const pending = useRef<number | null>(null);
+  // The pointer is on the note: an element's leave (which a browser sends after the note's enter when the two touch)
+  // does not take the note away.
+  const onNote = useRef(false);
   const cancel = () => {
     if (pending.current !== null) window.clearTimeout(pending.current);
     pending.current = null;
@@ -481,6 +484,7 @@ function useSteadyHover<K>() {
   const enter = useCallback(
     (key: K) => {
       cancel();
+      if (onNote.current) return;
       if (hover === null || hover === key) baseEnter(key);
       else {
         // The note shown stays (its leave is forgotten) until the pointer rests on the other element.
@@ -492,18 +496,23 @@ function useSteadyHover<K>() {
   );
   const leave = useCallback(() => {
     cancel();
-    baseLeave();
+    if (!onNote.current) baseLeave();
   }, [baseLeave]);
   const drop = useCallback(() => {
     cancel();
+    onNote.current = false;
     baseDrop();
   }, [baseDrop]);
   const note = {
     onPointerEnter: () => {
       cancel();
-      base.note.onPointerEnter();
+      onNote.current = true;
+      keep();
     },
-    onPointerLeave: base.note.onPointerLeave,
+    onPointerLeave: () => {
+      onNote.current = false;
+      base.note.onPointerLeave();
+    },
   };
   return { hover, enter, leave, drop, note };
 }

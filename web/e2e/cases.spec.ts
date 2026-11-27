@@ -90,6 +90,9 @@ for (const item of cases) {
     for (const [i, candidate] of answer.candidates.slice(0, 4).entries()) {
       if (answer.candidates.length > 1) await choose.selectOption(String(i));
       const shown = page.locator(".reading .steps__row");
+      // On a phone the first steps are shown, the rest on a press.
+      const everyStep = page.locator(".reading").getByRole("button", { name: /^Show all \d+ steps$/ });
+      if (await everyStep.count()) await everyStep.click();
       const indices = [...candidate.path, ...candidate.final_path];
       await expect(shown).toHaveCount(indices.length);
       // The walk's order: the api's, but a run of re-mappings of one gene listed in the walk's direction.

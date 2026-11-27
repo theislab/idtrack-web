@@ -1,7 +1,7 @@
 // Panel d of a result: the decision (the best answer and the runner-up compared criterion by criterion in idtrack's
 // order, the deciding criterion marked, with its meaning from the vocabulary) and every candidate, ranked, each with its
 // whole ranking record on request.
-import { useMemo, useState, useSyncExternalStore } from "react";
+import { startTransition, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import type { Candidate, ConversionResult } from "../api/types";
 import { databaseLabel } from "../lib/databases";
 import type { Highlight } from "../lib/highlight";
@@ -197,6 +197,9 @@ function RecordGrid({
   );
 }
 
+/** The rows of a page drawn in the first task (the rest in the next). */
+const FIRST_ROWS = 10;
+
 /** The candidates of one page of the table (fewer on a phone, where each is a card). */
 const PAGE_SIZE = 25;
 const PAGE_SIZE_PHONE = 10;
@@ -356,7 +359,22 @@ function Candidates({
   }, [result.candidates, filter, context.symbols]);
   const pages = Math.max(1, Math.ceil(rows.length / size));
   const at = Math.min(page, pages - 1);
-  const shown = rows.slice(at * size, (at + 1) * size);
+  const pageRows = rows.slice(at * size, (at + 1) * size);
+  // A page is drawn in two parts, each in a task of its own: its first rows at once, the rest just after (a page of
+  // records and menus is a long commit for a phone).
+  const [whole, setWhole] = useState(false);
+  useEffect(() => {
+    if (whole) return;
+    const timer = window.setTimeout(() => {
+      startTransition(() => {
+        setWhole(true);
+      });
+    }, 0);
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [whole]);
+  const shown = whole ? pageRows : pageRows.slice(0, FIRST_ROWS);
   const paged = result.candidates.length > size;
   const head = (label: string, field: string, className?: string) => (
     <th scope="col" className={className}>
