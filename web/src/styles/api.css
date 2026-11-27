@@ -432,7 +432,7 @@
 
   /* Drawn when near the window (a long reference lays out only what is read); its place kept meanwhile. */
   content-visibility: auto;
-  contain-intrinsic-size: auto 640px;
+  contain-intrinsic-size: auto 480px;
 }
 
 .endpoint__head {
@@ -484,6 +484,11 @@
 }
 
 .endpoint__anchor {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  min-height: 24px;
   margin-left: auto;
   flex: none;
   font-family: var(--font-mono);
@@ -1844,4 +1849,40 @@
 .schema__nested[open] > summary::before,
 .api-errors details[open] > summary::before {
   transform: rotate(45deg);
+}
+
+@media (max-width: 640px) {
+  .endpoint {
+    contain-intrinsic-size: auto 760px;
+  }
+}
+
+/* Every control of the reference is at least 24 px each way (WCAG 2.2, 2.5.8), and a finger's height on a phone. */
+.schema__nested > summary,
+.answers-fold > summary,
+.params__fold > summary,
+.api-rule > summary,
+.api-bounds__row summary,
+.api-errors details > summary {
+  min-height: 24px;
+}
+
+@media (max-width: 640px) {
+  .endpoint__anchor {
+    min-width: 44px;
+    min-height: 44px;
+    margin-right: calc(-1 * var(--space-3));
+  }
+
+  .schema__nested > summary {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    column-gap: var(--space-1);
+    min-height: 44px;
+  }
+
+  .endpoint__about > summary {
+    padding-bottom: var(--space-2);
+  }
 }
