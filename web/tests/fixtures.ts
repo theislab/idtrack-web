@@ -1,5 +1,6 @@
-// The recorded answers of the real api (pig and human graphs): tests/fixtures/<organism>/index.json lists each
-// request, its status and the file that holds the body exactly as the api sent it.
+// The recorded answers of the real api (pig and human graphs; a few curated answers of the mouse graph, read by name):
+// tests/fixtures/<organism>/index.json lists each request, its status and the file that holds the body exactly as the
+// api sent it.
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { ConversionResult, GraphDescription, VocabularyResponse } from "../src/api/types";

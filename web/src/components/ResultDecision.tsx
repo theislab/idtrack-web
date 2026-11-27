@@ -5,14 +5,14 @@ import { useMemo, useState, useSyncExternalStore } from "react";
 import type { Candidate, ConversionResult } from "../api/types";
 import { databaseLabel } from "../lib/databases";
 import type { Highlight } from "../lib/highlight";
-import { groupedInteger, pythonFloat } from "../lib/numbers";
+import { groupedInteger } from "../lib/numbers";
 import type { Decision } from "../lib/pathModel";
 import { ABSENT, criterionValue, firstWords, prose, yesNo } from "../lib/values";
 import { criterionOf, spaced, type Criterion } from "../lib/vocabulary";
 import { useVocabulary } from "../lib/vocabularyContext";
-import { RECORD } from "../lib/resultWords";
+import { RECORD, SUCCESSOR_CRITERIA } from "../lib/resultWords";
 import { IdMenu, SymbolOf, type IdContext } from "./IdMenu";
-import { CriterionValue, Term } from "./ResultParts";
+import { CriterionValue, ScoreValue, Term } from "./ResultParts";
 import { Button, Mono, Prose, TableFrame } from "./ui";
 
 export function DecisionText({ decision }: { decision: Decision }) {
@@ -127,8 +127,9 @@ export function DecisionText({ decision }: { decision: Decision }) {
         </p>
       ) : null}
       <p className="decision__note muted">
-        idtrack names no runner-up: it is the first candidate that is not best, the pair its ranking compares
-        {["score", "same_as_query", "annotation"].includes(decision.key)
+        The runner-up is the first candidate after the best answer: the pair idtrack&apos;s ranking compares (its result
+        names no runner-up)
+        {SUCCESSOR_CRITERIA.includes(decision.key)
           ? "; within one lineage the best answer compared is the one that descends from the runner-up's own entry gene"
           : ""}
         .
@@ -297,7 +298,7 @@ function CandidateRow({
           <Mono>{c.unscored_steps}</Mono>
         </td>
         <td className={`cand__score ${decided === "score" ? "is-decided" : ""}`} data-label="Score">
-          <Mono>{pythonFloat(c.score)}</Mono>
+          <ScoreValue score={c.score} />
         </td>
         {decider ? (
           <td className="is-decided" data-label={spaced(decider.code)}>
@@ -508,6 +509,53 @@ function Pager({
   );
 }
 
+/** Why no criterion decided: one candidate, or a tie. A tie of candidates of different entry genes is equal in the
+ *  criteria of lineage, and the criteria that compare successors of one entry gene (the score among them) never rank
+ *  them: their scores may differ, and the page says so beside them. */
+function NoDecision({ result }: { result: ConversionResult }) {
+  const vocabulary = useVocabulary();
+  const bests = result.candidates.filter((c) => c.best);
+  if (result.candidates.length === 1) return <p className="decision-none">One candidate was reached: nothing was compared.</p>;
+  if (bests.length !== result.candidates.length)
+    return <p className="decision-none">The api names no deciding criterion for this answer.</p>;
+  const entries = new Set(bests.map((c) => c.entry_gene));
+  const criteria = (vocabulary.criteria.length ? vocabulary.criteria : RECORD).map((c) => c.code);
+  const successor = criteria.filter((c) => SUCCESSOR_CRITERIA.includes(c));
+  const lineage = criteria.filter((c) => !SUCCESSOR_CRITERIA.includes(c));
+  const scores = [...new Set(bests.map((c) => c.score))];
+  if (entries.size < 2)
+    return (
+      <p className="decision-none">
+        The {groupedInteger(bests.length)} candidates are equal in every criterion: each is part of the best answer, in
+        ascending order of gene id and target id.
+      </p>
+    );
+  return (
+    <p className="decision-none">
+      The {groupedInteger(bests.length)} candidates are equal in the {lineage.length} criteria of lineage (
+      {lineage.map(spaced).join(", ")}). They descend from {groupedInteger(entries.size)} different entry genes, and{" "}
+      {listWords(successor.map(spaced))}, which compare only successors of one entry gene, do not rank them
+      {scores.length > 1 ? (
+        <>
+          {" "}
+          (their scores differ:{" "}
+          {scores.map((score, i) => (
+            <span key={score}>
+              {i ? ", " : ""}
+              <ScoreValue score={score} />
+            </span>
+          ))}
+          )
+        </>
+      ) : null}
+      : each is part of the best answer, in ascending order of gene id and target id.
+    </p>
+  );
+}
+
+const listWords = (items: readonly string[]) =>
+  items.length <= 1 ? (items[0] ?? "") : `${items.slice(0, -1).join(", ")} and ${items[items.length - 1] ?? ""}`;
+
 export function DecisionPanelBody({
   result,
   decision,
@@ -523,20 +571,9 @@ export function DecisionPanelBody({
   requestedDatabase: string | null;
   context: IdContext;
 }) {
-  const bests = result.candidates.filter((c) => c.best).length;
   return (
     <>
-      {decision ? (
-        <DecisionText decision={decision} />
-      ) : (
-        <p className="decision-none">
-          {result.candidates.length === 1
-            ? "One candidate was reached: nothing was compared."
-            : bests === result.candidates.length
-              ? `The ${groupedInteger(bests)} candidates are equal in every criterion: each is part of the best answer, in ascending order of gene id and target id.`
-              : "The api names no deciding criterion for this answer."}
-        </p>
-      )}
+      {decision ? <DecisionText decision={decision} /> : <NoDecision result={result} />}
       <h3 className="figure-panel__subtitle" id={listId}>
         {result.no_target
           ? `Genes reached, ranked (no ${databaseLabel(requestedDatabase ?? "ensembl_gene")} for the best answer; the others not looked up)`

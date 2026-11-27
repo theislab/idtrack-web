@@ -6,14 +6,17 @@
 // (each gene at display size with its symbol, its first targets in small type, "and N more" on request), never as a
 // wall of ids. Under the status, the evidence a reader should weigh (`Evidence`), then what the string meant at other
 // releases with a way to read it there.
-import { memo, useState } from "react";
+import { memo, useEffect, useState } from "react";
 import { api } from "../api/client";
 import type { Candidate, ConversionResult, GraphDescription } from "../api/types";
 import type { Anatomy } from "../lib/anatomy";
 import { convertHref, plainConversion } from "../lib/convertParameters";
 import { databaseLabel } from "../lib/databases";
-import { cautionCount, limitationAt, LIMITATION_OF, type EvidenceMark } from "../lib/evidence";
-import { bestWords, noTargetOf } from "../lib/noTarget";
+import { cautionCount, limitationAt, LIMITATION_OF, type EvidenceAsk, type EvidenceMark } from "../lib/evidence";
+import { docsPage } from "../lib/links";
+import { bestWords, noTargetOf, NOT_HELD_WORDS, notHeldScheme } from "../lib/noTarget";
+import { looksLikeSpreadsheetDate } from "../lib/batchList";
+import { useOrganisms } from "../lib/organisms";
 import { groupedInteger, releaseRanges } from "../lib/numbers";
 import { commonName, organismName } from "../lib/organismNames";
 import type { PathModel } from "../lib/pathModel";
@@ -422,7 +425,7 @@ function AnswerTargets({
         {allOwn
           ? `${groupedInteger(groups.length)} genes`
           : `${groupedInteger(targets)} ${database} ids of ${groups.length === 1 ? "one gene" : `${groupedInteger(groups.length)} genes`}`}
-        {result.tie ? ", equal best: a tie" : ", all part of the best answer"}
+        {result.tie && groups.length > 1 ? ", equal best: a tie" : ", all part of the best answer"}
       </p>
       {shownGroups.map((group) => (
         <div key={group.gene} className="answer__group">
@@ -542,6 +545,66 @@ function StatusSentence({
   ) : null;
 }
 
+/** Where another gene than the best answer may be the gene meant (a mark of evidence that says so), it is said beside
+ *  the status, with the conversion that answers the doubt and the limitation of idtrack's documentation it falls under,
+ *  not only among the marks below. */
+function Alerts({ marks, askHref }: { marks: readonly EvidenceMark[]; askHref: (ask: EvidenceAsk) => string }) {
+  const alerts = marks.filter((m) => m.alert);
+  if (!alerts.length) return null;
+  return (
+    <ul className="answer__alerts" aria-label="Another gene may be the one meant">
+      {alerts.map((mark) => (
+        <li key={mark.kind} className="answer__alert">
+          <CautionGlyph />{" "}
+          <span>
+            <strong>Another gene may be the one meant:</strong> <Prose text={mark.label} />.
+            {mark.ask ? (
+              <>
+                {" "}
+                <Link to={askHref(mark.ask)}>{mark.ask.words} →</Link>
+              </>
+            ) : null}
+            {mark.limitation ? (
+              <span className="answer__alert-doc">
+                {" "}
+                A known limitation of idtrack:{" "}
+                <a href={mark.limitation.href} target="_blank" rel="noreferrer">
+                  {mark.limitation.title}
+                  <span className="visually-hidden"> (idtrack&apos;s documentation, opens in a new tab)</span>
+                  <span aria-hidden="true"> ↗</span>
+                </a>
+              </span>
+            ) : null}
+          </span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+/** What a tie of genes means for a list or a count matrix, in idtrack's documented terms: idtrack returns a tie rather
+ *  than a guess; where the release or the source database is known, giving it decides; else every gene is kept (its
+ *  harmonizer leaves such a feature unconverted, as ambiguous). */
+function TieGuidance({ result }: { result: ConversionResult }) {
+  const genes = new Set(result.candidates.filter((c) => c.best).map((c) => c.gene));
+  if (!result.tie || genes.size < 2) return null;
+  return (
+    <p className="answer__guidance">
+      <span className="answer__guidance-head">For a list or a count matrix</span> idtrack returns the tie rather than a
+      guess: give the release the list was made with, or the database it comes from, where you know them; else keep
+      every gene. Harmonizing a matrix leaves such a feature unconverted, as ambiguous.{" "}
+      <a href={docsPage("concepts.html#concept-ties")} target="_blank" rel="noreferrer">
+        The best answer and ties<span className="visually-hidden"> (idtrack&apos;s documentation, opens in a new tab)</span>
+        <span aria-hidden="true"> ↗</span>
+      </a>{" "}
+      <a href={docsPage("harmonization.html")} target="_blank" rel="noreferrer">
+        Harmonizing<span className="visually-hidden"> (idtrack&apos;s documentation, opens in a new tab)</span>
+        <span aria-hidden="true"> ↗</span>
+      </a>
+    </p>
+  );
+}
+
 /** idtrack's citation with the version that answered, and a sentence for a methods section that states this run. */
 function CiteBlock({
   id,
@@ -616,34 +679,107 @@ function CautionGlyph() {
   );
 }
 
-/** idtrack's graphs hold no name authority's own ids (`HGNC:11998`, `MGI:98834`): a string of that form, the prefix
- *  being the first word of one of the organism's symbol databases (served by `/databases`), is told so with the way on
- *  (idtrack's limitation "Databases the graph does not hold"). */
-function AuthorityIdHint({ result, organism }: { result: ConversionResult; organism: string }) {
-  const form = /^([A-Za-z]+):\d+$/.exec(result.query_id);
-  const databases = useRequest(form ? `databases:${organism}` : null, (signal, fresh) =>
+/** The way on from a link of idtrack's documentation on limitations. */
+function LimitationLink({ anchors }: { anchors: readonly string[] }) {
+  const limitation = limitationAt(anchors);
+  if (!limitation) return null;
+  return (
+    <>
+      {" "}
+      <a href={limitation.href} target="_blank" rel="noreferrer">
+        {limitation.title}
+        <span className="visually-hidden"> (idtrack&apos;s documentation, opens in a new tab)</span>
+        <span aria-hidden="true"> ↗</span>
+      </a>
+    </>
+  );
+}
+
+/** What an identifier that is not found may be, judged by its form alone, never by a guess of the gene: a name
+ *  authority's own id (`HGNC:11998`: a prefix that is the first word of one of the organism's symbol databases, served
+ *  by `/databases`), an id of a scheme idtrack's graphs do not hold (`lib/noTarget.ts`), or a date a spreadsheet made of
+ *  a symbol. */
+function NotFoundHints({ result, organism }: { result: ConversionResult; organism: string }) {
+  const authorityForm = /^([A-Za-z]+):\d+$/.exec(result.query_id);
+  const databases = useRequest(authorityForm ? `databases:${organism}` : null, (signal, fresh) =>
     api.databases(organism, { signal, fresh }),
   );
-  if (!form || databases.state !== "done") return null;
-  const prefix = (form[1] ?? "").toUpperCase();
-  const authority = databases.answer.data.symbol_databases.find((d) => d.split(" ")[0]?.toUpperCase() === prefix);
-  if (!authority) return null;
-  const limitation = limitationAt(LIMITATION_OF.not_held);
+  const prefix = (authorityForm?.[1] ?? "").toUpperCase();
+  const authority =
+    authorityForm && databases.state === "done"
+      ? databases.answer.data.symbol_databases.find((d) => d.split(" ")[0]?.toUpperCase() === prefix)
+      : undefined;
+  const scheme = notHeldScheme(result.query_id);
+  const date = looksLikeSpreadsheetDate(result.query_id);
   return (
-    <p className="answer__next answer__hint">
-      <Mono>{result.query_id}</Mono> has the form of {prefix}&apos;s own id of a gene. idtrack&apos;s graphs hold the
-      names and ids Ensembl attaches to genes, and not the name authorities&apos; own ids: ask by the gene&apos;s{" "}
-      {authority} or its Ensembl id.
-      {limitation ? (
-        <>
-          {" "}
-          <a href={limitation.href} target="_blank" rel="noreferrer">
-            {limitation.title}
-            <span className="visually-hidden"> (idtrack&apos;s documentation, opens in a new tab)</span>
-            <span aria-hidden="true"> ↗</span>
-          </a>
-        </>
+    <>
+      {authority ? (
+        <p className="answer__next answer__hint">
+          <Mono>{result.query_id}</Mono> has the form of {prefix}&apos;s own id of a gene. idtrack&apos;s graphs hold the
+          names and ids Ensembl attaches to genes, and not the name authorities&apos; own ids: ask by the gene&apos;s{" "}
+          {authority} or its Ensembl id.
+          <LimitationLink anchors={LIMITATION_OF.not_held} />
+        </p>
       ) : null}
+      {scheme ? (
+        <p className="answer__next answer__hint">
+          <Mono>{result.query_id}</Mono> has the form of {NOT_HELD_WORDS[scheme].what}. {NOT_HELD_WORDS[scheme].instead}
+          <LimitationLink anchors={LIMITATION_OF.not_held} />
+        </p>
+      ) : null}
+      {date ? (
+        <p className="answer__next answer__hint">
+          <Mono>{result.query_id}</Mono> has the form of a date a spreadsheet makes of a cell: a symbol such as MARCH1 or
+          SEPT2 opened in a spreadsheet becomes one. Export the column as text and convert it again.
+        </p>
+      ) : null}
+      <OtherGraphs result={result} organism={organism} />
+    </>
+  );
+}
+
+/** An identifier not found here, asked of the server's other graphs (one conversion each, the identifier as written):
+ *  where another graph holds it, the page says so and links the conversion there. idtrack converts within one organism;
+ *  this is the same string in another organism's graph, never a counterpart. */
+function OtherGraphs({ result, organism }: { result: ConversionResult; organism: string }) {
+  const { organisms } = useOrganisms();
+  const others = organisms.map((o) => o.organism).filter((o) => o !== organism);
+  const key = `${organism}|${result.query_id}|${others.join(",")}`;
+  const [found, setFound] = useState<{ key: string; organisms: string[] } | null>(null);
+  useEffect(() => {
+    if (!others.length) return;
+    const controller = new AbortController();
+    void Promise.all(
+      others.map((other) =>
+        api
+          .convert(other, { identifier: result.query_id, explain: false }, { signal: controller.signal })
+          .then((a) => (a.data.status === "not_found" ? null : other))
+          .catch(() => null),
+      ),
+    ).then((list) => {
+      if (!controller.signal.aborted) setFound({ key, organisms: list.filter((o) => o !== null) });
+    });
+    return () => {
+      controller.abort();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- the organisms and the identifier are named by the key
+  }, [key]);
+  const held = found?.key === key ? found.organisms : [];
+  if (!held.length) return null;
+  return (
+    <p className="answer__next answer__hint answer__elsewhere">
+      <Mono>{result.query_id}</Mono> is an identifier of {held.length === 1 ? "another graph" : "other graphs"} this
+      server holds:{" "}
+      {held.map((other, i) => (
+        <span key={other}>
+          {i ? ", " : ""}
+          <Link to={convertHref(other, plainConversion(result.query_id))}>
+            convert it in <em>{organismName(other)}</em>
+            {commonName(other) ? ` (${commonName(other) ?? ""})` : ""} →
+          </Link>
+        </span>
+      ))}
+      . idtrack converts within one organism, never across species: the answer there is that organism&apos;s gene.
     </p>
   );
 }
@@ -691,12 +827,23 @@ export const AnswerPanel = memo(function AnswerPanel({
   const reasonMeaning = reason ? vocabulary.reasons.get(reason) : null;
   const asked = requestedDatabase ?? "ensembl_gene";
   const cautions = cautionCount(marks);
-  const tone = statusTone(result.status);
+  // A tie of the ids of one gene is no doubt about the gene (idtrack calls it a tie: one gene, several targets): it
+  // is not drawn in the colour of a tie between genes.
+  const oneGene = result.tie && new Set(bests.map((c) => c.gene)).size === 1;
+  const tone = oneGene ? "ok" : statusTone(result.status);
   const shownTone = tone === "ok" && cautions ? "caution" : tone;
   const [citing, setCiting] = useState(false);
   const citeId = `${answerFileName(result, organism)}-cite`;
   const absent = noTargetOf(result);
   const codes = result.reasons.length ? result.reasons : reason ? [reason] : [];
+  const askHref = (ask: EvidenceAsk) =>
+    convertHref(organism, {
+      ...plainConversion(ask.identifier ?? result.query_id),
+      fromRelease: ask.fromRelease !== undefined ? ask.fromRelease : (result.from_release_given ?? null),
+      toRelease: ask.toRelease ?? result.to_release,
+      finalDatabase: ask.finalDatabase !== undefined ? ask.finalDatabase : requestedDatabase,
+      fromDatabase: ask.fromDatabase ?? null,
+    });
   const readAtHref = (release: number) =>
     convertHref(organism, {
       ...plainConversion(result.query_id),
@@ -727,7 +874,7 @@ export const AnswerPanel = memo(function AnswerPanel({
     </p>
   );
   const status = (
-    <div className={`answer__codes answer__codes--${shownTone}`}>
+    <div className={`answer__codes answer__codes--${shownTone} ${oneGene ? "answer__codes--one-gene" : ""}`}>
       <StatusBadge status={result.status} said />
       {tone === "ok" || (cautions > 0 && bests.length > 0 && !result.no_target) ? (
         <span className="answer__caution-count">
@@ -747,7 +894,7 @@ export const AnswerPanel = memo(function AnswerPanel({
   const evidence = marks.length ? (
     <div className="answer__evidence">
       <p className="answer__label">Evidence to weigh</p>
-      <Evidence result={result} marks={marks} readAtHref={readAtHref} />
+      <Evidence result={result} marks={marks} readAtHref={readAtHref} askHref={askHref} />
     </div>
   ) : null;
 
@@ -778,6 +925,7 @@ export const AnswerPanel = memo(function AnswerPanel({
           </div>
         </div>
         {status}
+        <Alerts marks={marks} askHref={askHref} />
         {evidence}
         {absent.others.length ? (
           <div className="answer__others">
@@ -877,7 +1025,7 @@ export const AnswerPanel = memo(function AnswerPanel({
             </ul>
           </div>
         ) : null}
-        {result.status === "not_found" ? <AuthorityIdHint result={result} organism={organism} /> : null}
+        {result.status === "not_found" ? <NotFoundHints result={result} organism={organism} /> : null}
         {result.status === "no_conversion" ? <RetiredLife result={result} description={description} /> : null}
         {result.status === "not_found" ? (
           <p className="answer__next">
@@ -906,6 +1054,8 @@ export const AnswerPanel = memo(function AnswerPanel({
           </div>
         </div>
         {status}
+        <Alerts marks={marks} askHref={askHref} />
+        <TieGuidance result={result} />
         {evidence}
         <OtherMeanings result={result} readAtHref={readAtHref} context={context} />
         <DecisionSentence model={model} context={context} />
@@ -1070,12 +1220,18 @@ function AnatomyStrip({
             <>
               <span className="anatomy__main">
                 <Mono>{walked.steps}</Mono> step{walked.steps === 1 ? "" : "s"}
-                {span && span[0] !== span[1] ? (
-                  <span className="anatomy__aside mono">
-                    {" "}
-                    releases {span[0]}–{span[1]}
-                  </span>
-                ) : null}
+                <span className="anatomy__aside">
+                  {" "}
+                  of the best path
+                  {span && span[0] !== span[1] ? (
+                    <>
+                      , releases{" "}
+                      <span className="mono">
+                        {span[0]}–{span[1]}
+                      </span>
+                    </>
+                  ) : null}
+                </span>
               </span>
               <StepStrip hues={walked.hues} />
               <span className="anatomy__line">
@@ -1119,7 +1275,13 @@ function AnatomyStrip({
           ) : ranked.candidates === 1 ? (
             <span className="anatomy__line">one candidate: nothing to decide</span>
           ) : null}
-          {ranked.tie ? <span className="anatomy__line">{groupedInteger(ranked.best)} equal best: a tie</span> : null}
+          {ranked.tie ? (
+            <span className="anatomy__line">
+              {ranked.bestGenes > 1
+                ? `${groupedInteger(ranked.best)} equal best: a tie of ${groupedInteger(ranked.bestGenes)} genes`
+                : `${groupedInteger(ranked.best)} equal best, all ids of one gene`}
+            </span>
+          ) : null}
           {ranked.position && ranked.position > 1 ? (
             <span className="anatomy__line anatomy__line--quiet">
               {ranked.position - 1} criteri{ranked.position - 1 === 1 ? "on" : "a"} compared equal before it

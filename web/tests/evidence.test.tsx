@@ -41,9 +41,19 @@ describe("evidenceOf", () => {
       expect(has("read_at_another_release")).toBe(
         result.reasons.includes("read_at_another_release") && result.from_release !== null,
       );
+      // Every other reading is a mark of its own, but the digits of a number written with a version, which the number's
+      // mark names.
+      const versioned = /^\d+\.\d+$/.test(result.query_id);
       expect(marks.filter((m) => m.kind === "other_release" || m.kind === "other_reading")).toHaveLength(
-        result.other_readings.filter((r) => r.reason !== "other_release" || r.releases.length).length,
+        result.other_readings.filter(
+          (r) => (r.reason !== "other_release" || r.releases.length) && !(versioned && r.reason === "unversioned_database"),
+        ).length,
       );
+      // Where another gene may be the one meant, the mark says so beside the status, with a limitation of idtrack's.
+      for (const mark of marks.filter((m) => m.alert)) {
+        expect(mark.tone).toBe("caution");
+        expect(mark.limitation).not.toBeNull();
+      }
       if (!result.path) {
         expect(has("places_apart")).toBe(false);
         expect(has("lowest_score")).toBe(false);
@@ -129,6 +139,82 @@ describe("evidenceOf", () => {
       "Among the successors of a split, the best answer does not look at the old place",
     );
     expect(kinds(load("homo_sapiens", "convert_number_other_scheme"))).not.toContain("split_ranked");
+  });
+
+  it("counts the bridges the best answer's paths take, each pair of genes once, not every record of the search", () => {
+    // Pig: one bridge on the path, across assemblies; the search recorded four pairs of the same two genes' versions.
+    const one = evidenceOf(load("sus_scrofa", "convert_bridge_check_taken"), vocabulary);
+    expect(one.find((m) => m.kind === "places_unknown")?.label).toBe("places not compared across assemblies");
+    expect(one.find((m) => m.kind === "places_unknown")?.detail).toMatch(/^1 bridge of the best answer's path joins/);
+    // Five tied best answers share two bridges (55 pairs recorded by the search).
+    const tied = evidenceOf(load("sus_scrofa", "convert_bridges_tied"), vocabulary);
+    expect(tied.find((m) => m.kind === "places_unknown")?.label).toBe("2 steps across assemblies, places not compared");
+  });
+
+  it("says where another gene may be the one meant, with the conversion that answers it", () => {
+    // HLA-DRB3 at 70 in HGNC Symbol: read through three databases, the tie through UniProt's gene names alone; the
+    // genes of HGNC's symbol are the copies set apart (idtrack's documented example).
+    const hla = evidenceOf(load("homo_sapiens", "convert_name_other_sources"), vocabulary);
+    const elsewhere = hla.find((m) => m.kind === "name_elsewhere");
+    expect(elsewhere?.alert).toBe(true);
+    expect(elsewhere?.label).toBe("the best answer is read only through UniProtKB Gene Name");
+    expect(elsewhere?.detail).toContain("the 14 copies on haplotypes, patches or alternative loci");
+    expect(elsewhere?.ask).toEqual({ words: "Ask with HGNC Symbol as the source database", fromDatabase: "HGNC Symbol" });
+    expect(elsewhere?.limitation?.title).toBe("A name that another source gives another gene");
+    // Pig ENSSSCG00000014532 from 56 to 98: the best answer left the id at 66 → 67, the id lived on to 89 → 90.
+    const branch = evidenceOf(load("sus_scrofa", "convert_branch_continuation"), vocabulary);
+    const own = branch.find((m) => m.kind === "own_continuation");
+    expect(own?.detail).toContain("releases 66 → 67");
+    expect(own?.detail).toContain("releases 89 → 90");
+    expect(own?.detail).toContain("rank 4–6");
+    expect(own?.limitation?.title).toBe("A branch can outrank the gene's own continuation");
+    // Mouse Rhbg read at 77: its gene split; at 115 the runner-up carries MGI's Rhbg, the best answer Gm38392.
+    const rhbg = load("mus_musculus", "convert_runner_named");
+    expect(evidenceOf(rhbg, vocabulary).some((m) => m.kind === "runner_named")).toBe(false);
+    const symbols = {
+      database: "MGI Symbol",
+      of: new Map([
+        ["ENSMUSG00000103766.6", ["Gm38392"]],
+        ["ENSMUSG00000104445.2", ["Rhbg"]],
+      ]),
+    };
+    const named = evidenceOf(rhbg, vocabulary, { symbols }).find((m) => m.kind === "runner_named");
+    expect(named?.alert).toBe(true);
+    expect(named?.detail).toContain("`ENSMUSG00000104445.2` (rank 2) carries `Rhbg` as MGI Symbol");
+    expect(named?.ask).toEqual({ words: "Ask Rhbg at release 115", fromRelease: 115, toRelease: 115 });
+    // The best answer's own symbol being the name typed: no mark.
+    const plain = evidenceOf(rhbg, vocabulary, {
+      symbols: { database: "MGI Symbol", of: new Map([["ENSMUSG00000103766.6", ["Rhbg"]]]) },
+    });
+    expect(plain.some((m) => m.kind === "runner_named")).toBe(false);
+    // The retired MIR21 id: the way on is an accession the runner-up holds today.
+    const rival = evidenceOf(load("homo_sapiens", "convert_retired_bridge"), vocabulary).find((m) => m.kind === "bridge_rival");
+    expect(rival?.alert).toBe(true);
+    expect(rival?.ask?.identifier).toBe("MI0000077");
+  });
+
+  it("names the other reading of a number written with a version, and a symbol database that is not the authority's", () => {
+    const versioned = evidenceOf(load("homo_sapiens", "convert_versioned_number"), vocabulary);
+    const number = versioned.find((m) => m.kind === "bare_number");
+    expect(number?.tone).toBe("caution");
+    expect(number?.label).toBe("a number read as a Havana translation id of release 51");
+    expect(number?.detail).toContain("Read without its version, as `2633`, it answers `ENSG00000117228.12`");
+    expect(number?.ask).toEqual({ words: "Ask 2633 without the version", identifier: "2633" });
+    expect(versioned.some((m) => m.kind === "other_reading")).toBe(false);
+    const pig = JSON.parse(fixture("sus_scrofa", "databases").raw) as { symbol_databases: string[] };
+    const projected = evidenceOf(load("sus_scrofa", "convert_projected_no_target"), vocabulary, {
+      symbolDatabases: pig.symbol_databases,
+      asked: "HGNC Symbol",
+    }).find((m) => m.kind === "projected_symbols");
+    expect(projected?.label).toBe("HGNC Symbol is not this organism's name authority");
+    expect(projected?.ask).toEqual({ words: "Ask in VGNC Symbol", finalDatabase: "VGNC Symbol" });
+    // The authority itself asked: no mark.
+    expect(
+      evidenceOf(load("sus_scrofa", "convert_projected_no_target"), vocabulary, {
+        symbolDatabases: pig.symbol_databases,
+        asked: "VGNC Symbol",
+      }).some((m) => m.kind === "projected_symbols"),
+    ).toBe(false);
   });
 
   it("gives a plain answer no caution", () => {

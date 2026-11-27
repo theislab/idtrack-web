@@ -1,0 +1,26 @@
+[
+ {
+  "name": "convert_runner_named",
+  "method": "GET",
+  "path": "/organisms/mus_musculus/convert",
+  "query": {
+   "identifier": "Rhbg",
+   "explain": "true",
+   "from_release": 77
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "convert_runner_named.json"
+ },
+ {
+  "name": "databases",
+  "method": "GET",
+  "path": "/organisms/mus_musculus/databases",
+  "query": {},
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "databases.json"
+ }
+]

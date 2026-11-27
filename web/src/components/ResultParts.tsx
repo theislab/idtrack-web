@@ -3,6 +3,7 @@
 import type { ReactNode } from "react";
 import type { Candidate } from "../api/types";
 import { MATCH_WORDS } from "../lib/answerLinks";
+import { shortScore } from "../lib/resultWords";
 import { criterionValue } from "../lib/values";
 import { matchParts, spaced, type Criterion } from "../lib/vocabulary";
 import { useVocabulary } from "../lib/vocabularyContext";
@@ -113,4 +114,17 @@ export function Match({ match }: { match: string }) {
 export function CriterionValue({ criterion, candidate }: { criterion: Criterion; candidate: Candidate }) {
   const shown = criterionValue(criterion, candidate);
   return <Mono title={shown.title}>{shown.text}</Mono>;
+}
+
+/** A score in a table: its first six significant digits and "…" where more follow (`shortScore`); the whole value as
+ *  idtrack gave it on hover, read out in place of the shortened text, and in the candidate's record. */
+export function ScoreValue({ score, strong = false }: { score: number; strong?: boolean }) {
+  const { text, exact } = shortScore(score);
+  if (text === exact) return <Mono strong={strong}>{exact}</Mono>;
+  return (
+    <span className={`score-value mono ${strong ? "mono--strong" : ""}`} title={`As idtrack gave it: ${exact}`}>
+      <span aria-hidden="true">{text}</span>
+      <span className="visually-hidden">{exact}</span>
+    </span>
+  );
 }

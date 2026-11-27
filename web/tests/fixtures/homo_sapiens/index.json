@@ -1372,5 +1372,48 @@
   "status": 200,
   "content_type": "application/json",
   "file": "databases.json"
+ },
+ {
+  "name": "convert_name_other_sources",
+  "method": "GET",
+  "path": "/organisms/homo_sapiens/convert",
+  "query": {
+   "identifier": "HLA-DRB3",
+   "explain": "true",
+   "from_release": 70,
+   "to_release": 70,
+   "final_database": "HGNC Symbol"
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "convert_name_other_sources.json"
+ },
+ {
+  "name": "convert_versioned_number",
+  "method": "GET",
+  "path": "/organisms/homo_sapiens/convert",
+  "query": {
+   "identifier": "2633.1",
+   "explain": "true"
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "convert_versioned_number.json"
+ },
+ {
+  "name": "convert_tie_entry_genes",
+  "method": "GET",
+  "path": "/organisms/homo_sapiens/convert",
+  "query": {
+   "identifier": "MAT1",
+   "explain": "true",
+   "from_release": 60
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "convert_tie_entry_genes.json"
  }
 ]

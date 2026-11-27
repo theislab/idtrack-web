@@ -74,40 +74,33 @@
 
 /* ---- a: the answer -------------------------------------------------------------------------------------------- */
 
+/* The state's rule is the panel's own top border (its corners follow the panel's): the panel clips nothing, so a
+   caution's card opened near its edge stands whole over what follows (WCAG 1.4.13). */
 .answer-panel {
   position: relative;
-  overflow: hidden;
-  padding-top: calc(var(--space-5) + 3px);
+  border-top: 3px solid var(--line-strong);
 }
 
-.answer-panel::before {
-  content: "";
-  position: absolute;
-  inset: 0 0 auto;
-  height: 3px;
-  background: var(--line-strong);
+.answer-panel--ok {
+  border-top-color: var(--state-ok);
 }
 
-.answer-panel--ok::before {
-  background: var(--state-ok);
-}
-
-.answer-panel--warn::before {
-  background: var(--state-warn);
+.answer-panel--warn {
+  border-top-color: var(--state-warn);
 }
 
 /* Converted, with cautions to weigh: a full rule in ink, not in the colour of a plain answer; the state is said by
    the caution's triangle and its count beside the status (a shape and words, never a share of a line). */
-.answer-panel--caution::before {
-  background: var(--ink-2);
+.answer-panel--caution {
+  border-top-color: var(--ink-2);
 }
 
 .answer-panel--caution .answer__codes .status {
   color: var(--ink-1);
 }
 
-.answer-panel--danger::before {
-  background: var(--state-danger);
+.answer-panel--danger {
+  border-top-color: var(--state-danger);
 }
 
 .answer {
@@ -2534,6 +2527,75 @@ a.anatomy__link:hover .anatomy__go {
 
 .answer__hint {
   max-width: var(--measure);
+}
+
+/* A tie of one gene's ids: idtrack's word "tie", without the colour of a tie between genes. */
+.answer-panel .answer__codes--one-gene .status {
+  color: var(--ink-1);
+  background: var(--surface-sunk);
+  border-color: var(--line-strong);
+}
+
+/* Another gene may be the one meant: said under the status, in ink with the caution's triangle, the way on and the
+   limitation of idtrack's documentation beside it. */
+.answer__alerts {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+  list-style: none;
+  max-width: 920px;
+  color: var(--ink-1);
+  background: var(--surface-sunk);
+  border-left: 3px solid var(--ink-1);
+  border-radius: var(--radius);
+  font-size: var(--text-sm);
+  line-height: 1.55;
+}
+
+.answer__alert {
+  display: grid;
+  grid-template-columns: 14px minmax(0, 1fr);
+  gap: var(--space-2);
+  align-items: start;
+}
+
+.answer__alert .evidence__glyph {
+  margin-top: 5px;
+}
+
+.answer__alert-doc {
+  display: block;
+  color: var(--ink-2);
+}
+
+/* What a tie of genes means for a list or a count matrix, in idtrack's terms. */
+.answer__guidance {
+  max-width: var(--measure);
+  font-size: var(--text-sm);
+  color: var(--ink-2);
+  line-height: 1.55;
+}
+
+.answer__guidance-head {
+  display: block;
+  margin-bottom: 2px;
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--ink-3);
+}
+
+.answer__guidance a + a {
+  margin-left: var(--space-2);
+}
+
+/* A score cut after six significant digits: the whole value on hover and read out in its place. */
+.score-value {
+  cursor: help;
+  text-decoration: underline dotted var(--line-strong);
+  text-underline-offset: 3px;
 }
 
 .answer__caution-count .evidence__glyph {

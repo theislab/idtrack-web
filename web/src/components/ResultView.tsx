@@ -12,6 +12,8 @@ import { groupedInteger } from "../lib/numbers";
 import { atOneRelease, buildModel, type PathModel } from "../lib/pathModel";
 import { CrossingView } from "./CrossingView";
 import { useSymbols } from "../lib/symbols";
+import { api } from "../api/client";
+import { useRequest } from "../lib/useRequest";
 import { assemblyNames } from "../lib/pathReading";
 import { useVocabulary } from "../lib/vocabularyContext";
 import { BridgesConsidered, RefusedSteps } from "./PathChecks";
@@ -181,7 +183,6 @@ export const ResultView = memo(function ResultView({
     highlight.setCandidate(null);
     highlight.setStep(null);
   }, [result, highlight]);
-  const marks = useMemo(() => evidenceOf(result, vocabulary), [result, vocabulary]);
   // The symbol of each gene the answer names, at its target release: one batch request (lib/symbols.ts); none where
   // the targets are a name authority's symbols already (they are the symbols).
   const genes = useMemo(
@@ -204,6 +205,16 @@ export const ResultView = memo(function ResultView({
       of.set(c.gene, [...new Set([...(of.get(c.gene) ?? []), ...(c.target === c.gene ? [] : [c.target])])]);
     return { database: requestedDatabase, release: result.to_release, of };
   }, [fetched, requestedDatabase, result]);
+  // The organism's symbol databases (its name authority first), for the marks that need them; asked at once with the
+  // answer (the same request as the symbols', shared: lib/symbols.ts).
+  const databases = useRequest(`databases:${description.organism}`, (signal, fresh) =>
+    api.databases(description.organism, { signal, fresh }),
+  );
+  const symbolDatabases = databases.state === "done" ? databases.answer.data.symbol_databases : null;
+  const marks = useMemo(
+    () => evidenceOf(result, vocabulary, { symbolDatabases, symbols, asked: requestedDatabase }),
+    [result, vocabulary, symbolDatabases, symbols, requestedDatabase],
+  );
   const context: IdContext = useMemo(
     () => ({
       organism: description.organism,
@@ -270,7 +281,9 @@ export const ResultView = memo(function ResultView({
           className="result__path"
           aside={
             <span className="muted">
-              {model.steps.length} step{model.steps.length === 1 ? "" : "s"} in all, {model.nodes.length} identifiers
+              {model.candidates.length > 1
+                ? `all ${groupedInteger(model.candidates.length)} candidates: ${groupedInteger(model.steps.length)} steps, ${groupedInteger(model.nodes.length)} identifiers`
+                : `${model.steps.length} step${model.steps.length === 1 ? "" : "s"}, ${model.nodes.length} identifiers`}
             </span>
           }
         >

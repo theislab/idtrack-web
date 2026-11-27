@@ -140,5 +140,30 @@
     "body": {
       "identifiers": ["INS", "INS-1", "GCG", "GCG.2", "GCG.2_1", "PDX1"]
     }
+  },
+  {
+    "kind": "convert",
+    "name": "convert_branch_continuation",
+    "identifier": "ENSSSCG00000014532",
+    "arguments": {
+      "from_release": 56,
+      "to_release": 98
+    }
+  },
+  {
+    "kind": "convert",
+    "name": "convert_bridges_tied",
+    "identifier": "XM_001925116",
+    "arguments": {
+      "to_release": 56
+    }
+  },
+  {
+    "kind": "convert",
+    "name": "convert_projected_no_target",
+    "identifier": "445466",
+    "arguments": {
+      "final_database": "HGNC Symbol"
+    }
   }
 ]

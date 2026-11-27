@@ -47,6 +47,8 @@ export interface Anatomy {
   ranked: {
     candidates: number;
     best: number;
+    /** The genes of the best answer (a tie of one gene's ids is no tie between genes). */
+    bestGenes: number;
     tie: boolean;
     decidedBy: string | null;
     /** The position of the deciding criterion in idtrack's order (1 first), null where the api's vocabulary lacks it. */
@@ -113,6 +115,7 @@ export function anatomyOf(result: ConversionResult, model: PathModel, criteria: 
     ranked: {
       candidates: result.candidates.length,
       best: bests.length,
+      bestGenes: new Set(bests.map((c) => c.gene)).size,
       tie: result.tie,
       decidedBy: result.decided_by,
       position: position >= 0 ? position + 1 : null,

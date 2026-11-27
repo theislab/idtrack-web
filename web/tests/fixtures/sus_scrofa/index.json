@@ -1154,5 +1154,58 @@
   "status": 200,
   "content_type": "application/json",
   "file": "final_databases.json"
+ },
+ {
+  "name": "convert_branch_continuation",
+  "method": "GET",
+  "path": "/organisms/sus_scrofa/convert",
+  "query": {
+   "identifier": "ENSSSCG00000014532",
+   "explain": "true",
+   "from_release": 56,
+   "to_release": 98
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "convert_branch_continuation.json"
+ },
+ {
+  "name": "convert_bridges_tied",
+  "method": "GET",
+  "path": "/organisms/sus_scrofa/convert",
+  "query": {
+   "identifier": "XM_001925116",
+   "explain": "true",
+   "to_release": 56
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "convert_bridges_tied.json"
+ },
+ {
+  "name": "convert_projected_no_target",
+  "method": "GET",
+  "path": "/organisms/sus_scrofa/convert",
+  "query": {
+   "identifier": "445466",
+   "explain": "true",
+   "final_database": "HGNC Symbol"
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "convert_projected_no_target.json"
+ },
+ {
+  "name": "databases",
+  "method": "GET",
+  "path": "/organisms/sus_scrofa/databases",
+  "query": {},
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "databases.json"
  }
 ]

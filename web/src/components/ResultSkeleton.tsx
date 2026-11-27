@@ -1,10 +1,17 @@
 // The layout of a result while it loads (and while its code loads): the answer panel, the release axis with its
 // assembly bands, a table; sized like the result so that nothing jumps when it arrives.
+import { useEffect } from "react";
+import { api } from "../api/client";
 import type { GraphDescription } from "../api/types";
 import { assemblyBands } from "./figure/releases";
 import { Skeleton } from "./ui";
 
 export function ResultSkeleton({ description }: { description: GraphDescription }) {
+  // While the answer is computed, the organism's databases are asked (held for the session): the answer's symbols and
+  // evidence need them, and so do not wait for a second round trip after it comes.
+  useEffect(() => {
+    api.databases(description.organism).catch(() => undefined);
+  }, [description.organism]);
   const bands = assemblyBands(description);
   const total = description.releases.length || 1;
   return (

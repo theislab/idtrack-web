@@ -167,5 +167,28 @@
     "kind": "get",
     "name": "databases",
     "path": "/organisms/{organism}/databases"
+  },
+  {
+    "kind": "convert",
+    "name": "convert_name_other_sources",
+    "identifier": "HLA-DRB3",
+    "arguments": {
+      "from_release": 70,
+      "to_release": 70,
+      "final_database": "HGNC Symbol"
+    }
+  },
+  {
+    "kind": "convert",
+    "name": "convert_versioned_number",
+    "identifier": "2633.1"
+  },
+  {
+    "kind": "convert",
+    "name": "convert_tie_entry_genes",
+    "identifier": "MAT1",
+    "arguments": {
+      "from_release": 60
+    }
   }
 ]

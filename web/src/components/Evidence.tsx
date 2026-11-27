@@ -5,7 +5,7 @@
 // table's cell.
 import { useMemo } from "react";
 import type { ConversionResult } from "../api/types";
-import { evidenceOf, type EvidenceMark } from "../lib/evidence";
+import { evidenceOf, type EvidenceAsk, type EvidenceMark } from "../lib/evidence";
 import { useVocabulary } from "../lib/vocabularyContext";
 import { Toggletip } from "./Toggletip";
 import { Link, Prose } from "./ui";
@@ -35,7 +35,15 @@ function Glyph({ tone }: { tone: EvidenceMark["tone"] }) {
   );
 }
 
-function Card({ mark, readAtHref }: { mark: EvidenceMark; readAtHref?: ((release: number) => string) | undefined }) {
+/** The addresses a mark's ways on lead to: the identifier read at another release, a conversion that answers what the
+ *  mark doubts. */
+export interface EvidenceLinks {
+  readAtHref?: ((release: number) => string) | undefined;
+  askHref?: ((ask: EvidenceAsk) => string) | undefined;
+}
+
+function Card({ mark, links }: { mark: EvidenceMark; links: EvidenceLinks }) {
+  const { readAtHref, askHref } = links;
   return (
     <span className="evidence__card">
       <span className="evidence__card-kind">{mark.tone === "caution" ? "Caution" : "Note"}</span>
@@ -50,6 +58,11 @@ function Card({ mark, readAtHref }: { mark: EvidenceMark; readAtHref?: ((release
       {mark.readAt !== undefined && readAtHref ? (
         <span className="evidence__card-action">
           <Link to={readAtHref(mark.readAt)}>Read it at release {mark.readAt} →</Link>
+        </span>
+      ) : null}
+      {mark.ask && askHref ? (
+        <span className="evidence__card-action">
+          <Link to={askHref(mark.ask)}>{mark.ask.words} →</Link>
         </span>
       ) : null}
       {mark.limitation ? (
@@ -67,12 +80,12 @@ function Card({ mark, readAtHref }: { mark: EvidenceMark; readAtHref?: ((release
   );
 }
 
-function Mark({ mark, readAtHref }: { mark: EvidenceMark; readAtHref?: ((release: number) => string) | undefined }) {
+function Mark({ mark, links }: { mark: EvidenceMark; links: EvidenceLinks }) {
   const words = mark.label.replace(/`/g, "");
   return (
     <li className={`evidence__mark evidence__mark--${mark.tone}`}>
       <Toggletip
-        tip={<Card mark={mark} readAtHref={readAtHref} />}
+        tip={<Card mark={mark} links={links} />}
         label={`${mark.tone === "caution" ? "Caution" : "Note"}: ${words}`}
       >
         <Glyph tone={mark.tone} />
@@ -91,6 +104,7 @@ export function Evidence({
   compact = false,
   max = 3,
   readAtHref,
+  askHref,
   label = "Evidence to weigh",
 }: {
   result: ConversionResult;
@@ -101,6 +115,8 @@ export function Evidence({
   max?: number;
   /** The address that reads the identifier at another release (a mark of another meaning offers it). */
   readAtHref?: (release: number) => string;
+  /** The address of a conversion a mark offers as the way on. */
+  askHref?: (ask: EvidenceAsk) => string;
   /** The list's accessible name. */
   label?: string;
 }) {
@@ -112,7 +128,7 @@ export function Evidence({
   return (
     <ul className={`evidence ${compact ? "evidence--compact" : ""}`} aria-label={label}>
       {shown.map((mark) => (
-        <Mark key={`${mark.kind}|${mark.label}`} mark={mark} readAtHref={readAtHref} />
+        <Mark key={`${mark.kind}|${mark.label}`} mark={mark} links={{ readAtHref, askHref }} />
       ))}
       {rest > 0 ? (
         <li className="evidence__mark evidence__mark--more">
