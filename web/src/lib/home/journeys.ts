@@ -104,3 +104,90 @@ export function symbolOf(j: Journey, symbols: ReadonlyMap<string, readonly strin
   const found = symbols.get(targets[0] ?? "") ?? [];
   return found.length ? found.join(", ") : null;
 }
+
+/** Whether a journey's best answer takes a split or a merge of Ensembl's history. */
+function splitsOrMerges(j: Journey): boolean {
+  return (j.model?.marks ?? []).some(
+    (m) => m.step.kind === "history" && ["split", "merge", "split_and_merge"].includes(m.step.reason),
+  );
+}
+
+/** Whether a journey crosses from one database into another: read through an external database and answered in
+ *  another database than the ones it was read in (an Ensembl gene included). */
+export function crossesDatabases(j: Journey): boolean {
+  const r = j.result;
+  if (!r || !j.model) return false;
+  const read = r.from_databases.filter((d) => !isEnsembl(d));
+  if (!read.length) return false;
+  return r.final_database === null || !read.includes(r.final_database);
+}
+
+/** How telling a journey is in a figure that cannot draw them all (lower first), by what its best answer shows,
+ *  rarest first: a split or merge of Ensembl's history; a bridge; a renamed gene; a crossing from one database into
+ *  another; a walk back in time; a replacement; a step across an assembly change; new versions alone. A journey with
+ *  no answer to draw comes last. Read from the answer's own fields, never from the identifier. */
+export function salience(j: Journey): number {
+  const m = j.model;
+  if (!m) return 8;
+  if (splitsOrMerges(j)) return 0;
+  if (bridgesOf(j).length) return 1;
+  if (isRenamed(j)) return 2;
+  if (crossesDatabases(j)) return 3;
+  if (m.backward) return 4;
+  if (m.marks.some((mk) => mk.step.reason === "replaced")) return 5;
+  if (m.marks.some((mk) => mk.kind === "handoff")) return 6;
+  return 7;
+}
+
+/** Runs of rows of one set, next to each other, whose best answers are the same targets (two genes merged into one,
+ *  or two ids of one gene): [first row, last row] of each run of two or more. */
+export function sameAnswerGroups(list: readonly Journey[]): [number, number][] {
+  const key = (j: Journey) =>
+    j.model ? `${j.set}|${[...new Set(j.model.best.map((c) => c.target))].sort().join(",")}` : null;
+  const groups: [number, number][] = [];
+  let start = 0;
+  for (let k = 1; k <= list.length; k++) {
+    const a = list[start];
+    const b = list[k];
+    const same = a && b && key(a) !== null && key(a) === key(b);
+    if (!same) {
+      if (k - 1 > start) groups.push([start, k - 1]);
+      start = k;
+    }
+  }
+  return groups;
+}
+
+/** Whether a journey's answer is another string than the identifier read (shown in bold). */
+export function answerChanged(j: Journey): boolean {
+  if (!j.model || !j.result) return false;
+  const targets = j.result.candidates.filter((c) => c.best).map((c) => c.target);
+  return !targets.includes(j.result.query_id);
+}
+
+/** The marks a legend of the journeys can name. */
+export type LegendMark = "version" | "event" | "loop" | "handoff" | "cross" | "bridge" | "back" | "changed" | "same";
+
+/** The kinds of mark the journeys hold, in the legend's order: the legend names these and only these. */
+export function legendMarks(list: readonly Journey[]): LegendMark[] {
+  const found = new Set<LegendMark>();
+  for (const j of list) {
+    const m = j.model;
+    if (!m) continue;
+    for (const mk of m.marks) {
+      if (mk.kind === "version" || mk.kind === "event" || mk.kind === "loop" || mk.kind === "handoff")
+        found.add(mk.kind);
+      if (mk.kind === "handoff" && ["split", "merge", "split_and_merge"].includes(mk.step.reason)) found.add("event");
+      if (mk.kind === "bridge") found.add("bridge");
+    }
+    const read = m.result.from_databases.some((d) => !isEnsembl(d));
+    const asked = m.result.final_database;
+    const answered = asked !== null && !isEnsembl(asked) && m.marks.some((mk) => mk.kind === "final");
+    if (read || answered) found.add("cross");
+    if (m.backward) found.add("back");
+    if (answerChanged(j)) found.add("changed");
+  }
+  if (sameAnswerGroups(list).length) found.add("same");
+  const order: LegendMark[] = ["version", "event", "loop", "handoff", "cross", "bridge", "back", "changed", "same"];
+  return order.filter((k) => found.has(k));
+}

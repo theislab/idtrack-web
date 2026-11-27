@@ -7,7 +7,7 @@ import { CaseTour } from "../components/home/CaseTour";
 import { ErrorBoundary } from "../components/ErrorBoundary";
 import { ErrorPanel } from "../components/ErrorPanel";
 import { ResultSkeleton } from "../components/ResultSkeleton";
-import { Button, Field, Link, Select, Switch, TextInput } from "../components/ui";
+import { Button, Field, Select, Switch, TextInput } from "../components/ui";
 import {
   convertHref,
   plainConversion,
@@ -31,19 +31,13 @@ import { href, navigate, useLocation } from "../lib/router";
 import { setTitleDetail } from "../lib/title";
 import { useRequest } from "../lib/useRequest";
 import { useLimits } from "../lib/vocabularyContext";
+import { examplesOf, type Example } from "../lib/home/examples";
+import { useShowcase } from "../lib/showcase";
 import "../styles/convert.css";
 
 // The answer's view (with the path view and its d3 modules) is fetched when a result needs it: the first load stays
 // small, and the skeleton of the result stands in while it loads.
 const ResultView = lazyPart(() => import("../components/ResultView").then((m) => ({ default: m.ResultView })));
-
-const EXAMPLES: Record<string, string[]> = {
-  homo_sapiens: ["INS", "ENSG00000139618", "TP53", "NM_000207"],
-  mus_musculus: ["Ins2", "Pdx1", "ENSMUSG00000035804"],
-  sus_scrofa: ["INS", "PDX1", "ENSSSCG00000040723", "XP_003123285"],
-  macaca_mulatta: ["INS", "PDX1"],
-  macaca_fascicularis: ["INS", "PDX1"],
-};
 
 const isRelease = (text: string) => text.trim() === "" || /^\d+$/.test(text.trim());
 
@@ -97,12 +91,13 @@ export function ConvertPage() {
   const location = useLocation();
   const parameters = readParameters(location.search);
   // Before a conversion the page is the hero (components/ConvertEmpty.tsx), whose head paints before the organisms are
-  // known; once a conversion is asked, the page is its answer under a compact form.
+  // known; once a conversion is asked, the page is its answer under the form in one row, with no page intro: the
+  // answer is the first screen's subject.
   const idle = !parameters.identifier;
   return (
-    <div className={`page page--convert${idle ? " page--hero" : ""}`}>
-      {idle ? null : <ConvertHead organism={current?.organism ?? null} />}
+    <div className={`page page--convert${idle ? " page--hero" : " page--answer"}`}>
       {idle && !current ? <ConvertEmpty description={null} form={null} /> : null}
+      {!idle && !current ? <ConvertTitle /> : null}
       {current ? (
         <ConvertForOrganism
           key={current.organism}
@@ -115,21 +110,10 @@ export function ConvertPage() {
   );
 }
 
-/** The page's head: the same in every state and drawn before the server's graphs are known (its words name no
- *  organism), so that the form below it never moves when an answer comes and the page's first text paints at once. */
-function ConvertHead({ organism }: { organism: string | null }) {
-  return (
-    <header className="page-head page-head--convert">
-      <p className="eyebrow">Convert</p>
-      <h1>Where is this gene at another release?</h1>
-      <p className="lede">
-        Give an Ensembl id, a symbol or another database&apos;s id of any release: idtrack follows it through
-        Ensembl&apos;s own history to the release and database you choose and shows the evidence for every step. It
-        converts within one organism, never across species; a list goes to{" "}
-        <Link to={organism ? href("/batch", { organism }) : "/batch"}>Batch</Link>.
-      </p>
-    </header>
-  );
+/** The page's title over an answer: the section's name above the form, in the eyebrow's type (the answer below is the
+ *  screen's subject; the hero said what idtrack does). */
+function ConvertTitle() {
+  return <h1 className="convert-title eyebrow">Convert</h1>;
 }
 
 /** The fields of the address that the api is asked; their refused value can be left out (a way on after a refusal). */
@@ -208,15 +192,6 @@ function ConvertForOrganism({
     };
   }, [result]);
 
-  // On a phone, an address that opens on an answer (a link, a reload) shows the answer, not the form above it: the
-  // answer's heading is brought into view once, without moving the focus.
-  const opened = useRef(false);
-  useEffect(() => {
-    if (opened.current || result.state !== "done" || firstKey.current === null) return;
-    opened.current = true;
-    if (!window.matchMedia("(max-width: 640px)").matches) return;
-    area.current?.querySelector<HTMLElement>("[data-result] h2")?.scrollIntoView({ block: "start" });
-  }, [result.state]);
   const go = (next: ConvertParameters) => {
     setCancelled(null);
     const target = convertHref(organism, next);
@@ -249,6 +224,7 @@ function ConvertForOrganism({
     );
   return (
     <>
+      <ConvertTitle />
       {/* One form for the answer's life: it follows the address (a link, Back), and a submit keeps its focus. */}
       <ConvertForm description={description} parameters={parameters} onSubmit={go} />
 
@@ -486,18 +462,12 @@ function ConvertForm({
   const setExplain = (v: boolean) => {
     setField("explain", v);
   };
-  // The releases and the database fold under one line that says them: in the hero always, over an answer on a phone;
-  // they stand open where the address sets one of them. Over an answer on a wider screen they always stand (the button
-  // that folds them is not drawn there).
+  // The releases and the database fold under one line that says them, a press away from their fields: over an answer
+  // always (the form is one row and the answer the screen's subject), in the hero unless the address sets one of them.
   const settingsId = useId();
   const [settingsOpen, setSettingsOpen] = useState(
     () =>
-      parameters.fromRelease !== null ||
-      parameters.toRelease !== null ||
-      parameters.finalDatabase !== null ||
-      (!hero && typeof window === "undefined") ||
-      (!hero && typeof window.matchMedia !== "function") ||
-      (!hero && !window.matchMedia("(max-width: 640px)").matches),
+      hero && (parameters.fromRelease !== null || parameters.toRelease !== null || parameters.finalDatabase !== null),
   );
   const [advanced, setAdvanced] = useState(
     parameters.fromDatabase !== null || !parameters.allowBridges || !parameters.explain,
@@ -534,7 +504,9 @@ function ConvertForm({
     });
   };
 
-  const examples = EXAMPLES[organism] ?? [];
+  // The hero's examples: conversions of the graph's showcase that travel, each labelled by what its answer shows.
+  const showcase = useShowcase(hero ? organism : null);
+  const examples = examplesOf(showcase.state === "done" ? showcase.answer.data : null, organism);
 
   return (
     <form
@@ -548,36 +520,16 @@ function ConvertForm({
           label="Identifier"
           className="field--identifier"
           error={missing ? "Enter an identifier to convert." : null}
-          hint={
-            examples.length ? (
-              <>
-                {hero ? "Try" : "For example"}{" "}
-                {examples.map((e, i) => (
-                  <span key={e}>
-                    <button
-                      type="button"
-                      className="example"
-                      onClick={() => {
-                        onSubmit(plainConversion(e));
-                      }}
-                    >
-                      {e}
-                    </button>
-                    {i < examples.length - 1 && !hero ? ", " : " "}
-                  </span>
-                ))}
-              </>
-            ) : (
-              "An Ensembl id, a symbol or another database's id."
-            )
-          }
         >
           {({ id, describedBy }) => (
             <TextInput
               id={id}
               className="input--mono input--large"
               value={identifier}
-              placeholder="ENSG00000139618.19 or INS or NM_000207"
+              placeholder="a gene id, symbol or accession"
+              autoCapitalize="none"
+              autoCorrect="off"
+              enterKeyHint="go"
               aria-describedby={describedBy}
               aria-invalid={missing}
               aria-required="true"
@@ -693,6 +645,20 @@ function ConvertForm({
         <Button type="submit" variant="primary" className="convert-form__go">
           Convert
         </Button>
+        {hero ? (
+          <Examples
+            examples={examples}
+            waiting={showcase.state === "loading" || showcase.state === "idle"}
+            onPick={(e) => {
+              onSubmit({
+                ...plainConversion(e.query.identifier),
+                fromRelease: e.query.from ?? null,
+                toRelease: e.query.to ?? null,
+                finalDatabase: e.query.db ?? null,
+              });
+            }}
+          />
+        ) : null}
       </div>
       {pasted ? (
         <div className="notice convert-form__pasted" role="status">
@@ -723,10 +689,6 @@ function ConvertForm({
       ) : null}
       <div className="convert-form__foot">
         <RangeNote description={description} fromRelease={fromRelease} toRelease={toRelease} />
-        <p className="convert-form__batch">
-          A list of identifiers, from a paper or a count matrix? <Link to={href("/batch", { organism })}>Batch</Link>{" "}
-          converts {limits ? `up to ${groupedInteger(limits.batch_max)}` : "them"} at once.
-        </p>
       </div>
       <details
         className="convert-form__advanced"
@@ -774,6 +736,51 @@ function ConvertForm({
         </div>
       </details>
     </form>
+  );
+}
+
+/** The hero's examples, one a line: the identifier, the release it is read at, and what its answer shows. Their room
+ *  is held while the showcase is on its way (nothing moves when they come); where the server gives none, none stand. */
+function Examples({
+  examples,
+  waiting,
+  onPick,
+}: {
+  examples: Example[];
+  waiting: boolean;
+  onPick: (example: Example) => void;
+}) {
+  if (!examples.length && !waiting) return null;
+  return (
+    <div
+      className={`convert-examples${examples.length ? "" : " convert-examples--waiting"}`}
+      role="group"
+      aria-label="Examples from this graph's showcase"
+    >
+      <span className="convert-examples__label" aria-hidden="true">
+        Try
+      </span>
+      <ul className="convert-examples__list">
+        {examples.map((e) => (
+          <li key={`${e.kind}-${e.query.identifier}`}>
+            <button
+              type="button"
+              className="convert-example"
+              aria-label={`${e.query.identifier}, read at release ${e.from} and answered at ${e.to}: ${e.title.toLowerCase()}`}
+              onClick={() => {
+                onPick(e);
+              }}
+            >
+              <span className="convert-example__id mono">{e.query.identifier}</span>
+              <span className="convert-example__at mono">
+                {e.from}→{e.to}
+              </span>
+              <span className="convert-example__kind">{e.title}</span>
+            </button>
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }
 

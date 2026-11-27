@@ -124,11 +124,17 @@ export interface ReleaseEvent {
   /** A history step across an assembly change, a re-mapping of genes to themselves, or a new version or a
    *  replacement. */
   kind: "handoff" | "loop" | "version";
-  /** The journeys that take such a step there, and the journeys drawn. */
+  /** The journeys drawn that take such a step there. */
   journeys: number;
+  /** The journeys drawn that span the two releases (read at or before the earlier and answered at or after the
+   *  later, or the other way for a walk back in time): those that could take a step there. */
+  across: number;
+  /** The journeys drawn. */
   of: number;
-  /** For a handoff, the assemblies of its two ends (their keys, as the steps give them). */
+  /** For a handoff, the assemblies of its two ends (their keys, as the steps give them), in Ensembl's direction. */
   assemblies: [number, number] | null;
+  /** For a new version or a replacement, which of the two (the api's reason): counted apart. */
+  reason: string | null;
 }
 
 /** The releases at which at least `share` of the journeys drawn (and at least three) take a history step of one kind,
@@ -157,9 +163,10 @@ export function releaseEvents(models: readonly JourneyModel[], share = 0.4): Rel
             ? [s.old_assembly, s.assembly]
             : [s.assembly, s.old_assembly]
           : null;
-      const key = `${kind}|${old}|${later}|${assemblies?.join(">") ?? ""}`;
+      const reason = kind === "version" ? s.reason : null;
+      const key = `${kind}|${old}|${later}|${assemblies?.join(">") ?? ""}|${reason ?? ""}`;
       const entry = seen.get(key) ?? {
-        event: { old, new: later, kind, journeys: 0, of: models.length, assemblies },
+        event: { old, new: later, kind, journeys: 0, across: 0, of: models.length, assemblies, reason },
         journeys: new Set<number>(),
       };
       entry.journeys.add(j);
@@ -168,26 +175,58 @@ export function releaseEvents(models: readonly JourneyModel[], share = 0.4): Rel
   });
   const least = Math.max(3, Math.ceil(share * models.length));
   return [...seen.values()]
-    .map(({ event, journeys }) => ({ ...event, journeys: journeys.size }))
+    .map(({ event, journeys }) => ({
+      ...event,
+      journeys: journeys.size,
+      across: models.filter((m) => spans(m, event.old, event.new)).length,
+    }))
     .filter((e) => e.journeys >= least)
     .sort((a, b) => b.journeys - a.journeys || a.old - b.old);
 }
 
-/** The words of a release-wide event (the journeys drawn that take such a step there). */
-export function eventWords(e: ReleaseEvent, assemblyName: (key: number) => string): string {
-  if (e.kind === "handoff" && e.assemblies)
-    return `cross ${assemblyName(e.assemblies[0])} → ${assemblyName(e.assemblies[1])}`;
-  if (e.kind === "handoff") return "cross an assembly change";
-  return e.kind === "loop" ? "re-mapped to themselves" : "take a new version";
+/** Whether a journey spans two releases: its line runs from at or before the one to at or after the other. */
+export function spans(m: JourneyModel, old: number, later: number): boolean {
+  const from = m.result.from_release ?? m.lo;
+  const to = m.result.to_release;
+  return Math.min(from, to, m.lo) <= old && Math.max(from, to, m.hi) >= later;
 }
 
-/** The events the figure draws: the most shared of each kind first (an assembly change, a re-mapping, a new version),
- *  then the most shared of the rest, at most `n`, in the order of the releases. */
+/** What happened at a release-wide event, without its count ("GRCh37 → GRCh38", "a new version"). */
+function eventWhat(e: ReleaseEvent, assemblyName: (key: number) => string): string {
+  if (e.kind === "handoff")
+    return e.assemblies ? `${assemblyName(e.assemblies[0])} → ${assemblyName(e.assemblies[1])}` : "an assembly change";
+  if (e.kind === "loop") return "re-mapped to itself";
+  return e.reason === "replaced" ? "a replacement" : "a new version";
+}
+
+/** How many of the journeys across the event take its step ("a step in 18 of the 22 journeys across it"). */
+function eventCount(e: ReleaseEvent): string {
+  const step = e.kind === "handoff" ? "a step" : "";
+  const share = e.journeys === e.across ? `all ${e.across}` : `${e.journeys} of the ${e.across}`;
+  return `${step ? `${step} ` : ""}in ${share} journeys across it`;
+}
+
+/** The words of a release-wide event, in full (one line), and in two lines where one does not fit: its releases and
+ *  what happened, then how many of the journeys drawn across it take its step. Never shortened. */
+export function eventWords(
+  e: ReleaseEvent,
+  assemblyName: (key: number) => string,
+): { line: string; lines: [string, string] } {
+  const releases = `${e.old}→${e.new}`;
+  const what = eventWhat(e, assemblyName);
+  const count = eventCount(e);
+  if (e.kind === "handoff")
+    return { line: `${releases} · ${what} · ${count}`, lines: [`${releases} · ${what}`, count] };
+  return { line: `${releases} · ${what} ${count}`, lines: [`${releases} · ${what}`, count] };
+}
+
+/** The events the figure draws, in the order they are given room: the most shared of each kind first (an assembly
+ *  change, a re-mapping, a new version), then the most shared of the rest, at most `n`. */
 export function drawnEvents(events: readonly ReleaseEvent[], n: number): ReleaseEvent[] {
   const firsts = (["handoff", "loop", "version"] as const).flatMap((k) => {
     const e = events.find((x) => x.kind === k);
     return e ? [e] : [];
   });
   const rest = events.filter((e) => !firsts.includes(e));
-  return [...firsts, ...rest].slice(0, n).sort((a, b) => a.old - b.old);
+  return [...firsts, ...rest].slice(0, n);
 }

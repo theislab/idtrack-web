@@ -17,11 +17,35 @@ import { bestSteps, CASE_KINDS, holdsKind, isHandoff, isRenamedAnswer } from "..
 import { KIND_TEXT } from "../src/lib/home/cases";
 import { facts } from "../src/lib/home/facts";
 import { figureModel, previousOnLane, shortLabel, type FigureGene } from "../src/lib/home/figureModel";
-import { candidateSteps, isEnsembl, journeyModel, releaseEvents } from "../src/lib/home/journeyModel";
-import { bridgesOf, journeyList, journeySets, readDatabases } from "../src/lib/home/journeys";
+import {
+  candidateSteps,
+  eventWords,
+  isEnsembl,
+  journeyModel,
+  releaseEvents,
+  spans,
+} from "../src/lib/home/journeyModel";
+import {
+  bridgesOf,
+  journeyList,
+  journeySets,
+  readDatabases,
+  salience,
+  sameAnswerGroups,
+} from "../src/lib/home/journeys";
 import { clearEnds } from "../src/lib/home/rowMarks";
 import { caseHref, caseQueryOf } from "../src/lib/home/links";
-import { journeysGeometry, layoutOf, LEAST_NAMED_ROW, setWords } from "../src/lib/home/useJourneys";
+import {
+  apportion,
+  chooseJourneys,
+  headHeight,
+  journeysGeometry,
+  NARROW_ROW,
+  ROW,
+  ROW_MAX,
+  setHeight,
+  setWords,
+} from "../src/lib/home/useJourneys";
 import { groupedInteger, releaseRanges } from "../src/lib/numbers";
 import { prose } from "../src/lib/values";
 import { readVocabulary, spaced } from "../src/lib/vocabulary";
@@ -130,25 +154,82 @@ describe("the journeys", () => {
         expect(prev && [prev.from, prev.to, prev.db]).not.toEqual([set.from, set.to, set.db]);
       }
     }
-    for (const width of [320, 390, 760, 1440, 2560]) {
-      const g = journeysGeometry(width, layoutOf(sets, 3));
+    for (const narrow of [false, true]) {
+      const g = journeysGeometry({
+        sets: sets.map((x) => x.journeys.length),
+        setLines: sets.map(() => 1),
+        events: 3,
+        narrow,
+        gutters: [120, 120],
+        fit: 900,
+      });
       for (let j = 1; j < list.length; j++) expect(g.rowTop(j)).toBeGreaterThan(g.rowTop(j - 1));
-      // Each set's words stand on paper above its block: no row of another set reaches into them.
+      // Each set's words stand above its block: no row of another set reaches into them.
       for (let s = 0; s < sets.length; s++) {
-        expect(g.blockTop(s)).toBeGreaterThan(g.setTop(s));
+        expect(g.blockTop(s)).toBeGreaterThan(g.setBaseline(s));
         if (s > 0) expect(g.setTop(s)).toBeGreaterThanOrEqual(g.blockBottom(s - 1));
       }
       expect(g.height).toBeGreaterThan(g.blockBottom(sets.length - 1));
+      expect(g.row).toBe(narrow ? NARROW_ROW : g.row);
     }
-    // Fitted to a height (the hero): the pitch fills it, the names stay where a row has room for them.
-    for (const fit of [300, 520, 700, 900]) {
-      const g = journeysGeometry(1000, layoutOf(sets, 2, undefined, undefined, fit));
-      if (!g.still) {
-        expect(g.row).toBeGreaterThanOrEqual(LEAST_NAMED_ROW);
-        expect(g.height).toBeLessThanOrEqual(fit + 1);
+  });
+
+  it("draw fewer journeys where the room is short, never fewer names: the rows chosen by the one rule", () => {
+    const sets = journeySets(showcaseOf(withPath.slice(0, 40)));
+    const all = journeyList(sets);
+    const lines = sets.map(() => 1);
+    const cost = { head: headHeight(3), set: (s: number) => setHeight(lines[s] ?? 1), row: ROW };
+    for (const room of [180, 300, 420, 560, 700, 900, 1200, 2400]) {
+      const chosen = chooseJourneys(sets, room, cost);
+      const drawn = journeyList(chosen);
+      // A prefix of the sets, each with at least one row, each row one of its set's journeys, in the set's order.
+      expect(chosen.length).toBeGreaterThan(0);
+      for (const [s, set] of chosen.entries()) {
+        expect(set.journeys.length).toBeGreaterThan(0);
+        const order = set.journeys.map((j) => sets[s]?.journeys.indexOf(j) ?? -1);
+        expect(order.every((k, i) => k >= 0 && (i === 0 || k > (order[i - 1] ?? -1)))).toBe(true);
+        // The ones left out of a set are no more telling than the ones drawn.
+        const left = (sets[s]?.journeys ?? []).filter((j) => !set.journeys.includes(j));
+        const worstDrawn = Math.max(...set.journeys.map(salience));
+        for (const j of left) expect(salience(j)).toBeGreaterThanOrEqual(worstDrawn);
+      }
+      // They fit the room at the least named pitch, where at least one row of one set does.
+      const g = journeysGeometry({
+        sets: chosen.map((x) => x.journeys.length),
+        setLines: chosen.map(() => 1),
+        events: 3,
+        narrow: false,
+        gutters: [120, 120],
+        fit: room,
+      });
+      if (drawn.length > 1) expect(g.height).toBeLessThanOrEqual(room);
+      expect(g.row).toBeGreaterThanOrEqual(ROW);
+      expect(g.row).toBeLessThanOrEqual(ROW_MAX);
+      if (room >= 2400) expect(drawn.length).toBe(all.length);
+    }
+  });
+
+  it("share the rows among the sets in proportion to their sizes, two at least (all of a smaller set)", () => {
+    expect(apportion([10, 4, 3, 4, 2], 12)).toEqual([4, 2, 2, 2, 2]);
+    expect(apportion([10, 4, 3, 4, 2], 16)).toEqual([7, 3, 2, 2, 2]);
+    expect(apportion([10, 4, 3, 4, 2], 23)).toEqual([10, 4, 3, 4, 2]);
+    expect(apportion([20, 1, 1], 4)).toEqual([2, 1, 1]);
+    expect(apportion([5, 5], 4)).toEqual([2, 2]);
+    for (const rows of [10, 11, 13, 16, 20])
+      expect(apportion([10, 4, 3, 4, 2], rows).reduce((t, n) => t + n, 0)).toBe(rows);
+  });
+
+  it("join rows of one set whose answers are the same gene", () => {
+    const sets = journeySets(showcaseOf(withPath.slice(0, 40)));
+    for (const [a, b] of sameAnswerGroups(journeyList(sets))) {
+      const list = journeyList(sets);
+      expect(b).toBeGreaterThan(a);
+      const key = (k: number) => [...new Set(list[k]?.model?.best.map((c) => c.target))].sort().join();
+      for (let k = a; k <= b; k++) {
+        expect(key(k)).toBe(key(a));
+        expect(list[k]?.set).toBe(list[a]?.set);
       }
     }
-    expect(journeysGeometry(390, layoutOf(sets, 2, undefined, undefined, 700)).still).toBe(true);
   });
 
   it("name the databases every journey of a set is read in, and the bridges a journey passes through", () => {
@@ -213,16 +294,30 @@ describe("the journeys", () => {
     }
     for (let i = 1; i < events.length; i++)
       expect(events[i - 1]?.journeys).toBeGreaterThanOrEqual(events[i]?.journeys ?? 0);
+    // Each is counted among the journeys across it (those that span its two releases), and its words say so.
+    for (const e of events) {
+      expect(e.across).toBe(models.filter((m) => spans(m, e.old, e.new)).length);
+      expect(e.across).toBeGreaterThanOrEqual(e.journeys);
+      const words = eventWords(e, (key) => `A${key}`);
+      expect(words.line).toContain(`${e.old}→${e.new}`);
+      expect(words.line).toContain(
+        e.journeys === e.across
+          ? `all ${e.across} journeys across it`
+          : `${e.journeys} of the ${e.across} journeys across it`,
+      );
+      // The two lines are the one line's words, split after what happened.
+      expect(words.lines.join(" ").replace(/ · /g, " ")).toBe(words.line.replace(/ · /g, " "));
+    }
   });
 
   it("name each set by the parameters its request sends, the defaults by the api's rule", () => {
     expect(setWords({ from: 48, to: null, db: "HGNC Symbol" }, 115, ["HGNC Symbol"])).toBe(
-      "Read at 48 in HGNC Symbol, answered at 115 in HGNC Symbol",
+      "HGNC Symbol at 48 → HGNC Symbol at 115",
     );
-    expect(setWords({ from: null, to: 48, db: null }, 115)).toBe(
-      "Read at the release idtrack infers, answered at 48 as an Ensembl gene",
+    expect(setWords({ from: null, to: 48, db: null }, 115, [], true)).toBe(
+      "Ensembl ids at the release idtrack infers → back to Ensembl gene at 48",
     );
-    expect(setWords({ from: 101, to: 48, db: null }, 115)).toBe("Read at 101, answered back at 48 as an Ensembl gene");
+    expect(setWords({ from: 101, to: 48, db: null }, 115)).toBe("Ensembl ids at 101 → back to Ensembl gene at 48");
   });
 });
 

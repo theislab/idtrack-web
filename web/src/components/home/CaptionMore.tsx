@@ -1,5 +1,5 @@
-// A caption that says its first sentence on a phone and the rest on a press ("More about this figure"); on a wider
-// screen the whole caption stands, and the button is not drawn. The rest is in the page either way (a reader of the
+// A caption that says its first sentence on a narrow screen (a phone, a tablet) and the rest on a press ("More about
+// this figure"); on a wider screen the whole caption stands, and the button is not drawn. The rest is in the page either way (a reader of the
 // page's text, a search, a screen reader with the rest shown), never a different text.
 import { useId, useState, type ReactNode } from "react";
 

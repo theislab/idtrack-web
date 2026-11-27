@@ -1,109 +1,74 @@
-// The geometry of the Convert page's first figure and the words of its sets. The answers come from the server's
-// showcase of the graph (lib/showcase.ts), one answer for the whole figure; nothing is converted on the page.
+// The geometry of the Convert page's first figure, which journeys it draws when the room holds fewer than all, and the
+// words of its sets. The answers come from the server's showcase of the graph (lib/showcase.ts), one answer for the
+// whole figure; nothing is converted on the page.
 //
-// Each set of journeys is a block of its own: its words on a line of paper above it, then its rows over the assembly
-// bands. No band, guide or line of a row crosses the words of a set, and no line runs from one set into another.
-import type { JourneySet } from "./journeys";
+// The figure always names its rows. Where the hero's room cannot hold every journey at a named pitch, it draws fewer
+// journeys, chosen by one rule (`chooseJourneys`), never all of them without their names. The assembly bands run from
+// their names down to the axis as one column each; each set of journeys stands in them under its words, which are set
+// on a halo of the paper so that no band edge or guide crosses them.
+import { salience, type JourneySet } from "./journeys";
 
-export interface JourneysLayout {
-  /** The sets' sizes, in order. */
-  sets: readonly number[];
-  /** The lines each set's words take (1 where they fit the width; more where they wrap). */
-  setLines?: readonly number[];
-  /** The lines of the release-wide events under the bands' names (0: none drawn). */
-  events: number;
-  /** On a wide screen, the widths of the gutters' longest texts (measured by the figure's label placer). */
-  gutters?: [number, number];
-  /** The height the figure must fit (the hero): the rows' pitch is chosen to fill it, within bounds. */
-  fit?: number;
-}
-
-export function layoutOf(
-  sets: readonly JourneySet[],
-  events: number,
-  gutters?: [number, number],
-  setLines?: readonly number[],
-  fit?: number,
-): JourneysLayout {
-  return {
-    sets: sets.map((s) => s.journeys.length),
-    events,
-    ...(gutters ? { gutters } : {}),
-    ...(setLines ? { setLines } : {}),
-    ...(fit !== undefined ? { fit } : {}),
-  };
-}
-
-/** The least pitch of a row whose names stand in the gutters (a name is 11 px high); below it a figure that must fit
- *  its height is drawn as a still image of its lines, the names left to its text alternative. */
-export const LEAST_NAMED_ROW = 14;
-
-/** Below this width a figure that fits a height is a still image (a phone's hero). */
-export const STILL_FIGURE = 560;
-/** The pitch of a row in a still image: its glyphs never touch the next row's. */
-const STILL_ROW = 12;
-
-/** The sets a still image of `height` holds whole, in order, at STILL_ROW (at least the first). */
-export function setsThatFit<T extends { journeys: readonly unknown[] }>(sets: readonly T[], height: number): T[] {
-  const room = height - 34 - 34;
-  const kept: T[] = [];
-  let used = 0;
-  for (const set of sets) {
-    const need = 5 + 6 + set.journeys.length * STILL_ROW;
-    if (kept.length && used + need > room) break;
-    kept.push(set);
-    used += need;
-  }
-  return kept;
-}
-
-/** Below this width the figure is a phone's: each row's names stand on a line of paper above its track. */
-export const PHONE_FIGURE = 760;
 /** The height of one line of the figure's words (sets, events). */
 export const LINE = 15;
+/** The least pitch of a row on a wide figure: a pointer's target of 24 px (WCAG 2.5.8), its names beside it. */
+export const ROW = 24;
+/** The largest pitch a wide figure takes to fill its room (more air stands around the figure instead). */
+export const ROW_MAX = 32;
+/** The pitch of a row on a narrow figure: its names on a line of paper (14 px) above its track (22 px). */
+export const NARROW_ROW = 36;
+/** The least width of the plot between the gutters for the names to stand in the gutters (about 6 px a release);
+ *  below it each row's names stand above its track. */
+export const LEAST_PLOT = 400;
 
-/** The figure's geometry for a width. On a wide screen the names of each row stand in the gutters, the left one beside
- *  the start of the line, the right one beside its end; on a phone they stand above the row's track, and each row is a
- *  track of its own over the bands. Above the rows, two lines for the names of the assembly bands (inside a band where
- *  it has room, else above it), then the lines of the release-wide events, then each set: its words, its rows. */
-export function journeysGeometry(width: number, layout: JourneysLayout) {
+/** The names of the assembly bands: inside the bands, and a second line for a band too narrow for its name. */
+const BANDS_HEAD = 34;
+/** The axis under the rows. */
+const AXIS = 34;
+/** Air above a set's words, and under a set's rows. */
+const SET_AIR = 6;
+const AFTER = 3;
+/** The line of the release-wide events: a little air under the bands' names, then the lines. */
+const EVENT_LINE = 16;
+
+export interface JourneysLayout {
+  /** The rows of each set drawn, in order. */
+  sets: readonly number[];
+  /** The lines each set's words take (1 where they fit the width; more where they wrap). */
+  setLines: readonly number[];
+  /** The lines of the release-wide events under the bands' names (0: none drawn). */
+  events: number;
+  /** Whether each row's names stand above its track (a narrow figure) rather than in the gutters. */
+  narrow: boolean;
+  /** The widths of the gutters (the longest names and their air), on a wide figure. */
+  gutters: [number, number];
+  /** The height the figure fills: a wide figure's rows take the pitch that fills it, within ROW and ROW_MAX. */
+  fit: number;
+}
+
+/** The height of the figure's parts that do not grow with its rows. */
+function fixedHeight(sets: number, setLines: readonly number[], events: number): number {
+  let h = BANDS_HEAD + (events ? 4 + EVENT_LINE * events : 0) + AXIS;
+  for (let s = 0; s < sets; s++) h += SET_AIR + LINE * Math.max(1, setLines[s] ?? 1) + 4 + AFTER;
+  return h;
+}
+
+/** The figure's geometry for a width. Above the rows, the bands' names (inside a band where it has room, else on a
+ *  second line), then the lines of the release-wide events, then each set: its words, its rows; under them the axis. On
+ *  a wide figure the names of each row stand in the gutters, the left one beside the start of the line, the right one
+ *  beside its end; on a narrow one they stand above the row's track, and each row is a track of its own. */
+export function journeysGeometry(layout: JourneysLayout) {
   const rows = layout.sets.reduce((t, n) => t + n, 0);
-  const bandsHead = 34;
-  const linesOf = (s: number) => Math.max(1, layout.setLines?.[s] ?? 1);
-  const fitting = layout.fit !== undefined;
-  const axis = 34;
-  const fixedOf = (gap: (s: number) => number, head: number) =>
-    head + layout.sets.reduce((t, _, s) => t + gap(s) + 6, 0) + axis;
-  const eventsHead = layout.events ? 8 + LINE * layout.events : 0;
-  const namedGap = (s: number) => (fitting ? 8 : 12) + LINE * linesOf(s);
-  // A figure that fits a height (the hero) takes the pitch that fills it, its names in the gutters, down to
-  // LEAST_NAMED_ROW; below that, and on a phone always, it is a still image of its lines: no names, no words of the
-  // sets or the events (the caption and the text alternative say them), the sets a few pixels apart.
-  const fitted = fitting
-    ? Math.floor(((layout.fit ?? 0) - fixedOf(namedGap, bandsHead + eventsHead)) / Math.max(1, rows))
-    : 0;
-  const still = fitting && (width < STILL_FIGURE || fitted < LEAST_NAMED_ROW);
-  const phone = !fitting && width < PHONE_FIGURE;
-  const eventsRow = still ? 0 : eventsHead;
-  const head = bandsHead + eventsRow;
-  /** The paper above a set: its words and a little air (in a still image, the air alone). */
-  const setGap = (s: number) => (still ? 5 : namedGap(s));
-  const stillPitch = fitting ? Math.floor(((layout.fit ?? 0) - fixedOf(setGap, head)) / Math.max(1, rows)) : 0;
-  /** A row: on a phone a line of names (14 px) over a track (20 px); in a fitted figure the pitch that fills it. */
-  const row = still
-    ? Math.max(8, Math.min(STILL_ROW + 2, stillPitch))
-    : fitting
-      ? Math.max(LEAST_NAMED_ROW, Math.min(22, fitted))
-      : phone
-        ? 36
-        : 22;
-  /** Air under a set's block. */
-  const after = phone ? 4 : 6;
-  // The gutters hold their longest text and 14 px, between 96 and 300 px.
-  const fit = (w: number | undefined) => Math.min(300, Math.max(96, Math.ceil((w ?? 162) + 14)));
-  // On a phone the names stand above the tracks; the gutters only give the end marks room to stand clear of a step.
-  const left = phone || still ? 12 : fit(layout.gutters?.[0]);
-  const right = phone || still ? 12 : fit(layout.gutters?.[1]);
+  const linesOf = (s: number) => Math.max(1, layout.setLines[s] ?? 1);
+  const fixed = fixedHeight(layout.sets.length, layout.setLines, layout.events);
+  const row = layout.narrow
+    ? NARROW_ROW
+    : Math.max(ROW, Math.min(ROW_MAX, Math.floor((layout.fit - fixed) / Math.max(1, rows))));
+  const eventsRow = layout.events ? 4 + EVENT_LINE * layout.events : 0;
+  const head = BANDS_HEAD + eventsRow;
+  const left = layout.narrow ? 12 : layout.gutters[0];
+  const right = layout.narrow ? 12 : layout.gutters[1];
+  /** The paper above a set's rows: air, its words, a little air. */
+  const setGap = (s: number) => SET_AIR + LINE * linesOf(s) + 4;
   const setOf: number[] = layout.sets.flatMap((n, s) => Array.from({ length: n }, () => s));
   const firstOf: number[] = [];
   const setTops: number[] = [];
@@ -112,73 +77,165 @@ export function journeysGeometry(width: number, layout: JourneysLayout) {
   layout.sets.forEach((n, s) => {
     setTops.push(y);
     firstOf.push(j);
-    y += setGap(s) + n * row + after;
+    y += setGap(s) + n * row + AFTER;
     j += n;
   });
   const bottom = y;
-  /** The top of a set's words. */
+  /** The top of a set's words (the air above them included). */
   const setTop = (s: number) => setTops[s] ?? head;
+  /** The baseline of a set's first line of words. */
+  const setBaseline = (s: number) => setTop(s) + SET_AIR + 11;
   /** The block of a set's rows: from the top of its first row to the bottom of its last. */
   const blockTop = (s: number) => setTop(s) + setGap(s);
   const blockBottom = (s: number) => blockTop(s) + (layout.sets[s] ?? 0) * row;
-  /** The top of row j. */
+  /** The top of row k. */
   const rowTop = (k: number) => {
     const s = setOf[k] ?? 0;
     return blockTop(s) + (k - (firstOf[s] ?? 0)) * row;
   };
-  /** The y of row j's line (on a phone, in the middle of its track, under its names). */
-  const lineY = (k: number) => rowTop(k) + (phone ? 25 : row / 2);
-  /** On a phone, the baseline of a row's names. */
+  /** The y of row k's line (on a narrow figure, in the middle of its track, under its names). */
+  const lineY = (k: number) => rowTop(k) + (layout.narrow ? 14 + (row - 14) / 2 : row / 2);
+  /** On a narrow figure, the baseline of a row's names. */
   const nameY = (k: number) => rowTop(k) + 11;
-  /** On a phone, the track of a row (its band strip). */
-  const trackTop = (k: number) => rowTop(k) + 15;
-  const trackBottom = (k: number) => rowTop(k) + row;
-  const height = bottom + axis;
+  /** The baseline of the n-th line of the release-wide events. */
+  const eventY = (line: number) => BANDS_HEAD + 4 + EVENT_LINE * line + 11;
   return {
-    phone,
-    still,
+    narrow: layout.narrow,
     row,
-    bandsHead,
+    bandsHead: BANDS_HEAD,
     eventsRow,
     head,
     left,
     right,
     rows,
-    height,
+    height: bottom + AXIS,
+    bottom,
     axisY: bottom + 4,
-    setGap,
     setTop,
+    setBaseline,
     blockTop,
     blockBottom,
     rowTop,
     lineY,
     nameY,
-    trackTop,
-    trackBottom,
+    eventY,
     setOf: (k: number) => setOf[k] ?? 0,
   };
 }
 
-/** A set's parameters in words, as parts: the release it is read at (with the databases every journey of the set is
- *  read in), the release asked, the database asked; the api's defaults named (the release idtrack infers, the graph's
- *  last release, an Ensembl gene). */
-function setParts(
-  set: { from: number | null; to: number | null; db: string | null },
-  snapshot: number,
-  readIn: readonly string[] = [],
-): [string, string] {
-  const from = set.from !== null ? `Read at ${set.from}` : "Read at the release idtrack infers";
-  const read = readIn.length ? ` in ${readIn.join(" and ")}` : "";
-  const back = set.to !== null && set.from !== null && set.to < set.from;
-  const db = set.db !== null ? `in ${set.db}` : "as an Ensembl gene";
-  return [`${from}${read}`, `answered ${back ? "back " : ""}at ${set.to ?? snapshot} ${db}`];
+/** The least rows a set kept shows: two of its journeys (all, where it has fewer), so that a set reads as a set. */
+export const SET_LEAST = 2;
+
+/** The least rows of a set of `size` journeys. */
+const leastOf = (size: number) => Math.min(size, SET_LEAST);
+
+/** Shares of `rows` among sets of `sizes`, in proportion to their sizes (largest remainders first), each at least
+ *  its least (`SET_LEAST`) and at most its size. */
+export function apportion(sizes: readonly number[], rows: number): number[] {
+  const total = sizes.reduce((t, n) => t + n, 0);
+  if (rows >= total) return [...sizes];
+  const quotas = sizes.map((n) => (n * rows) / total);
+  const shares = quotas.map((q, s) => Math.min(sizes[s] ?? 0, Math.max(leastOf(sizes[s] ?? 0), Math.floor(q))));
+  let left = rows - shares.reduce((t, n) => t + n, 0);
+  // Too many (each set's least counted): take back from the sets furthest above their quota.
+  while (left < 0) {
+    let pick = -1;
+    shares.forEach((n, s) => {
+      if (
+        n > leastOf(sizes[s] ?? 0) &&
+        (pick === -1 || n - (quotas[s] ?? 0) > (shares[pick] ?? 0) - (quotas[pick] ?? 0))
+      )
+        pick = s;
+    });
+    if (pick === -1) break;
+    shares[pick] = (shares[pick] ?? 0) - 1;
+    left++;
+  }
+  // Too few: give to the largest remainders, in order.
+  const order = quotas
+    .map((q, s) => ({ s, rest: q - Math.floor(q) }))
+    .sort((a, b) => b.rest - a.rest || a.s - b.s)
+    .map((x) => x.s);
+  while (left > 0) {
+    const before = left;
+    for (const s of order) {
+      if (left === 0) break;
+      if ((shares[s] ?? 0) < (sizes[s] ?? 0)) {
+        shares[s] = (shares[s] ?? 0) + 1;
+        left--;
+      }
+    }
+    if (left === before) break;
+  }
+  return shares;
 }
 
-/** A set's parameters in one sentence ("Read at 50 in HGNC Symbol, answered at 115 in HGNC Symbol"). */
+/** The `n` most telling journeys of a set, in the set's own order (by `salience`; the set's order between equals). */
+function mostTelling<T extends JourneySet>(set: T, n: number): T {
+  const kept = set.journeys
+    .map((j, i) => ({ j, i, rank: salience(j) }))
+    .sort((a, b) => a.rank - b.rank || a.i - b.i)
+    .slice(0, n)
+    .sort((a, b) => a.i - b.i)
+    .map((x) => x.j);
+  return { ...set, journeys: kept };
+}
+
+/** What a figure costs: the part that does not grow with its sets and rows, each set's words, and a row. */
+export interface JourneysCost {
+  /** The bands' names, the events' lines and the axis. */
+  head: number;
+  /** The words and air of set s. */
+  set: (s: number) => number;
+  /** A row at the least pitch. */
+  row: number;
+}
+
+/** The journeys a figure of `room` pixels draws (DESIGN.md, "The journeys"): every one where they fit at the least
+ *  pitch; else the sets in the showcase's order while each can hold its least rows (two, or all of a smaller set), the
+ *  rows shared among them in proportion to their sizes, and in each set its most telling journeys (`salience`), in
+ *  the set's order. */
+export function chooseJourneys<T extends JourneySet>(sets: readonly T[], room: number, cost: JourneysCost): T[] {
+  const headOf = (k: number) => {
+    let h = cost.head;
+    for (let s = 0; s < k; s++) h += cost.set(s);
+    return h;
+  };
+  const leastRows = (k: number) => sets.slice(0, k).reduce((t, s) => t + leastOf(s.journeys.length), 0);
+  let k = sets.length;
+  while (k > 1 && headOf(k) + leastRows(k) * cost.row > room) k--;
+  const kept = sets.slice(0, k);
+  const sizes = kept.map((s) => s.journeys.length);
+  const total = sizes.reduce((t, n) => t + n, 0);
+  const rows = Math.max(leastRows(k), Math.min(total, Math.floor((room - headOf(k)) / cost.row)));
+  const shares = apportion(sizes, rows);
+  return kept.map((set, s) => mostTelling(set, shares[s] ?? 1));
+}
+
+/** The words and air a set's head takes. */
+export function setHeight(lines: number): number {
+  return SET_AIR + LINE * Math.max(1, lines) + 4 + AFTER;
+}
+
+/** The bands' names, `events` lines of release-wide events and the axis. */
+export function headHeight(events: number): number {
+  return BANDS_HEAD + (events ? 4 + EVENT_LINE * events : 0) + AXIS;
+}
+
+/** A set's parameters in words, as a short line with the figure's arrow: what is read, at which release, and what it is
+ *  answered as, at which release ("HGNC Symbol at 50 → HGNC Symbol at 115"; the api's defaults named: an Ensembl id read
+ *  at the release idtrack infers, an Ensembl gene at the graph's last release); a set whose journeys walk back in time
+ *  (`back`) says so. */
 export function setWords(
   set: { from: number | null; to: number | null; db: string | null },
   snapshot: number,
   readIn: readonly string[] = [],
+  back = false,
 ): string {
-  return setParts(set, snapshot, readIn).join(", ");
+  const what = readIn.length ? readIn.join(" and ") : "Ensembl ids";
+  const from = set.from !== null ? `at ${set.from}` : "at the release idtrack infers";
+  const to = set.to ?? snapshot;
+  const backward = back || (set.from !== null && to < set.from);
+  const db = set.db ?? "Ensembl gene";
+  return `${what} ${from} → ${backward ? "back to " : ""}${db} at ${to}`;
 }
