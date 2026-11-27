@@ -3637,6 +3637,12 @@ export interface operations {
            *         },
            *         {
            *           "method": "GET",
+           *           "path": "/api/v1/organisms/{organism}/showcase/queries",
+           *           "operation_id": "showcase_queries",
+           *           "summary": "The showcase's chosen conversions without their answers: each query, and each case's kind"
+           *         },
+           *         {
+           *           "method": "GET",
            *           "path": "/api/v1/organisms/{organism}/history",
            *           "operation_id": "history",
            *           "summary": "Ensembl's gene id history in the graph: genes active per release, history edges per transition"
@@ -3749,9 +3755,9 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "sampled_at": "2026-11-27T17:36:50.097Z",
-           *       "started_at": "2026-11-27T17:29:38.795Z",
-           *       "uptime_seconds": 431.3013176731765,
+           *       "sampled_at": "2026-11-27T21:15:39.516Z",
+           *       "started_at": "2026-11-27T21:13:16.095Z",
+           *       "uptime_seconds": 143.42037096433342,
            *       "sample_interval_seconds": 1,
            *       "memory_sample_interval_seconds": 5,
            *       "cache_seconds": 1,
@@ -3760,26 +3766,26 @@ export interface operations {
            *       "workers_exited": 0,
            *       "last_worker_exit_at": null,
            *       "master": {
-           *         "started_at": "2026-11-27T17:29:38.795Z",
+           *         "started_at": "2026-11-27T21:13:16.095Z",
            *         "cpu_share": 0,
-           *         "cpu_seconds": 125.7,
-           *         "rss_bytes": 5018021888,
-           *         "pss_bytes": 1677172736,
-           *         "uss_bytes": 7897088,
-           *         "cpu_sample_age_seconds": 0.1571313999593258,
-           *         "memory_sample_age_seconds": 1.1574738444760442
+           *         "cpu_seconds": 162.97,
+           *         "rss_bytes": 5018636288,
+           *         "pss_bytes": 1681280000,
+           *         "uss_bytes": 16134144,
+           *         "cpu_sample_age_seconds": 0.6586815239861608,
+           *         "memory_sample_age_seconds": 2.5487023387104273
            *       },
            *       "workers": [
            *         {
            *           "worker": 1,
-           *           "started_at": "2026-11-27T17:30:52.501Z",
-           *           "cpu_share": 0.11704281942760245,
-           *           "cpu_seconds": 10.7,
-           *           "rss_bytes": 5008801792,
-           *           "pss_bytes": 1676062720,
-           *           "uss_bytes": 8146944,
-           *           "cpu_sample_age_seconds": 0.10220952797681093,
-           *           "memory_sample_age_seconds": 1.1035470739006996,
+           *           "started_at": "2026-11-27T21:14:55.488Z",
+           *           "cpu_share": 0,
+           *           "cpu_seconds": 1.52,
+           *           "rss_bytes": 5013004288,
+           *           "pss_bytes": 1680270336,
+           *           "uss_bytes": 16207872,
+           *           "cpu_sample_age_seconds": 0.5476232226938009,
+           *           "memory_sample_age_seconds": 2.672843385487795,
            *           "requests": 0,
            *           "in_flight": 0,
            *           "searches_running": 0,
@@ -3791,14 +3797,14 @@ export interface operations {
            *         },
            *         {
            *           "worker": 2,
-           *           "started_at": "2026-11-27T17:30:52.567Z",
-           *           "cpu_share": 0.15174268274273453,
-           *           "cpu_seconds": 11.89,
-           *           "rss_bytes": 5009461248,
-           *           "pss_bytes": 1683994624,
-           *           "uss_bytes": 23916544,
-           *           "cpu_sample_age_seconds": 0.15735800564289093,
-           *           "memory_sample_age_seconds": 1.258264061063528,
+           *           "started_at": "2026-11-27T21:14:55.492Z",
+           *           "cpu_share": 0,
+           *           "cpu_seconds": 1.4400000000000002,
+           *           "rss_bytes": 5012996096,
+           *           "pss_bytes": 1680226304,
+           *           "uss_bytes": 16121856,
+           *           "cpu_sample_age_seconds": 0.6588924517855048,
+           *           "memory_sample_age_seconds": 2.6597532937303185,
            *           "requests": 1,
            *           "in_flight": 0,
            *           "searches_running": 0,
@@ -3810,19 +3816,19 @@ export interface operations {
            *         }
            *       ],
            *       "cpu": {
-           *         "cores_used": 0.268785502170337,
-           *         "share_of_available": 0.02239879184752808,
+           *         "cores_used": 0,
+           *         "share_of_available": 0,
            *         "cores_available": 12,
            *         "affinity_cores": 12,
            *         "quota_cores": null,
            *         "source": "affinity"
            *       },
            *       "memory": {
-           *         "rss_bytes": 15036284928,
-           *         "pss_bytes": 5037230080,
-           *         "uss_bytes": 39960576,
+           *         "rss_bytes": 15044636672,
+           *         "pss_bytes": 5041776640,
+           *         "uss_bytes": 48463872,
            *         "limit_bytes": 107374182400,
-           *         "limit_used_bytes": 41884581888,
+           *         "limit_used_bytes": 21904564224,
            *         "source": "cgroup"
            *       },
            *       "requests": {
@@ -3837,15 +3843,15 @@ export interface operations {
            *         "errors_4xx": 0,
            *         "errors_5xx": 0,
            *         "lost": 0,
-           *         "status_requests": 2,
+           *         "status_requests": 6,
            *         "latency": {
            *           "count": 1,
            *           "most_recent": 1000,
            *           "window_seconds": 300,
-           *           "p50_ms": 260.3612747043371,
-           *           "p95_ms": 260.3612747043371,
-           *           "p99_ms": 260.3612747043371,
-           *           "max_ms": 260.3612747043371
+           *           "p50_ms": 516.5487760677934,
+           *           "p95_ms": 516.5487760677934,
+           *           "p99_ms": 516.5487760677934,
+           *           "max_ms": 516.5487760677934
            *         }
            *       },
            *       "history": {
@@ -3853,21 +3859,21 @@ export interface operations {
            *         "most_samples": 90,
            *         "samples": [
            *           {
-           *             "sampled_at": "2026-11-27T17:30:52.700Z",
+           *             "sampled_at": "2026-11-27T21:14:55.610Z",
            *             "cores_used": null,
            *             "pss_bytes": null,
            *             "waiting": 0
            *           },
            *           {
-           *             "sampled_at": "2026-11-27T17:31:02.996Z",
-           *             "cores_used": 0,
-           *             "pss_bytes": 5020064768,
+           *             "sampled_at": "2026-11-27T21:15:06.006Z",
+           *             "cores_used": 0.009996527773319925,
+           *             "pss_bytes": 5041363968,
            *             "waiting": 0
            *           },
            *           {
-           *             "sampled_at": "2026-11-27T17:31:13.271Z",
-           *             "cores_used": 0.009998127582034954,
-           *             "pss_bytes": 5020992512,
+           *             "sampled_at": "2026-11-27T21:15:16.296Z",
+           *             "cores_used": 0,
+           *             "pss_bytes": 5041489920,
            *             "waiting": 0
            *           }
            *         ]
@@ -4057,12 +4063,14 @@ export interface operations {
            *         {
            *           "code": "converted",
            *           "meaning": "One best answer: the identifier leads to one target in the requested database.",
-           *           "source": "idtrack-web"
+           *           "source": "idtrack-web",
+           *           "answers_requested_database": true
            *         },
            *         {
            *           "code": "tie",
            *           "meaning": "Several genes or targets are equal in all the evidence that decides; all of them are the best answer, in ascending order of gene id and target id.",
-           *           "source": "idtrack-web"
+           *           "source": "idtrack-web",
+           *           "answers_requested_database": true
            *         }
            *       ],
            *       "reasons": [
@@ -4242,6 +4250,24 @@ export interface operations {
            *           "meaning": "An origin is a release (counted only on the assembly that serves it).",
            *           "source": "idtrack-web"
            *         }
+           *       ],
+           *       "cautions": [
+           *         {
+           *           "code": "bridge",
+           *           "tone": "caution",
+           *           "meaning": "The best answer is reached through a bridge: where Ensembl's history gives a gene no successor, the walk left it through an id it carries and entered another gene that carries the same id. That is idtrack's inference; no record of Ensembl states it.",
+           *           "reads_path": false,
+           *           "limitation": "https://idtrack.readthedocs.io/en/stable/limitations.html#answers-that-only-a-bridge-reaches",
+           *           "source": "idtrack-web"
+           *         },
+           *         {
+           *           "code": "bridge_beside",
+           *           "tone": "caution",
+           *           "meaning": "A bridge on the best answer's path joins two genes that lived at the same releases: the gene it enters did not take the place of the gene it leaves in Ensembl's records, so their shared ids are no sign of succession.",
+           *           "reads_path": true,
+           *           "limitation": "https://idtrack.readthedocs.io/en/stable/limitations.html#answers-that-only-a-bridge-reaches",
+           *           "source": "idtrack-web"
+           *         }
            *       ]
            *     }
            */
@@ -4283,6 +4309,7 @@ export interface operations {
            *       "body_max_bytes": 1048576,
            *       "response_max_bytes": 33554432,
            *       "request_seconds": 20,
+           *       "queue_seconds": 10,
            *       "search_seconds": 10,
            *       "search_states": 200000,
            *       "rate_per_minute": 0,
@@ -4295,6 +4322,14 @@ export interface operations {
            *       "body_seconds": 30,
            *       "answer_cache_bytes": 67108864,
            *       "allowances_enforced": false,
+           *       "allowance_fields": [
+           *         "rate_per_minute",
+           *         "rate_burst",
+           *         "read_share",
+           *         "rate_search_seconds",
+           *         "rate_search_burst_seconds",
+           *         "rate_concurrent_searches"
+           *       ],
            *       "rate_concurrent_searches": 2,
            *       "send_seconds": 30,
            *       "send_min_bytes_per_second": 65536,
@@ -7099,7 +7134,19 @@ export interface operations {
            *               ],
            *               "bridges": [],
            *               "refused": []
-           *             }
+           *             },
+           *             "cautions": [
+           *               {
+           *                 "code": "lowest_score",
+           *                 "tone": "note",
+           *                 "label": "lowest Ensembl score 0.940993",
+           *                 "text": "The lowest of Ensembl's mapping scores on the path of the best answer is 0.940993, at releases 75 → 76 (`ENSG00000141510.11` → `ENSG00000141510.12`). The candidate's score is the product of the scores along its path.",
+           *                 "limitation": null,
+           *                 "alert": false,
+           *                 "ask": null,
+           *                 "read_at": null
+           *               }
+           *             ]
            *           },
            *           "error": null
            *         }
@@ -8005,7 +8052,19 @@ export interface operations {
            *               ],
            *               "bridges": [],
            *               "refused": []
-           *             }
+           *             },
+           *             "cautions": [
+           *               {
+           *                 "code": "lowest_score",
+           *                 "tone": "note",
+           *                 "label": "lowest Ensembl score 0.940993",
+           *                 "text": "The lowest of Ensembl's mapping scores on the path of the best answer is 0.940993, at releases 75 → 76 (`ENSG00000141510.11` → `ENSG00000141510.12`). The candidate's score is the product of the scores along its path.",
+           *                 "limitation": null,
+           *                 "alert": false,
+           *                 "ask": null,
+           *                 "read_at": null
+           *               }
+           *             ]
            *           },
            *           "error": null
            *         }
@@ -8028,7 +8087,10 @@ export interface operations {
       query?: never;
       header?: never;
       path: {
-        /** @description The organism: its Ensembl production name (`homo_sapiens`), with spaces or in any letter case (`Homo sapiens`), or a short name idtrack declares (`human`, `pig`); the names a server holds: `names` of `GET /organisms`. */
+        /**
+         * @description The organism: its Ensembl production name (`homo_sapiens`), with spaces or in any letter case (`Homo sapiens`), or a short name idtrack declares (`human`, `pig`); the names a server holds: `names` of `GET /organisms`.
+         * @example homo_sapiens
+         */
         organism: string;
       };
       cookie?: never;
@@ -8049,6 +8111,344 @@ export interface operations {
           [name: string]: unknown;
         };
         content: {
+          /**
+           * @example {
+           *       "organism": "homo_sapiens",
+           *       "content_digest": "f922779314f8a27dd1d1a7a4f24e7b6a316fa7fb8f7b071f3d66857095682cfb",
+           *       "checked_on": "f922779314f8a27dd1d1a7a4f24e7b6a316fa7fb8f7b071f3d66857095682cfb",
+           *       "journeys": [
+           *         {
+           *           "query": {
+           *             "identifier": "TP53",
+           *             "from_release": 50,
+           *             "to_release": null,
+           *             "final_database": "HGNC Symbol",
+           *             "explain": true
+           *           }
+           *         },
+           *         {
+           *           "query": {
+           *             "identifier": "BRCA1",
+           *             "from_release": 50,
+           *             "to_release": null,
+           *             "final_database": "HGNC Symbol",
+           *             "explain": true
+           *           }
+           *         },
+           *         {
+           *           "query": {
+           *             "identifier": "SEPT9",
+           *             "from_release": 50,
+           *             "to_release": null,
+           *             "final_database": "HGNC Symbol",
+           *             "explain": true
+           *           }
+           *         },
+           *         {
+           *           "query": {
+           *             "identifier": "MARCH1",
+           *             "from_release": 50,
+           *             "to_release": null,
+           *             "final_database": "HGNC Symbol",
+           *             "explain": true
+           *           }
+           *         },
+           *         {
+           *           "query": {
+           *             "identifier": "PARK2",
+           *             "from_release": 50,
+           *             "to_release": null,
+           *             "final_database": "HGNC Symbol",
+           *             "explain": true
+           *           }
+           *         },
+           *         {
+           *           "query": {
+           *             "identifier": "C10orf2",
+           *             "from_release": 50,
+           *             "to_release": null,
+           *             "final_database": "HGNC Symbol",
+           *             "explain": true
+           *           }
+           *         },
+           *         {
+           *           "query": {
+           *             "identifier": "FAM123B",
+           *             "from_release": 50,
+           *             "to_release": null,
+           *             "final_database": "HGNC Symbol",
+           *             "explain": true
+           *           }
+           *         },
+           *         {
+           *           "query": {
+           *             "identifier": "KIAA0101",
+           *             "from_release": 50,
+           *             "to_release": null,
+           *             "final_database": "HGNC Symbol",
+           *             "explain": true
+           *           }
+           *         },
+           *         {
+           *           "query": {
+           *             "identifier": "GPR98",
+           *             "from_release": 50,
+           *             "to_release": null,
+           *             "final_database": "HGNC Symbol",
+           *             "explain": true
+           *           }
+           *         },
+           *         {
+           *           "query": {
+           *             "identifier": "H2AFX",
+           *             "from_release": 50,
+           *             "to_release": null,
+           *             "final_database": "HGNC Symbol",
+           *             "explain": true
+           *           }
+           *         },
+           *         {
+           *           "query": {
+           *             "identifier": "NM_000518",
+           *             "from_release": 60,
+           *             "to_release": null,
+           *             "final_database": "Uniprot/SWISSPROT",
+           *             "explain": true
+           *           }
+           *         },
+           *         {
+           *           "query": {
+           *             "identifier": "NM_002046",
+           *             "from_release": 60,
+           *             "to_release": null,
+           *             "final_database": "Uniprot/SWISSPROT",
+           *             "explain": true
+           *           }
+           *         },
+           *         {
+           *           "query": {
+           *             "identifier": "NM_000477",
+           *             "from_release": 60,
+           *             "to_release": null,
+           *             "final_database": "Uniprot/SWISSPROT",
+           *             "explain": true
+           *           }
+           *         },
+           *         {
+           *           "query": {
+           *             "identifier": "NM_001101",
+           *             "from_release": 60,
+           *             "to_release": null,
+           *             "final_database": "Uniprot/SWISSPROT",
+           *             "explain": true
+           *           }
+           *         },
+           *         {
+           *           "query": {
+           *             "identifier": "P04637",
+           *             "from_release": 70,
+           *             "to_release": null,
+           *             "final_database": "HGNC Symbol",
+           *             "explain": true
+           *           }
+           *         },
+           *         {
+           *           "query": {
+           *             "identifier": "P38398",
+           *             "from_release": 70,
+           *             "to_release": null,
+           *             "final_database": "HGNC Symbol",
+           *             "explain": true
+           *           }
+           *         },
+           *         {
+           *           "query": {
+           *             "identifier": "P00533",
+           *             "from_release": 70,
+           *             "to_release": null,
+           *             "final_database": "HGNC Symbol",
+           *             "explain": true
+           *           }
+           *         },
+           *         {
+           *           "query": {
+           *             "identifier": "ENSG00000250239.1",
+           *             "from_release": null,
+           *             "to_release": null,
+           *             "final_database": null,
+           *             "explain": true
+           *           }
+           *         },
+           *         {
+           *           "query": {
+           *             "identifier": "ENSG00000112096.19",
+           *             "from_release": null,
+           *             "to_release": null,
+           *             "final_database": null,
+           *             "explain": true
+           *           }
+           *         },
+           *         {
+           *           "query": {
+           *             "identifier": "ENSG00000110347.7",
+           *             "from_release": null,
+           *             "to_release": null,
+           *             "final_database": null,
+           *             "explain": true
+           *           }
+           *         },
+           *         {
+           *           "query": {
+           *             "identifier": "ENSG00000198477",
+           *             "from_release": null,
+           *             "to_release": null,
+           *             "final_database": null,
+           *             "explain": true
+           *           }
+           *         },
+           *         {
+           *           "query": {
+           *             "identifier": "ENST00000225823.6",
+           *             "from_release": null,
+           *             "to_release": 48,
+           *             "final_database": null,
+           *             "explain": true
+           *           }
+           *         },
+           *         {
+           *           "query": {
+           *             "identifier": "ENSG00000171862.13",
+           *             "from_release": null,
+           *             "to_release": 48,
+           *             "final_database": null,
+           *             "explain": true
+           *           }
+           *         }
+           *       ],
+           *       "cases": [
+           *         {
+           *           "query": {
+           *             "identifier": "ENSG00000141510.5",
+           *             "from_release": 54,
+           *             "to_release": null,
+           *             "final_database": null,
+           *             "explain": true
+           *           },
+           *           "kind": "lineage"
+           *         },
+           *         {
+           *           "query": {
+           *             "identifier": "SEPT9",
+           *             "from_release": 50,
+           *             "to_release": null,
+           *             "final_database": "HGNC Symbol",
+           *             "explain": true
+           *           },
+           *           "kind": "renamed"
+           *         },
+           *         {
+           *           "query": {
+           *             "identifier": "ENSG00000139618",
+           *             "from_release": 48,
+           *             "to_release": null,
+           *             "final_database": null,
+           *             "explain": true
+           *           },
+           *           "kind": "new_version"
+           *         },
+           *         {
+           *           "query": {
+           *             "identifier": "ENSG00000112096.19",
+           *             "from_release": null,
+           *             "to_release": null,
+           *             "final_database": null,
+           *             "explain": true
+           *           },
+           *           "kind": "replaced"
+           *         },
+           *         {
+           *           "query": {
+           *             "identifier": "ENSG00000277780.1",
+           *             "from_release": 84,
+           *             "to_release": null,
+           *             "final_database": null,
+           *             "explain": true
+           *           },
+           *           "kind": "split"
+           *         },
+           *         {
+           *           "query": {
+           *             "identifier": "ENSG00000250239.1",
+           *             "from_release": null,
+           *             "to_release": null,
+           *             "final_database": null,
+           *             "explain": true
+           *           },
+           *           "kind": "merge"
+           *         },
+           *         {
+           *           "query": {
+           *             "identifier": "ENST00000225823",
+           *             "from_release": 70,
+           *             "to_release": null,
+           *             "final_database": null,
+           *             "explain": true
+           *           },
+           *           "kind": "handoff"
+           *         },
+           *         {
+           *           "query": {
+           *             "identifier": "ENSG00000198477",
+           *             "from_release": 48,
+           *             "to_release": null,
+           *             "final_database": "HGNC Symbol",
+           *             "explain": true
+           *           },
+           *           "kind": "bridge"
+           *         },
+           *         {
+           *           "query": {
+           *             "identifier": "RNR1",
+           *             "from_release": null,
+           *             "to_release": null,
+           *             "final_database": null,
+           *             "explain": true
+           *           },
+           *           "kind": "other_release"
+           *         },
+           *         {
+           *           "query": {
+           *             "identifier": "MAT1",
+           *             "from_release": 60,
+           *             "to_release": null,
+           *             "final_database": null,
+           *             "explain": true
+           *           },
+           *           "kind": "tie"
+           *         },
+           *         {
+           *           "query": {
+           *             "identifier": "NM_000518",
+           *             "from_release": 60,
+           *             "to_release": null,
+           *             "final_database": "Uniprot/SWISSPROT",
+           *             "explain": true
+           *           },
+           *           "kind": "final"
+           *         },
+           *         {
+           *           "query": {
+           *             "identifier": "ENSG00000265842",
+           *             "from_release": 75,
+           *             "to_release": null,
+           *             "final_database": null,
+           *             "explain": true
+           *           },
+           *           "kind": "retired"
+           *         }
+           *       ]
+           *     }
+           */
           "application/json": components["schemas"]["ShowcaseQueriesResponse"];
         };
       };
@@ -8571,7 +8971,7 @@ export interface operations {
            *           "many_to_one": 0
            *         }
            *       ],
-           *       "compute_seconds": 42.065
+           *       "compute_seconds": 46.018
            *     }
            */
           "application/json": components["schemas"]["HistoryResponse"];
@@ -8690,7 +9090,19 @@ export interface operations {
            *       "reasons": [],
            *       "other_readings": [],
            *       "error": null,
-           *       "path": null
+           *       "path": null,
+           *       "cautions": [
+           *         {
+           *           "code": "lowest_score",
+           *           "tone": "note",
+           *           "label": "lowest Ensembl score 0.99",
+           *           "text": "The lowest of Ensembl's mapping scores on the path of the best answer is 0.99, at releases 111 → 112 (`ENSG00000141510.18` → `ENSG00000141510.19`). The candidate's score is the product of the scores along its path.",
+           *           "limitation": null,
+           *           "alert": false,
+           *           "ask": null,
+           *           "read_at": null
+           *         }
+           *       ]
            *     }
            */
           "application/json": components["schemas"]["ConversionResult"];
@@ -8756,6 +9168,13 @@ export interface operations {
           /**
            * @example {
            *       "organism": "homo_sapiens",
+           *       "arguments": {
+           *         "identifier": "TP53",
+           *         "from_release": null,
+           *         "to_release": 115,
+           *         "from_database": null,
+           *         "allow_bridges": true
+           *       },
            *       "to_release": 115,
            *       "conversions": [
            *         {
@@ -9114,7 +9533,19 @@ export interface operations {
            *             "reasons": [],
            *             "other_readings": [],
            *             "error": null,
-           *             "path": null
+           *             "path": null,
+           *             "cautions": [
+           *               {
+           *                 "code": "one_gene",
+           *                 "tone": "note",
+           *                 "label": "all 12 ids of one gene",
+           *                 "text": "The 12 targets are the ids `ENSG00000141510.20` carries in CCDS at release 115. idtrack converts at the level of the gene: the identifier is read as its gene and followed as a gene, and the answer in the database asked is every id of the best gene there, not the counterpart of `TP53` alone.",
+           *                 "limitation": null,
+           *                 "alert": false,
+           *                 "ask": null,
+           *                 "read_at": null
+           *               }
+           *             ]
            *           }
            *         },
            *         {
@@ -9473,71 +9904,19 @@ export interface operations {
            *             "reasons": [],
            *             "other_readings": [],
            *             "error": null,
-           *             "path": null
-           *           }
-           *         },
-           *         {
-           *           "database": "Clone_based_ensembl_gene",
-           *           "result": {
-           *             "query_id": "TP53",
-           *             "graph_id": "TP53",
-           *             "match": "exact",
-           *             "known_versions": [],
-           *             "from_release": 115,
-           *             "from_release_inferred": true,
-           *             "from_release_given": null,
-           *             "from_release_fallback": false,
-           *             "from_databases": [
-           *               "HGNC Symbol",
-           *               "NCBI gene (formerly Entrezgene)",
-           *               "UniProtKB Gene Name"
-           *             ],
-           *             "to_release": 115,
-           *             "final_database": "ensembl_gene",
-           *             "candidates": [
+           *             "path": null,
+           *             "cautions": [
            *               {
-           *                 "gene": "ENSG00000141510.20",
-           *                 "target": "ENSG00000141510.20",
-           *                 "best": true,
-           *                 "entry_gene": "ENSG00000141510.20",
-           *                 "entry_databases": [
-           *                   "HGNC Symbol",
-           *                   "NCBI gene (formerly Entrezgene)",
-           *                   "UniProtKB Gene Name"
-           *                 ],
-           *                 "authority": true,
-           *                 "display_name": true,
-           *                 "display_rank": 0,
-           *                 "entry_support": 3,
-           *                 "own_version": false,
-           *                 "final_confidence": null,
-           *                 "bridges": 0,
-           *                 "bridge_gap": 0,
-           *                 "score": 1,
-           *                 "unscored_steps": 0,
-           *                 "same_as_query": false,
-           *                 "external_steps": 1,
-           *                 "history_steps": 0,
-           *                 "annotation": null,
-           *                 "path": [],
-           *                 "final_path": []
+           *                 "code": "one_gene",
+           *                 "tone": "note",
+           *                 "label": "all 12 ids of one gene",
+           *                 "text": "The 12 targets are the ids `ENSG00000141510.20` carries in CCDS label at release 115. idtrack converts at the level of the gene: the identifier is read as its gene and followed as a gene, and the answer in the database asked is every id of the best gene there, not the counterpart of `TP53` alone.",
+           *                 "limitation": null,
+           *                 "alert": false,
+           *                 "ask": null,
+           *                 "read_at": null
            *               }
-           *             ],
-           *             "tie": false,
-           *             "decided_by": null,
-           *             "alternative_locus_genes": [
-           *               "LRG_321.1"
-           *             ],
-           *             "no_target": true,
-           *             "no_target_genes": [],
-           *             "status": "no_target",
-           *             "reason": "no_id_in_final_database",
-           *             "reasons": [
-           *               "no_id_in_final_database"
-           *             ],
-           *             "other_readings": [],
-           *             "error": null,
-           *             "path": null
+           *             ]
            *           }
            *         }
            *       ]
@@ -9606,6 +9985,16 @@ export interface operations {
         content: {
           /**
            * @example {
+           *       "organism": "homo_sapiens",
+           *       "arguments": {
+           *         "from_release": null,
+           *         "to_release": null,
+           *         "final_database": null,
+           *         "from_database": null,
+           *         "explain": false,
+           *         "allow_bridges": true,
+           *         "read_copies": true
+           *       },
            *       "count": 3,
            *       "results": [
            *         {
@@ -9665,7 +10054,8 @@ export interface operations {
            *           "reasons": [],
            *           "other_readings": [],
            *           "error": null,
-           *           "path": null
+           *           "path": null,
+           *           "cautions": []
            *         },
            *         {
            *           "query_id": "ENSG00000139618",
@@ -9718,7 +10108,8 @@ export interface operations {
            *           "reasons": [],
            *           "other_readings": [],
            *           "error": null,
-           *           "path": null
+           *           "path": null,
+           *           "cautions": []
            *         },
            *         {
            *           "query_id": "NOT_A_GENE",
@@ -9745,16 +10136,17 @@ export interface operations {
            *           ],
            *           "other_readings": [],
            *           "error": null,
-           *           "path": null
+           *           "path": null,
+           *           "cautions": []
            *         }
            *       ]
            *     }
            */
           "application/json": components["schemas"]["BatchResponse"];
           /**
-           * @example input_index	query_id	status	reason	reasons	graph_id	match	known_versions	from_release	from_release_inferred	from_release_given	from_release_fallback	from_databases	to_release	final_database	candidate_count	tie	decided_by	alternative_locus_genes	no_target	no_target_genes	other_readings	error_code	error_type	error_message	error_input_error	rank	best	gene	target	entry_gene	entry_databases	authority	display_name	display_rank	entry_support	own_version	final_confidence	bridges	bridge_gap	score	unscored_steps	same_as_query	external_steps	history_steps	annotation
-           *     0	TP53	converted			TP53	exact		115	true		false	HGNC Symbol;NCBI gene (formerly Entrezgene);UniProtKB Gene Name	115	ensembl_gene	1	false		LRG_321.1	false							1	true	ENSG00000141510.20	ENSG00000141510.20	ENSG00000141510.20	HGNC Symbol;NCBI gene (formerly Entrezgene);UniProtKB Gene Name	true	true	0	3	false	0	0	0	1.0	0	false	1	0
-           *     1	ENSG00000139618	converted			ENSG00000139618	exact		115	true		false	base_ensembl_gene	115	ensembl_gene	1	false			false							1	true	ENSG00000139618.19	ENSG00000139618.19	ENSG00000139618.19	base_ensembl_gene	false	false	2	1	true	0	0	0	1.0	0	true	1	0
+           * @example input_index	query_id	status	reason	reasons	graph_id	match	known_versions	from_release	from_release_inferred	from_release_given	from_release_fallback	from_databases	to_release	final_database	candidate_count	tie	decided_by	alternative_locus_genes	no_target	no_target_genes	other_readings	cautions	error_code	error_type	error_message	error_input_error	rank	best	gene	target	entry_gene	entry_databases	authority	display_name	display_rank	entry_support	own_version	final_confidence	bridges	bridge_gap	score	unscored_steps	same_as_query	external_steps	history_steps	annotation
+           *     0	TP53	converted			TP53	exact		115	true		false	HGNC Symbol;NCBI gene (formerly Entrezgene);UniProtKB Gene Name	115	ensembl_gene	1	false		LRG_321.1	false								1	true	ENSG00000141510.20	ENSG00000141510.20	ENSG00000141510.20	HGNC Symbol;NCBI gene (formerly Entrezgene);UniProtKB Gene Name	true	true	0	3	false	0	0	0	1.0	0	false	1	0
+           *     1	ENSG00000139618	converted			ENSG00000139618	exact		115	true		false	base_ensembl_gene	115	ensembl_gene	1	false			false								1	true	ENSG00000139618.19	ENSG00000139618.19	ENSG00000139618.19	base_ensembl_gene	false	false	2	1	true	0	0	0	1.0	0	true	1	0
            *     2	NOT_A_GENE	not_found	not_in_graph	not_in_graph					true		false		115		0	false			false
            */
           "text/tab-separated-values": string;
@@ -9821,6 +10213,13 @@ export interface operations {
           /**
            * @example {
            *       "organism": "homo_sapiens",
+           *       "mode": "release",
+           *       "best": {
+           *         "database": null,
+           *         "assembly": null,
+           *         "release": 50
+           *       },
+           *       "from_release": 50,
            *       "inference": {
            *         "mode": "release",
            *         "band": [
@@ -10227,6 +10626,12 @@ export interface operations {
         content: {
           /**
            * @example {
+           *       "organism": "homo_sapiens",
+           *       "arguments": {
+           *         "name": "NOV",
+           *         "fold_case": false,
+           *         "release": null
+           *       },
            *       "matches": [
            *         {
            *           "name": "NOV",
@@ -11030,6 +11435,11 @@ export interface operations {
         content: {
           /**
            * @example {
+           *       "organism": "homo_sapiens",
+           *       "arguments": {
+           *         "gene": "ENSG00000141510.20",
+           *         "release": 115
+           *       },
            *       "matches": [
            *         {
            *           "name": "7157",
