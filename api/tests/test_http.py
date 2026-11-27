@@ -101,10 +101,10 @@ def test_many_unknown_body_keys_are_refused_cheaply(client: TestClient) -> None:
         assert len(response.content) < 6000
         return app_ms(response)
 
-    small, large = refused(6_000), refused(60_000)
-    # Linear in the keys (ten times the keys, about ten times the time; a quadratic count would be about a hundred
+    small, large = refused(20_000), refused(60_000)
+    # Linear in the keys (three times the keys, about three times the time; a quadratic count would be about nine
     # times), and bounded outright, whatever else the machine runs.
-    assert large < 30 * max(small, 5.0)
+    assert large < 6 * max(small, 10.0)
     assert large < 5000
 
 
@@ -432,3 +432,14 @@ def test_a_batch_whose_client_went_away_stops(cut_registry: Any, cut_settings: A
     with pytest.raises(ApiError) as caught:
         service.convert_batch(graph, [GENE], arguments, cut_settings, time.monotonic() + 10, abandoned=lambda: True)
     assert caught.value.code == "request_timeout"
+
+
+def test_nesting_is_bounded_before_the_body_is_parsed() -> None:
+    from idtrack_web_api.app import BODY_DEPTH_MAX, _nesting_exceeds
+
+    deep = "[" * BODY_DEPTH_MAX + "]" * BODY_DEPTH_MAX
+    assert not _nesting_exceeds(deep, BODY_DEPTH_MAX)
+    assert _nesting_exceeds("[" + deep + "]", BODY_DEPTH_MAX)
+    assert _nesting_exceeds("[" * 50_000, BODY_DEPTH_MAX)  # never closed: refused all the same
+    # Brackets inside strings are text, not nesting (escaped quotes included).
+    assert not _nesting_exceeds(json.dumps({"identifiers": ["[" * 1000, '"]{' * 500]}), BODY_DEPTH_MAX)

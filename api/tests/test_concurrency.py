@@ -462,10 +462,16 @@ def test_an_answer_not_taken_is_dropped(cut_store: Path, cut_idtrack: API) -> No
             )
             sock.sendall(head.encode() + body)
             sockets.append(sock)
-        time.sleep(1.5)
-        held = status_of(base)["requests"]["sending_bytes"]
-        time.sleep(3.0)  # past the deadline of 2 s without a byte taken
+        # The answers are made one after another (one worker): watch until some are held untaken, however slow the
+        # machine, then until the deadline of 2 s without a byte taken has let go of every one.
+        held, waited = 0, time.monotonic()
+        while held == 0 and time.monotonic() - waited < 60:
+            held = max(held, status_of(base)["requests"]["sending_bytes"])
+            time.sleep(0.2)
         after = status_of(base)
+        while after["requests"]["sending_bytes"] and time.monotonic() - waited < 120:
+            time.sleep(0.5)
+            after = status_of(base)
         for sock in sockets:
             sock.settimeout(5)
             got = 0

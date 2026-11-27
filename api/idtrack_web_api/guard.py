@@ -442,6 +442,19 @@ class Guard:
         clock: dict[str, Any] = {"started": 0.0, "sent": 0, "size": 0}
         entered = False
 
+        def charge_work() -> None:
+            """Charge the client the search time worked and not yet charged.
+
+            Called before its answer leaves, so that its next request already meets the balance, and again at the end
+            for what came after.
+            """
+            timing = state.get("timing") or {}
+            worked = timing.get("search", 0.0) + timing.get("write", 0.0)
+            owed = worked - float(state.get("charged", 0.0))
+            if owed > 0:
+                self.limiter.charge_search(client, owed)
+                state["charged"] = worked
+
         def headers_of(message: Message, body: bytes | None) -> list[tuple[bytes, bytes]]:
             headers = [h for h in message.get("headers", []) if h[0] != b"content-length"]
             kind = next((v for k, v in headers if k == b"content-type"), b"")
@@ -509,6 +522,7 @@ class Guard:
                 headers += [(b"etag", tag.encode()), (b"cache-control", CACHE_CONTROL)]
             elif status["code"] >= 400 and not any(k == b"cache-control" for k, _ in headers):
                 headers.append((b"cache-control", b"no-store"))
+            charge_work()
             await send(
                 {
                     "type": "http.response.start",
@@ -688,10 +702,7 @@ class Guard:
                 self.limiter.leave_search(client)
             if connection is not None:
                 connection.release_admission()
-            timing = state.get("timing") or {}
-            worked = timing.get("search", 0.0) + timing.get("write", 0.0)
-            if worked:
-                self.limiter.charge_search(client, worked)
+            charge_work()
             if connection is not None:
                 connection.release_search()
             raw = scope.get("raw_path") or path.encode("utf-8", "surrogateescape")

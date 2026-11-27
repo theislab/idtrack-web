@@ -215,6 +215,32 @@ def invalid_request_error(problems: list[dict[str, Any]], prefix: str = "The req
     return ApiError("invalid_request", f"{prefix}: {'; '.join(parts)}.", argument=_argument(problems), details=shown)
 
 
+#: The deepest nesting of arrays and objects a request's body may have (a batch needs three: the object, the list of
+#: identifiers, nothing deeper); deeper is refused before the body is parsed.
+BODY_DEPTH_MAX = 32
+_JSON_STRING = re.compile(r'"(?:[^"\\]|\\.)*"')
+
+
+def _nesting_exceeds(text: str, limit: int) -> bool:
+    """Whether a JSON text nests arrays and objects deeper than ``limit``, read in linear time (strings left out).
+
+    The parser's own recursion is no bound: how deep it goes before it fails differs between Python's versions.
+    """
+    brackets = _JSON_STRING.sub("", text)
+    opening = brackets.count("[") + brackets.count("{")
+    if opening <= limit:
+        return False
+    depth = 0
+    for character in brackets:
+        if character in "[{":
+            depth += 1
+            if depth > limit:
+                return True
+        elif character in "]}":
+            depth -= 1
+    return False
+
+
 def _no_duplicates(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
     keys = [k for k, _ in pairs]
     if len(set(keys)) != len(keys):
@@ -278,6 +304,9 @@ def read_json_body(body: bytes, content_type: str, model: type[pydantic.BaseMode
         msg = f"it is not UTF-8 (byte {error.start} cannot be read)"
         raise refuse(msg) from None
     text = text.removeprefix("\ufeff")  # a byte order mark, which a parser may ignore (RFC 8259, 8.1)
+    if _nesting_exceeds(text, BODY_DEPTH_MAX):
+        msg = "it is nested more deeply than the server reads"
+        raise refuse(msg)
     try:
         data = json.loads(text, object_pairs_hook=_no_duplicates, parse_constant=_no_constant)
     except json.JSONDecodeError as error:
