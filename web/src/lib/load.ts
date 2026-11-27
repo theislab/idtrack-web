@@ -184,7 +184,7 @@ export function sampleOf(status: StatusResponse, at: number): Sample {
  *  answer that carried it less how much earlier than that answer the server took it (so that the two clocks need not
  *  agree). The share of the cores and the limit are the answer's (the cores available and the limit do not change
  *  while a server runs). */
-export function historyOf(status: StatusResponse, receivedAt: number): Sample[] {
+function historyOf(status: StatusResponse, receivedAt: number): Sample[] {
   const answered = Date.parse(status.sampled_at);
   const available = status.cpu.cores_available;
   return status.history.samples
