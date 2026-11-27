@@ -471,11 +471,16 @@ function ConvertForm({
     setField("explain", v);
   };
   // The releases and the database fold under one line that says them, a press away from their fields: over an answer
-  // always (the form is one row and the answer the screen's subject), in the hero unless the address sets one of them.
+  // (the form is one row and the answer the screen's subject) and in the hero; they open by themselves where the address
+  // sets an option the line does not say (the source database, bridges or the path turned off), in the hero where it
+  // sets one of them, and where a value of them is refused.
   const settingsId = useId();
   const [settingsOpen, setSettingsOpen] = useState(
     () =>
       reveal ||
+      parameters.fromDatabase !== null ||
+      !parameters.allowBridges ||
+      !parameters.explain ||
       (hero && (parameters.fromRelease !== null || parameters.toRelease !== null || parameters.finalDatabase !== null)),
   );
   const [revealed, setRevealed] = useState(reveal);

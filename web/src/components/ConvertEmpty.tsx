@@ -216,7 +216,7 @@ function HeroFigure({ graph }: { graph: GraphDescription }) {
           </div>
           {/* The legend names the marks drawn; its room is that of a legend of every mark the journeys hold (measured
             unseen), so the room the figure fills does not change with the rows it draws. */}
-          <div className="hero__legend">
+          <div className="hero__legend" hidden={answer.state === "failed" || (showcase !== null && !all.length)}>
             <div className="hero__legend-room" ref={legendRef} aria-hidden="true">
               <FigureLegend entries={legendEntries(legendMarks(all))} />
             </div>

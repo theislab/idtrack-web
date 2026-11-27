@@ -140,6 +140,10 @@
   min-height: calc(3 * 28px);
 }
 
+.convert-examples--waiting .convert-examples__label {
+  visibility: hidden;
+}
+
 .convert-examples__label {
   padding-top: 5px;
   font-size: var(--text-xs);

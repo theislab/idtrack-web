@@ -1258,7 +1258,8 @@
 
   .hero__eyebrow,
   .hero__title,
-  .hero__lede {
+  .hero__lede,
+  .hero__measure-room {
     order: 1;
   }
 

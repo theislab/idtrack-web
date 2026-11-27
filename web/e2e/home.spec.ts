@@ -93,6 +93,13 @@ test("the start page is one screen: the hero, its figure, then the footer", asyn
   // On a phone the figure follows the form, with its rows named: about a screen and a half in all.
   expect(fit.bottom).toBeLessThanOrEqual(fit.viewport * (isPhone(info) ? 1.6 : 1.15));
   expect(fit.wide).toBe(false);
+  // The words read in their order at every width: the line, the sentence, the measured line, the form.
+  const inOrder = await page.evaluate(() => {
+    const top = (s: string) => document.querySelector(s)?.getBoundingClientRect().top ?? Number.NaN;
+    const tops = [".hero__title", ".hero__lede", ".hero__measure-room", ".hero__form"].map(top);
+    return tops.every((t, i) => i === 0 || t > (tops[i - 1] ?? Infinity));
+  });
+  expect(inOrder).toBe(true);
   // The figure: its caption names the endpoint, its text alternative says every journey.
   const showcase = await showcaseOf(page, data.organism);
   const list = journeyList(journeySets(showcase));
@@ -123,34 +130,40 @@ test("the journeys: every row the showcase's answer, isolated on focus, opened b
   expect(labels.length).toBeGreaterThan(0);
   let at = -1;
   for (const label of labels) {
-    const k = ids.findIndex((id, i) => i > at && label.startsWith(`${id}, `));
+    const k = ids.findIndex((id, i) => i > at && (label.startsWith(`${id}, `) || label.startsWith(`${id}: `)));
     expect(k, label).toBeGreaterThan(at);
     at = k;
   }
-  test.skip(labels.length < 2, "fewer than two journeys drawn");
+  // The rows with an answer to draw (their names say the release read).
+  const drawn = labels.flatMap((label, k) => (label.includes(", read at release ") ? [k] : []));
+  const [first, second] = drawn;
+  test.skip(first === undefined || second === undefined, "fewer than two journeys with an answer drawn");
+  if (first === undefined || second === undefined) return;
+  const idOf = (k: number) => labels[k]?.split(",")[0] ?? "-";
   if (isPhone(info)) {
     // On a phone a tap shows the journey; a second tap opens it.
-    await rows.nth(0).locator("rect.fig-hit").tap();
+    await rows.nth(first).locator("rect.fig-hit").tap();
     await expect(page.getByRole("tooltip")).toContainText("Tap again");
-    await rows.nth(0).locator("rect.fig-hit").tap();
+    await rows.nth(first).locator("rect.fig-hit").tap();
     await waitForResult(page);
+    await expect(page).toHaveURL(new RegExp(`id=${encodeURIComponent(idOf(first))}`));
     expect(asked.length).toBe(1);
     return;
   }
-  await rows.nth(0).locator("rect.fig-hit").hover();
+  await rows.nth(first).locator("rect.fig-hit").hover();
   await expect(page.locator(".hero .journeys__svg")).toHaveClass(/is-isolating/);
-  await expect(page.getByRole("tooltip")).toContainText(labels[0]?.split(",")[0] ?? "-");
+  await expect(page.getByRole("tooltip")).toContainText(idOf(first));
   await page.keyboard.press("Escape");
   await expect(page.getByRole("tooltip")).toHaveCount(0);
   await page.mouse.move(0, 0);
-  await rows.nth(1).focus();
+  await rows.nth(second).focus();
   await page.keyboard.press("ArrowRight");
   await expect(page.getByRole("tooltip")).toContainText("step 1 of");
   await expectAccessible(page);
   await shot(page, info, "02-start-journey-focused");
   await page.keyboard.press("Enter");
   await waitForResult(page);
-  await expect(page).toHaveURL(new RegExp(`id=${encodeURIComponent(labels[1]?.split(",")[0] ?? "")}`));
+  await expect(page).toHaveURL(new RegExp(`id=${encodeURIComponent(idOf(second))}`));
   expect(asked.length).toBe(1);
 });
 
