@@ -6,7 +6,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { API_BASE, api, send, type Exchange } from "../api/client";
 import type { LimitsResponse } from "../api/types";
 import { ErrorPanel } from "../components/ErrorPanel";
-import { CodeBlock, CodeTabs, LanguageProvider } from "../components/api/CodeTabs";
+import { CodeBlock, CodeChoice, CodeTabs, LanguageProvider } from "../components/api/CodeTabs";
 import { EndpointSection } from "../components/api/EndpointSection";
 import { ExchangeView } from "../components/api/Exchange";
 import { Button, CopyButton, Mono, Prose, Skeleton } from "../components/ui";
@@ -20,9 +20,9 @@ import {
 import { pipelinePython, pipelineR } from "../lib/apiRecipes";
 import { rawValueAt } from "../lib/jsonView";
 import { groupedInteger, pythonFloat } from "../lib/numbers";
-import { endpoints, fieldsOf, grouped, tocPath, type OpenApiDocument } from "../lib/openapi";
+import { endpoints, fieldsOf, firstSentence, grouped, tocPath, type OpenApiDocument } from "../lib/openapi";
 import { useOrganisms } from "../lib/organisms";
-import { parseServerTiming, TIMING_MEANINGS } from "../lib/serverTiming";
+import { parseServerTiming, TIMING_METRICS } from "../lib/serverTiming";
 import { useRequest } from "../lib/useRequest";
 import { useLimits, useVocabulary } from "../lib/vocabularyContext";
 import "../styles/api.css";
@@ -34,12 +34,6 @@ function boundValue(name: string, value: number): string {
     return `${groupedInteger(value)} bytes${value >= 1024 * 1024 ? ` (${value / 1024 / 1024} MiB)` : ""}`;
   if (name.endsWith("_seconds")) return `${pythonFloat(value)} s`;
   return groupedInteger(value);
-}
-
-/** Whether a bound is a per-client allowance: the document describes it in terms of a client (rate_per_minute, which
- *  says that its 0 turns every per-client allowance off, apart). */
-function perClient(name: string, description: string): boolean {
-  return name !== "rate_per_minute" && /\bclient/.test(description);
 }
 
 function rateWords(limits: LimitsResponse | null): string {
@@ -133,45 +127,59 @@ function ContentsLinks({
   );
 }
 
-/** The section or endpoint being read: the last whose top has passed a line just below where an anchor lands (the
- *  endpoints' scroll margin, read from the page), watched with an IntersectionObserver (no layout read on scroll). */
+/** The section or endpoint being read: the last whose top has passed a line just below where an anchor lands, watched
+ *  with an IntersectionObserver (no layout read on scroll). Every target lands at one offset (the page's scroll padding
+ *  and the targets' one scroll margin), read once after the first frame (never while the page is laid out the first
+ *  time) and again when the window's size changes, so the entry just followed is the one marked. */
 function useReading(groups: ReturnType<typeof grouped>): string | null {
   const [active, setActive] = useState<string | null>(null);
   useEffect(() => {
     if (typeof IntersectionObserver === "undefined") return;
-    const targets = [...document.querySelectorAll<HTMLElement>(".api-section, .endpoint, .api-first")];
-    if (!targets.length) return;
-    // The line: where an anchor's target lands (its scroll margin), plus a little, so that the entry just followed
-    // is the one marked.
-    const margin = Math.ceil(
-      parseFloat(getComputedStyle(targets[targets.length - 1] ?? document.body).scrollMarginTop) || 0,
-    );
-    const line = margin + 8;
-    const passed = new Map<string, boolean>();
-    const order = targets.map((t) => t.id);
-    const observer = new IntersectionObserver(
-      (entries) => {
-        for (const entry of entries) {
-          // Above the line: the target's top has passed it (it intersects the region above the line, or lies wholly
-          // above it).
-          passed.set(entry.target.id, entry.isIntersecting || entry.boundingClientRect.bottom < line);
-        }
-        let current: string | null = null;
-        for (const id of order) if (passed.get(id)) current = id;
-        setActive(current);
-      },
-      { rootMargin: `0px 0px -${Math.max(0, window.innerHeight - line)}px 0px` },
-    );
-    for (const t of targets) observer.observe(t);
+    let observer: IntersectionObserver | null = null;
+    let frame = 0;
+    const watch = () => {
+      observer?.disconnect();
+      const targets = [...document.querySelectorAll<HTMLElement>(".api-section, .endpoint, .api-first")];
+      const [first] = targets;
+      if (!first) return;
+      const landing =
+        (parseFloat(getComputedStyle(document.documentElement).scrollPaddingTop) || 0) +
+        (parseFloat(getComputedStyle(first).scrollMarginTop) || 0);
+      const line = Math.ceil(landing) + 8;
+      const passed = new Map<string, boolean>();
+      const order = targets.map((t) => t.id);
+      observer = new IntersectionObserver(
+        (entries) => {
+          for (const entry of entries) {
+            // Above the line: the target's top has passed it (it intersects the region above the line, or lies
+            // wholly above it).
+            passed.set(entry.target.id, entry.isIntersecting || entry.boundingClientRect.bottom < line);
+          }
+          let current: string | null = null;
+          for (const id of order) if (passed.get(id)) current = id;
+          setActive(current);
+        },
+        { rootMargin: `0px 0px -${Math.max(0, window.innerHeight - line)}px 0px` },
+      );
+      for (const t of targets) observer.observe(t);
+    };
+    const later = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(watch);
+    };
+    later();
+    window.addEventListener("resize", later);
     return () => {
-      observer.disconnect();
+      cancelAnimationFrame(frame);
+      window.removeEventListener("resize", later);
+      observer?.disconnect();
     };
   }, [groups]);
   return active;
 }
 
-/** The contents beside the reference on a wide screen; on a narrower one, a list to open under the page's head and
- *  a button that comes back to it from anywhere below. */
+/** The contents beside the reference on a wide screen; on a narrower one, a bar that stays under the masthead and
+ *  opens to the same list (no control floats over the text). */
 function Contents({ groups }: { groups: ReturnType<typeof grouped> }) {
   const active = useReading(groups);
   return (
@@ -184,50 +192,21 @@ function Contents({ groups }: { groups: ReturnType<typeof grouped> }) {
 
 function PhoneContents({ groups, count }: { groups: ReturnType<typeof grouped>; count: number }) {
   const details = useRef<HTMLDetailsElement>(null);
-  const [away, setAway] = useState(false);
-  useEffect(() => {
-    const element = details.current;
-    if (!element || typeof IntersectionObserver === "undefined") return;
-    // The way back appears once the list is out of view above (scrolled past), never while it can be seen.
-    const observer = new IntersectionObserver(([entry]) => {
-      if (entry) setAway(!entry.isIntersecting && entry.boundingClientRect.top < 0);
-    });
-    observer.observe(element);
-    return () => {
-      observer.disconnect();
-    };
-  }, []);
   return (
-    <>
-      <details className="api-contents" id="contents" ref={details}>
-        <summary>
-          On this page <span className="api-contents__count">{count ? `${count} endpoints` : ""}</span>
-        </summary>
-        <nav aria-label="On this page" className="api-contents__list">
-          <ContentsLinks
-            groups={groups}
-            active={null}
-            onFollow={() => {
-              if (details.current) details.current.open = false;
-            }}
-          />
-        </nav>
-      </details>
-      {away ? (
-        <a
-          href="#contents"
-          className="api-contents__back"
-          onClick={() => {
-            if (details.current) details.current.open = true;
+    <details className="api-contents" id="contents" ref={details}>
+      <summary>
+        On this page <span className="api-contents__count">{count ? `${count} endpoints` : ""}</span>
+      </summary>
+      <nav aria-label="On this page" className="api-contents__list">
+        <ContentsLinks
+          groups={groups}
+          active={null}
+          onFollow={() => {
+            if (details.current) details.current.open = false;
           }}
-        >
-          Contents
-          <svg viewBox="0 0 12 12" aria-hidden="true" focusable="false">
-            <path d="M6 10V2M2.5 5.5 6 2l3.5 3.5" fill="none" stroke="currentColor" strokeWidth="1.4" />
-          </svg>
-        </a>
-      ) : null}
-    </>
+        />
+      </nav>
+    </details>
   );
 }
 
@@ -267,15 +246,19 @@ function Fact({
 }
 
 /** A first request, above everything else: the example conversion of this server, its curl line (in the language the
- *  page shows), and its answer on a press, trimmed to what it says, the whole answer one press away. */
+ *  page shows), and its answer on a press, trimmed to what it says, the whole answer one press away. Without an
+ *  example identifier (the organisms not read, or none of the page's examples held) it says why, never a request
+ *  that cannot answer. */
 function FirstRequest({
   origin,
   organism,
   example,
+  organisms,
 }: {
   origin: string;
   organism: string;
   example: OrganismExample | null;
+  organisms: { status: "loading" | "done" | "failed"; held: number; retry: () => void };
 }) {
   const spec: RequestSpec = {
     method: "GET",
@@ -287,11 +270,21 @@ function FirstRequest({
     body: null,
   };
   const [answer, setAnswer] = useState<Exchange | "asking" | "failed" | null>(null);
+  const asking = useRef(false);
   const run = () => {
+    if (asking.current) return; // a second press while the first is out sends nothing more
+    asking.current = true;
     setAnswer("asking");
-    send("GET", requestUrl(origin, spec), null).then(setAnswer, () => {
-      setAnswer("failed");
-    });
+    send("GET", requestUrl(origin, spec), null).then(
+      (exchange) => {
+        asking.current = false;
+        setAnswer(exchange);
+      },
+      () => {
+        asking.current = false;
+        setAnswer("failed");
+      },
+    );
   };
   const summary = typeof answer === "object" && answer !== null ? firstSummary(answer.raw) : null;
   return (
@@ -300,35 +293,54 @@ function FirstRequest({
         <h2 id="first-request-title" className="api-first__title">
           A first request
         </h2>
-        <p className="api-card__text">
-          Convert <Mono>{example?.identifier ?? "an identifier"}</Mono> in this server&apos;s <Mono>{organism}</Mono>{" "}
-          graph to the Ensembl gene at the graph&apos;s last release: one <Mono>GET</Mono>, JSON back. Every parameter,
-          and the request in Python, R and JavaScript, are under Conversion below.
-        </p>
-        <div className="api-first__run">
-          <Button variant="primary" onClick={run} disabled={answer === "asking" || !example}>
-            {answer === "asking" ? "Asking…" : "Send it"}
-          </Button>
-          {summary ? (
-            <p className="api-first__summary" role="status">
-              <Mono strong>{typeof answer === "object" && answer ? answer.status : ""}</Mono> {summary}
+        {example ? (
+          <>
+            <p className="api-card__text">
+              Convert <Mono>{example.identifier}</Mono> in this server&apos;s <Mono>{organism}</Mono> graph to the
+              Ensembl gene at the graph&apos;s last release: one <Mono>GET</Mono>, JSON back. Every parameter, and the
+              request in Python, R and JavaScript, are under Conversion below.
             </p>
-          ) : answer === "failed" ? (
-            <p className="api-first__summary" role="status">
-              No answer came from the server.
+            <div className="api-first__run">
+              <Button variant="primary" onClick={run} disabled={answer === "asking"}>
+                {answer === "asking" ? "Asking…" : "Send it"}
+              </Button>
+              {summary ? (
+                <p className="api-first__summary" role="status">
+                  <Mono strong>{typeof answer === "object" && answer ? answer.status : ""}</Mono> {summary}
+                </p>
+              ) : answer === "failed" ? (
+                <p className="api-first__summary" role="status">
+                  No answer came from the server.
+                </p>
+              ) : null}
+            </div>
+          </>
+        ) : (
+          <div className="api-first__missing" role="status">
+            <p className="api-card__text">
+              {organisms.status === "failed"
+                ? "The list of this server's organisms could not be read, so the page has no identifier to ask with yet."
+                : organisms.status === "loading"
+                  ? "Reading this server's organisms, to ask with an identifier of one of its graphs…"
+                  : organisms.held === 0
+                    ? "This server holds no graph, so there is nothing to convert."
+                    : `The page knows no identifier of the ${organism} graph: write one into the console of GET …/convert under Conversion below.`}
             </p>
+            {organisms.status === "failed" ? <Button onClick={organisms.retry}>Try again</Button> : null}
+          </div>
+        )}
+      </div>
+      {example ? (
+        <div className="api-first__code">
+          <CodeTabs origin={origin} spec={spec} what="A first request" />
+          {typeof answer === "object" && answer !== null ? (
+            <details className="schema__nested api-first__whole">
+              <summary>The whole answer, as sent</summary>
+              <ExchangeView exchange={answer} what="The first request's answer" />
+            </details>
           ) : null}
         </div>
-      </div>
-      <div className="api-first__code">
-        <CodeTabs origin={origin} spec={spec} what="A first request" />
-        {typeof answer === "object" && answer !== null ? (
-          <details className="schema__nested api-first__whole">
-            <summary>The whole answer, as sent</summary>
-            <ExchangeView exchange={answer} what="The first request's answer" />
-          </details>
-        ) : null}
-      </div>
+      ) : null}
     </section>
   );
 }
@@ -418,6 +430,14 @@ function useReadingRules(): { state: "loading" | "done" | "failed"; rules: strin
   return result;
 }
 
+/** A rule's lead (its words in bold, else its first sentence) and the rest, which opens on demand. */
+function ruleParts(rule: string): { lead: string; rest: string } {
+  const bold = /^\*\*([^*]+)\*\*\s*(.*)$/s.exec(rule);
+  if (bold) return { lead: bold[1] ?? "", rest: bold[2] ?? "" };
+  const { first, rest } = firstSentence(rule);
+  return { lead: first, rest };
+}
+
 function ReadingAnAnswer({ doc, raw }: { doc: OpenApiDocument | null; raw: string | null }) {
   const rules = useReadingRules();
   const recorded =
@@ -451,11 +471,25 @@ function ReadingAnAnswer({ doc, raw }: { doc: OpenApiDocument | null; raw: strin
         <div className="api-reading__rules">
           {rules.state === "done" ? (
             <ul className="api-list api-reading__list">
-              {rules.rules.map((rule, i) => (
-                <li key={i}>
-                  <Marked text={rule} />
-                </li>
-              ))}
+              {rules.rules.map((rule, i) => {
+                const { lead, rest } = ruleParts(rule);
+                return (
+                  <li key={i}>
+                    {rest ? (
+                      <details className="api-rule">
+                        <summary>
+                          <Marked text={lead} />
+                        </summary>
+                        <p>
+                          <Marked text={rest} />
+                        </p>
+                      </details>
+                    ) : (
+                      <Marked text={lead} />
+                    )}
+                  </li>
+                );
+              })}
             </ul>
           ) : rules.state === "failed" ? (
             <p className="muted">
@@ -466,7 +500,7 @@ function ReadingAnAnswer({ doc, raw }: { doc: OpenApiDocument | null; raw: strin
           )}
           <p className="api-card__source">
             From <a href="/llms-full.txt">/llms-full.txt</a>, section &quot;Reading an answer&quot;: the same rules the
-            api gives language models.
+            api gives language models; each opens to the whole rule.
           </p>
         </div>
         <figure className="api-reading__figure">
@@ -542,7 +576,7 @@ export function ApiPage() {
   const document = useRequest("openapi", (signal) => api.openapi(signal));
   const limits = useLimits();
   const vocabulary = useVocabulary();
-  const { organisms, version, facts } = useOrganisms();
+  const { organisms, version, facts, status: organismsStatus, retry: retryOrganisms } = useOrganisms();
   const held = organisms.map((o) => o.organism);
   const { organism, example } = exampleOrganism(held);
   const [errorExample, setErrorExample] = useState<Exchange | "asking" | "failed" | null>(null);
@@ -575,7 +609,9 @@ export function ApiPage() {
     target?.scrollIntoView();
   }, [doc]);
   const errors = [...vocabulary.errors.entries()];
-  const allowancesOff = limits?.rate_per_minute === 0;
+  // The bounds the api names as per-client allowances: configured, and applied only where it enforces them.
+  const allowances = new Set(limits?.allowance_fields ?? []);
+  const allowancesOff = limits !== null && !limits.allowances_enforced;
 
   return (
     <LanguageProvider>
@@ -628,12 +664,20 @@ export function ApiPage() {
         <div className="api-layout">
           <Contents groups={groups} />
           <div className="api-main">
-            <FirstRequest origin={origin} organism={organism} example={example} />
+            <FirstRequest
+              origin={origin}
+              organism={organism}
+              example={example}
+              organisms={{ status: organismsStatus, held: held.length, retry: retryOrganisms }}
+            />
             <Section id="conventions" title="Conventions" aside="What every endpoint shares.">
               <div className="api-conventions">
                 <div className="api-card">
                   <h3 className="api-card__title">
-                    <span className="panel-letter">a</span> Requests and answers
+                    <span className="panel-letter" aria-hidden="true">
+                      a
+                    </span>
+                    Requests and answers
                   </h3>
                   <ul className="api-list">
                     <li>
@@ -664,7 +708,10 @@ export function ApiPage() {
                 </div>
                 <div className="api-card">
                   <h3 className="api-card__title">
-                    <span className="panel-letter">b</span> Errors
+                    <span className="panel-letter" aria-hidden="true">
+                      b
+                    </span>
+                    Errors
                   </h3>
                   <p className="api-card__text">
                     Every answer that is not a success is one object, <Mono>{`{"error": {...}}`}</Mono>, with a stable{" "}
@@ -694,66 +741,88 @@ export function ApiPage() {
                 </div>
                 <div className="api-card api-card--wide">
                   <h3 className="api-card__title">
-                    <span className="panel-letter">c</span> Bounds of this server
+                    <span className="panel-letter" aria-hidden="true">
+                      c
+                    </span>
+                    Bounds of this server
                   </h3>
                   {limits && limitFields.length ? (
-                    <dl className="api-bounds">
+                    <ul className="api-bounds">
                       {limitFields.map((f) => {
                         const value = (limits as unknown as Record<string, unknown>)[f.name];
-                        const off = allowancesOff && perClient(f.name, f.description);
+                        const allowance = allowances.has(f.name);
                         return (
-                          <div key={f.name} className={`api-bounds__row${off ? " api-bounds__row--off" : ""}`}>
-                            <dt>
-                              <Mono>{f.name}</Mono>
-                            </dt>
-                            <dd className="api-bounds__value">
-                              <Mono strong>
-                                {typeof value === "number" ? boundValue(f.name, value) : String(value)}
-                              </Mono>
-                            </dd>
-                            <dd className="api-bounds__meaning">
-                              <Prose text={f.description} literal />
-                              {f.name === "rate_per_minute" && value === 0 ? (
-                                <span className="api-bounds__state"> On this server: no per-client allowance.</span>
-                              ) : off ? (
-                                <span className="api-bounds__state">
-                                  {" "}
-                                  Not applied on this server: <Mono>rate_per_minute</Mono> is <Mono>0</Mono>.
+                          <li
+                            key={f.name}
+                            className={`api-bounds__row${allowance ? " api-bounds__row--allowance" : ""}`}
+                          >
+                            <details>
+                              <summary>
+                                <Mono>{f.name}</Mono>{" "}
+                                <span className="api-bounds__value">
+                                  <Mono strong>
+                                    {typeof value === "number"
+                                      ? boundValue(f.name, value)
+                                      : Array.isArray(value)
+                                        ? `${value.length} names`
+                                        : String(value)}
+                                  </Mono>
                                 </span>
-                              ) : null}
-                            </dd>
-                          </div>
+                                {allowance && allowancesOff ? (
+                                  <span className="api-bounds__state">configured, not applied on this server</span>
+                                ) : null}
+                              </summary>
+                              <p className="api-bounds__meaning">
+                                <Prose text={f.description} literal />
+                                {Array.isArray(value) ? (
+                                  <>
+                                    {" "}
+                                    {value.map((v, i) => (
+                                      <span key={String(v)}>
+                                        {i ? ", " : ""}
+                                        <Mono>{String(v)}</Mono>
+                                      </span>
+                                    ))}
+                                    .
+                                  </>
+                                ) : null}
+                              </p>
+                            </details>
+                          </li>
                         );
                       })}
-                    </dl>
+                    </ul>
                   ) : facts.limits === "failed" || document.state === "failed" ? (
                     <p className="muted">The bounds could not be read: the request of /api/v1/limits failed.</p>
                   ) : (
                     <Skeleton height={160} />
                   )}
                   <p className="api-card__source">
-                    <Mono>GET /api/v1/limits</Mono>, with the document&apos;s description of each field.
+                    <Mono>GET /api/v1/limits</Mono>, each bound opening to the document&apos;s description of it; the
+                    per-client allowances are those <Mono>allowance_fields</Mono> names
+                    {allowancesOff ? ", configured but not applied on this server (allowances_enforced is false)" : ""}.
                   </p>
                 </div>
                 <div className="api-card api-card--wide">
                   <h3 className="api-card__title">
-                    <span className="panel-letter">d</span> Timing
+                    <span className="panel-letter" aria-hidden="true">
+                      d
+                    </span>
+                    Timing
                   </h3>
                   <p className="api-card__text">
                     Every answer carries <Mono>Server-Timing</Mono>, in milliseconds measured by the server, readable by
-                    any page (it is exposed to every origin).
+                    any page (it is exposed to every origin). Its metrics, in the api&apos;s words (
+                    <Mono>x-metrics</Mono> of the header in the document):
                   </p>
                   <dl className="api-timing">
-                    {Object.entries(TIMING_MEANINGS).map(([name, meaning]) => (
+                    {Object.entries(TIMING_METRICS).map(([name, meaning]) => (
                       <div key={name}>
                         <dt>
                           <Mono strong>{name}</Mono>
                         </dt>
                         <dd>
-                          {meaning}
-                          {name === "queue" || name === "search"
-                            ? " Sent for a request that searched (a conversion, a batch, a name)."
-                            : ""}
+                          <Prose text={meaning} literal />
                         </dd>
                       </div>
                     ))}
@@ -777,60 +846,121 @@ export function ApiPage() {
             >
               <ol className="api-rules">
                 <li>
-                  <strong>Read the document.</strong> <a href={`${API_BASE}/openapi.json`}>/api/v1/openapi.json</a>{" "}
-                  describes every endpoint, parameter and field (with the meaning of each), every closed set of codes as
-                  an enumeration, the error codes of each endpoint and a recorded answer of each;{" "}
-                  <a href="/llms-full.txt">/llms-full.txt</a> says the rules in one text, and{" "}
-                  <Mono>GET {API_BASE}</Mono> names every endpoint.
+                  <details className="api-rule">
+                    <summary>
+                      <strong>Read the document.</strong>
+                    </summary>
+                    <p>
+                      <a href={`${API_BASE}/openapi.json`}>/api/v1/openapi.json</a> describes every endpoint, parameter
+                      and field (with the meaning of each), every closed set of codes as an enumeration, the error codes
+                      of each endpoint and a recorded answer of each; <a href="/llms-full.txt">/llms-full.txt</a> says
+                      the rules in one text, and <Mono>GET {API_BASE}</Mono> names every endpoint.
+                    </p>
+                  </details>
                 </li>
                 <li>
-                  <strong>Send and read JSON.</strong> Ask with <Mono>Accept: application/json</Mono>; send a body as{" "}
-                  <Mono>application/json</Mono>, typed strictly (a release is a number, never{" "}
-                  <Mono>&quot;115&quot;</Mono>).
+                  <details className="api-rule">
+                    <summary>
+                      <strong>Send and read JSON.</strong>
+                    </summary>
+                    <p>
+                      Ask with <Mono>Accept: application/json</Mono>; send a body as <Mono>application/json</Mono>,
+                      typed strictly (a release is a number, never <Mono>&quot;115&quot;</Mono>).
+                    </p>
+                  </details>
                 </li>
                 <li>
-                  <strong>Branch on the code, not the message.</strong> <Mono>error.code</Mono> is stable; the message
-                  is for people and may change. A code that is not retryable (the table below) will not change on a
-                  retry: change the request.
+                  <details className="api-rule">
+                    <summary>
+                      <strong>Branch on the code, not the message.</strong>
+                    </summary>
+                    <p>
+                      <Mono>error.code</Mono> is stable; the message is for people and may change. A code that is not
+                      retryable (the table below) will not change on a retry: change the request.
+                    </p>
+                  </details>
                 </li>
                 <li>
-                  <strong>Wait when told to.</strong> On <Mono>429 rate_limited</Mono>, <Mono>503 server_busy</Mono> and{" "}
-                  <Mono>503 request_budget_exceeded</Mono>, wait the <Mono>Retry-After</Mono> seconds, then retry; wait
-                  longer each time it repeats (the recipe below does).
+                  <details className="api-rule">
+                    <summary>
+                      <strong>Wait when told to.</strong>
+                    </summary>
+                    <p>
+                      On <Mono>429 rate_limited</Mono>, <Mono>503 server_busy</Mono> and{" "}
+                      <Mono>503 request_budget_exceeded</Mono>, wait the <Mono>Retry-After</Mono> seconds, then retry;
+                      wait longer each time it repeats (the recipe below does).
+                    </p>
+                  </details>
                 </li>
                 <li>
-                  <strong>Many identifiers, one request.</strong> Send up to{" "}
-                  {limits ? <Mono>{groupedInteger(limits.batch_max)}</Mono> : "the bound of"} identifiers in one{" "}
-                  <Mono>POST …/convert/batch</Mono> rather than one request each: the results come in input order, each
-                  with its own status, and an identifier whose conversion fails is that item&apos;s error (with its{" "}
-                  <Mono>code</Mono>). An identifier the api refuses at its boundary (too long, control characters)
-                  refuses the whole batch, with every such index in <Mono>details</Mono>: correct it and send again. An
-                  item that is another item of the same batch with <Mono>-1</Mono>, <Mono>.1</Mono> or <Mono>_1</Mono>{" "}
-                  appended can be answered as its copy; send <Mono>&quot;read_copies&quot;: false</Mono> to convert
-                  every item alone.
+                  <details className="api-rule">
+                    <summary>
+                      <strong>Many identifiers, one request.</strong>
+                    </summary>
+                    <p>
+                      Send up to {limits ? <Mono>{groupedInteger(limits.batch_max)}</Mono> : "the bound of"} identifiers
+                      in one <Mono>POST …/convert/batch</Mono> rather than one request each: the results come in input
+                      order, each with its own status, and an identifier whose conversion fails is that item&apos;s
+                      error (with its <Mono>code</Mono>). An identifier the api refuses at its boundary (too long,
+                      control characters) refuses the whole batch, with every such index in <Mono>details</Mono>:
+                      correct it and send again. An item that is another item of the same batch with <Mono>-1</Mono>,{" "}
+                      <Mono>.1</Mono> or <Mono>_1</Mono> appended can be answered as its copy; send{" "}
+                      <Mono>&quot;read_copies&quot;: false</Mono> to convert every item alone.
+                    </p>
+                  </details>
                 </li>
                 <li>
-                  <strong>Ask for the path only when you read it.</strong> <Mono>explain=true</Mono> adds every
-                  candidate&apos;s path; an answer over{" "}
-                  {limits ? <Mono>{groupedInteger(limits.response_max_bytes)}</Mono> : "the bound of"} bytes is refused
-                  (<Mono>response_too_large</Mono>), never cut.
+                  <details className="api-rule">
+                    <summary>
+                      <strong>Ask for the path only when you read it.</strong>
+                    </summary>
+                    <p>
+                      <Mono>explain=true</Mono> adds every candidate&apos;s path; an answer over{" "}
+                      {limits ? <Mono>{groupedInteger(limits.response_max_bytes)}</Mono> : "the bound of"} bytes is
+                      refused (<Mono>response_too_large</Mono>), never cut.
+                    </p>
+                  </details>
                 </li>
                 <li>
-                  <strong>Keep to the bounds</strong> of <Mono>/limits</Mono> (above): at most{" "}
-                  {limits ? <Mono>{limits.identifier_max_length}</Mono> : "the bound of"} characters per identifier,{" "}
-                  {limits ? <Mono>{pythonFloat(limits.request_seconds)}</Mono> : "the budget of"} s per request and{" "}
-                  {limits ? <Mono>{pythonFloat(limits.search_seconds)}</Mono> : "the budget of"} s per identifier&apos;s
-                  search; the rate is {rateWords(limits)}.
+                  <details className="api-rule">
+                    <summary>
+                      <strong>Keep to the bounds of /limits.</strong>
+                    </summary>
+                    <p>
+                      They are above (Conventions, c): at most{" "}
+                      {limits ? <Mono>{limits.identifier_max_length}</Mono> : "the bound of"} characters per identifier,{" "}
+                      {limits ? <Mono>{pythonFloat(limits.request_seconds)}</Mono> : "the budget of"} s of search per
+                      request (from when its search begins),{" "}
+                      {limits ? <Mono>{pythonFloat(limits.search_seconds)}</Mono> : "the budget of"} s per
+                      identifier&apos;s search, and at most{" "}
+                      {limits ? <Mono>{pythonFloat(limits.queue_seconds)}</Mono> : "the bound of"} s waiting for a
+                      worker (longer is <Mono>503 server_busy</Mono>, unsearched); the rate is {rateWords(limits)}.
+                    </p>
+                  </details>
                 </li>
                 <li>
-                  <strong>Read meanings from the server.</strong> <Mono>/vocabulary</Mono> gives the meaning of every
-                  status, reason, criterion and error code; it, <Mono>/organisms</Mono> and <Mono>/version</Mono> change
-                  only when the server&apos;s graphs or versions do (<Mono>/version</Mono> names each graph&apos;s
-                  content digest), so they can be kept between runs.
+                  <details className="api-rule">
+                    <summary>
+                      <strong>Read meanings from the server.</strong>
+                    </summary>
+                    <p>
+                      <Mono>/vocabulary</Mono> gives the meaning of every status, reason, criterion and error code; it,{" "}
+                      <Mono>/organisms</Mono> and <Mono>/version</Mono> change only when the server&apos;s graphs or
+                      versions do (<Mono>/version</Mono> names each graph&apos;s content digest), so they can be kept
+                      between runs.
+                    </p>
+                  </details>
                 </li>
                 <li>
-                  <strong>Quote the request id</strong> (<Mono>error.request_id</Mono>, also the{" "}
-                  <Mono>X-Request-ID</Mono> header of every answer) when reporting an <Mono>internal_error</Mono>.
+                  <details className="api-rule">
+                    <summary>
+                      <strong>Quote the request id</strong>
+                    </summary>
+                    <p>
+                      (<Mono>error.request_id</Mono>, also the <Mono>X-Request-ID</Mono> header of every answer) when
+                      reporting an <Mono>internal_error</Mono>.
+                    </p>
+                  </details>
                 </li>
               </ol>
             </Section>
@@ -883,7 +1013,7 @@ export function ApiPage() {
                           Status
                         </th>
                         <th scope="col">Retry</th>
-                        <th scope="col">When, and what to change</th>
+                        <th scope="col">What it says (each opens to when, and what to change)</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -900,9 +1030,12 @@ export function ApiPage() {
                           </td>
                           <td data-label="When" className="cell-wrap">
                             {/* One child: in the cards of a phone, prose with code wraps as one paragraph. */}
-                            <span className="cell-value">
-                              <Prose text={e.meaning} literal />
-                            </span>
+                            <details className="cell-value">
+                              <summary>{e.title}</summary>
+                              <div>
+                                <Prose text={e.meaning} literal />
+                              </div>
+                            </details>
                           </td>
                         </tr>
                       ))}
@@ -924,8 +1057,13 @@ export function ApiPage() {
                   the same graph. Its <a href={docsPage()}>documentation</a> has the quickstart, how it answers and its
                   limitations.
                 </p>
-                <CodeBlock code="pip install idtrack" what="the install command" label="Install" />
-                <CodeBlock code={PYTHON_EXAMPLE} what="the Python example" label="Convert (idtrack's README)" />
+                <CodeBlock code="pip install idtrack" what="the install command" label="Install" language="bash" />
+                <CodeBlock
+                  code={PYTHON_EXAMPLE}
+                  what="the Python example"
+                  label="Convert (idtrack's README)"
+                  language="python"
+                />
                 <h3 className="api-local__title" id="harmonizing">
                   Harmonizing count matrices
                 </h3>
@@ -936,11 +1074,17 @@ export function ApiPage() {
                   <a href={docsPage("harmonization.html")}>Harmonizing Datasets</a>, where the example makes its own toy
                   datasets).
                 </p>
-                <CodeBlock code={'pip install "idtrack[harmonize]"'} what="the install command" label="Install" />
+                <CodeBlock
+                  code={'pip install "idtrack[harmonize]"'}
+                  what="the install command of the harmonization"
+                  label="Install"
+                  language="bash"
+                />
                 <CodeBlock
                   code={HARMONIZE_EXAMPLE}
                   what="the harmonization example"
                   label="Harmonize (idtrack's documentation)"
+                  language="python"
                 />
               </div>
             </Section>
@@ -948,19 +1092,27 @@ export function ApiPage() {
             <Section
               id="pipeline"
               title="A whole feature list, over HTTP"
-              aside="Batches, waits and the graph's digest beside the answers."
+              aside="The list's release, batches, waits and the graph's digest beside the answers."
             >
-              <p className="api-card__text">
-                A list of any length in requests of at most this server&apos;s <Mono>batch_max</Mono>, waiting as told
-                on <Mono>429</Mono> and <Mono>503</Mono>. A name and its copies (the name with <Mono>-1</Mono>,{" "}
-                <Mono>.1</Mono> or <Mono>_1</Mono> appended) always go in one request, so every answer is the one a
-                single request of the whole list would give. It keeps only the answers in the database asked (
-                <Mono>converted</Mono> and <Mono>tie</Mono>), writes beside each how it was read (<Mono>match</Mono>),
-                the bridges it crossed and the criterion that decided it, and the graph&apos;s content digest from{" "}
-                <Mono>/version</Mono> above the table.
+              <p className="api-card__text api-prose">
+                A list of any length in requests of at most this server&apos;s <Mono>batch_max</Mono>, read as it was
+                when it was made: give the Ensembl release of its annotation (<Mono>FROM_RELEASE</Mono>), or let one{" "}
+                <Mono>POST …/source-inference</Mono> find it from the list (its <Mono>from_release</Mono>), sent with
+                every batch. It waits as told on <Mono>429</Mono> and <Mono>503</Mono>, keeps a name and its copies (
+                <Mono>-1</Mono>, <Mono>.1</Mono> or <Mono>_1</Mono> appended) in one request, keeps only the answers in
+                the database asked (<Mono>converted</Mono> and <Mono>tie</Mono>) with how each was read (
+                <Mono>match</Mono>), the bridges it crossed and the criterion that decided it, and writes above the
+                table the graph every answer came from (<Mono>Idtrack-Graph-Digest</Mono> of each answer, checked to be
+                one) and both releases. A batch&apos;s own table (<Mono>format=tsv</Mono>) names the same with{" "}
+                <Mono>provenance=true</Mono>.
               </p>
-              <CodeBlock code={pipelinePython(base)} what="the pipeline in Python" label="Python (requests)" />
-              <CodeBlock code={pipelineR(base)} what="the pipeline in R" label="R (httr2)" />
+              <CodeChoice
+                what="The pipeline"
+                items={[
+                  { key: "python", label: "Python (requests)", code: pipelinePython(base), language: "python" },
+                  { key: "r", label: "R (httr2)", code: pipelineR(base), language: "r" },
+                ]}
+              />
             </Section>
           </div>
         </div>

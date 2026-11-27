@@ -1,6 +1,6 @@
 // The `Server-Timing` header of an answer, read as the server wrote it: every metric with its duration's text kept as
-// sent (no number is parsed and written again). The api sends `app;dur=`, for a request that searched `queue;dur=` and
-// `search;dur=`, in milliseconds, and `cache;desc=` for an answer sent from memory (README, "Timing of every answer").
+// sent (no number is parsed and written again). Its metrics and their meanings are the api's (`TIMING_METRICS`, generated
+// from `x-metrics` of the header in api/openapi.json).
 
 export interface TimingMetric {
   name: string;
@@ -10,14 +10,8 @@ export interface TimingMetric {
   desc: string | null;
 }
 
-/** What each of the api's metrics measures, in the api's words (README). A metric not named here is shown by name. */
-export const TIMING_MEANINGS: Record<string, string> = {
-  app: "The server's whole time on the request until its answer started; it contains queue and search.",
-  queue: "The time the request waited for its worker's search thread.",
-  search: "The search's own time.",
-  cache:
-    "Sent again from the server's memory without a search (hit), or answered 304 Not Modified to an If-None-Match that names the answer's ETag (revalidated).",
-};
+/** What each of the api's metrics measures, in the api's words (generated from its document's `x-metrics`). */
+export { TIMING_METRICS } from "../api/timing";
 
 /** Split `text` at `separator` outside double-quoted strings. */
 function splitOutsideQuotes(text: string, separator: string): string[] {

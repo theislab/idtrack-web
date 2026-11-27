@@ -241,6 +241,11 @@
 }
 
 .api-card__text,
+.api-prose {
+  max-width: var(--measure);
+}
+
+.api-card__text,
 .api-list {
   font-size: var(--text-sm);
   color: var(--ink-2);
@@ -271,10 +276,13 @@
   font-size: var(--text-xs);
 }
 
-/* The bounds: each a block of its own size (no shared row heights): the name and the value on one line, the value
-   at the right; the meaning under them at the full width. Two columns where there is room, filled top to bottom. */
+/* The bounds: each a line (its name, its value, a quiet tag where it is an allowance this server does not apply)
+   that opens to its meaning. Two columns where there is room, filled top to bottom. Nothing is struck through: a
+   value is the server's configuration, stated as it is. */
 .api-bounds {
   margin: 0;
+  padding: 0;
+  list-style: none;
 }
 
 .api-card--wide .api-bounds {
@@ -284,35 +292,33 @@
 
 .api-bounds__row {
   break-inside: avoid;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  grid-template-areas:
-    "name value"
-    "meaning meaning";
+  border-bottom: 1px solid var(--line);
+  font-size: var(--text-xs);
+}
+
+.api-bounds__row summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
   gap: 2px var(--space-3);
   padding: var(--space-2) 0;
-  border-bottom: 1px solid var(--line);
-  align-items: baseline;
+  cursor: pointer;
+  list-style: none;
 }
 
-.api-bounds dt {
-  grid-area: name;
-  min-width: 0;
-  font-size: var(--text-xs);
+.api-bounds__row summary::-webkit-details-marker {
+  display: none;
 }
 
-.api-bounds dt > .mono {
-  font-size: var(--text-xs);
-  font-size-adjust: none;
+.api-bounds__row summary > .mono:first-child {
   font-weight: var(--weight-strong);
   white-space: nowrap;
 }
 
 .api-bounds__value {
-  grid-area: value;
-  margin: 0;
+  order: 3;
+  margin-left: auto;
   text-align: right;
-  font-size: var(--text-xs);
 }
 
 .api-bounds__value .mono {
@@ -320,24 +326,40 @@
 }
 
 .api-bounds__meaning {
-  grid-area: meaning;
-  margin: 0;
-  font-size: var(--text-xs);
+  margin: 0 0 var(--space-3);
   color: var(--ink-3);
   line-height: 1.45;
+  max-width: var(--measure);
 }
 
 .api-bounds__state {
-  color: var(--ink-2);
-  font-weight: var(--weight-medium);
+  color: var(--ink-3);
+  font-style: italic;
 }
 
-/* An allowance this server does not apply: its name and value quiet, the reason said. */
-.api-bounds__row--off dt > .mono,
-.api-bounds__row--off .api-bounds__value .mono {
-  color: var(--ink-3);
-  text-decoration: line-through;
-  text-decoration-color: var(--line-strong);
+.api-bounds__row summary {
+  position: relative;
+  padding-left: var(--space-4);
+}
+
+.api-bounds__row summary::before {
+  content: "";
+  position: absolute;
+  left: 2px;
+  top: calc(var(--space-2) + 0.4em);
+  width: 5px;
+  height: 5px;
+  border-right: 1.5px solid var(--ink-3);
+  border-bottom: 1.5px solid var(--ink-3);
+  transform: rotate(-45deg);
+}
+
+.api-bounds__row details[open] summary::before {
+  transform: rotate(45deg);
+}
+
+.api-bounds__meaning {
+  padding-left: var(--space-4);
 }
 
 .api-timing {
@@ -373,6 +395,7 @@
 }
 
 .api-rules li {
+  max-width: var(--measure);
   counter-increment: rule;
   position: relative;
   padding: var(--space-3) 0 var(--space-3) 2.4em;
@@ -390,6 +413,14 @@
   font-variant-numeric: tabular-nums;
 }
 
+.api-rules .api-rule > summary::before {
+  top: 0.6em;
+}
+
+.api-rules .api-rule > p {
+  margin-top: var(--space-1);
+}
+
 .api-rules strong {
   color: var(--ink-1);
   font-weight: var(--weight-strong);
@@ -404,7 +435,10 @@
   display: grid;
   gap: var(--space-3);
   min-width: 0;
-  scroll-margin-top: calc(var(--masthead-height) + var(--space-4));
+
+  /* Drawn when near the window (a long reference lays out only what is read); its place kept meanwhile. */
+  content-visibility: auto;
+  contain-intrinsic-size: auto 640px;
 }
 
 .endpoint__head {
@@ -478,6 +512,48 @@
 .endpoint__description {
   color: var(--ink-2);
   font-size: var(--text-sm);
+  max-width: var(--measure);
+}
+
+/* A long description: its first lines, opening to the whole. */
+.endpoint__about > summary {
+  list-style: none;
+  cursor: pointer;
+}
+
+.endpoint__about > summary::-webkit-details-marker {
+  display: none;
+}
+
+.endpoint__about:not([open]) .endpoint__description {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+}
+
+.endpoint__about .endpoint__description {
+  display: block;
+}
+
+.endpoint__about[open] .endpoint__about-more {
+  display: none;
+}
+
+.endpoint__about-more {
+  font-size: var(--text-xs);
+  color: var(--ink-3);
+  text-decoration: underline;
+  text-decoration-color: var(--line-strong);
+  text-underline-offset: 3px;
+}
+
+/* Long programs scroll inside their block, so a recipe does not run the page's length. */
+.api-local .code-block__pre,
+#pipeline .code-block__pre {
+  max-height: 26rem;
+  overflow: auto;
 }
 
 .endpoint__grid {
@@ -547,15 +623,88 @@
   justify-self: start;
 }
 
-/* Parameters. */
+/* Parameters: each a line (its name, type, whether required, where it goes, and its text's first sentence) that opens
+   to the rest of its text, its default and the values it takes. */
 .params {
   margin: 0;
+  padding: 0;
+  list-style: none;
   display: grid;
 }
 
 .params__row {
-  padding: var(--space-2) 0 var(--space-3);
   border-bottom: 1px solid var(--line);
+}
+
+.params__fold > summary,
+.params__plain {
+  display: grid;
+  gap: 2px;
+  padding: var(--space-2) 0 var(--space-2) var(--space-4);
+  position: relative;
+}
+
+.params__fold > summary {
+  cursor: pointer;
+  list-style: none;
+}
+
+.params__fold > summary::-webkit-details-marker {
+  display: none;
+}
+
+/* The disclosure's mark: a small chevron in the ink scale, turned when open. */
+.params__fold > summary::before,
+.answers-fold > summary::before,
+.api-rule > summary::before {
+  content: "";
+  position: absolute;
+  left: 2px;
+  top: calc(var(--space-2) + 0.45em);
+  width: 5px;
+  height: 5px;
+  border-right: 1.5px solid var(--ink-3);
+  border-bottom: 1.5px solid var(--ink-3);
+  transform: rotate(-45deg);
+  transition: transform 150ms var(--ease);
+}
+
+.params__fold[open] > summary::before,
+.answers-fold[open] > summary::before,
+.api-rule[open] > summary::before {
+  transform: rotate(45deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .params__fold > summary::before,
+  .answers-fold > summary::before,
+  .api-rule > summary::before {
+    transition: none;
+  }
+}
+
+/* Closed, a parameter's first sentence is one line (cut with an ellipsis); open, it is whole, the rest below it. */
+.params__first {
+  font-size: var(--text-sm);
+  color: var(--ink-2);
+  line-height: 1.5;
+  max-width: var(--measure);
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 1;
+  line-clamp: 1;
+  overflow: hidden;
+}
+
+.params__fold[open] .params__first,
+.params__plain .params__first {
+  display: block;
+  -webkit-line-clamp: unset;
+  line-clamp: none;
+}
+
+.params__fold > .params__text {
+  margin: 0 0 var(--space-3) var(--space-4);
 }
 
 .params__row:last-child {
@@ -604,6 +753,7 @@
   font-size: var(--text-sm);
   color: var(--ink-2);
   line-height: 1.55;
+  max-width: var(--measure);
 }
 
 .params__meta {
@@ -613,7 +763,44 @@
   margin-top: 2px;
 }
 
-/* Answers and their fields. */
+/* Answers and their fields: one line (the success, the statuses of the refusals) that opens to each status's codes. */
+.answers-fold {
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  font-size: var(--text-sm);
+  color: var(--ink-2);
+}
+
+.answers-fold > summary {
+  position: relative;
+  padding: var(--space-2) 0 var(--space-2) var(--space-4);
+  cursor: pointer;
+  list-style: none;
+}
+
+.answers-fold > summary::-webkit-details-marker {
+  display: none;
+}
+
+.answers-fold__label {
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  font-weight: var(--weight-medium);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--ink-3);
+  margin-right: var(--space-2);
+}
+
+.answers-fold__refusals {
+  color: var(--ink-3);
+}
+
+.answers-fold > .answers,
+.answers-fold > .answers__note {
+  margin: 0 0 var(--space-3) var(--space-4);
+}
+
 .answers {
   margin: 0;
   display: grid;
@@ -679,6 +866,32 @@
   padding: var(--space-2) var(--space-3) 0;
   font-size: var(--text-xs);
   color: var(--ink-3);
+  max-width: var(--measure);
+}
+
+/* A table answer's columns, grouped as the parts of a result they are of. */
+.api-columns th[scope="row"] {
+  white-space: nowrap;
+  font-weight: var(--weight-regular);
+}
+
+.api-columns td {
+  font-size: var(--text-xs);
+  color: var(--ink-2);
+}
+
+.api-columns__group th {
+  padding-top: var(--space-3);
+  font-family: var(--font-sans);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+  color: var(--ink-3);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.schema__nested .table-wrap {
+  margin: var(--space-2) var(--space-3) var(--space-3);
 }
 
 .schema__fields {
@@ -1062,6 +1275,48 @@
   color: var(--ink-3);
 }
 
+/* Code read by kind (lib/codeTokens.ts), in the ink scale and weights only: colour stays for meaning. */
+.code-comment {
+  color: var(--ink-3);
+  font-style: italic;
+}
+
+.code-string {
+  color: var(--ink-2);
+}
+
+.code-keyword {
+  color: var(--ink-1);
+  font-weight: var(--weight-strong);
+}
+
+.code-number,
+.code-literal {
+  color: var(--ink-1);
+  font-weight: var(--weight-medium);
+}
+
+/* A rule of reading an answer: its lead, which opens to the whole rule. */
+.api-rule > summary {
+  position: relative;
+  padding-left: var(--space-4);
+  cursor: pointer;
+  list-style: none;
+}
+
+.api-rule > summary::-webkit-details-marker {
+  display: none;
+}
+
+.api-rule > summary::before {
+  top: 0.55em;
+}
+
+.api-rule > p {
+  margin: var(--space-1) 0 0 var(--space-4);
+  max-width: var(--measure);
+}
+
 /* Two choices as one control. */
 .segmented {
   display: inline-flex;
@@ -1110,6 +1365,17 @@
 }
 
 /* The error codes and the package. */
+.api-errors details > summary {
+  cursor: pointer;
+  color: var(--ink-1);
+}
+
+.api-errors details > div {
+  margin-top: var(--space-1);
+  max-width: var(--measure);
+  color: var(--ink-2);
+}
+
 .api-errors td:first-child {
   white-space: nowrap;
 }
@@ -1216,7 +1482,6 @@
   border: 1px solid var(--line-strong);
   border-radius: var(--radius-lg);
   background: var(--surface);
-  scroll-margin-top: calc(var(--masthead-height) + var(--space-4));
 }
 
 .api-first__text {
@@ -1265,6 +1530,8 @@
 
 .api-reading__list {
   gap: var(--space-3);
+  padding-left: 0;
+  list-style: none;
 }
 
 .api-reading__list strong {
@@ -1386,39 +1653,35 @@
   align-items: center;
 }
 
-.api-contents__back {
-  display: none;
-}
-
+/* On a narrower screen the contents are a bar that stays under the masthead (where the masthead stays) and opens to
+   the list over the page; every anchor lands below the bar. Nothing floats over the text. */
 @media (max-width: 1000px) {
+  .api-page {
+    --api-bar: 52px;
+  }
+
   .api-contents {
     display: block;
-    scroll-margin-top: var(--space-4);
-  }
-
-  .api-contents__back {
-    position: fixed;
-    right: var(--space-4);
-    bottom: var(--space-4);
+    position: sticky;
+    top: var(--masthead-offset, 0px);
     z-index: 15;
-    display: inline-flex;
-    align-items: center;
-    gap: var(--space-2);
-    min-height: 44px;
-    padding: 0 var(--space-4);
-    border: 1px solid var(--line-strong);
-    border-radius: 999px;
-    background: var(--surface-raised);
-    color: var(--ink-1);
-    box-shadow: var(--shadow);
-    font-size: var(--text-sm);
-    font-weight: var(--weight-medium);
-    text-decoration: none;
+    box-shadow: 0 1px 0 var(--line);
   }
 
-  .api-contents__back svg {
-    width: 12px;
-    height: 12px;
+  .api-contents > summary {
+    min-height: calc(var(--api-bar) - 2px);
+  }
+
+  .api-contents[open] .api-contents__list {
+    max-height: min(70vh, 640px);
+    overflow-y: auto;
+    border-top: 1px solid var(--line);
+  }
+
+  .api-first,
+  .api-section,
+  .endpoint {
+    scroll-margin-top: var(--api-bar);
   }
 }
 

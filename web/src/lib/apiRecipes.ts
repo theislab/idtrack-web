@@ -2,16 +2,22 @@
 // (String.raw: a backslash in the recipe is the recipe's own, never JavaScript's), and checked by tests/apiRecipes.test.ts:
 // the Python is parsed by Python, the R by R where it is installed.
 //
-// A batch's answers can depend on its members (`read_copies`, on by default: an item that is another item with `-1`,
-// `.1` or `_1` appended is answered as its copy), so the recipes never split a name from its copies: they group the
-// identifiers by the name without such suffixes, fill each request with whole groups up to `batch_max`, and write the
-// answers in the order given, with how each was read (`match`), the bridges it crossed and the criterion that decided it.
+// A list is read as it was when it was made: the release of its annotation is given (FROM_RELEASE), or asked of the
+// api from the list itself (`POST .../source-inference`, its `from_release`), and sent with every batch. A batch's
+// answers can depend on its members (`read_copies`, on by default: an item that is another item with `-1`, `.1` or `_1`
+// appended is answered as its copy), so the recipes never split a name from its copies: they group the identifiers by
+// the name without such suffixes, fill each request with whole groups up to `batch_max`, and write the answers in the
+// order given, with how each was read (`match`), the bridges it crossed and the criterion that decided it. The graph
+// is the one every answer names (`Idtrack-Graph-Digest` of each batch's answer, checked to be one), written with the
+// releases in the table's first line.
 
 /** The recipe in Python, against `base` (the api's address, `…/api/v1`). */
 export function pipelinePython(base: string): string {
   return String.raw`import csv, re, time, requests
 
 BASE = "${base}"
+ORGANISM = "homo_sapiens"
+FROM_RELEASE = None  # the Ensembl release of the list's annotation (e.g. 98); None: inferred from the list
 
 def call(method, path, **kwargs):
     for attempt in range(8):
@@ -22,11 +28,15 @@ def call(method, path, **kwargs):
         if answer.status_code >= 400:
             error = answer.json()["error"]
             raise RuntimeError(f"{error['code']}: {error['message']} (request {error['request_id']})")
-        return answer.json()
+        return answer
     raise RuntimeError(f"{path}: still refused after 8 attempts")
 
 identifiers = ["TP53", "TP53-1", "BRCA1", "ENSG00000146648", "NOT_A_GENE"]  # e.g. adata.var_names
-size = call("GET", "/limits")["batch_max"]
+size = call("GET", "/limits").json()["batch_max"]
+
+if FROM_RELEASE is None:  # read each name as it was when the list was made, not as it is today
+    inferred = call("POST", f"/organisms/{ORGANISM}/source-inference", json={"identifiers": identifiers[:size]})
+    FROM_RELEASE = inferred.json()["from_release"]
 
 # An item with -1, .1 or _1 appended can be read as another item's copy, within one batch only:
 # keep each name and its copies in the same request (a group larger than batch_max is split).
@@ -41,10 +51,13 @@ for members in groups.values():
     chunk += members
 chunks += [chunk] if chunk else []
 
-answers = {}
+answers, graphs, targets = {}, set(), set()
 for chunk in chunks:
-    body = {"identifiers": chunk, "final_database": "HGNC Symbol"}
-    for result in call("POST", "/organisms/homo_sapiens/convert/batch", json=body)["results"]:
+    body = {"identifiers": chunk, "from_release": FROM_RELEASE, "final_database": "HGNC Symbol"}
+    response = call("POST", f"/organisms/{ORGANISM}/convert/batch", json=body)
+    graphs.add(response.headers["Idtrack-Graph-Digest"])  # the graph that answered
+    for result in response.json()["results"]:
+        targets.add(result["to_release"])
         answered = result["status"] in ("converted", "tie")  # only these answer in the database asked
         best = [c for c in result["candidates"] if c["best"]] if answered else []
         answers[result["query_id"]] = [
@@ -54,10 +67,10 @@ for chunk in chunks:
             max((c["bridges"] for c in best), default=0),  # above 0: idtrack's inference, not Ensembl's history
             result["decided_by"] or "",
         ]
+assert len(graphs) == 1, f"the graph changed during the run: {graphs}"
 
-digests = {g["organism"]: g["content_digest"] for g in call("GET", "/version")["graphs"]}
 with open("mapping.tsv", "w", newline="") as out:
-    out.write(f"# idtrack-web, homo_sapiens graph {digests['homo_sapiens']}\n")
+    out.write(f"# idtrack-web, {ORGANISM} graph {graphs.pop()}, from_release {FROM_RELEASE}, to_release {targets.pop()}\n")
     rows = [[name, *answers[name]] for name in identifiers]
     csv.writer(out, delimiter="\t").writerows([["query", "status", "best", "match", "bridges", "decided_by"], *rows])`;
 }
@@ -67,16 +80,26 @@ export function pipelineR(base: string): string {
   return String.raw`library(httr2)
 
 base <- "${base}"
+organism <- "homo_sapiens"
+from_release <- NULL  # the Ensembl release of the list's annotation (e.g. 98); NULL: inferred from the list
 call <- function(req) {
   req |>
     req_retry(max_tries = 8, is_transient = \(r) resp_status(r) %in% c(429, 503)) |>  # waits Retry-After
-    req_error(body = \(r) resp_body_json(r)$error$message) |>
-    req_perform() |>
-    resp_body_json()
+    req_error(body = \(r) {
+      error <- resp_body_json(r)$error
+      paste0(error$code, ": ", error$message, " (request ", error$request_id, ")")
+    }) |>
+    req_perform()
 }
 
 identifiers <- c("TP53", "TP53-1", "BRCA1", "ENSG00000146648", "NOT_A_GENE")
-size <- call(request(paste0(base, "/limits")))$batch_max
+size <- resp_body_json(call(request(paste0(base, "/limits"))))$batch_max
+
+if (is.null(from_release)) {  # read each name as it was when the list was made, not as it is today
+  inferred <- call(request(paste0(base, "/organisms/", organism, "/source-inference")) |>
+    req_body_json(list(identifiers = as.list(head(identifiers, size)))))
+  from_release <- resp_body_json(inferred)$from_release
+}
 
 # An item with -1, .1 or _1 appended can be read as another item's copy, within one batch only:
 # keep each name and its copies in the same request (a group larger than batch_max is split).
@@ -93,10 +116,14 @@ for (members in groups) {
 if (length(chunk) > 0) chunks[[length(chunks) + 1]] <- chunk
 
 rows <- list()
+graphs <- character()
+targets <- integer()
 for (chunk in chunks) {
-  answer <- call(request(paste0(base, "/organisms/homo_sapiens/convert/batch")) |>
-    req_body_json(list(identifiers = as.list(chunk), final_database = "HGNC Symbol")))
-  for (result in answer$results) {
+  response <- call(request(paste0(base, "/organisms/", organism, "/convert/batch")) |>
+    req_body_json(list(identifiers = as.list(chunk), from_release = from_release, final_database = "HGNC Symbol")))
+  graphs <- union(graphs, resp_header(response, "Idtrack-Graph-Digest"))  # the graph that answered
+  for (result in resp_body_json(response)$results) {
+    targets <- union(targets, result$to_release)
     answered <- result$status %in% c("converted", "tie")  # only these answer in the database asked
     best <- if (answered) Filter(\(c) c$best, result$candidates) else list()
     rows[[result$query_id]] <- data.frame(
@@ -108,6 +135,10 @@ for (chunk in chunks) {
     )
   }
 }
+stopifnot("the graph changed during the run" = length(graphs) == 1)
+
 mapping <- do.call(rbind, rows[identifiers])
-print(mapping)`;
+writeLines(sprintf("# idtrack-web, %s graph %s, from_release %s, to_release %s",
+  organism, graphs, from_release, targets), "mapping.tsv")
+write.table(mapping, "mapping.tsv", sep = "\t", quote = FALSE, row.names = FALSE, append = TRUE)`;
 }

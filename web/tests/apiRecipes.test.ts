@@ -19,7 +19,7 @@ describe("the recipes of a whole feature list", () => {
     });
     expect(out.trim()).toBe("ok");
     // The escapes are the recipe's own: a newline and a tab written as Python writes them.
-    expect(code).toContain("graph {digests['homo_sapiens']}\\n\")");
+    expect(code).toContain("to_release {targets.pop()}\\n\")");
     expect(code).toContain('delimiter="\\t"');
     expect(code).not.toContain("\t");
   });
@@ -39,6 +39,13 @@ describe("the recipes of a whole feature list", () => {
       expect(code).toContain(BASE);
       // The evidence a pipeline should keep beside each answer.
       for (const column of ["match", "bridges", "decided_by"]) expect(code).toContain(column);
+      // The list is read as it was made (its release given, or inferred from the list), and the table names the graph
+      // every answer came from (one digest, from the answers' own header) with both releases.
+      expect(code).toContain("/source-inference");
+      expect(code).toMatch(/from_release/);
+      expect(code).toContain("Idtrack-Graph-Digest");
+      expect(code).toContain("mapping.tsv");
+      expect(code).toMatch(/graph %?\{?.*from_release.*to_release/);
     }
   });
 });

@@ -39,6 +39,10 @@ interface ParameterObject {
 interface MediaObject {
   schema?: Schema;
   example?: unknown;
+  /** The columns of a table (`text/tab-separated-values`), in order. */
+  "x-columns"?: { name?: unknown; group?: unknown; description?: unknown }[];
+  /** Where a recorded example comes from, and how it was trimmed. */
+  "x-recorded"?: unknown;
 }
 
 interface OperationObject {
@@ -81,10 +85,31 @@ export interface Parameter {
   description: string;
 }
 
+/** A column of a table answer (`x-columns` of its media type). */
+export interface TableColumn {
+  name: string;
+  /** Which part of a result it is of: `result`, `error` or `candidate`. */
+  group: string;
+  description: string;
+}
+
+/** One media type of an answer: its schema, its text, its recorded example and, for a table, its columns. */
+export interface Media {
+  type: string;
+  schema: string | null;
+  /** The media type's own text (a table's: how each value is written, and its columns). */
+  description: string;
+  columns: TableColumn[];
+  /** Whether the document holds a recorded example of it. */
+  recorded: boolean;
+}
+
 interface Answer {
   status: string;
   description: string;
   contentTypes: string[];
+  /** Every media type of the answer, in the document's order. */
+  media: Media[];
   /** The schema's name (`ConversionResult`), where the answer is a named schema. */
   schema: string | null;
   /** The error codes this endpoint answers with this status (`x-error-codes`), in the document's order. */
@@ -209,6 +234,35 @@ function parameterOf(p: ParameterObject): Parameter {
   };
 }
 
+function mediaOf(type: string, m: MediaObject): Media {
+  const text = (value: unknown) => (typeof value === "string" ? value : "");
+  return {
+    type,
+    schema: m.schema?.$ref ? refName(m.schema.$ref) : null,
+    description: m.schema?.$ref ? "" : (m.schema?.description ?? ""),
+    columns: (m["x-columns"] ?? [])
+      .map((c) => ({ name: text(c.name), group: text(c.group), description: text(c.description) }))
+      .filter((c) => c.name !== ""),
+    recorded: m.example !== undefined,
+  };
+}
+
+/** The first sentence of a text (up to its first full stop outside a code span that ends a sentence), and the rest:
+ *  a parameter's line, with the rest of its text on demand. */
+export function firstSentence(text: string): { first: string; rest: string } {
+  let code = false;
+  for (let i = 0; i < text.length - 1; i++) {
+    const c = text.charAt(i);
+    if (c === "`") code = !code;
+    if (code || c !== "." || text.charAt(i + 1) !== " ") continue;
+    // Not the full stop of an abbreviation (`e.g.`, `i.e.`) or of a number's place.
+    const before = text.slice(Math.max(0, i - 4), i);
+    if (/(?:^|\W)(?:e\.g|i\.e|etc|cf|vs)$/.test(before)) continue;
+    return { first: text.slice(0, i + 1), rest: text.slice(i + 2).trim() };
+  }
+  return { first: text, rest: "" };
+}
+
 /** An anchor for an endpoint: `get-organisms-organism-convert`. */
 export function anchorOf(method: string, path: string): string {
   const rest = path
@@ -255,6 +309,7 @@ export function endpoints(document: OpenApiDocument): Endpoint[] {
               status,
               description: r.description ?? "",
               contentTypes: contents.map(([type]) => type),
+              media: contents.map(([type, m]) => mediaOf(type, m)),
               schema: json?.schema?.$ref ? refName(json.schema.$ref) : null,
               codes: r["x-error-codes"] ?? [],
               example: json?.example,

@@ -4,7 +4,7 @@ import { useId, useState } from "react";
 import type { Exchange } from "../../api/client";
 import { indentJson, rawValueAt } from "../../lib/jsonView";
 import { groupedInteger } from "../../lib/numbers";
-import { parseServerTiming, TIMING_MEANINGS } from "../../lib/serverTiming";
+import { parseServerTiming, TIMING_METRICS } from "../../lib/serverTiming";
 import { useVocabulary } from "../../lib/vocabularyContext";
 import { CopyButton, Mono, Prose } from "../ui";
 
@@ -49,12 +49,19 @@ function errorOf(raw: string): { code: string; message: string | null; allowed: 
 /** The first rows of a tab-separated answer as a table (its cells as sent). */
 const TABLE_ROWS = 100;
 
-function TsvTable({ raw, what }: { raw: string; what: string }) {
+export function TsvTable({ raw, what }: { raw: string; what: string }) {
   const lines = raw.split("\n").filter((line) => line !== "");
+  // A first line that begins with `#` names what made the table (`provenance=true`): shown above it, not as a row.
+  const comment = lines[0]?.startsWith("#") ? lines.shift() : undefined;
   const [head = "", ...rows] = lines;
   const columns = head.split("\t");
   return (
     <div className="exchange__table" role="region" tabIndex={0} aria-label={`${what}: the table`}>
+      {comment ? (
+        <p className="exchange__note">
+          <Mono>{comment}</Mono>
+        </p>
+      ) : null}
       <table className="table table--compact">
         <thead>
           <tr>
@@ -124,7 +131,7 @@ export function ExchangeView({ exchange, what }: { exchange: Exchange; what: str
                 <span
                   key={`${m.name}-${i}`}
                   className="exchange__timing"
-                  title={TIMING_MEANINGS[m.name] ?? m.desc ?? ""}
+                  title={(TIMING_METRICS[m.name] ?? m.desc ?? "").replace(/`/g, "")}
                 >
                   {m.name}{" "}
                   {m.dur !== null ? (

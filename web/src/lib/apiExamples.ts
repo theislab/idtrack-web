@@ -220,7 +220,13 @@ export function python(origin: string, spec: RequestSpec): string {
   else if (spec.body !== null)
     lines.push(`    data=${JSON.stringify(spec.body)},`, `    headers={"Content-Type": "application/json"},`);
   lines.push("    timeout=60,", ")");
-  lines.push('response.raise_for_status()  # an error\'s body is {"error": {"code", "message", ...}}');
+  lines.push(
+    "if not response.ok:",
+    '    if response.headers.get("Content-Type", "").startswith("application/json"):',
+    '        error = response.json()["error"]  # the api\'s refusal: a stable code, a message for people',
+    "        raise RuntimeError(f\"{error['code']}: {error['message']}\")",
+    "    response.raise_for_status()  # not the api's answer (a proxy's page, for one)",
+  );
   lines.push(
     spec.path.endsWith("/batch") && spec.values["format"] === "tsv"
       ? "table = response.text"
@@ -239,7 +245,14 @@ export function r(origin: string, spec: RequestSpec): string {
   const body = parsedBody(spec);
   if (body.ok) lines.push(`  req_body_json(${rLiteral(body.value, 1)}) |>`);
   else if (spec.body !== null) lines.push(`  req_body_raw(${JSON.stringify(spec.body)}, type = "application/json") |>`);
-  lines.push("  req_perform() |>  # an error status stops here; last_response() holds the api's error body");
+  lines.push(
+    "  # an error stops here with the api's code and message (its body: last_response())",
+    '  req_error(body = \\(resp) if (grepl("json", resp_content_type(resp))) {',
+    "    error <- resp_body_json(resp)$error",
+    '    paste0(error$code, ": ", error$message)',
+    "  }) |>",
+    "  req_perform() |>",
+  );
   lines.push(
     spec.path.endsWith("/batch") && spec.values["format"] === "tsv" ? "  resp_body_string()" : "  resp_body_json()",
   );
@@ -271,10 +284,14 @@ export function javascript(origin: string, spec: RequestSpec): string {
   lines.push(`const response = await fetch(url, {\n  ${options.join(",\n  ")},\n});`);
   const tsv = spec.path.endsWith("/batch") && spec.values["format"] === "tsv";
   lines.push(
+    "if (!response.ok) {",
+    "  // The api's refusal is JSON with a stable code; anything else (a proxy's page) is said by its status.",
+    '  if (!(response.headers.get("Content-Type") ?? "").startsWith("application/json"))',
+    "    throw new Error(`${response.status} ${response.statusText}`);",
+    "  const { error } = await response.json();",
+    "  throw new Error(`${error.code}: ${error.message}`);",
+    "}",
     tsv ? "const answer = await response.text();" : "const answer = await response.json();",
-    tsv
-      ? "if (!response.ok) throw new Error(`${response.status}: ${answer}`);"
-      : "if (!response.ok) throw new Error(`${answer.error.code}: ${answer.error.message}`);",
   );
   return lines.join("\n");
 }
