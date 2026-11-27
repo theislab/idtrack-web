@@ -151,7 +151,6 @@ export function rawValueAt(raw: string, keys: readonly string[]): string | null 
     if (open !== "{" && open !== "[") return null;
     i++;
     let index = 0;
-    let found = false;
     for (;;) {
       skip();
       const c = raw.charAt(i);
@@ -167,10 +166,7 @@ export function rawValueAt(raw: string, keys: readonly string[]): string | null 
         i++;
         skip();
       }
-      if (name === key) {
-        found = true;
-        break;
-      }
+      if (name === key) break;
       const end = valueEnd(raw, i);
       if (end < 0) return null;
       i = end;
@@ -178,7 +174,6 @@ export function rawValueAt(raw: string, keys: readonly string[]): string | null 
       if (raw.charAt(i) === ",") i++;
       index++;
     }
-    if (!found) return null;
   }
   const end = valueEnd(raw, i);
   return end < 0 ? null : raw.slice(i, end);

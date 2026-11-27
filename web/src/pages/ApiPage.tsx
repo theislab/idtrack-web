@@ -627,18 +627,15 @@ export function ApiPage() {
   const [drawn, setDrawn] = useState(0);
   useEffect(() => {
     if (!doc) return;
-    if (window.location.hash) {
-      setDrawn(Number.POSITIVE_INFINITY);
-      return;
-    }
+    const step = window.location.hash ? list.length : ENDPOINTS_AT_ONCE;
+    let shown = 0;
     let timer = 0;
     const more = () => {
-      setDrawn((n) => {
-        if (n + ENDPOINTS_AT_ONCE < list.length) timer = window.setTimeout(more, 0);
-        return n + ENDPOINTS_AT_ONCE;
-      });
+      shown += step;
+      setDrawn(shown);
+      if (shown < list.length) timer = window.setTimeout(more, 0);
     };
-    more();
+    timer = window.setTimeout(more, 0);
     return () => {
       window.clearTimeout(timer);
     };

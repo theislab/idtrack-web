@@ -666,9 +666,7 @@ export function EndpointSection({
               <span className="endpoint__label-aside">none</span>
             )}
           </h4>
-          {endpoint.parameters.length ? (
-            <ParameterRows parameters={endpoint.parameters} releases={releases} />
-          ) : null}
+          {endpoint.parameters.length ? <ParameterRows parameters={endpoint.parameters} releases={releases} /> : null}
           {endpoint.body?.schema ? (
             <LazyDetails
               className="schema__nested schema__nested--top"

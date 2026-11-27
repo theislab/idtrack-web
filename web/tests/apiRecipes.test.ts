@@ -19,7 +19,7 @@ describe("the recipes of a whole feature list", () => {
     });
     expect(out.trim()).toBe("ok");
     // The escapes are the recipe's own: a newline and a tab written as Python writes them.
-    expect(code).toContain("to_release {targets.pop()}\\n\")");
+    expect(code).toContain('to_release {targets.pop()}\\n")');
     expect(code).toContain('delimiter="\\t"');
     expect(code).not.toContain("\t");
   });

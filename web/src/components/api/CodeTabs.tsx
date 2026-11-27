@@ -173,7 +173,9 @@ export function CodeChoice({
     if (next === null) return;
     event.preventDefault();
     setChosen(next);
-    event.currentTarget.parentElement?.querySelector<HTMLButtonElement>(`[data-key="${items[next]?.key ?? ""}"]`)?.focus();
+    event.currentTarget.parentElement
+      ?.querySelector<HTMLButtonElement>(`[data-key="${items[next]?.key ?? ""}"]`)
+      ?.focus();
   };
   return (
     <div className="code-tabs">
