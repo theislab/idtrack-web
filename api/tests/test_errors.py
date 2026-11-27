@@ -256,6 +256,8 @@ def test_request_budget(
     error = error_of(response, check_response, BATCH, "post")
     assert error["code"] == "request_budget_exceeded"
     assert "2 of the 3" in error["message"]
+    # Searching with or without the paths takes the same time (every search reads them): only fewer identifiers help.
+    assert error["argument"] == "identifiers" and "explain" not in error["message"]
     assert response.headers["retry-after"] == "5"
     # The budget runs from when the search begins: the time a request waited for a worker is not part of it, and a
     # request that waited longer than a search may (`queue_seconds`) is the server's load, not the request's size.

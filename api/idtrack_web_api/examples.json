@@ -7267,7 +7267,7 @@
     "error": {
      "code": "request_budget_exceeded",
      "message": "640 of the 1000 distinct identifiers were converted within the request's time budget (20 s of search, counted from when its search began); send fewer identifiers per request.",
-     "argument": null,
+     "argument": "identifiers",
      "allowed": null,
      "details": null,
      "request_id": "0123456789abcdef0123456789abcdef",

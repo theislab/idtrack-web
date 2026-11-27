@@ -179,23 +179,27 @@ def waited_out(settings: Settings, waited: float) -> ApiError:
     )
 
 
-def out_of_time(settings: Settings, converted: int, total: int, *, explain: bool) -> ApiError:
+def out_of_time(settings: Settings, converted: int, total: int) -> ApiError:
     """Return the refusal of a batch whose time budget ran out after *converted* of its *total* identifiers.
+
+    Every search is made with its path (the cautions read it), so asking without ``explain`` makes a batch's answer
+    smaller but its searches no shorter: the one change that helps is fewer identifiers per request, named as the
+    refusal's ``argument``.
 
     Args:
         settings: The server's settings (its request budget).
         converted: The distinct identifiers converted in time.
         total: The batch's distinct identifiers.
-        explain: Whether the batch asked for the paths (the advice then names `explain`).
 
     Returns:
-        ApiError: The ``request_budget_exceeded`` refusal, with ``Retry-After``.
+        ApiError: The ``request_budget_exceeded`` refusal, with ``Retry-After`` and ``argument`` ``identifiers``.
     """
     return ApiError(
         "request_budget_exceeded",
         f"{converted} of the {total} distinct identifiers were converted within the request's time budget "
         f"({settings.request_seconds:g} s of search, counted from when its search began); send fewer identifiers per "
-        "request" + (" (or ask without `explain`)." if explain else "."),
+        "request.",
+        argument="identifiers",
         headers={"Retry-After": "5"},
     )
 
@@ -316,7 +320,7 @@ def convert_batch(
             raise ApiError(msg, "The client closed its connection during the batch; the rest was not searched.")
         remaining = _remaining(deadline)
         if remaining <= 0:
-            raise out_of_time(settings, len(done), total, explain=arguments.explain)
+            raise out_of_time(settings, len(done), total)
         budget = min(settings.search_seconds, remaining)
         try:
             results = graph.graph.convert_many(group, _searched(arguments), budget)
@@ -326,7 +330,7 @@ def convert_batch(
             error = result.get("error")
             if error is not None:
                 if error.get("type") == SEARCH_BUDGET_ERROR_TYPE and budget < settings.search_seconds:
-                    raise out_of_time(settings, len(done), total, explain=arguments.explain)
+                    raise out_of_time(settings, len(done), total)
                 error["code"] = item_error_code(str(error.get("type")))
             with_cautions(result, settings, explain=arguments.explain)
         done.update(zip(group, results, strict=True))

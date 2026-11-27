@@ -71,7 +71,11 @@ def test_a_large_answer_is_refused_with_advice_for_its_request(make_client: Call
     with_paths = client.post(BATCH, json={"identifiers": [GENE, "INS", *many], "explain": True})
     error = error_of(with_paths)
     assert error["code"] == "response_too_large"
-    assert "send fewer identifiers per request or ask without `explain`" in error["message"]
+    assert "ask without `explain` (the paths are most of the answer) or send fewer identifiers" in error["message"]
+    assert error["argument"] == "explain"
+    without = error_of(client.post(BATCH, json={"identifiers": [GENE, "INS", *many] * 3}))
+    if without["code"] == "response_too_large":
+        assert without["argument"] == "identifiers"
     alone = client.get(CONVERT, params={"identifier": GENE, "explain": "true"})
     if alone.status_code == 422:  # one answer over the bound: only `explain` narrows it
         assert "fewer identifiers" not in error_of(alone)["message"]

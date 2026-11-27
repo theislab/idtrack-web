@@ -74,24 +74,27 @@ def _json_bytes(data: Any) -> bytes:
     return json.dumps(data, ensure_ascii=False, allow_nan=False, separators=(",", ":")).encode("utf-8")
 
 
-def too_large(error: writing.TooLargeError, advice: str) -> ApiError:
+def too_large(error: writing.TooLargeError, advice: tuple[str, str | None]) -> ApiError:
     """Return the refusal of an answer that passed ``response_max_bytes`` while it was written.
 
     Args:
         error: Where writing stopped.
-        advice: What in the request can make the answer smaller (it depends on the endpoint and its arguments).
+        advice: What in the request can make the answer smaller (it depends on the endpoint and its arguments), in
+            words, and the argument to change (:py:func:`advice_of`).
 
     Returns:
-        ApiError: ``response_too_large``.
+        ApiError: ``response_too_large``, its ``argument`` the one to change where there is one.
     """
+    words, argument = advice
     return ApiError(
         "response_too_large",
         f"The answer is larger than the {error.limit} bytes this server sends (writing it stopped at {error.written} "
-        f"bytes); {advice}.",
+        f"bytes); {words}.",
+        argument=argument,
     )
 
 
-def advice_of(*, identifiers: int = 1, explain: bool = False) -> str:
+def advice_of(*, identifiers: int = 1, explain: bool = False) -> tuple[str, str | None]:
     """Return what can make an answer smaller, for the request that was sent.
 
     Args:
@@ -99,16 +102,17 @@ def advice_of(*, identifiers: int = 1, explain: bool = False) -> str:
         explain: Whether it asked for the paths.
 
     Returns:
-        str: The advice, in words.
+        tuple[str, str | None]: The advice in words, and the argument to change first (``explain``: the paths are most
+        of an answer; else ``identifiers`` for a batch; ``None`` where nothing helps).
     """
     ways = []
-    if identifiers > 1:
-        ways.append("send fewer identifiers per request")
     if explain:
         ways.append("ask without `explain` (the paths are most of the answer)")
+    if identifiers > 1:
+        ways.append("send fewer identifiers per request")
     if ways:
-        return " or ".join(ways)
-    return "no argument of this request makes it smaller, so the same request is refused again"
+        return " or ".join(ways), "explain" if explain else "identifiers"
+    return "no argument of this request makes it smaller, so the same request is refused again", None
 
 
 def utf8_query(query: bytes) -> None:
@@ -665,7 +669,7 @@ def create_app(  # noqa: PLR0915 - every endpoint, in one place
     def memory(body: bytes, graph: LoadedGraph | None = None, **headers: str) -> Response:
         return answered(body, graph, **headers)
 
-    def written(advice: str) -> Callable[[Any], bytes]:
+    def written(advice: tuple[str, str | None]) -> Callable[[Any], bytes]:
         """Write an answer as JSON on the search thread, within the answer's bound."""
 
         def write(data: Any) -> bytes:

@@ -239,7 +239,7 @@ def constructed() -> dict[str, Any]:
             headers={"Retry-After": "2"},
         ),
         "request_budget_exceeded": service.out_of_time(  # the function that writes it
-            Settings(source="directory", directory=Path()), 640, 1000, explain=False
+            Settings(source="directory", directory=Path()), 640, 1000
         ),
     }
     with tempfile.TemporaryDirectory() as folder:
