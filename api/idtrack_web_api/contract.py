@@ -81,6 +81,7 @@ ENDPOINT_ERRORS: dict[str, tuple[str, ...]] = {
     "final_databases": (*_READ, "unknown_organism", "invalid_request", "unknown_release"),
     "databases_by_release": (*_READ, "unknown_organism"),
     "showcase": (*_READ, "unknown_organism"),
+    "showcase_queries": (*_READ, "unknown_organism"),
     "history": (*_READ, "unknown_organism"),
     "convert": (
         *_SEARCH,
@@ -216,6 +217,7 @@ _ENUMS: tuple[tuple[str, str, dict[str, str], bool], ...] = (
     ("BridgeCheck", "places", PLACE_RELATIONS, False),
     ("BridgeCheck", "through", BRIDGE_RULES, True),
     ("ShowcaseCase", "kind", {}, False),
+    ("ShowcaseQueryCase", "kind", {}, False),
 )
 
 
@@ -231,6 +233,7 @@ def enum_tables() -> dict[tuple[str, str], list[str]]:
     found[("ConversionResult", "status")] = list(STATUSES)
     found[("ConversionResult", "decided_by")] = list(CRITERIA)
     found[("ShowcaseCase", "kind")] = list(KINDS)
+    found[("ShowcaseQueryCase", "kind")] = list(KINDS)
     found[("ErrorBody", "code")] = list(CODES)
     found[("ErrorInfo", "code")] = list(ITEM_ERROR_CODES)
     found[("Caution", "code")] = list(CAUTIONS)

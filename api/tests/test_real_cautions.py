@@ -33,3 +33,23 @@ def test_a_number_answered_by_copies_off_the_reference_says_so(human: TestClient
     batch = human.post(f"{P}/organisms/homo_sapiens/convert/batch", json={"identifiers": ["1898", "TP53"]}).json()
     assert batch["results"][0]["cautions"] == alone["cautions"]
     assert [c for c in batch["results"][1]["cautions"] if c["tone"] == "caution"] == []
+
+
+def test_another_gene_that_may_be_meant_is_said_with_its_way_on(human: TestClient) -> None:
+    """HLA-DRB3 read at 70 in HGNC symbols: the tie is read through UniProt's gene names alone, while HGNC gives the
+    name to the copies set apart; the retired MIR21 gene id: a bridge enters a host gene, and the gene that holds the
+    miRNA's accession today ranks below by the bridge's gap alone."""
+    hla = human.get(
+        f"{P}/organisms/homo_sapiens/convert",
+        params={"identifier": "HLA-DRB3", "from_release": 70, "to_release": 70, "final_database": "HGNC Symbol"},
+    ).json()
+    [elsewhere] = [c for c in hla["cautions"] if c["code"] == "name_elsewhere"]
+    assert elsewhere["alert"] and elsewhere["ask"]["from_database"] == "HGNC Symbol"
+    assert elsewhere["ask"]["changes"] == ["from_database"]
+    retired = human.get(
+        f"{P}/organisms/homo_sapiens/convert", params={"identifier": "ENSG00000199004", "from_release": 84}
+    ).json()
+    codes = [c["code"] for c in retired["cautions"]]
+    assert codes[:3] == ["bridge", "bridge_beside", "bridge_rival"]
+    rival = retired["cautions"][2]
+    assert rival["alert"] and rival["ask"]["identifier"] == "MI0000077"

@@ -23,13 +23,14 @@ from idtrack_web_api.adapter import (
     batch_groups,
     item_error_code,
 )
-from idtrack_web_api.cautions import cautions_of
+from idtrack_web_api.cautions import Facts, cautions_of
 from idtrack_web_api.errors import ApiError, listed
 from idtrack_web_api.schemas import DATABASE_MAX_LENGTH
 
 if TYPE_CHECKING:
     from collections.abc import Callable
 
+    from idtrack_web_api.adapter import Graph
     from idtrack_web_api.config import Settings
     from idtrack_web_api.graphs import LoadedGraph
 
@@ -209,7 +210,66 @@ def _searched(arguments: ConversionArguments) -> ConversionArguments:
     return replace(arguments, explain=True)
 
 
-def with_cautions(result: dict[str, Any], settings: Settings, *, explain: bool) -> dict[str, Any]:
+def caution_facts(graph: Graph, asked: str | None, budget_seconds: float) -> Facts:
+    """Return what the rules of the cautions read beside a result, from idtrack's own calls on the graph.
+
+    The organism's name authority at a release is the first of its symbol databases (idtrack's order) that a
+    conversion to the release can end in; a gene's symbols there are the best targets of idtrack's conversion of the
+    gene read at that release, to it, without bridges (each gene alone); whether a name is any gene's in a database is
+    idtrack's ``genes_named`` in any letter case (looked up first, so that symbols are converted only for a name some
+    gene carries).
+
+    Args:
+        graph: The graph (the adapter's).
+        asked: The database the conversion asked for (``None``: Ensembl genes).
+        budget_seconds: The search budget of each gene's conversion (a conversion over it gives the gene no symbol).
+
+    Returns:
+        Facts: The facts.
+    """
+    symbol_databases = tuple(graph.databases().get("symbol_databases", ()))
+    finals: dict[int, list[str]] = {}
+
+    def authority_at(release: int) -> str | None:
+        if release not in finals:
+            try:
+                finals[release] = graph.final_databases(release)
+            except InputRefusedError:
+                finals[release] = []
+        return next((d for d in symbol_databases if d in finals[release]), None)
+
+    def named(name: str, database: str) -> bool:
+        try:
+            matches = graph.genes_named(name, fold_case=True)
+        except InputRefusedError:
+            return False
+        typed = name.lower()
+        return any(m["database"] == database and not m["synonym"] and m["name"].lower() == typed for m in matches)
+
+    def symbols_of(genes: list[str], release: int, database: str) -> dict[str, list[str]]:
+        arguments = ConversionArguments(
+            from_release=release,
+            to_release=release,
+            final_database=database,
+            from_database=None,
+            explain=False,
+            allow_bridges=False,
+        )
+        found: dict[str, list[str]] = {}
+        for gene in genes:
+            try:
+                result = graph.convert(gene, arguments, budget_seconds)
+            except (InputRefusedError, SearchBudgetError):
+                found[gene] = []
+                continue
+            best = [c["target"] for c in result.get("candidates", []) if c.get("best")]
+            found[gene] = [] if result.get("no_target") else list(dict.fromkeys(best))
+        return found
+
+    return Facts(symbol_databases, authority_at, named, symbols_of, asked)
+
+
+def with_cautions(result: dict[str, Any], settings: Settings, facts: Facts, *, explain: bool) -> dict[str, Any]:
     """Add a result's cautions (:py:mod:`idtrack_web_api.cautions`), then drop its path where it was not asked for.
 
     A result searched with its path and stripped of it is idtrack's result without the path, field for field (the
@@ -219,12 +279,13 @@ def with_cautions(result: dict[str, Any], settings: Settings, *, explain: bool) 
     Args:
         result: idtrack's ``to_dict()`` of a search made with its path.
         settings: The settings (the address of idtrack's documentation).
+        facts: What the rules read beside the result (:py:func:`caution_facts`).
         explain: Whether the request asked for the path.
 
     Returns:
         dict[str, Any]: The result, with ``cautions``.
     """
-    result["cautions"] = [] if result.get("status") == "error" else cautions_of(result, settings.docs_url)
+    result["cautions"] = [] if result.get("status") == "error" else cautions_of(result, settings.docs_url, facts)
     if not explain:
         result["path"] = None
         for candidate in result.get("candidates", []):
@@ -272,7 +333,8 @@ def convert_one(
             f"{settings.search_seconds} s; ask with `allow_bridges=false`, or with the release the identifier is read "
             "at.",
         ) from None
-    return with_cautions(result, settings, explain=arguments.explain)
+    facts = caution_facts(graph.graph, arguments.final_database, settings.search_seconds)
+    return with_cautions(result, settings, facts, explain=arguments.explain)
 
 
 def convert_batch(
@@ -312,6 +374,7 @@ def convert_batch(
             identifier ran out of time only because the request had less time left than a search's budget).
     """
     groups = batch_groups(identifiers) if read_copies else [[item] for item in dict.fromkeys(identifiers)]
+    facts = caution_facts(graph.graph, arguments.final_database, settings.search_seconds)
     total = sum(len(group) for group in groups)
     done: dict[str, dict[str, Any]] = {}
     for group in groups:
@@ -332,7 +395,7 @@ def convert_batch(
                 if error.get("type") == SEARCH_BUDGET_ERROR_TYPE and budget < settings.search_seconds:
                     raise out_of_time(settings, len(done), total)
                 error["code"] = item_error_code(str(error.get("type")))
-            with_cautions(result, settings, explain=arguments.explain)
+            with_cautions(result, settings, facts, explain=arguments.explain)
         done.update(zip(group, results, strict=True))
     return [done[identifier] for identifier in identifiers]
 

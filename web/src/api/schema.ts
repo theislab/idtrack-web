@@ -221,6 +221,26 @@ export type paths = {
     patch?: never;
     trace?: never;
   };
+  "/api/v1/organisms/{organism}/showcase/queries": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * The showcase's chosen conversions without their answers: each query, and each case's kind
+     * @description The conversions of `GET .../showcase` without their answers: each journey's query and each case's query and kind, the cases given exactly where the showcase gives them. For a page that needs to know which conversions are cases (to offer the tour of them) without fetching every answer.
+     */
+    get: operations["showcase_queries"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/v1/organisms/{organism}/history": {
     parameters: {
       query?: never;
@@ -668,6 +688,10 @@ export type components = {
         | "bridge"
         | "bridge_beside"
         | "bridge_rival"
+        | "runner_named"
+        | "name_elsewhere"
+        | "own_continuation"
+        | "projected_symbols"
         | "places_apart"
         | "places_unknown"
         | "outside_reference"
@@ -700,8 +724,13 @@ export type components = {
        */
       tone: "caution" | "note";
       /**
+       * Label
+       * @description A few words that name it, with the result's values (for a mark on a page).
+       */
+      label: string;
+      /**
        * Text
-       * @description What the result says, with its own values, in one sentence.
+       * @description What the result says, with its own values.
        */
       text: string;
       /**
@@ -709,6 +738,59 @@ export type components = {
        * @description The address of the section of idtrack's documented limitations that describes this class, where there is one.
        */
       limitation: string | null;
+      /**
+       * Alert
+       * @description Another gene than the best answer may be the gene meant (worth saying beside the status itself).
+       */
+      alert: boolean;
+      /** @description The conversion that answers what the mark doubts, where one does. */
+      ask: components["schemas"]["CautionAsk"] | null;
+      /**
+       * Read At
+       * @description A release at which the identifier means what this mark says (another meaning's last release).
+       */
+      read_at: number | null;
+    };
+    /**
+     * CautionAsk
+     * @description The conversion that answers what a mark doubts: the result's own request, with the parts named changed.
+     */
+    CautionAsk: {
+      /**
+       * Words
+       * @description What a link to it says ("Ask TP53 at release 115").
+       */
+      words: string;
+      /**
+       * Identifier
+       * @description The identifier to ask, where `changes` names it.
+       */
+      identifier: string | null;
+      /**
+       * From Release
+       * @description The release to read it at, where `changes` names it.
+       */
+      from_release: number | null;
+      /**
+       * To Release
+       * @description The target release, where `changes` names it.
+       */
+      to_release: number | null;
+      /**
+       * Final Database
+       * @description The database to convert to (`null`: Ensembl genes), where `changes` names it.
+       */
+      final_database: string | null;
+      /**
+       * From Database
+       * @description The database to read it in, where `changes` names it.
+       */
+      from_database: string | null;
+      /**
+       * Changes
+       * @description The parts of the request this conversion changes; every other part is the result's own.
+       */
+      changes: string[];
     };
     /**
      * CautionTerm
@@ -724,6 +806,10 @@ export type components = {
         | "bridge"
         | "bridge_beside"
         | "bridge_rival"
+        | "runner_named"
+        | "name_elsewhere"
+        | "own_continuation"
+        | "projected_symbols"
         | "places_apart"
         | "places_unknown"
         | "outside_reference"
@@ -2465,6 +2551,37 @@ export type components = {
       error: components["schemas"]["ErrorBody"] | null;
     };
     /**
+     * ShowcaseQueriesResponse
+     * @description The showcase's chosen conversions without their answers (``GET .../showcase`` holds them with their answers).
+     */
+    ShowcaseQueriesResponse: {
+      /**
+       * Organism
+       * @description The organism.
+       */
+      organism: string;
+      /**
+       * Content Digest
+       * @description The digest of the graph's content.
+       */
+      content_digest: string | null;
+      /**
+       * Checked On
+       * @description As `checked_on` of `GET .../showcase`.
+       */
+      checked_on: string | null;
+      /**
+       * Journeys
+       * @description The journeys' queries, in order.
+       */
+      journeys: components["schemas"]["ShowcaseQueryItem"][];
+      /**
+       * Cases
+       * @description The cases' queries and kinds, in order.
+       */
+      cases: components["schemas"]["ShowcaseQueryCase"][];
+    };
+    /**
      * ShowcaseQuery
      * @description A conversion as `GET .../convert` takes it (`explain` always `true`).
      */
@@ -2494,6 +2611,41 @@ export type components = {
        * @description Always `true`: every result holds its paths.
        */
       explain: boolean;
+    };
+    /**
+     * ShowcaseQueryCase
+     * @description A chosen conversion that shows one phenomenon of Ensembl's history, without its answer.
+     */
+    ShowcaseQueryCase: {
+      /** @description The conversion as `GET .../convert` takes it. */
+      query: components["schemas"]["ShowcaseQuery"];
+      /**
+       * Kind
+       * @description The phenomenon its answer shows (`kind` of `GET .../showcase`'s cases).
+       * @enum {string}
+       */
+      kind:
+        | "lineage"
+        | "renamed"
+        | "new_version"
+        | "replaced"
+        | "split"
+        | "merge"
+        | "handoff"
+        | "bridge"
+        | "other_release"
+        | "tie"
+        | "final"
+        | "retired"
+        | "refused";
+    };
+    /**
+     * ShowcaseQueryItem
+     * @description A chosen conversion of the showcase, without its answer.
+     */
+    ShowcaseQueryItem: {
+      /** @description The conversion as `GET .../convert` takes it. */
+      query: components["schemas"]["ShowcaseQuery"];
     };
     /**
      * ShowcaseResponse
@@ -3436,6 +3588,12 @@ export interface operations {
            *         },
            *         {
            *           "method": "GET",
+           *           "path": "/api/v1/organisms/{organism}/showcase/queries",
+           *           "operation_id": "showcase_queries",
+           *           "summary": "The showcase's chosen conversions without their answers: each query, and each case's kind"
+           *         },
+           *         {
+           *           "method": "GET",
            *           "path": "/api/v1/organisms/{organism}/history",
            *           "operation_id": "history",
            *           "summary": "Ensembl's gene id history in the graph: genes active per release, history edges per transition"
@@ -3548,9 +3706,9 @@ export interface operations {
         content: {
           /**
            * @example {
-           *       "sampled_at": "2026-11-27T18:38:05.626Z",
-           *       "started_at": "2026-11-27T18:30:05.013Z",
-           *       "uptime_seconds": 480.61268771626055,
+           *       "sampled_at": "2026-11-27T20:31:46.786Z",
+           *       "started_at": "2026-11-27T20:29:11.285Z",
+           *       "uptime_seconds": 155.50162254087627,
            *       "sample_interval_seconds": 1,
            *       "memory_sample_interval_seconds": 5,
            *       "cache_seconds": 1,
@@ -3559,92 +3717,92 @@ export interface operations {
            *       "workers_exited": 0,
            *       "last_worker_exit_at": null,
            *       "master": {
-           *         "started_at": "2026-11-27T18:30:05.013Z",
-           *         "cpu_share": 0.039103867722417175,
-           *         "cpu_seconds": 217.44,
-           *         "rss_bytes": 4982333440,
-           *         "pss_bytes": 1661635584,
-           *         "uss_bytes": 4284416,
-           *         "cpu_sample_age_seconds": 0.8311634669080377,
-           *         "memory_sample_age_seconds": 1.6884166896343231
+           *         "started_at": "2026-11-27T20:29:11.285Z",
+           *         "cpu_share": 0,
+           *         "cpu_seconds": 191.47,
+           *         "rss_bytes": 5092270080,
+           *         "pss_bytes": 1705469952,
+           *         "uss_bytes": 15912960,
+           *         "cpu_sample_age_seconds": 0.22727655991911888,
+           *         "memory_sample_age_seconds": 0.6823641462251544
            *       },
            *       "workers": [
            *         {
            *           "worker": 1,
-           *           "started_at": "2026-11-27T18:38:02.622Z",
-           *           "cpu_share": 0.14786117624872644,
-           *           "cpu_seconds": 0.35,
-           *           "rss_bytes": 4975005696,
-           *           "pss_bytes": 2237210624,
-           *           "uss_bytes": 6885376,
-           *           "cpu_sample_age_seconds": 0.6882601669058204,
-           *           "memory_sample_age_seconds": 2.6215937109664083,
-           *           "requests": 2,
+           *           "started_at": "2026-11-27T20:31:24.601Z",
+           *           "cpu_share": 0,
+           *           "cpu_seconds": 0.85,
+           *           "rss_bytes": 5083672576,
+           *           "pss_bytes": 1704265728,
+           *           "uss_bytes": 17002496,
+           *           "cpu_sample_age_seconds": 0.5401725322008133,
+           *           "memory_sample_age_seconds": 0.2274552071467042,
+           *           "requests": 12,
            *           "in_flight": 0,
            *           "searches_running": 0,
            *           "searches_waiting": 0,
            *           "sending_bytes": 0,
-           *           "last_60_seconds": 2,
+           *           "last_60_seconds": 12,
            *           "errors_4xx": 0,
            *           "errors_5xx": 0
            *         },
            *         {
            *           "worker": 2,
-           *           "started_at": "2026-11-27T18:38:03.783Z",
-           *           "cpu_share": null,
-           *           "cpu_seconds": 0.01,
-           *           "rss_bytes": 4975001600,
-           *           "pss_bytes": 1662500864,
-           *           "uss_bytes": 6615040,
-           *           "cpu_sample_age_seconds": 1.8390072546899319,
-           *           "memory_sample_age_seconds": 0.8313510306179523,
-           *           "requests": 1,
+           *           "started_at": "2026-11-27T20:31:24.886Z",
+           *           "cpu_share": 0,
+           *           "cpu_seconds": 0.75,
+           *           "rss_bytes": 5083566080,
+           *           "pss_bytes": 1703792640,
+           *           "uss_bytes": 16072704,
+           *           "cpu_sample_age_seconds": 1.0152694778516889,
+           *           "memory_sample_age_seconds": 0.7959361914545298,
+           *           "requests": 7,
            *           "in_flight": 0,
            *           "searches_running": 0,
            *           "searches_waiting": 0,
            *           "sending_bytes": 0,
-           *           "last_60_seconds": 1,
+           *           "last_60_seconds": 7,
            *           "errors_4xx": 0,
            *           "errors_5xx": 0
            *         }
            *       ],
            *       "cpu": {
-           *         "cores_used": null,
-           *         "share_of_available": null,
+           *         "cores_used": 0,
+           *         "share_of_available": 0,
            *         "cores_available": 12,
            *         "affinity_cores": 12,
            *         "quota_cores": null,
            *         "source": "affinity"
            *       },
            *       "memory": {
-           *         "rss_bytes": 14932340736,
-           *         "pss_bytes": 5561347072,
-           *         "uss_bytes": 17784832,
+           *         "rss_bytes": 15259508736,
+           *         "pss_bytes": 5113528320,
+           *         "uss_bytes": 48988160,
            *         "limit_bytes": 107374182400,
-           *         "limit_used_bytes": 66292215808,
+           *         "limit_used_bytes": 38256005120,
            *         "source": "cgroup"
            *       },
            *       "requests": {
-           *         "total": 3,
+           *         "total": 19,
            *         "in_flight": 0,
            *         "searches_running": 0,
            *         "searches_waiting": 0,
            *         "connections_waiting": 0,
            *         "searches_queued": 0,
            *         "sending_bytes": 0,
-           *         "last_60_seconds": 3,
+           *         "last_60_seconds": 19,
            *         "errors_4xx": 0,
            *         "errors_5xx": 0,
            *         "lost": 0,
            *         "status_requests": 1,
            *         "latency": {
-           *           "count": 3,
+           *           "count": 19,
            *           "most_recent": 1000,
            *           "window_seconds": 300,
-           *           "p50_ms": 121.79761938750744,
-           *           "p95_ms": 526.2316009029746,
-           *           "p99_ms": 526.2316009029746,
-           *           "max_ms": 526.2316009029746
+           *           "p50_ms": 6.1963992193341255,
+           *           "p95_ms": 87.03356143087149,
+           *           "p99_ms": 87.03356143087149,
+           *           "max_ms": 87.03356143087149
            *         }
            *       },
            *       "graphs": [
@@ -3670,10 +3828,7 @@ export interface operations {
            *         }
            *       ],
            *       "graphs_file_bytes": 353295162,
-           *       "unavailable": [
-           *         "cpu.cores_used",
-           *         "workers.cpu_share"
-           *       ]
+           *       "unavailable": []
            *     }
            */
           "application/json": components["schemas"]["StatusResponse"];
@@ -6911,8 +7066,12 @@ export interface operations {
            *               {
            *                 "code": "lowest_score",
            *                 "tone": "note",
-           *                 "text": "The lowest of Ensembl's scores on the path is 0.940993, at releases 75 to 76.",
-           *                 "limitation": null
+           *                 "label": "lowest Ensembl score 0.940993",
+           *                 "text": "The lowest of Ensembl's mapping scores on the path of the best answer is 0.940993, at releases 75 → 76 (`ENSG00000141510.11` → `ENSG00000141510.12`). The candidate's score is the product of the scores along its path.",
+           *                 "limitation": null,
+           *                 "alert": false,
+           *                 "ask": null,
+           *                 "read_at": null
            *               }
            *             ]
            *           },
@@ -7825,8 +7984,12 @@ export interface operations {
            *               {
            *                 "code": "lowest_score",
            *                 "tone": "note",
-           *                 "text": "The lowest of Ensembl's scores on the path is 0.940993, at releases 75 to 76.",
-           *                 "limitation": null
+           *                 "label": "lowest Ensembl score 0.940993",
+           *                 "text": "The lowest of Ensembl's mapping scores on the path of the best answer is 0.940993, at releases 75 → 76 (`ENSG00000141510.11` → `ENSG00000141510.12`). The candidate's score is the product of the scores along its path.",
+           *                 "limitation": null,
+           *                 "alert": false,
+           *                 "ask": null,
+           *                 "read_at": null
            *               }
            *             ]
            *           },
@@ -7836,6 +7999,384 @@ export interface operations {
            *     }
            */
           "application/json": components["schemas"]["ShowcaseResponse"];
+        };
+      };
+      400: components["responses"]["Refusal400_index"];
+      404: components["responses"]["Refusal404"];
+      405: components["responses"]["Refusal405_index"];
+      414: components["responses"]["Refusal414_index"];
+      429: components["responses"]["Refusal429"];
+      500: components["responses"]["Refusal500_index"];
+    };
+  };
+  showcase_queries: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /**
+         * @description The organism: its Ensembl production name (`homo_sapiens`), with spaces or in any letter case (`Homo sapiens`), or a short name idtrack declares (`human`, `pig`); the names a server holds: `names` of `GET /organisms`.
+         * @example homo_sapiens
+         */
+        organism: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description The showcase's queries, without the answers. */
+      200: {
+        headers: {
+          "X-Request-ID": components["headers"]["X-Request-ID"];
+          "Server-Timing": components["headers"]["Server-Timing"];
+          "RateLimit-Policy": components["headers"]["RateLimit-Policy"];
+          RateLimit: components["headers"]["RateLimit"];
+          ETag: components["headers"]["ETag"];
+          "Cache-Control": components["headers"]["Cache-Control"];
+          "Idtrack-Version": components["headers"]["Idtrack-Version"];
+          "Idtrack-Graph-Digest": components["headers"]["Idtrack-Graph-Digest"];
+          [name: string]: unknown;
+        };
+        content: {
+          /**
+           * @example {
+           *       "organism": "homo_sapiens",
+           *       "content_digest": "f922779314f8a27dd1d1a7a4f24e7b6a316fa7fb8f7b071f3d66857095682cfb",
+           *       "checked_on": "f922779314f8a27dd1d1a7a4f24e7b6a316fa7fb8f7b071f3d66857095682cfb",
+           *       "journeys": [
+           *         {
+           *           "query": {
+           *             "identifier": "TP53",
+           *             "from_release": 50,
+           *             "to_release": null,
+           *             "final_database": "HGNC Symbol",
+           *             "explain": true
+           *           }
+           *         },
+           *         {
+           *           "query": {
+           *             "identifier": "BRCA1",
+           *             "from_release": 50,
+           *             "to_release": null,
+           *             "final_database": "HGNC Symbol",
+           *             "explain": true
+           *           }
+           *         },
+           *         {
+           *           "query": {
+           *             "identifier": "SEPT9",
+           *             "from_release": 50,
+           *             "to_release": null,
+           *             "final_database": "HGNC Symbol",
+           *             "explain": true
+           *           }
+           *         },
+           *         {
+           *           "query": {
+           *             "identifier": "MARCH1",
+           *             "from_release": 50,
+           *             "to_release": null,
+           *             "final_database": "HGNC Symbol",
+           *             "explain": true
+           *           }
+           *         },
+           *         {
+           *           "query": {
+           *             "identifier": "PARK2",
+           *             "from_release": 50,
+           *             "to_release": null,
+           *             "final_database": "HGNC Symbol",
+           *             "explain": true
+           *           }
+           *         },
+           *         {
+           *           "query": {
+           *             "identifier": "C10orf2",
+           *             "from_release": 50,
+           *             "to_release": null,
+           *             "final_database": "HGNC Symbol",
+           *             "explain": true
+           *           }
+           *         },
+           *         {
+           *           "query": {
+           *             "identifier": "FAM123B",
+           *             "from_release": 50,
+           *             "to_release": null,
+           *             "final_database": "HGNC Symbol",
+           *             "explain": true
+           *           }
+           *         },
+           *         {
+           *           "query": {
+           *             "identifier": "KIAA0101",
+           *             "from_release": 50,
+           *             "to_release": null,
+           *             "final_database": "HGNC Symbol",
+           *             "explain": true
+           *           }
+           *         },
+           *         {
+           *           "query": {
+           *             "identifier": "GPR98",
+           *             "from_release": 50,
+           *             "to_release": null,
+           *             "final_database": "HGNC Symbol",
+           *             "explain": true
+           *           }
+           *         },
+           *         {
+           *           "query": {
+           *             "identifier": "H2AFX",
+           *             "from_release": 50,
+           *             "to_release": null,
+           *             "final_database": "HGNC Symbol",
+           *             "explain": true
+           *           }
+           *         },
+           *         {
+           *           "query": {
+           *             "identifier": "NM_000518",
+           *             "from_release": 60,
+           *             "to_release": null,
+           *             "final_database": "Uniprot/SWISSPROT",
+           *             "explain": true
+           *           }
+           *         },
+           *         {
+           *           "query": {
+           *             "identifier": "NM_002046",
+           *             "from_release": 60,
+           *             "to_release": null,
+           *             "final_database": "Uniprot/SWISSPROT",
+           *             "explain": true
+           *           }
+           *         },
+           *         {
+           *           "query": {
+           *             "identifier": "NM_000477",
+           *             "from_release": 60,
+           *             "to_release": null,
+           *             "final_database": "Uniprot/SWISSPROT",
+           *             "explain": true
+           *           }
+           *         },
+           *         {
+           *           "query": {
+           *             "identifier": "NM_001101",
+           *             "from_release": 60,
+           *             "to_release": null,
+           *             "final_database": "Uniprot/SWISSPROT",
+           *             "explain": true
+           *           }
+           *         },
+           *         {
+           *           "query": {
+           *             "identifier": "P04637",
+           *             "from_release": 70,
+           *             "to_release": null,
+           *             "final_database": "HGNC Symbol",
+           *             "explain": true
+           *           }
+           *         },
+           *         {
+           *           "query": {
+           *             "identifier": "P38398",
+           *             "from_release": 70,
+           *             "to_release": null,
+           *             "final_database": "HGNC Symbol",
+           *             "explain": true
+           *           }
+           *         },
+           *         {
+           *           "query": {
+           *             "identifier": "P00533",
+           *             "from_release": 70,
+           *             "to_release": null,
+           *             "final_database": "HGNC Symbol",
+           *             "explain": true
+           *           }
+           *         },
+           *         {
+           *           "query": {
+           *             "identifier": "ENSG00000250239.1",
+           *             "from_release": null,
+           *             "to_release": null,
+           *             "final_database": null,
+           *             "explain": true
+           *           }
+           *         },
+           *         {
+           *           "query": {
+           *             "identifier": "ENSG00000112096.19",
+           *             "from_release": null,
+           *             "to_release": null,
+           *             "final_database": null,
+           *             "explain": true
+           *           }
+           *         },
+           *         {
+           *           "query": {
+           *             "identifier": "ENSG00000110347.7",
+           *             "from_release": null,
+           *             "to_release": null,
+           *             "final_database": null,
+           *             "explain": true
+           *           }
+           *         },
+           *         {
+           *           "query": {
+           *             "identifier": "ENSG00000198477",
+           *             "from_release": null,
+           *             "to_release": null,
+           *             "final_database": null,
+           *             "explain": true
+           *           }
+           *         },
+           *         {
+           *           "query": {
+           *             "identifier": "ENST00000225823.6",
+           *             "from_release": null,
+           *             "to_release": 48,
+           *             "final_database": null,
+           *             "explain": true
+           *           }
+           *         },
+           *         {
+           *           "query": {
+           *             "identifier": "ENSG00000171862.13",
+           *             "from_release": null,
+           *             "to_release": 48,
+           *             "final_database": null,
+           *             "explain": true
+           *           }
+           *         }
+           *       ],
+           *       "cases": [
+           *         {
+           *           "query": {
+           *             "identifier": "ENSG00000141510.5",
+           *             "from_release": 54,
+           *             "to_release": null,
+           *             "final_database": null,
+           *             "explain": true
+           *           },
+           *           "kind": "lineage"
+           *         },
+           *         {
+           *           "query": {
+           *             "identifier": "SEPT9",
+           *             "from_release": 50,
+           *             "to_release": null,
+           *             "final_database": "HGNC Symbol",
+           *             "explain": true
+           *           },
+           *           "kind": "renamed"
+           *         },
+           *         {
+           *           "query": {
+           *             "identifier": "ENSG00000139618",
+           *             "from_release": 48,
+           *             "to_release": null,
+           *             "final_database": null,
+           *             "explain": true
+           *           },
+           *           "kind": "new_version"
+           *         },
+           *         {
+           *           "query": {
+           *             "identifier": "ENSG00000112096.19",
+           *             "from_release": null,
+           *             "to_release": null,
+           *             "final_database": null,
+           *             "explain": true
+           *           },
+           *           "kind": "replaced"
+           *         },
+           *         {
+           *           "query": {
+           *             "identifier": "ENSG00000277780.1",
+           *             "from_release": 84,
+           *             "to_release": null,
+           *             "final_database": null,
+           *             "explain": true
+           *           },
+           *           "kind": "split"
+           *         },
+           *         {
+           *           "query": {
+           *             "identifier": "ENSG00000250239.1",
+           *             "from_release": null,
+           *             "to_release": null,
+           *             "final_database": null,
+           *             "explain": true
+           *           },
+           *           "kind": "merge"
+           *         },
+           *         {
+           *           "query": {
+           *             "identifier": "ENST00000225823",
+           *             "from_release": 70,
+           *             "to_release": null,
+           *             "final_database": null,
+           *             "explain": true
+           *           },
+           *           "kind": "handoff"
+           *         },
+           *         {
+           *           "query": {
+           *             "identifier": "ENSG00000198477",
+           *             "from_release": 48,
+           *             "to_release": null,
+           *             "final_database": "HGNC Symbol",
+           *             "explain": true
+           *           },
+           *           "kind": "bridge"
+           *         },
+           *         {
+           *           "query": {
+           *             "identifier": "RNR1",
+           *             "from_release": null,
+           *             "to_release": null,
+           *             "final_database": null,
+           *             "explain": true
+           *           },
+           *           "kind": "other_release"
+           *         },
+           *         {
+           *           "query": {
+           *             "identifier": "MAT1",
+           *             "from_release": 60,
+           *             "to_release": null,
+           *             "final_database": null,
+           *             "explain": true
+           *           },
+           *           "kind": "tie"
+           *         },
+           *         {
+           *           "query": {
+           *             "identifier": "NM_000518",
+           *             "from_release": 60,
+           *             "to_release": null,
+           *             "final_database": "Uniprot/SWISSPROT",
+           *             "explain": true
+           *           },
+           *           "kind": "final"
+           *         },
+           *         {
+           *           "query": {
+           *             "identifier": "ENSG00000265842",
+           *             "from_release": 75,
+           *             "to_release": null,
+           *             "final_database": null,
+           *             "explain": true
+           *           },
+           *           "kind": "retired"
+           *         }
+           *       ]
+           *     }
+           */
+          "application/json": components["schemas"]["ShowcaseQueriesResponse"];
         };
       };
       400: components["responses"]["Refusal400_index"];
@@ -8357,7 +8898,7 @@ export interface operations {
            *           "many_to_one": 0
            *         }
            *       ],
-           *       "compute_seconds": 92.501
+           *       "compute_seconds": 46.018
            *     }
            */
           "application/json": components["schemas"]["HistoryResponse"];
@@ -8481,8 +9022,12 @@ export interface operations {
            *         {
            *           "code": "lowest_score",
            *           "tone": "note",
-           *           "text": "The lowest of Ensembl's scores on the path is 0.99, at releases 111 to 112.",
-           *           "limitation": null
+           *           "label": "lowest Ensembl score 0.99",
+           *           "text": "The lowest of Ensembl's mapping scores on the path of the best answer is 0.99, at releases 111 → 112 (`ENSG00000141510.18` → `ENSG00000141510.19`). The candidate's score is the product of the scores along its path.",
+           *           "limitation": null,
+           *           "alert": false,
+           *           "ask": null,
+           *           "read_at": null
            *         }
            *       ]
            *     }
@@ -8920,8 +9465,12 @@ export interface operations {
            *               {
            *                 "code": "one_gene",
            *                 "tone": "note",
-           *                 "text": "The 12 targets are the ids `ENSG00000141510.20` carries in CCDS at release 115.",
-           *                 "limitation": null
+           *                 "label": "all 12 ids of one gene",
+           *                 "text": "The 12 targets are the ids `ENSG00000141510.20` carries in CCDS at release 115. idtrack converts at the level of the gene: the identifier is read as its gene and followed as a gene, and the answer in the database asked is every id of the best gene there, not the counterpart of `TP53` alone.",
+           *                 "limitation": null,
+           *                 "alert": false,
+           *                 "ask": null,
+           *                 "read_at": null
            *               }
            *             ]
            *           }
@@ -9287,8 +9836,12 @@ export interface operations {
            *               {
            *                 "code": "one_gene",
            *                 "tone": "note",
-           *                 "text": "The 12 targets are the ids `ENSG00000141510.20` carries in CCDS label at release 115.",
-           *                 "limitation": null
+           *                 "label": "all 12 ids of one gene",
+           *                 "text": "The 12 targets are the ids `ENSG00000141510.20` carries in CCDS label at release 115. idtrack converts at the level of the gene: the identifier is read as its gene and followed as a gene, and the answer in the database asked is every id of the best gene there, not the counterpart of `TP53` alone.",
+           *                 "limitation": null,
+           *                 "alert": false,
+           *                 "ask": null,
+           *                 "read_at": null
            *               }
            *             ]
            *           }

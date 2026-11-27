@@ -68,7 +68,29 @@ export const SCHEMAS: Record<string, Shape> = {
       final_path: { a: "integer" },
     },
   },
-  Caution: { o: { code: "string", tone: "string", text: "string", limitation: { u: ["string", "null"] } } },
+  Caution: {
+    o: {
+      code: "string",
+      tone: "string",
+      label: "string",
+      text: "string",
+      limitation: { u: ["string", "null"] },
+      alert: "boolean",
+      ask: { u: [{ r: "CautionAsk" }, "null"] },
+      read_at: { u: ["integer", "null"] },
+    },
+  },
+  CautionAsk: {
+    o: {
+      words: "string",
+      identifier: { u: ["string", "null"] },
+      from_release: { u: ["integer", "null"] },
+      to_release: { u: ["integer", "null"] },
+      final_database: { u: ["string", "null"] },
+      from_database: { u: ["string", "null"] },
+      changes: { a: "string" },
+    },
+  },
   CautionTerm: {
     o: {
       code: "string",
@@ -423,6 +445,15 @@ export const SCHEMAS: Record<string, Shape> = {
       error: { u: [{ r: "ErrorBody" }, "null"] },
     },
   },
+  ShowcaseQueriesResponse: {
+    o: {
+      organism: "string",
+      content_digest: { u: ["string", "null"] },
+      checked_on: { u: ["string", "null"] },
+      journeys: { a: { r: "ShowcaseQueryItem" } },
+      cases: { a: { r: "ShowcaseQueryCase" } },
+    },
+  },
   ShowcaseQuery: {
     o: {
       identifier: "string",
@@ -432,6 +463,8 @@ export const SCHEMAS: Record<string, Shape> = {
       explain: "boolean",
     },
   },
+  ShowcaseQueryCase: { o: { query: { r: "ShowcaseQuery" }, kind: "string" } },
+  ShowcaseQueryItem: { o: { query: { r: "ShowcaseQuery" } } },
   ShowcaseResponse: {
     o: {
       organism: "string",
@@ -567,6 +600,7 @@ export const RESPONSES: Record<string, Shape> = {
   "GET /organisms/{organism}/final-databases": { r: "FinalDatabasesResponse" },
   "GET /organisms/{organism}/databases": { r: "DatabasesResponse" },
   "GET /organisms/{organism}/showcase": { r: "ShowcaseResponse" },
+  "GET /organisms/{organism}/showcase/queries": { r: "ShowcaseQueriesResponse" },
   "GET /organisms/{organism}/history": { r: "HistoryResponse" },
   "GET /organisms/{organism}/convert": { r: "ConversionResult" },
   "GET /organisms/{organism}/convert/each-database": { r: "EachDatabaseResponse" },

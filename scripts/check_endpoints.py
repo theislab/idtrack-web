@@ -39,7 +39,9 @@ import jsonschema
 from referencing import Registry
 from referencing.jsonschema import DRAFT202012
 
+from idtrack_web_api.adapter import Graph
 from idtrack_web_api.cautions import cautions_of
+from idtrack_web_api.service import caution_facts
 
 OPENAPI = Path(__file__).resolve().parents[1] / "api" / "openapi.json"
 #: One entry of ``Server-Timing``: a name and a duration in milliseconds.
@@ -237,6 +239,7 @@ def main() -> int:  # noqa: PLR0912, PLR0915 - one script, read top to bottom
     compared = 0
     float_count = 0
     cautions_compared = 0
+    adapted = Graph(reference) if reference is not None else None
     docs_url = c.check("GET", "/api/v1/version", "/api/v1/version")["docs_url"]
     statuses: collections.Counter[str] = collections.Counter()
     for variant in variants:
@@ -244,7 +247,7 @@ def main() -> int:  # noqa: PLR0912, PLR0915 - one script, read top to bottom
         for identifier in identifiers:
             data = c.check("GET", f"{org}/convert", f"{p}/organisms/{o}/convert", {"identifier": identifier, **query})
             statuses[data["status"]] += 1
-            if reference is not None:
+            if reference is not None and adapted is not None:
                 expected: Any = reference.convert(identifier, **variant).to_dict()
                 compared += 1
                 float_count += len(floats(expected))
@@ -253,7 +256,9 @@ def main() -> int:  # noqa: PLR0912, PLR0915 - one script, read top to bottom
                 # The cautions: those of the result with its path, whatever `explain` asked.
                 explained = reference.convert(identifier, **{**variant, "explain": True}).to_dict()
                 cautions_compared += 1
-                if data["cautions"] != cautions_of(explained, docs_url):
+                asked = variant.get("final_database")
+                facts = caution_facts(adapted, asked if isinstance(asked, str) else None, 10.0)
+                if data["cautions"] != cautions_of(explained, docs_url, facts):
                     c.failures.append(f"convert {identifier} {variant}: the cautions differ from the rules' reading")
     batch = identifiers + identifiers[:5]
     for variant in ({}, {"explain": True, "to_release": middle}):

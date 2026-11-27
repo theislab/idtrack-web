@@ -4,11 +4,14 @@ from __future__ import annotations
 
 import csv
 import io
+from dataclasses import replace
 from typing import TYPE_CHECKING, Any
 
 from idtrack_web_api import tsv
-from idtrack_web_api.cautions import CAUTIONS, PATH_CODES, cautions_of
+from idtrack_web_api.adapter import Graph
+from idtrack_web_api.cautions import CAUTIONS, PATH_CODES, Facts, cautions_of
 from idtrack_web_api.config import DOCS_URL
+from idtrack_web_api.service import caution_facts
 from tests.test_endpoints import sample_identifiers
 
 if TYPE_CHECKING:
@@ -25,10 +28,13 @@ def test_cautions_are_read_with_the_path_whatever_explain_asks(
 ) -> None:
     """Every answer's cautions are those of its result with the path, asked with or without `explain`."""
     identifiers = sample_identifiers(cut_idtrack, 120)
+    graph = Graph(cut_idtrack)
     seen: set[str] = set()
     for arguments in ({}, {"final_database": "HGNC Symbol"}, {"to_release": 80}):
         explained = [r.to_dict() for r in cut_idtrack.convert_many(identifiers, explain=True, **arguments)]
-        expected = [cautions_of(r, DOCS_URL) for r in explained]
+        asked = arguments.get("final_database")
+        facts = caution_facts(graph, asked if isinstance(asked, str) else None, 10.0)
+        expected = [cautions_of(r, DOCS_URL, facts) for r in explained]
         for explain in (False, True):
             response = client.post(
                 f"{P}/organisms/pig/convert/batch", json={"identifiers": identifiers, "explain": explain, **arguments}
@@ -118,6 +124,54 @@ def test_each_rule_reads_what_its_meaning_says() -> None:
     # Cautions come before notes, whatever the order of the rules.
     mixed = cautions_of(result(match="unicode:synonym:exact", candidates=[candidate()]), DOCS_URL)
     assert [c["tone"] for c in mixed] == ["caution", "note"]
+    # A gene ranked below carries the name typed in the name authority at the target release, and no best gene does.
+    symbols = {"G1": ["OLD1"], "G2": ["TYPED"]}
+    facts = Facts(
+        symbol_databases=("HGNC Symbol",),
+        authority_at=lambda _release: "HGNC Symbol",
+        named=lambda _name, _database: True,
+        symbols_of=lambda genes, _release, _database: {g: symbols.get(g, []) for g in genes},
+    )
+    runner = result(
+        query_id="typed", graph_id="TYPED", from_release=80, candidates=[candidate(), candidate(gene="G2", best=False)]
+    )
+    found = cautions_of(runner, DOCS_URL, facts)
+    assert codes(found)[:1] == ["runner_named"] and found[0]["alert"]
+    assert "(rank 2)" in found[0]["text"] and found[0]["ask"]["changes"] == ["from_release", "to_release"]
+    assert codes(cautions_of(runner, DOCS_URL)) == []  # without the organism's symbols the rule holds nothing
+    # The best answer read through some of the databases that read the name only, with no authority nor display name.
+    elsewhere = result(
+        from_databases=["EntrezGene", "HGNC Symbol"],
+        candidates=[
+            candidate(entry_databases=["EntrezGene"], authority=False, display_name=False),
+            candidate(gene="G3", best=False, entry_databases=["HGNC Symbol"]),
+        ],
+    )
+    found = cautions_of(elsewhere, DOCS_URL, facts)
+    assert codes(found) == ["name_elsewhere"] and found[0]["ask"]["from_database"] == "HGNC Symbol"
+    # A symbol database that is not the organism's name authority, asked: a note with the authority as the way on.
+    projected = cautions_of(
+        result(candidates=[candidate()]),
+        DOCS_URL,
+        replace(facts, symbol_databases=("VGNC Symbol", "HGNC Symbol"), asked="HGNC Symbol"),
+    )
+    assert [(c["code"], c["ask"]["final_database"]) for c in projected] == [("projected_symbols", "VGNC Symbol")]
+    # The best answer's path leaves the entry gene's id while a candidate ranked below follows the id on.
+    steps = [
+        {"kind": "history", "source": "ENSG1.1", "target": "ENSG9.1", "old_release": 80, "new_release": 81},
+        {"kind": "history", "source": "ENSG1.1", "target": "ENSG1.2", "old_release": 90, "new_release": 91},
+    ]
+    branch = result(
+        from_release=70,
+        to_release=100,
+        candidates=[
+            candidate(gene="ENSG9.1", target="ENSG9.1", entry_gene="ENSG1.1", path=[0]),
+            candidate(gene="ENSG1.2", target="ENSG1.2", best=False, entry_gene="ENSG1.1", path=[1]),
+        ],
+        path={"nodes": [], "bridges": [], "steps": steps},
+    )
+    found = cautions_of(branch, DOCS_URL)
+    assert codes(found) == ["own_continuation"] and "own continuation rank 2:" in found[0]["text"]
     # A result without answer has no caution of its answer.
     assert cautions_of(result(status="not_found", candidates=[], graph_id=None, match=None), DOCS_URL) == []
 

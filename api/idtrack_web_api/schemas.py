@@ -94,6 +94,23 @@ def _summary(cls: type) -> str:
 _MODELS: dict[type, type[BaseModel]] = {}
 
 
+class CautionAsk(BaseModel):
+    """The conversion that answers what a mark doubts: the result's own request, with the parts named changed."""
+
+    model_config = _STRICT
+    words: str = Field(..., description='What a link to it says ("Ask TP53 at release 115").')
+    identifier: str | None = Field(..., description="The identifier to ask, where `changes` names it.")
+    from_release: int | None = Field(..., description="The release to read it at, where `changes` names it.")
+    to_release: int | None = Field(..., description="The target release, where `changes` names it.")
+    final_database: str | None = Field(
+        ..., description="The database to convert to (`null`: Ensembl genes), where `changes` names it."
+    )
+    from_database: str | None = Field(..., description="The database to read it in, where `changes` names it.")
+    changes: list[str] = Field(
+        ..., description="The parts of the request this conversion changes; every other part is the result's own."
+    )
+
+
 class Caution(BaseModel):
     """A fact of a result to weigh before trusting its answer: the api's reading of idtrack's fields."""
 
@@ -106,13 +123,22 @@ class Caution(BaseModel):
             "answer that is no fault."
         ),
     )
-    text: str = Field(..., description="What the result says, with its own values, in one sentence.")
+    label: str = Field(..., description="A few words that name it, with the result's values (for a mark on a page).")
+    text: str = Field(..., description="What the result says, with its own values.")
     limitation: str | None = Field(
         ...,
         description=(
             "The address of the section of idtrack's documented limitations that describes this class, where there is "
             "one."
         ),
+    )
+    alert: bool = Field(
+        ...,
+        description="Another gene than the best answer may be the gene meant (worth saying beside the status itself).",
+    )
+    ask: CautionAsk | None = Field(..., description="The conversion that answers what the mark doubts, where one does.")
+    read_at: int | None = Field(
+        ..., description="A release at which the identifier means what this mark says (another meaning's last release)."
     )
 
 
@@ -1158,6 +1184,30 @@ class ShowcaseResponse(BaseModel):
     cases: list[ShowcaseCase] = Field(..., description="Conversions that show phenomena of Ensembl's history.")
 
 
+class ShowcaseQueryItem(BaseModel):
+    """A chosen conversion of the showcase, without its answer."""
+
+    model_config = _STRICT
+    query: ShowcaseQuery = Field(..., description="The conversion as `GET .../convert` takes it.")
+
+
+class ShowcaseQueryCase(ShowcaseQueryItem):
+    """A chosen conversion that shows one phenomenon of Ensembl's history, without its answer."""
+
+    kind: str = Field(..., description="The phenomenon its answer shows (`kind` of `GET .../showcase`'s cases).")
+
+
+class ShowcaseQueriesResponse(BaseModel):
+    """The showcase's chosen conversions without their answers (``GET .../showcase`` holds them with their answers)."""
+
+    model_config = _STRICT
+    organism: str = Field(..., description="The organism.")
+    content_digest: str | None = Field(..., description="The digest of the graph's content.")
+    checked_on: str | None = Field(..., description="As `checked_on` of `GET .../showcase`.")
+    journeys: list[ShowcaseQueryItem] = Field(..., description="The journeys' queries, in order.")
+    cases: list[ShowcaseQueryCase] = Field(..., description="The cases' queries and kinds, in order.")
+
+
 class HistoryRelease(BaseModel):
     """One release of the graph: the gene ids active and those created."""
 
@@ -1435,6 +1485,7 @@ __all__ = [
     "BatchResponse",
     "BridgeRuleTerm",
     "Caution",
+    "CautionAsk",
     "CautionTerm",
     "ConversionResultModel",
     "CpuLoad",
@@ -1473,7 +1524,10 @@ __all__ = [
     "RequestsLoad",
     "ShowcaseCase",
     "ShowcaseItem",
+    "ShowcaseQueriesResponse",
     "ShowcaseQuery",
+    "ShowcaseQueryCase",
+    "ShowcaseQueryItem",
     "ShowcaseResponse",
     "SourceInferenceModel",
     "SourceInferenceRequest",

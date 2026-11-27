@@ -80,6 +80,12 @@
       },
       {
        "method": "GET",
+       "path": "/api/v1/organisms/{organism}/showcase/queries",
+       "operation_id": "showcase_queries",
+       "summary": "The showcase's chosen conversions without their answers: each query, and each case's kind"
+      },
+      {
+       "method": "GET",
        "path": "/api/v1/organisms/{organism}/history",
        "operation_id": "history",
        "summary": "Ensembl's gene id history in the graph: genes active per release, history edges per transition"
@@ -145,9 +151,9 @@
   "status": {
    "responses": {
     "application/json": {
-     "sampled_at": "2026-11-27T18:38:05.626Z",
-     "started_at": "2026-11-27T18:30:05.013Z",
-     "uptime_seconds": 480.61268771626055,
+     "sampled_at": "2026-11-27T20:31:46.786Z",
+     "started_at": "2026-11-27T20:29:11.285Z",
+     "uptime_seconds": 155.50162254087627,
      "sample_interval_seconds": 1.0,
      "memory_sample_interval_seconds": 5.0,
      "cache_seconds": 1.0,
@@ -156,92 +162,92 @@
      "workers_exited": 0,
      "last_worker_exit_at": null,
      "master": {
-      "started_at": "2026-11-27T18:30:05.013Z",
-      "cpu_share": 0.039103867722417175,
-      "cpu_seconds": 217.44,
-      "rss_bytes": 4982333440,
-      "pss_bytes": 1661635584,
-      "uss_bytes": 4284416,
-      "cpu_sample_age_seconds": 0.8311634669080377,
-      "memory_sample_age_seconds": 1.6884166896343231
+      "started_at": "2026-11-27T20:29:11.285Z",
+      "cpu_share": 0.0,
+      "cpu_seconds": 191.47,
+      "rss_bytes": 5092270080,
+      "pss_bytes": 1705469952,
+      "uss_bytes": 15912960,
+      "cpu_sample_age_seconds": 0.22727655991911888,
+      "memory_sample_age_seconds": 0.6823641462251544
      },
      "workers": [
       {
        "worker": 1,
-       "started_at": "2026-11-27T18:38:02.622Z",
-       "cpu_share": 0.14786117624872644,
-       "cpu_seconds": 0.35,
-       "rss_bytes": 4975005696,
-       "pss_bytes": 2237210624,
-       "uss_bytes": 6885376,
-       "cpu_sample_age_seconds": 0.6882601669058204,
-       "memory_sample_age_seconds": 2.6215937109664083,
-       "requests": 2,
+       "started_at": "2026-11-27T20:31:24.601Z",
+       "cpu_share": 0.0,
+       "cpu_seconds": 0.85,
+       "rss_bytes": 5083672576,
+       "pss_bytes": 1704265728,
+       "uss_bytes": 17002496,
+       "cpu_sample_age_seconds": 0.5401725322008133,
+       "memory_sample_age_seconds": 0.2274552071467042,
+       "requests": 12,
        "in_flight": 0,
        "searches_running": 0,
        "searches_waiting": 0,
        "sending_bytes": 0,
-       "last_60_seconds": 2,
+       "last_60_seconds": 12,
        "errors_4xx": 0,
        "errors_5xx": 0
       },
       {
        "worker": 2,
-       "started_at": "2026-11-27T18:38:03.783Z",
-       "cpu_share": null,
-       "cpu_seconds": 0.01,
-       "rss_bytes": 4975001600,
-       "pss_bytes": 1662500864,
-       "uss_bytes": 6615040,
-       "cpu_sample_age_seconds": 1.8390072546899319,
-       "memory_sample_age_seconds": 0.8313510306179523,
-       "requests": 1,
+       "started_at": "2026-11-27T20:31:24.886Z",
+       "cpu_share": 0.0,
+       "cpu_seconds": 0.75,
+       "rss_bytes": 5083566080,
+       "pss_bytes": 1703792640,
+       "uss_bytes": 16072704,
+       "cpu_sample_age_seconds": 1.0152694778516889,
+       "memory_sample_age_seconds": 0.7959361914545298,
+       "requests": 7,
        "in_flight": 0,
        "searches_running": 0,
        "searches_waiting": 0,
        "sending_bytes": 0,
-       "last_60_seconds": 1,
+       "last_60_seconds": 7,
        "errors_4xx": 0,
        "errors_5xx": 0
       }
      ],
      "cpu": {
-      "cores_used": null,
-      "share_of_available": null,
+      "cores_used": 0.0,
+      "share_of_available": 0.0,
       "cores_available": 12.0,
       "affinity_cores": 12,
       "quota_cores": null,
       "source": "affinity"
      },
      "memory": {
-      "rss_bytes": 14932340736,
-      "pss_bytes": 5561347072,
-      "uss_bytes": 17784832,
+      "rss_bytes": 15259508736,
+      "pss_bytes": 5113528320,
+      "uss_bytes": 48988160,
       "limit_bytes": 107374182400,
-      "limit_used_bytes": 66292215808,
+      "limit_used_bytes": 38256005120,
       "source": "cgroup"
      },
      "requests": {
-      "total": 3,
+      "total": 19,
       "in_flight": 0,
       "searches_running": 0,
       "searches_waiting": 0,
       "connections_waiting": 0,
       "searches_queued": 0,
       "sending_bytes": 0,
-      "last_60_seconds": 3,
+      "last_60_seconds": 19,
       "errors_4xx": 0,
       "errors_5xx": 0,
       "lost": 0,
       "status_requests": 1,
       "latency": {
-       "count": 3,
+       "count": 19,
        "most_recent": 1000,
        "window_seconds": 300.0,
-       "p50_ms": 121.79761938750744,
-       "p95_ms": 526.2316009029746,
-       "p99_ms": 526.2316009029746,
-       "max_ms": 526.2316009029746
+       "p50_ms": 6.1963992193341255,
+       "p95_ms": 87.03356143087149,
+       "p99_ms": 87.03356143087149,
+       "max_ms": 87.03356143087149
       }
      },
      "graphs": [
@@ -267,10 +273,7 @@
       }
      ],
      "graphs_file_bytes": 353295162,
-     "unavailable": [
-      "cpu.cores_used",
-      "workers.cpu_share"
-     ]
+     "unavailable": []
     }
    },
    "recorded": "a real answer of a server holding the five graphs of Ensembl 115 (human, mouse, pig, rhesus, cynomolgus)",
@@ -2050,7 +2053,7 @@
        "many_to_one": 0
       }
      ],
-     "compute_seconds": 92.501
+     "compute_seconds": 46.018
     }
    },
    "recorded": "a real answer of a server holding the five graphs of Ensembl 115 (human, mouse, pig, rhesus, cynomolgus); trimmed: `transitions` to its first 6 of 54 items",
@@ -2273,7 +2276,7 @@
      ]
     }
    },
-   "recorded": "a real answer of a server holding the five graphs of Ensembl 115 (human, mouse, pig, rhesus, cynomolgus); trimmed: `statuses` to its first 2 of 7 items, `reasons` to its first 2 of 10 items, `step_reasons` to its first 2 of 13 items, `criteria` to its first 2 of 9 items, `candidate_fields` to its first 2 of 21 items, `match_steps` to its first 2 of 6 items, `match_prefixes` to its first 2 of 6 items, `reading_reasons` to its first 2 of 5 items, `place_relations` to its first 2 of 5 items, `bridge_rules` to its first 2 of 9 items, `errors` to its first 2 of 23 items, `database_kinds` to its first 2 of 3 items, `allowances` to its first 2 of 4 items, `source_modes` to its first 2 of 4 items, `cautions` to its first 2 of 28 items",
+   "recorded": "a real answer of a server holding the five graphs of Ensembl 115 (human, mouse, pig, rhesus, cynomolgus); trimmed: `statuses` to its first 2 of 7 items, `reasons` to its first 2 of 10 items, `step_reasons` to its first 2 of 13 items, `criteria` to its first 2 of 9 items, `candidate_fields` to its first 2 of 21 items, `match_steps` to its first 2 of 6 items, `match_prefixes` to its first 2 of 6 items, `reading_reasons` to its first 2 of 5 items, `place_relations` to its first 2 of 5 items, `bridge_rules` to its first 2 of 9 items, `errors` to its first 2 of 23 items, `database_kinds` to its first 2 of 3 items, `allowances` to its first 2 of 4 items, `source_modes` to its first 2 of 4 items, `cautions` to its first 2 of 32 items",
    "parameters": {}
   },
   "databases_by_release": {
@@ -3749,8 +3752,12 @@
          {
           "code": "lowest_score",
           "tone": "note",
-          "text": "The lowest of Ensembl's scores on the path is 0.940993, at releases 75 to 76.",
-          "limitation": null
+          "label": "lowest Ensembl score 0.940993",
+          "text": "The lowest of Ensembl's mapping scores on the path of the best answer is 0.940993, at releases 75 → 76 (`ENSG00000141510.11` → `ENSG00000141510.12`). The candidate's score is the product of the scores along its path.",
+          "limitation": null,
+          "alert": false,
+          "ask": null,
+          "read_at": null
          }
         ]
        },
@@ -4663,8 +4670,12 @@
          {
           "code": "lowest_score",
           "tone": "note",
-          "text": "The lowest of Ensembl's scores on the path is 0.940993, at releases 75 to 76.",
-          "limitation": null
+          "label": "lowest Ensembl score 0.940993",
+          "text": "The lowest of Ensembl's mapping scores on the path of the best answer is 0.940993, at releases 75 → 76 (`ENSG00000141510.11` → `ENSG00000141510.12`). The candidate's score is the product of the scores along its path.",
+          "limitation": null,
+          "alert": false,
+          "ask": null,
+          "read_at": null
          }
         ]
        },
@@ -4674,6 +4685,350 @@
     }
    },
    "recorded": "a real answer of a server holding the five graphs of Ensembl 115 (human, mouse, pig, rhesus, cynomolgus); trimmed: `journeys` to its first 1 of 23 items, `cases` to its first 1 of 12 items",
+   "parameters": {
+    "organism": "homo_sapiens"
+   }
+  },
+  "showcase_queries": {
+   "responses": {
+    "application/json": {
+     "organism": "homo_sapiens",
+     "content_digest": "f922779314f8a27dd1d1a7a4f24e7b6a316fa7fb8f7b071f3d66857095682cfb",
+     "checked_on": "f922779314f8a27dd1d1a7a4f24e7b6a316fa7fb8f7b071f3d66857095682cfb",
+     "journeys": [
+      {
+       "query": {
+        "identifier": "TP53",
+        "from_release": 50,
+        "to_release": null,
+        "final_database": "HGNC Symbol",
+        "explain": true
+       }
+      },
+      {
+       "query": {
+        "identifier": "BRCA1",
+        "from_release": 50,
+        "to_release": null,
+        "final_database": "HGNC Symbol",
+        "explain": true
+       }
+      },
+      {
+       "query": {
+        "identifier": "SEPT9",
+        "from_release": 50,
+        "to_release": null,
+        "final_database": "HGNC Symbol",
+        "explain": true
+       }
+      },
+      {
+       "query": {
+        "identifier": "MARCH1",
+        "from_release": 50,
+        "to_release": null,
+        "final_database": "HGNC Symbol",
+        "explain": true
+       }
+      },
+      {
+       "query": {
+        "identifier": "PARK2",
+        "from_release": 50,
+        "to_release": null,
+        "final_database": "HGNC Symbol",
+        "explain": true
+       }
+      },
+      {
+       "query": {
+        "identifier": "C10orf2",
+        "from_release": 50,
+        "to_release": null,
+        "final_database": "HGNC Symbol",
+        "explain": true
+       }
+      },
+      {
+       "query": {
+        "identifier": "FAM123B",
+        "from_release": 50,
+        "to_release": null,
+        "final_database": "HGNC Symbol",
+        "explain": true
+       }
+      },
+      {
+       "query": {
+        "identifier": "KIAA0101",
+        "from_release": 50,
+        "to_release": null,
+        "final_database": "HGNC Symbol",
+        "explain": true
+       }
+      },
+      {
+       "query": {
+        "identifier": "GPR98",
+        "from_release": 50,
+        "to_release": null,
+        "final_database": "HGNC Symbol",
+        "explain": true
+       }
+      },
+      {
+       "query": {
+        "identifier": "H2AFX",
+        "from_release": 50,
+        "to_release": null,
+        "final_database": "HGNC Symbol",
+        "explain": true
+       }
+      },
+      {
+       "query": {
+        "identifier": "NM_000518",
+        "from_release": 60,
+        "to_release": null,
+        "final_database": "Uniprot/SWISSPROT",
+        "explain": true
+       }
+      },
+      {
+       "query": {
+        "identifier": "NM_002046",
+        "from_release": 60,
+        "to_release": null,
+        "final_database": "Uniprot/SWISSPROT",
+        "explain": true
+       }
+      },
+      {
+       "query": {
+        "identifier": "NM_000477",
+        "from_release": 60,
+        "to_release": null,
+        "final_database": "Uniprot/SWISSPROT",
+        "explain": true
+       }
+      },
+      {
+       "query": {
+        "identifier": "NM_001101",
+        "from_release": 60,
+        "to_release": null,
+        "final_database": "Uniprot/SWISSPROT",
+        "explain": true
+       }
+      },
+      {
+       "query": {
+        "identifier": "P04637",
+        "from_release": 70,
+        "to_release": null,
+        "final_database": "HGNC Symbol",
+        "explain": true
+       }
+      },
+      {
+       "query": {
+        "identifier": "P38398",
+        "from_release": 70,
+        "to_release": null,
+        "final_database": "HGNC Symbol",
+        "explain": true
+       }
+      },
+      {
+       "query": {
+        "identifier": "P00533",
+        "from_release": 70,
+        "to_release": null,
+        "final_database": "HGNC Symbol",
+        "explain": true
+       }
+      },
+      {
+       "query": {
+        "identifier": "ENSG00000250239.1",
+        "from_release": null,
+        "to_release": null,
+        "final_database": null,
+        "explain": true
+       }
+      },
+      {
+       "query": {
+        "identifier": "ENSG00000112096.19",
+        "from_release": null,
+        "to_release": null,
+        "final_database": null,
+        "explain": true
+       }
+      },
+      {
+       "query": {
+        "identifier": "ENSG00000110347.7",
+        "from_release": null,
+        "to_release": null,
+        "final_database": null,
+        "explain": true
+       }
+      },
+      {
+       "query": {
+        "identifier": "ENSG00000198477",
+        "from_release": null,
+        "to_release": null,
+        "final_database": null,
+        "explain": true
+       }
+      },
+      {
+       "query": {
+        "identifier": "ENST00000225823.6",
+        "from_release": null,
+        "to_release": 48,
+        "final_database": null,
+        "explain": true
+       }
+      },
+      {
+       "query": {
+        "identifier": "ENSG00000171862.13",
+        "from_release": null,
+        "to_release": 48,
+        "final_database": null,
+        "explain": true
+       }
+      }
+     ],
+     "cases": [
+      {
+       "query": {
+        "identifier": "ENSG00000141510.5",
+        "from_release": 54,
+        "to_release": null,
+        "final_database": null,
+        "explain": true
+       },
+       "kind": "lineage"
+      },
+      {
+       "query": {
+        "identifier": "SEPT9",
+        "from_release": 50,
+        "to_release": null,
+        "final_database": "HGNC Symbol",
+        "explain": true
+       },
+       "kind": "renamed"
+      },
+      {
+       "query": {
+        "identifier": "ENSG00000139618",
+        "from_release": 48,
+        "to_release": null,
+        "final_database": null,
+        "explain": true
+       },
+       "kind": "new_version"
+      },
+      {
+       "query": {
+        "identifier": "ENSG00000112096.19",
+        "from_release": null,
+        "to_release": null,
+        "final_database": null,
+        "explain": true
+       },
+       "kind": "replaced"
+      },
+      {
+       "query": {
+        "identifier": "ENSG00000277780.1",
+        "from_release": 84,
+        "to_release": null,
+        "final_database": null,
+        "explain": true
+       },
+       "kind": "split"
+      },
+      {
+       "query": {
+        "identifier": "ENSG00000250239.1",
+        "from_release": null,
+        "to_release": null,
+        "final_database": null,
+        "explain": true
+       },
+       "kind": "merge"
+      },
+      {
+       "query": {
+        "identifier": "ENST00000225823",
+        "from_release": 70,
+        "to_release": null,
+        "final_database": null,
+        "explain": true
+       },
+       "kind": "handoff"
+      },
+      {
+       "query": {
+        "identifier": "ENSG00000198477",
+        "from_release": 48,
+        "to_release": null,
+        "final_database": "HGNC Symbol",
+        "explain": true
+       },
+       "kind": "bridge"
+      },
+      {
+       "query": {
+        "identifier": "RNR1",
+        "from_release": null,
+        "to_release": null,
+        "final_database": null,
+        "explain": true
+       },
+       "kind": "other_release"
+      },
+      {
+       "query": {
+        "identifier": "MAT1",
+        "from_release": 60,
+        "to_release": null,
+        "final_database": null,
+        "explain": true
+       },
+       "kind": "tie"
+      },
+      {
+       "query": {
+        "identifier": "NM_000518",
+        "from_release": 60,
+        "to_release": null,
+        "final_database": "Uniprot/SWISSPROT",
+        "explain": true
+       },
+       "kind": "final"
+      },
+      {
+       "query": {
+        "identifier": "ENSG00000265842",
+        "from_release": 75,
+        "to_release": null,
+        "final_database": null,
+        "explain": true
+       },
+       "kind": "retired"
+      }
+     ]
+    }
+   },
+   "recorded": "a real answer of a server holding the five graphs of Ensembl 115 (human, mouse, pig, rhesus, cynomolgus)",
    "parameters": {
     "organism": "homo_sapiens"
    }
@@ -5052,8 +5407,12 @@
          {
           "code": "one_gene",
           "tone": "note",
-          "text": "The 12 targets are the ids `ENSG00000141510.20` carries in CCDS at release 115.",
-          "limitation": null
+          "label": "all 12 ids of one gene",
+          "text": "The 12 targets are the ids `ENSG00000141510.20` carries in CCDS at release 115. idtrack converts at the level of the gene: the identifier is read as its gene and followed as a gene, and the answer in the database asked is every id of the best gene there, not the counterpart of `TP53` alone.",
+          "limitation": null,
+          "alert": false,
+          "ask": null,
+          "read_at": null
          }
         ]
        }
@@ -5419,8 +5778,12 @@
          {
           "code": "one_gene",
           "tone": "note",
-          "text": "The 12 targets are the ids `ENSG00000141510.20` carries in CCDS label at release 115.",
-          "limitation": null
+          "label": "all 12 ids of one gene",
+          "text": "The 12 targets are the ids `ENSG00000141510.20` carries in CCDS label at release 115. idtrack converts at the level of the gene: the identifier is read as its gene and followed as a gene, and the answer in the database asked is every id of the best gene there, not the counterpart of `TP53` alone.",
+          "limitation": null,
+          "alert": false,
+          "ask": null,
+          "read_at": null
          }
         ]
        }
@@ -5870,8 +6233,12 @@
       {
        "code": "lowest_score",
        "tone": "note",
-       "text": "The lowest of Ensembl's scores on the path is 0.99, at releases 111 to 112.",
-       "limitation": null
+       "label": "lowest Ensembl score 0.99",
+       "text": "The lowest of Ensembl's mapping scores on the path of the best answer is 0.99, at releases 111 → 112 (`ENSG00000141510.18` → `ENSG00000141510.19`). The candidate's score is the product of the scores along its path.",
+       "limitation": null,
+       "alert": false,
+       "ask": null,
+       "read_at": null
       }
      ]
     }
@@ -6909,7 +7276,7 @@
       "message": "must be a whole number from 0 to 999999999, written in digits only, not \"115.0\""
      }
     ],
-    "request_id": "a1a645886de54b628af8643503b23a65",
+    "request_id": "13bb2c50ee2c4ebf8795921225ca1db9",
     "retry_after": null,
     "allowance": null
    }
@@ -6929,7 +7296,7 @@
      "to_release"
     ],
     "details": null,
-    "request_id": "af83b9cec02b4a329781bb735707f5a9",
+    "request_id": "6cd2785068de445686c233a676cd4f18",
     "retry_after": null,
     "allowance": null
    }
@@ -6941,7 +7308,7 @@
     "argument": "identifier",
     "allowed": null,
     "details": null,
-    "request_id": "43bc0e01b3404e4eb6ea3d7389a10c65",
+    "request_id": "d8e10071b5de4f45a3262e9f27592f0b",
     "retry_after": null,
     "allowance": null
    }
@@ -7022,7 +7389,7 @@
      115
     ],
     "details": null,
-    "request_id": "e6d0ee3e10ae4e978cb1254df41c3fee",
+    "request_id": "aab4bf843d21449e90a918230217c0ae",
     "retry_after": null,
     "allowance": null
    }
@@ -7062,7 +7429,7 @@
      "miRBase label"
     ],
     "details": null,
-    "request_id": "f24b6e4783ae40daa8b92f0f410c20b0",
+    "request_id": "2b67f1df94b8489987569e75b8c09024",
     "retry_after": null,
     "allowance": null
    }
@@ -7074,7 +7441,7 @@
     "argument": "gene",
     "allowed": null,
     "details": null,
-    "request_id": "9619e2e77391462286b275fa364f80d5",
+    "request_id": "52b3c625f02b497dabc6a23af889799a",
     "retry_after": null,
     "allowance": null
    }
@@ -7086,7 +7453,7 @@
     "argument": "identifier",
     "allowed": null,
     "details": null,
-    "request_id": "a02e3a27473b42a48d916806a54aafad",
+    "request_id": "18bf63ef856642f684740d8a8d87552d",
     "retry_after": null,
     "allowance": null
    }
@@ -7098,7 +7465,7 @@
     "argument": "final_database",
     "allowed": null,
     "details": null,
-    "request_id": "765469797e6c493b9ba14a1c12b9d993",
+    "request_id": "d7f58f355a614a43bf29a7ff3cfe39e3",
     "retry_after": null,
     "allowance": null
    }
@@ -7116,7 +7483,7 @@
      "sus_scrofa"
     ],
     "details": null,
-    "request_id": "82268e0cbe6646129dbe1557838a550e",
+    "request_id": "17c9988c821c4d7baea6eb812233a4f1",
     "retry_after": null,
     "allowance": null
    }
@@ -7130,7 +7497,7 @@
      "POST"
     ],
     "details": null,
-    "request_id": "a9cf83b2d0b443d5926565b74bbce2b7",
+    "request_id": "f3b09791918d471094f3979370d0541d",
     "retry_after": null,
     "allowance": null
    }
@@ -7142,7 +7509,7 @@
     "argument": "identifiers",
     "allowed": null,
     "details": null,
-    "request_id": "8974c9ed19c6421293b1360759bf1f1e",
+    "request_id": "b2b7061e73dc41c89bc11a0f81772d39",
     "retry_after": null,
     "allowance": null
    }
@@ -7154,7 +7521,7 @@
     "argument": null,
     "allowed": null,
     "details": null,
-    "request_id": "74804f577b38478baa1b72746c010e8c",
+    "request_id": "9c3fbde58de2494eb6cb1d1fe190518b",
     "retry_after": null,
     "allowance": null
    }
@@ -7166,7 +7533,7 @@
     "argument": null,
     "allowed": null,
     "details": null,
-    "request_id": "c932bd5c27c44c638b47c3d983d9c2b3",
+    "request_id": "daba97a72f0b45c5b35c9d01f82c66b9",
     "retry_after": null,
     "allowance": null
    }
@@ -7178,7 +7545,7 @@
     "argument": null,
     "allowed": null,
     "details": null,
-    "request_id": "0309fe2508a84a1f9664b95e5ce2d588",
+    "request_id": "078b09b53f4a45a7886c0ca2ee6286d8",
     "retry_after": null,
     "allowance": null
    }
@@ -7186,11 +7553,11 @@
   "response_too_large": {
    "error": {
     "code": "response_too_large",
-    "message": "The answer is larger than the 33554432 bytes this server sends (writing it stopped at 33610579 bytes); send fewer identifiers per request or ask without `explain` (the paths are most of the answer).",
-    "argument": null,
+    "message": "The answer is larger than the 33554432 bytes this server sends (writing it stopped at 33715243 bytes); ask without `explain` (the paths are most of the answer) or send fewer identifiers per request.",
+    "argument": "explain",
     "allowed": null,
     "details": null,
-    "request_id": "5f3aa0f625d34af0a6b9cb3b183466a8",
+    "request_id": "2bd03d7546484e47b4463840f4369c6a",
     "retry_after": null,
     "allowance": null
    }
@@ -7202,7 +7569,7 @@
     "argument": null,
     "allowed": null,
     "details": null,
-    "request_id": "45e9054f232f431b92af40e74d2d02c1",
+    "request_id": "6272008d8c5348dda0f1aa9cb32b455b",
     "retry_after": null,
     "allowance": null
    }
@@ -7214,7 +7581,7 @@
     "argument": null,
     "allowed": null,
     "details": null,
-    "request_id": "b592b8a6e6ba459099652239df4ed7e7",
+    "request_id": "57b6f605804246e7b0a63958395dd09e",
     "retry_after": null,
     "allowance": null
    }
@@ -7226,7 +7593,7 @@
     "argument": null,
     "allowed": null,
     "details": null,
-    "request_id": "72214adf5574450a8cad64390641bd78",
+    "request_id": "6eb93ac311144a4d8deaf9adcee8090a",
     "retry_after": 1,
     "allowance": "searches"
    }

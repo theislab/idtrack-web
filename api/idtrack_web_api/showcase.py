@@ -103,3 +103,22 @@ def compute(graph: LoadedGraph, settings: Settings) -> dict[str, Any]:
     }
     log.info("%s: showcase answered in %.1f s.", graph.organism, time.monotonic() - start)
     return body
+
+
+def queries_of(body: dict[str, Any]) -> dict[str, Any]:
+    """Return the body of ``/organisms/{organism}/showcase/queries``: the showcase without its answers.
+
+    Args:
+        body: The showcase (:py:func:`compute`).
+
+    Returns:
+        dict[str, Any]: As :py:class:`idtrack_web_api.schemas.ShowcaseQueriesResponse` describes it: each journey's
+        query, each case's query and kind (the cases given exactly where the showcase gives them).
+    """
+    return {
+        "organism": body["organism"],
+        "content_digest": body["content_digest"],
+        "checked_on": body["checked_on"],
+        "journeys": [{"query": item["query"]} for item in body["journeys"]],
+        "cases": [{"query": item["query"], "kind": item["kind"]} for item in body["cases"]],
+    }

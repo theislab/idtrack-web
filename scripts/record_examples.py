@@ -43,6 +43,7 @@ OPERATIONS: dict[str, tuple[str, dict[str, str], Any]] = {
     "vocabulary": ("/api/v1/vocabulary", {}, None),
     "databases_by_release": (f"/api/v1/organisms/{HUMAN}/databases", {}, None),
     "showcase": (f"/api/v1/organisms/{HUMAN}/showcase", {}, None),
+    "showcase_queries": (f"/api/v1/organisms/{HUMAN}/showcase/queries", {}, None),
     "convert_each_database": (
         f"/api/v1/organisms/{HUMAN}/convert/each-database",
         {"identifier": "TP53", "to_release": "115"},

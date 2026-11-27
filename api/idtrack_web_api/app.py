@@ -500,9 +500,10 @@ def create_app(  # noqa: PLR0915 - every endpoint, in one place
     graphs_bytes = sum(g.entry.file.size for g in registry.graphs.values())
     status_cache: dict[str, Any] = {"at": -float("inf"), "body": b""}
     # The answers computed before the fork, once per graph (the workers inherit them).
-    showcase_bodies = {
-        organism: _json_bytes(showcase.compute(graph, settings)) for organism, graph in registry.graphs.items()
-    }
+    showcases = {organism: showcase.compute(graph, settings) for organism, graph in registry.graphs.items()}
+    showcase_bodies = {organism: _json_bytes(body) for organism, body in showcases.items()}
+    showcase_queries_bodies = {organism: _json_bytes(showcase.queries_of(body)) for organism, body in showcases.items()}
+    del showcases
     history_bodies = {organism: _json_bytes(history.compute(graph)) for organism, graph in registry.graphs.items()}
 
     # ---------------------------------------------------------------------------------------------------------------
@@ -973,6 +974,26 @@ def create_app(  # noqa: PLR0915 - every endpoint, in one place
     )
     async def showcase_endpoint(graph: Annotated[LoadedGraph, Depends(graph_of)]) -> Response:
         return memory(showcase_bodies[graph.organism], graph)
+
+    @app.get(
+        f"{API_PREFIX}/organisms/{{organism}}/showcase/queries",
+        response_model=None,
+        responses=responses(
+            "showcase_queries",
+            {"model": schemas.ShowcaseQueriesResponse, "description": "The showcase's queries, without the answers."},
+        ),
+        tags=["organisms"],
+        summary="The showcase's chosen conversions without their answers: each query, and each case's kind",
+        operation_id="showcase_queries",
+        description=(
+            "The conversions of `GET .../showcase` without their answers: each journey's query and each case's query "
+            "and kind, the cases given exactly where the showcase gives them. For a page that needs to know which "
+            "conversions are cases (to offer the tour of them) without fetching every answer."
+        ),
+        dependencies=[Depends(only())],
+    )
+    async def showcase_queries_endpoint(graph: Annotated[LoadedGraph, Depends(graph_of)]) -> Response:
+        return memory(showcase_queries_bodies[graph.organism], graph)
 
     @app.get(
         f"{API_PREFIX}/organisms/{{organism}}/history",
