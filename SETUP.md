@@ -750,14 +750,14 @@ With the api running (section 8) on `127.0.0.1:8000`, either:
 
   Every path that is not a file and not under `/api` answers the page (`/batch`, `/organisms/sus_scrofa`, ...), so each view's address can be linked to and reloaded.
 
-  The server compresses the page's text files with gzip once at start and sends them compressed to a browser that accepts it; the files of `assets/`, named by their content's hash, are cached for a year as immutable, and every other file (the page itself) is revalidated (`no-cache`, with an `ETag`, answered `304` while unchanged). A file rebuilt while the server runs is sent from disk, uncompressed, until the server restarts. README.md, "How it runs", says more.
+  `npm run build` also writes the frame of every page (`dist/frames.json`, `scripts/prerender.ts`: the masthead and the page's head as HTML, and the links that fetch the page's own code beside the entry), which the server writes into the page it sends for each address, so a page's head is drawn before its code runs; and the Brotli form of every text file beside it (`<file>.br`, `scripts/compress.ts`). The server compresses the page's text files with gzip once at start and sends a browser that accepts Brotli the build's Brotli form, else gzip; the files of `assets/`, named by their content's hash, are cached for a year as immutable, and every other file (the page itself) is revalidated (`no-cache`, with an `ETag`, answered `304` while unchanged). A file rebuilt while the server runs is sent from disk, uncompressed, until the server restarts. README.md, "How it runs", says more.
 
   ```console
-  $ curl -s -o /dev/null -D - -H 'Accept-Encoding: gzip' http://127.0.0.1:8000/assets/<script>.js | grep -iE 'content-(encoding|length)|cache-control|vary'
+  $ curl -s -o /dev/null -D - -H 'Accept-Encoding: gzip, br' http://127.0.0.1:8000/assets/<script>.js | grep -iE 'content-(encoding|length)|cache-control|vary'
   cache-control: public, max-age=31536000, immutable
   vary: Accept-Encoding
-  content-encoding: gzip
-  content-length: 123335
+  content-encoding: br
+  content-length: 90602
   ```
 
 The page keeps its state in its address (`/?organism=sus_scrofa&id=INS&to=80&db=HGNC%20Symbol`); the only thing it stores in the browser is the chosen theme.

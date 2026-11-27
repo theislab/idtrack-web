@@ -344,3 +344,89 @@ test("the phone's masthead: two rows, the page's 16 px edges, controls of a fing
   await menu.getByRole("radio", { name: "Light" }).click();
   await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
 });
+
+/** The pages whose head the build draws into the page the server sends (src/prerender.tsx). */
+const FRAMED = ["/batch", "/names", "/organisms", "/method", "/developers"];
+
+test("every page is drawn before its code runs: the masthead and the page's head, in the places the page keeps", async ({
+  browser,
+}, info) => {
+  test.skip(!info.project.name.startsWith("desktop-light"), "the frame is the same in every theme");
+  for (const width of [1440, 390]) {
+    const off = await browser.newContext({ viewport: { width, height: 900 }, javaScriptEnabled: false });
+    const on = await browser.newContext({ viewport: { width, height: 900 } });
+    for (const path of FRAMED) {
+      const raw = await off.newPage();
+      await raw.goto(`${path}?organism=${data.organism}`);
+      await expect(raw.locator(".masthead .nav__link")).toHaveCount(7);
+      await expect(raw.getByRole("heading", { level: 1 })).toBeVisible();
+      const place = (p: Page) =>
+        p.locator(".page-head .lede").evaluate((e) => {
+          const r = e.getBoundingClientRect();
+          return [Math.round(r.left), Math.round(r.top), Math.round(r.width), e.textContent];
+        });
+      const before = await place(raw);
+      const page = await on.newPage();
+      const problems: string[] = [];
+      page.on("console", (m) => {
+        if (m.type() === "error" || m.type() === "warning") problems.push(m.text());
+      });
+      await page.goto(`${path}?organism=${data.organism}`);
+      await expect(page.locator(".organism-picker select, .organism-picker__all").first()).toBeVisible();
+      expect(await place(page), `${path} at ${width} px: the head the code draws is the frame's`).toEqual(before);
+      expect(problems, `${path}: nothing refused (an inline style or script) or preloaded in vain`).toEqual([]);
+      await raw.close();
+      await page.close();
+    }
+    await off.close();
+    await on.close();
+  }
+});
+
+test("every page's lede starts at one x, beside its title", async ({ page }, info) => {
+  test.skip(!info.project.name.startsWith("desktop-light"), "the widths are set here");
+  await page.setViewportSize({ width: 1440, height: 900 });
+  const starts = new Set<number>();
+  for (const path of [...FRAMED, convertUrl(data.long)]) {
+    await page.goto(path.includes("?") ? path : `${path}?organism=${data.organism}`);
+    const lede = page.locator(".page-head .lede");
+    await expect(lede).toBeVisible();
+    starts.add(Math.round((await lede.boundingBox())?.x ?? 0));
+  }
+  expect([...starts]).toHaveLength(1);
+});
+
+test("the masthead names the organism whole, and every link (Docs too) is in the row from 352 px", async ({
+  page,
+}, info) => {
+  test.skip(!info.project.name.startsWith("desktop-light"), "the widths are set here");
+  const organisms = (
+    (await (await page.request.get("/api/v1/organisms")).json()) as { organisms: { organism: string }[] }
+  ).organisms.map((o) => o.organism);
+  for (const width of [360, 390, 640, 1080, 1280, 1366, 1440, 1920]) {
+    await page.setViewportSize({ width, height: 800 });
+    for (const organism of organisms) {
+      await page.goto(`/batch?organism=${organism}`);
+      await expect(page.locator(".organism-picker select")).toBeVisible();
+      await page.evaluate(async () => {
+        await document.fonts.ready;
+      });
+      const m = await page.evaluate(() => {
+        const box = document.querySelector(".organism-picker__box");
+        const shown = document.querySelector<HTMLElement>(".organism-picker__shown");
+        const name = document.querySelector(".organism-picker__name[data-current]");
+        const nav = document.querySelector<HTMLElement>(".nav");
+        const docs = [...document.querySelectorAll(".nav__link")].pop()?.getBoundingClientRect();
+        const row = nav?.getBoundingClientRect();
+        return {
+          fits: Boolean(box && shown && shown.scrollWidth <= (box as HTMLElement).clientWidth + 0.5),
+          name: name?.textContent ?? "",
+          docs: Boolean(docs && row && docs.left >= row.left - 0.5 && docs.right <= row.right + 0.5),
+        };
+      });
+      expect(m.fits, `${organism} at ${width} px: the name stands whole in its box`).toBe(true);
+      expect(m.name.length, `${organism} at ${width} px`).toBeGreaterThan(3);
+      expect(m.docs, `${organism} at ${width} px: Docs in the row`).toBe(true);
+    }
+  }
+});

@@ -589,6 +589,20 @@ print(api.convert("ENSG00000141510", from_release=100, final_database="HGNC Symb
 
 /** The endpoints drawn in one step after the document has come. */
 const ENDPOINTS_AT_ONCE = 2;
+/** The page's head: the same in every state, and drawn into the page the server sends before the code runs
+ *  (scripts/prerender.ts). */
+export function ApiHead() {
+  return (
+    <header className="page-head api-head">
+      <p className="eyebrow">API</p>
+      <h1>idtrack over HTTP</h1>
+      <p className="lede">
+        Every answer of this site is its api&apos;s: idtrack&apos;s results unchanged, no field renamed, no number
+        rounded. The reference is this server&apos;s OpenAPI document; every example runs here.
+      </p>
+    </header>
+  );
+}
 
 export function ApiPage() {
   const origin = typeof window === "undefined" ? "" : window.location.origin;
@@ -654,15 +668,7 @@ export function ApiPage() {
   return (
     <LanguageProvider>
       <div className="page api-page">
-        <header className="page-head api-head">
-          <p className="eyebrow">API</p>
-          <h1>idtrack over HTTP</h1>
-          <p className="lede">
-            Every answer of this site is an answer of its api: JSON in, idtrack&apos;s own results out, unchanged (no
-            field renamed, no number rounded). The reference below is read from this server&apos;s OpenAPI document as
-            it serves it, and every example runs against this server.
-          </p>
-        </header>
+        <ApiHead />
 
         <dl className="api-facts">
           <div className="api-facts__item api-facts__item--base">

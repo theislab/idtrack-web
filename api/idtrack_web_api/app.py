@@ -40,7 +40,7 @@ from idtrack_web_api import contract, docs, history, schemas, service, showcase,
 from idtrack_web_api.adapter import FORMAT_VERSION, idtrack_commit, idtrack_version, organism_aliases
 from idtrack_web_api.config import DOCS_URL, Settings
 from idtrack_web_api.errors import ApiError, error_json, listed
-from idtrack_web_api.frontend import Frontend, accepts_gzip
+from idtrack_web_api.frontend import Frontend, accepts_gzip, frame_of
 from idtrack_web_api.graphs import LoadedGraph, Registry
 from idtrack_web_api.guard import API_PREFIX, CONNECTION, SEND_MIN_RATE, STATUS_PATH, Guard
 from idtrack_web_api.limits import READ_SHARE, RateLimiter, SearchSlot
@@ -1593,7 +1593,8 @@ def _serve_frontend(
             organism = ORGANISM_PAGE.match(f"/{path}")
             if organism is not None and not holds(organism.group(1)):
                 page = False  # the page of a graph this server does not hold: the page says so, the status too
-            return files.answer(files.index, request.headers, status=200 if page else 404)
+            frame = frame_of(f"/{path}", has_identifier="id" in request.query_params) if page else "none"
+            return files.answer(files.index, request.headers, status=200 if page else 404, frame=frame)
         msg = "not_found"
         raise ApiError(msg, f"There is no file /{path}.")
 

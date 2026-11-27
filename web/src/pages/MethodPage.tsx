@@ -2,6 +2,7 @@
 // how often it is right (the benchmarks' published results), the data this server answers from, how to cite idtrack
 // (its own citation, and a sentence for a methods section from this server's versions), what it does not do yet, and
 // the bounds this server enforces.
+import type { ReactNode } from "react";
 import { docsPage } from "../lib/links";
 import { Absent, CopyButton, Disclosure, Link, Mono, Prose, SectionTitle, TableFrame } from "../components/ui";
 import type { LimitsResponse } from "../api/types";
@@ -77,6 +78,19 @@ function Limitations() {
         </Disclosure>
       ) : null}
     </>
+/** The page's head (what follows it, `children`, under it across the width): the same in every state, and drawn into
+ *  the page the server sends before the code runs (scripts/prerender.ts). */
+export function MethodHead({ children }: { children?: ReactNode }) {
+  return (
+    <header className="page-head">
+      <p className="eyebrow">Method</p>
+      <h1>How idtrack answers, and how often it is right</h1>
+      <p className="lede">
+        An answer is found in five stages, each drawn on a real answer of this server; then how often the answers agree
+        with Ensembl&apos;s records, the authorities and other tools, as the benchmarks measured.
+      </p>
+      {children}
+    </header>
   );
 }
 
@@ -101,14 +115,7 @@ export function MethodPage() {
     : null;
   return (
     <div className="page page--about page--method">
-      <header className="page-head">
-        <p className="eyebrow">Method</p>
-        <h1>How idtrack answers, and how often it is right</h1>
-        <p className="lede">
-          An answer is found in five stages, each drawn below on a real answer of this server; then how often the
-          answers agree with Ensembl&apos;s records and the authorities, and with the tools people use, as the
-          benchmarks measured them.
-        </p>
+      <MethodHead>
         <p className="method-scope" role="note">
           <strong>Within one organism.</strong> Each graph is one organism&apos;s releases: idtrack converts between the
           releases and databases of that organism, and does not compute orthology between species (idtrack&apos;s
@@ -116,7 +123,7 @@ export function MethodPage() {
           <a href={docsPage("_notebooks/05_tutorial_humanization_mouse_pig_to_human.html")}>across species</a>
           ).
         </p>
-      </header>
+      </MethodHead>
       <EvidenceSummary />
 
       <MethodFigure />

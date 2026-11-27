@@ -46,8 +46,9 @@ const ApiPage = lazyPart(() => import("./pages/ApiPage").then((m) => ({ default:
 
 /** The code of the page of an address, fetched at once (beside the entry's own requests of the organisms), so that a
  *  page's code never waits for the organisms to arrive before it is asked for; an address that holds an identifier
- *  also fetches the answer's view beside its conversion. */
-function preloadRoute(path: string, search: string): void {
+ *  also fetches the answer's view beside its conversion. The promise settles when the page's code has arrived (or
+ *  failed): the app is first drawn then (main.tsx), over the page's frame, so the page is drawn whole at once. */
+function preloadRoute(path: string, search: string): Promise<void> {
   const route = routeOf(path);
   const part = {
     batch: BatchPage,
@@ -57,12 +58,14 @@ function preloadRoute(path: string, search: string): void {
     organism: OrganismPage,
     developers: ApiPage,
   }[route.page as string];
-  part?.preload();
   if (route.page === "convert" && new URLSearchParams(search).has("id"))
     import("./components/ResultView").catch(() => undefined);
+  return part?.preload() ?? Promise.resolve();
 }
 
-if (typeof window !== "undefined") preloadRoute(window.location.pathname, window.location.search);
+/** The page of the address the app starts at, its code on its way from the moment this module runs. */
+export const firstPageReady: Promise<void> =
+  typeof window === "undefined" ? Promise.resolve() : preloadRoute(window.location.pathname, window.location.search);
 
 const NAV: [string, string][] = [
   ["/", "Convert"],
@@ -145,7 +148,7 @@ function useScrollEdges<T extends HTMLElement>(shown: string) {
   return { ref, more };
 }
 
-function Header() {
+export function Header() {
   const { organisms, current, choose, status } = useOrganisms();
   const location = useLocation();
   const { ref: nav, more } = useScrollEdges<HTMLElement>(location.path);
@@ -184,7 +187,9 @@ function Header() {
           {status === "done" && showsOrganism && organisms.length > 0 ? (
             <OrganismPicker organisms={organisms} current={current?.organism ?? ""} choose={choose} />
           ) : status === "loading" && showsOrganism ? (
-            <Skeleton width={232} height={34} />
+            // The organism's room while the organisms come, sized by the stylesheet (no inline style: the page the
+            // server sends draws this before any code runs, under a policy that allows none).
+            <span className="skeleton organism-picker__waiting" aria-hidden="true" />
           ) : !showsOrganism ? (
             <p className="organism-picker">
               <span className="organism-picker__all">All organisms</span>

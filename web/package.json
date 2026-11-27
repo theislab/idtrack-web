@@ -10,7 +10,7 @@
   },
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build": "tsc -b && vite build && node scripts/prerender.ts && node scripts/compress.ts",
     "preview": "vite preview",
     "types": "node scripts/generate-types.ts",
     "types:check": "node scripts/generate-types.ts --check",

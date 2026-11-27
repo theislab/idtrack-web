@@ -5,7 +5,7 @@
 // with whether the benchmarks measured this very graph. Every value is the api's, idtrack's documentation's or the
 // benchmarks' published results'.
 import { docsPage } from "../lib/links";
-import { useEffect, useId, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useState, type ReactNode } from "react";
 import { api, ApiError, TimeoutError, UnreachableError, type AnyRequestError } from "../api/client";
 import type { AssemblyDescription, GraphDescription, GraphVersion, HistoryResponse } from "../api/types";
 import { AssemblyRows } from "../components/explore/AssemblyRows";
@@ -364,6 +364,22 @@ function HistoryIndexPanel({ organisms, releases }: { organisms: GraphDescriptio
   );
 }
 
+/** The page's head: the same in every state, and drawn into the page the server sends before the code runs
+ *  (scripts/prerender.ts). */
+export function ExploreHead({ children }: { children?: ReactNode }) {
+  return (
+    <header className="page-head">
+      <p className="eyebrow">Explore</p>
+      <h1>Stories from Ensembl&apos;s history</h1>
+      <p className="lede">
+        What can happen to a gene id, told by real identifiers this server answered; then every graph it holds, side by
+        side, release by release. A conversion stays within one organism.
+      </p>
+      {children}
+    </header>
+  );
+}
+
 export function OrganismsIndex() {
   const { organisms } = useOrganisms();
   const releases = releasesOf(organisms);
@@ -378,15 +394,9 @@ export function OrganismsIndex() {
   const maxDatabases = Math.max(1, ...organisms.map((o) => o.external_databases.length));
   return (
     <div className="page page--explore">
-      <header className="page-head">
-        <p className="eyebrow">Explore</p>
-        <h1>Stories from Ensembl&apos;s history</h1>
-        <p className="lede">
-          What can happen to a gene id, told by real identifiers this server answered; then every graph it holds, side
-          by side, release by release. A conversion stays within one organism.
-        </p>
+      <ExploreHead>
         <StoriesOrganism />
-      </header>
+      </ExploreHead>
 
       <ExploreStories />
 

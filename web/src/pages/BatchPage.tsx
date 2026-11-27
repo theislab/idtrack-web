@@ -54,6 +54,21 @@ const LARGE_TEXT = 60_000;
  *  editing of a text area takes seconds over a thousand lines inserted as typed text. */
 const LARGE_INSERT_LINES = 200;
 
+/** The page's head: the same in every state, and drawn into the page the server sends before the code runs
+ *  (scripts/prerender.ts). */
+export function BatchHead() {
+  return (
+    <header className="page-head">
+      <p className="eyebrow">Convert a list</p>
+      <h1>Many identifiers, one setting</h1>
+      <p className="lede">
+        Every identifier is converted with one setting, by the rules of a single conversion: the results in the order
+        given, each with its status, its gene, its evidence and the path behind it.
+      </p>
+    </header>
+  );
+}
+
 export function BatchPage() {
   const { current } = useOrganisms();
   if (!current) return null;
@@ -461,16 +476,7 @@ function BatchForOrganism({ description }: { description: GraphDescription }) {
 
   return (
     <div className="page page--batch">
-      <header className="page-head">
-        <p className="eyebrow">Convert a list</p>
-        <h1>Many identifiers, one setting</h1>
-        <p className="lede">
-          Each identifier is converted with the same releases and databases, by the same rules as a single conversion;
-          the results come back in the order given, each with its own status, the gene it leads to, how it was read and
-          the evidence the answer rests on, and open to every candidate and the path behind it. Export a table of one
-          row per identifier, or the api&rsquo;s own JSON and TSV.
-        </p>
-      </header>
+      <BatchHead />
       <form className="panel batch-form" onSubmit={submit} noValidate aria-label="Batch conversion">
         <div className="batch-form__list">
           <Field

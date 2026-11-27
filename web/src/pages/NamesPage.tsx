@@ -21,6 +21,21 @@ import { href, navigate, useLocation } from "../lib/router";
 import { useRequest, type RequestState } from "../lib/useRequest";
 import "../styles/tables.css";
 
+/** The page's head: the same in every state, and drawn into the page the server sends before the code runs
+ *  (scripts/prerender.ts). */
+export function NamesHead() {
+  return (
+    <header className="page-head">
+      <p className="eyebrow">Names</p>
+      <h1>What a name names, and what a gene is called</h1>
+      <p className="lede">
+        Databases attach names (symbols, accessions) to Ensembl genes, and the attachments change between releases: each
+        answer gives the database and the exact releases at which it holds.
+      </p>
+    </header>
+  );
+}
+
 export function NamesPage() {
   const { current } = useOrganisms();
   if (!current) return null;
@@ -70,15 +85,7 @@ function NamesForOrganism({ description }: { description: GraphDescription }) {
   const examples = nameExamples(showcase.state === "done" ? showcase.answer.data : null);
   return (
     <div className="page page--names">
-      <header className="page-head">
-        <p className="eyebrow">Names</p>
-        <h1>What a name names, and what a gene is called</h1>
-        <p className="lede">
-          External databases attach names (symbols, accessions) to Ensembl genes, and the attachments change between
-          releases. Each answer lists the database and the exact releases at which it holds, drawn on the graph&rsquo;s
-          releases.
-        </p>
-      </header>
+      <NamesHead />
       <div className="names-stack">
         <section className="panel names-panel" aria-labelledby="genes-named">
           <div className="panel-head">

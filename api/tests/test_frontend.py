@@ -237,3 +237,61 @@ def test_the_page_holds_the_answers_it_needs_first(web: TestClient) -> None:
     assert sorted(answers) == ["/api/v1/limits", "/api/v1/organisms", "/api/v1/version", "/api/v1/vocabulary"]
     for path, text in answers.items():
         assert text == web.get(path, headers={"Accept-Encoding": "identity"}).text, path
+
+
+FRAMES = {
+    name: {
+        "html": f"<header>masthead</header><main><h1>{name}</h1></main>",
+        "head": f'<link rel="modulepreload" href="/assets/{name}.js">',
+    }
+    for name in ("convert", "answer", "batch", "names", "organisms", "organism", "developers", "method", "none")
+}
+
+
+@pytest.mark.parametrize(
+    ("path", "frame", "status"),
+    [("/", "convert", 200), ("/?organism=pig&id=TP53", "answer", 200), ("/batch", "batch", 200),
+     ("/batch/", "batch", 200), ("/names", "names", 200), ("/organisms", "organisms", 200),
+     ("/organisms/pig", "organism", 200), ("/developers", "developers", 200), ("/method", "method", 200),
+     ("/nothing", "none", 404), ("/organisms/pig/extra", "none", 404)],
+)  # fmt: skip
+def test_each_page_is_sent_with_its_frame(
+    make_client: Callable[..., TestClient], dist: Path, path: str, frame: str, status: int
+) -> None:
+    """The build's frame of the address is written into the page's root, and its links into its head (before the
+    block of answers), so the page's head is drawn and its code fetched before the entry has run."""
+    (dist / "index.html").write_text(INDEX.replace("<body>", '<body><div id="root"></div>'), encoding="utf-8")
+    (dist / "frames.json").write_text(json.dumps({"frames": FRAMES}), encoding="utf-8")
+    web = make_client(rate_per_minute=0, static_dir=dist)
+    response = web.get(path)
+    assert response.status_code == status
+    page = without_preload(response.text)
+    assert f'<div id="root"><header>masthead</header><main><h1>{frame}</h1></main></div>' in page
+    assert f'<link rel="modulepreload" href="/assets/{frame}.js"></head>' in page
+    # One frame per page, each its own tag.
+    others = {web.get(p).headers["etag"] for p in ("/", "/batch", "/method")}
+    assert len(others) == 3
+
+
+def test_a_build_without_frames_is_sent_without_them(make_client: Callable[..., TestClient], dist: Path) -> None:
+    (dist / "index.html").write_text(INDEX.replace("<body>", '<body><div id="root"></div>'), encoding="utf-8")
+    web = make_client(rate_per_minute=0, static_dir=dist)
+    assert '<div id="root"></div>' in web.get("/batch").text
+
+
+def test_a_brotli_form_the_build_made_is_sent_where_br_is_taken(
+    make_client: Callable[..., TestClient], dist: Path
+) -> None:
+    """The build's `<file>.br` is sent in the file's place to a client that takes br (before gzip), with its own tag;
+    it is never sent by its own name; a client without br gets gzip or the file."""
+    packed = b"brotli bytes of the script"
+    (dist / "assets" / "index-3f9a1c.js.br").write_bytes(packed)
+    web = make_client(rate_per_minute=0, static_dir=dist)
+    status, headers, body = raw_get(web, "/assets/index-3f9a1c.js", "gzip, deflate, br")
+    assert (status, body, headers["content-encoding"]) == (200, packed, "br")
+    assert headers["etag"].endswith('-br"') and headers["vary"] == "Accept-Encoding"
+    status, headers, body = raw_get(web, "/assets/index-3f9a1c.js", "gzip")
+    assert headers["content-encoding"] == "gzip" and gzip.decompress(body) == SCRIPT.encode()
+    status, headers, body = raw_get(web, "/assets/index-3f9a1c.js", "br;q=0, gzip")
+    assert headers["content-encoding"] == "gzip"
+    assert web.get("/assets/index-3f9a1c.js.br").status_code == 404

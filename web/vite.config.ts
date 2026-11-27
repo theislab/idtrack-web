@@ -24,7 +24,8 @@ export default defineConfig({
     strictPort: true,
     proxy: { "/api": { target: api }, "/llms.txt": { target: api }, "/llms-full.txt": { target: api } },
   },
-  build: { target: "es2022", sourcemap: true, assetsInlineLimit: 0, chunkSizeWarningLimit: 400 },
+  // The manifest names each module's chunk, read by scripts/prerender.ts to preload a page's code with its frame.
+  build: { target: "es2022", sourcemap: true, assetsInlineLimit: 0, chunkSizeWarningLimit: 400, manifest: true },
   test: {
     environment: "node",
     include: ["tests/**/*.test.{ts,tsx}"],

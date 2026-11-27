@@ -2,7 +2,10 @@
 
 The page's text files (HTML, JavaScript, CSS, SVG, JSON, source maps, ...) are compressed with gzip once, when the
 server starts (before the workers are forked, so they share the result), and sent compressed to a client whose
-``Accept-Encoding`` takes gzip; files that are compressed already (fonts in WOFF2, images) are sent as they are. Every
+``Accept-Encoding`` takes gzip; where the build wrote a file's Brotli form beside it (``<file>.br``, made by the build's
+``scripts/compress.ts`` at Brotli's strongest, 10 to 15 % smaller than gzip), it is read at the start too and sent to a
+client that takes ``br``, before gzip; files that are compressed already (fonts in WOFF2, images) are sent as they are,
+and a ``.br`` file is not sent by its own name. Every
 answer that could be compressed carries ``Vary: Accept-Encoding``. The files Vite names by their content's hash
 (under ``assets/``) never change under their name: they are cached for a year as ``immutable``; every other file
 (``index.html`` above all, which names the hashed files of the current build) is ``no-cache``, so the browser asks
@@ -18,8 +21,13 @@ name that begins with ``.``, but ``.well-known``) and nothing outside the build'
 
 The page is sent with the answers every view needs first written into it (:py:data:`PRELOAD_ID`: ``/organisms``,
 ``/version``, ``/vocabulary``, ``/limits``, each its text exactly as the api sends it), so that its first paint waits
-for no request of the api; its ``ETag`` is that of the page as sent (file and answers), so a new build or a server with
-other graphs is a new tag.
+for no request of the api; its ``ETag`` is that of the page as sent (file, answers and frame), so a new build or a
+server with other graphs is a new tag.
+
+Each address gets the page with its **frame** (:py:data:`FRAMES_FILE`, written by the build's ``scripts/prerender.ts``):
+the masthead and the page's head as HTML inside the page's root, drawn before any code has arrived, and in its head the
+links that fetch that page's own code beside the entry (:py:func:`frame_of` picks it by the address, as the page's
+routes do). The app replaces the frame when it first renders. A build without the file is sent without frames.
 """
 
 from __future__ import annotations
@@ -58,6 +66,38 @@ REVALIDATE = "no-cache"
 #: The id of the page's block of the answers written into it (``<script type="application/json" id=...>``): a JSON
 #: object of each answer's path (``/api/v1/organisms``) and its text as the api sends it.
 PRELOAD_ID = "idtrack-preload"
+#: The build's frames of the pages: ``{"frames": {name: {"html": ..., "head": ...}}}``.
+FRAMES_FILE = "frames.json"
+_ROOT = b'<div id="root"></div>'
+#: The frame of each page's path (``web/src/lib/routes.ts``; the Convert page's is "answer" when the address holds an
+#: identifier); any other path gets the frame "none" (the masthead alone).
+_FRAME_OF_PATH = {
+    "": "convert",
+    "batch": "batch",
+    "names": "names",
+    "organisms": "organisms",
+    "developers": "developers",
+    "method": "method",
+}
+
+
+def frame_of(path: str, *, has_identifier: bool) -> str:
+    """Return the name of the frame of a page's address.
+
+    Args:
+        path: The request's path.
+        has_identifier: Whether its query names an identifier (``id``).
+
+    Returns:
+        str: The frame's name in :py:data:`FRAMES_FILE`.
+    """
+    trimmed = path.strip("/")
+    if trimmed.startswith("organisms/") and "/" not in trimmed.removeprefix("organisms/"):
+        return "organism"
+    name = _FRAME_OF_PATH.get(trimmed, "none")
+    return "answer" if name == "convert" and has_identifier else name
+
+
 #: Media types of the build's files that Python's table does not know (a source map is JSON).
 _MEDIA = {".map": "application/json", ".webmanifest": "application/manifest+json", ".woff2": "font/woff2"}
 
@@ -80,11 +120,12 @@ def _hidden(parts: tuple[str, ...]) -> bool:
 
 @dataclass(frozen=True)
 class _Compressed:
-    """A file's gzip form, and what the file was when it was made."""
+    """A file's gzip form (and its Brotli form where the build made one), and what the file was when they were made."""
 
     size: int
     mtime_ns: int
     gzip: bytes
+    br: bytes | None = None
 
 
 def _etag(size: int, mtime_ns: int, coding: str | None) -> str:
@@ -101,6 +142,19 @@ def accepts_gzip(header: str | None) -> bool:
     Returns:
         bool: Whether gzip may be sent.
     """
+    return accepts(header, "gzip")
+
+
+def accepts(header: str | None, wanted: str) -> bool:
+    """Return whether an ``Accept-Encoding`` value takes a content coding (it or ``*`` with a weight above 0).
+
+    Args:
+        header: The header's value (``None``: absent).
+        wanted: The coding (``gzip``, ``br``).
+
+    Returns:
+        bool: Whether it may be sent.
+    """
     weights: dict[str, float] = {}
     for item in (header or "").split(","):
         coding, _, parameters = item.strip().partition(";")
@@ -113,8 +167,8 @@ def accepts_gzip(header: str | None) -> bool:
                 weight = 0.0
         if coding.strip():
             weights[coding.strip().lower()] = weight
-    if "gzip" in weights:
-        return weights["gzip"] > 0
+    if wanted in weights:
+        return weights[wanted] > 0
     return weights.get("*", 0.0) > 0
 
 
@@ -129,7 +183,8 @@ class Frontend:
             preload: The answers written into the page, by path (their bytes exactly as the api sends them).
         """
         self.preload = _preload_block(preload or {})
-        self._page_sent: tuple[bytes, bytes, bytes, str] | None = None
+        self._pages_sent: dict[str, tuple[bytes, bytes, bytes, bytes, str]] = {}
+        self._frames: tuple[tuple[int, int], dict[str, dict[str, str]]] | None = None
         self.root = root.resolve()
         self.index = self.root / "index.html"
         self._policy: tuple[bytes, bytes] | None = None
@@ -137,7 +192,7 @@ class Frontend:
         #: The hashed files of the build at the start, kept to be sent when a later build removed them from disk.
         self._kept: dict[Path, bytes] = {}
         for path in sorted((self.root / HASHED_FOLDER).rglob("*")) if (self.root / HASHED_FOLDER).is_dir() else []:
-            if self._own(path):
+            if self._own(path) and path.suffix != ".br":
                 self._kept[path] = path.read_bytes()
         for path in sorted(self.root.rglob("*")):
             if self._own(path) and path.suffix.lower() in COMPRESSED_SUFFIXES:
@@ -147,7 +202,9 @@ class Frontend:
                     continue
                 packed = gzip.compress(data, compresslevel=9, mtime=0)
                 if len(packed) < len(data):
-                    self._compressed[path] = _Compressed(status.st_size, status.st_mtime_ns, packed)
+                    brotli = path.with_name(path.name + ".br")
+                    br = brotli.read_bytes() if self._own(brotli) else None
+                    self._compressed[path] = _Compressed(status.st_size, status.st_mtime_ns, packed, br)
 
     def _own(self, path: Path) -> bool:
         """Whether a path is a file of the build that may be sent: not hidden, and inside the build's folder."""
@@ -195,6 +252,8 @@ class Frontend:
             return None
         if not target.is_relative_to(self.root) or _hidden(target.relative_to(self.root).parts):
             return None
+        if target.suffix == ".br" and target.with_suffix("").is_file():
+            return None  # a file's Brotli form is sent in the file's place, never by its own name
         return target if target.is_file() or target in self._kept else None
 
     @staticmethod
@@ -209,8 +268,25 @@ class Frontend:
         """
         return PAGE_ROUTES.match(path) is not None
 
-    def _answer_page(self, headers: Headers, status: int) -> Response:
-        sent, packed, digest = self.page()
+    def _frame(self, name: str) -> bytes:
+        """The frame's links for the head and its markup, as one key (read again when the file changes)."""
+        path = self.root / FRAMES_FILE
+        try:
+            found = path.stat()
+        except OSError:
+            return b""
+        stamp = (found.st_size, found.st_mtime_ns)
+        if self._frames is None or self._frames[0] != stamp:
+            try:
+                frames = json.loads(path.read_text(encoding="utf-8")).get("frames", {})
+            except (OSError, ValueError, AttributeError):
+                frames = {}
+            self._frames = (stamp, frames if isinstance(frames, dict) else {})
+        frame = self._frames[1].get(name) or {}
+        return json.dumps([frame.get("head", ""), frame.get("html", "")]).encode()
+
+    def _answer_page(self, headers: Headers, status: int, frame: str | None = None) -> Response:
+        sent, packed, digest = self.page(frame)
         coding = "gzip" if accepts_gzip(headers.get("accept-encoding")) else None
         etag = f'"{digest}{"-gzip" if coding else ""}"'
         common = {"Cache-Control": REVALIDATE, "ETag": etag, "Vary": "Accept-Encoding"}
@@ -227,29 +303,42 @@ class Frontend:
             )
         return Response(content=sent, status_code=status, media_type="text/html", headers=common)
 
-    def page(self) -> tuple[bytes, bytes, str]:
-        """Return ``index.html`` as it is sent: with the answers written in, compressed, and its tag.
+    def page(self, frame: str | None = None) -> tuple[bytes, bytes, str]:
+        """Return ``index.html`` as it is sent: with the answers and the frame written in, compressed, and its tag.
 
-        They are made again when the file on disk changes.
+        They are made again when the file on disk or the build's frames change.
+
+        Args:
+            frame: The name of the page's frame (:py:func:`frame_of`); ``None``: none.
 
         Returns:
             tuple[bytes, bytes, str]: The page, its gzip form, and its ``ETag`` digest.
         """
         file = self._page()
-        if self._page_sent is None or self._page_sent[0] != file:
-            head = file.find(b"</head>")
-            sent = file[:head] + self.preload + file[head:] if head >= 0 and self.preload else file
+        parts = self._frame(frame) if frame is not None else b""
+        key = frame or ""
+        held = self._pages_sent.get(key)
+        if held is None or held[0] != file or held[1] != parts:
+            links, markup = json.loads(parts) if parts else ("", "")
+            sent = file
+            if markup and _ROOT in sent:
+                sent = sent.replace(_ROOT, b'<div id="root">' + markup.encode() + b"</div>", 1)
+            head = sent.find(b"</head>")
+            if head >= 0:
+                sent = sent[:head] + links.encode() + self.preload + sent[head:]
             digest = hashlib.blake2b(sent, digest_size=12).hexdigest()
-            self._page_sent = (file, sent, gzip.compress(sent, compresslevel=9, mtime=0), digest)
-        return self._page_sent[1], self._page_sent[2], self._page_sent[3]
+            held = (file, parts, sent, gzip.compress(sent, compresslevel=9, mtime=0), digest)
+            self._pages_sent[key] = held
+        return held[2], held[3], held[4]
 
-    def answer(self, target: Path, headers: Headers, status: int = 200) -> Response:
+    def answer(self, target: Path, headers: Headers, status: int = 200, frame: str | None = None) -> Response:
         """Return the answer for a file of the build.
 
         Args:
             target: The file (from :py:meth:`file`, or the index).
             headers: The request's headers.
             status: The status of a full answer (``404`` for the page at a path that is none of its routes).
+            frame: For the page: the name of its frame (:py:func:`frame_of`); ``None``: none.
 
         Returns:
             Response: The file, compressed when the client accepts it, with ``Cache-Control``, ``ETag`` and
@@ -258,7 +347,7 @@ class Frontend:
         relative = target.relative_to(self.root)
         cache = IMMUTABLE if relative.parts[0] == HASHED_FOLDER and len(relative.parts) > 1 else REVALIDATE
         if target == self.index and target.is_file():
-            return self._answer_page(headers, status)
+            return self._answer_page(headers, status, frame)
         if not target.is_file():  # a hashed file of the build at the start, since removed from disk
             data = self._kept[target]
             media = media_type(target)
@@ -271,7 +360,12 @@ class Frontend:
         packed = self._compressed.get(target)
         if packed is not None and (packed.size, packed.mtime_ns) != (found.st_size, found.st_mtime_ns):
             packed = None  # changed since the start: sent from disk as it is now
-        coding = "gzip" if packed is not None and accepts_gzip(headers.get("accept-encoding")) else None
+        taken = headers.get("accept-encoding")
+        coding = None
+        if packed is not None and packed.br is not None and accepts(taken, "br"):
+            coding = "br"
+        elif packed is not None and accepts(taken, "gzip"):
+            coding = "gzip"
         etag = _etag(found.st_size, found.st_mtime_ns, coding)
         common = {"Cache-Control": cache, "ETag": etag}
         if compressible:
@@ -283,10 +377,10 @@ class Frontend:
             common["Content-Security-Policy"] = self.policy().decode()
         if coding is not None and packed is not None:
             return Response(
-                content=packed.gzip,
+                content=packed.br if coding == "br" and packed.br is not None else packed.gzip,
                 status_code=status,
                 media_type=media_type(target),
-                headers={**common, "Content-Encoding": "gzip"},
+                headers={**common, "Content-Encoding": coding},
             )
         return FileResponse(target, status_code=status, headers=common, media_type=media_type(target))
 
@@ -305,11 +399,14 @@ def _preload_block(answers: dict[str, bytes]) -> bytes:
 
 __all__ = [
     "COMPRESSED_SUFFIXES",
+    "FRAMES_FILE",
     "HASHED_FOLDER",
     "IMMUTABLE",
     "PAGE_ROUTES",
     "PRELOAD_ID",
     "REVALIDATE",
     "Frontend",
+    "accepts",
     "accepts_gzip",
+    "frame_of",
 ]
