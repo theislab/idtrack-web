@@ -131,6 +131,97 @@ describe("a batch's run", () => {
     expect(calls).toBe(2);
   });
 
+  const refusal = (status: number, code: string, retryAfter: number | null, argument: string | null = null) =>
+    new ApiError(status, { code, message: `${code}.`, request_id: "x", argument } as never, retryAfter);
+
+  it("asks a refusal that names its wait again once by itself, then leaves it to the person", async () => {
+    vi.useFakeTimers();
+    let calls = 0;
+    setBatchAsker(() => {
+      calls += 1;
+      return Promise.reject(refusal(503, "server_busy", 2));
+    });
+    startBatch("sus_scrofa", body(["A"]), null);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(calls).toBe(1);
+    expect(batchRun("sus_scrofa").retry?.state).toBe("waiting");
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(calls).toBe(2);
+    const run = batchRun("sus_scrofa");
+    expect(run.run.state).toBe("failed");
+    expect(run.retry?.state).toBe("asked");
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(calls).toBe(2);
+  });
+
+  it("asks a rate limit of search seconds again once, never more", async () => {
+    vi.useFakeTimers();
+    let calls = 0;
+    setBatchAsker(() => {
+      calls += 1;
+      return Promise.reject(refusal(429, "rate_limited", 1));
+    });
+    startBatch("sus_scrofa", body(["A"]), null);
+    await vi.advanceTimersByTimeAsync(10_000);
+    expect(calls).toBe(2);
+  });
+
+  it("waits out a refusal for time with the paths still asked, and asks without them only at the person's word", async () => {
+    vi.useFakeTimers();
+    const asked: boolean[] = [];
+    setBatchAsker((_organism, request) => {
+      asked.push(request.explain);
+      if (asked.length < 3) return Promise.reject(refusal(503, "request_budget_exceeded", 1));
+      return Promise.resolve(answerOf(results));
+    });
+    startBatch("sus_scrofa", body(["A"]), null);
+    await vi.advanceTimersByTimeAsync(0);
+    // No second request at once: the refusal is about time, not the paths.
+    expect(asked).toEqual([true]);
+    await vi.advanceTimersByTimeAsync(5_000);
+    expect(asked).toEqual([true, true]);
+    expect(batchRun("sus_scrofa").run.state).toBe("failed");
+    retryBatch("sus_scrofa", true);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(asked).toEqual([true, true, false]);
+    const run = batchRun("sus_scrofa");
+    expect(run.run.state).toBe("done");
+    expect(run.pathsRefused).toEqual({ code: "request_budget_exceeded", message: "request_budget_exceeded.", chosen: true });
+  });
+
+  it("asks without the paths at once where the refusal names them", async () => {
+    const asked: boolean[] = [];
+    setBatchAsker((_organism, request) => {
+      asked.push(request.explain);
+      if (request.explain) return Promise.reject(refusal(503, "request_budget_exceeded", 5, "explain"));
+      return Promise.resolve(answerOf(results));
+    });
+    startBatch("sus_scrofa", body(["A"]), null);
+    await settle();
+    await settle();
+    expect(asked).toEqual([true, false]);
+    expect(batchRun("sus_scrofa").pathsRefused?.chosen).toBeUndefined();
+  });
+
+  it("asks after a wait only while the tab is shown", async () => {
+    vi.useFakeTimers();
+    let calls = 0;
+    setBatchAsker(() => {
+      calls += 1;
+      return calls === 1 ? Promise.reject(refusal(503, "server_busy", 1)) : Promise.resolve(answerOf(results));
+    });
+    const visibility = vi.spyOn(document, "visibilityState", "get").mockReturnValue("hidden");
+    startBatch("sus_scrofa", body(["A"]), null);
+    await vi.advanceTimersByTimeAsync(30_000);
+    expect(calls).toBe(1);
+    visibility.mockReturnValue("visible");
+    document.dispatchEvent(new Event("visibilitychange"));
+    await vi.advanceTimersByTimeAsync(0);
+    expect(calls).toBe(2);
+    expect(batchRun("sus_scrofa").run.state).toBe("done");
+    visibility.mockRestore();
+  });
+
   it("goes on for its organism while another organism's batch runs", async () => {
     const pending: ((a: Answer<BatchResponse>) => void)[] = [];
     setBatchAsker(() => new Promise((resolve) => pending.push(resolve)));
