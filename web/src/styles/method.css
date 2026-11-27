@@ -76,17 +76,23 @@
   scroll-margin-top: calc(var(--masthead-height) + var(--space-4));
 }
 
-
+/* A panel's head: its letter on the first line of its title (a long title wraps beside the letter, never under it),
+   the link to its documentation at the right, or under the title where there is no room. */
 .method-panel__head {
-  display: flex;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: baseline;
-  flex-wrap: wrap;
   gap: var(--space-1) var(--space-3);
 }
 
 .method-panel__docs {
-  margin-left: auto;
   font-size: var(--text-xs);
+}
+
+@media (max-width: 640px) {
+  .method-panel__docs {
+    grid-column: 2 / -1;
+  }
 }
 
 .method-panel__lede {

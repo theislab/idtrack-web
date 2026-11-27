@@ -11,7 +11,7 @@ import { handoffsOf, mappingOf } from "../src/lib/explore/handoffs";
 import { changed, historyColumns, niceMax } from "../src/lib/explore/history";
 import { holdsStage } from "../src/lib/method/cases";
 import { conversions, description } from "./fixtures";
-import { changesOf, forReaders, plain } from "../scripts/idtrack-docs.ts";
+import { changesOf, codeWords, forReaders, learnRefTitles, plain } from "../scripts/idtrack-docs.ts";
 
 describe("assembly changes", () => {
   it("are every change of the serving assembly, each with its mapping as idtrack's documentation lists it", () => {
@@ -66,6 +66,24 @@ describe("database names", () => {
     ).toBe("A step has no score and ranks below.");
     for (const text of [docs.mappingScore.text, ...docs.assemblyMapping.paragraphs])
       expect(text).not.toMatch(/\b(None|True|False)\b/);
+  });
+
+  it("show a cross-reference as the title of the section it names, never its bare label", () => {
+    learnRefTitles(".. _test-rules:\n\nFour rules of a test\n--------------------\n\nText.\n");
+    expect(plain("as the rules say (:ref:`test-rules`)")).toBe("as the rules say (Four rules of a test)");
+    expect(plain("(:ref:`an-unknown-label`)")).toBe("(an unknown label)");
+    // The limitations as the page lists them name no label of the documentation's build.
+    for (const item of docs.limitations.items)
+      for (const text of [item.sentence, item.next]) expect(text).not.toMatch(/\((?:[a-z]+-)+[a-z]+\)/);
+  });
+
+  it("say a field or a table named in code in words, other code kept", () => {
+    expect(codeWords("reported in `result.other_readings`, not answered")).toBe(
+      "reported in the result's other readings, not answered",
+    );
+    expect(codeWords("and `Candidate.score`, the product")).toBe("and the candidate's score, the product");
+    expect(codeWords("(Ensembl's `assembly_exception`)")).toBe("(Ensembl's assembly exception)");
+    expect(codeWords('in `RefSeq_dna` and `view("all")`')).toBe('in `RefSeq_dna` and `view("all")`');
   });
 });
 

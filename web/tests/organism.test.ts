@@ -4,8 +4,20 @@
 import { describe, expect, it } from "vitest";
 import type { ConversionResult, HistoryResponse } from "../src/api/types";
 import docs from "../src/generated/idtrack_docs.json";
-import { describeDatabase, sourceOf, symbolRole } from "../src/lib/databaseMeanings";
-import { caseMarks, casesThrough, changed, historyColumns, shares, tallest } from "../src/lib/explore/history";
+import { describeDatabase, projectionOfOwnAuthority, sourceOf, symbolRole } from "../src/lib/databaseMeanings";
+import {
+  caseMarks,
+  casesThrough,
+  changed,
+  columnWords,
+  fansCounted,
+  historyColumns,
+  kindWords,
+  shares,
+  tallest,
+} from "../src/lib/explore/history";
+
+import { organismNamed } from "../src/lib/explore/organismAddress";
 import { bestSteps } from "../src/lib/home/caseKinds";
 import { groupedInteger } from "../src/lib/numbers";
 import {
@@ -147,11 +159,49 @@ describe("Ensembl's id history, read for a person", () => {
   it("measures what changed into a release by the ids active before it, and ids created by those active", () => {
     const columns = historyColumns(history);
     expect(columns.map(changed)).toEqual([0, 10, 1]);
+    // The server sent no fan counts: they stay unknown, never a zero.
     expect(shares(columns)).toEqual([
-      { changed: null, created: null },
-      { changed: 1, created: 0.25 },
-      { changed: 0.05, created: 0 },
+      { changed: null, created: null, fanOut: null, fanIn: null },
+      { changed: 1, created: 0.25, fanOut: null, fanIn: null },
+      { changed: 0.05, created: 0, fanOut: null, fanIn: null },
     ]);
+    expect(fansCounted(columns)).toBe(false);
+  });
+
+  it("counts the fan of Ensembl's mapping per release and keeps the edges that keep an id apart from the changes", () => {
+    const fanned: HistoryResponse = {
+      ...history,
+      transitions: history.transitions.map((t, i) => ({
+        ...t,
+        same_version: 7 * (i + 1),
+        one_to_many: i + 1,
+        many_to_one: 2 * (i + 1),
+      })),
+    };
+    const columns = historyColumns(fanned);
+    expect(fansCounted(columns)).toBe(true);
+    expect(columns.map((c) => [c.fanOut, c.fanIn, c.kept])).toEqual([
+      [0, 0, 0],
+      [1, 2, 7],
+      [2, 4, 14],
+    ]);
+    // What changed into a release leaves out the edges that keep an id and its version (a re-mapping to itself).
+    expect(columns.map(changed)).toEqual([0, 10, 1]);
+    expect(shares(columns)[1]).toEqual({ changed: 1, created: 0.25, fanOut: 0.1, fanIn: 0.2 });
+    const second = columns[1];
+    expect(second).toBeDefined();
+    if (!second) return;
+    const words = columnWords(second);
+    expect(words).toContain("10 history edges change or retire an id (8 changed, 2 retired)");
+    expect(words).toContain("7 keep it and its version (re-mapped to itself)");
+    expect(words).toContain("1 version is mapped to two or more, 2 receive two or more");
+  });
+
+  it("says a case's kind in the gallery's words, never its code", () => {
+    expect(kindWords("handoff")).toBe("Across a genome assembly");
+    expect(kindWords("lineage")).toBe("A lineage across assemblies");
+    expect(kindWords("other_release")).toBe("A name with another meaning");
+    expect(kindWords("not_a_kind")).toBe("not a kind");
   });
 
   it("names the tallest columns and whether the serving assembly changes there", () => {
@@ -183,5 +233,49 @@ describe("counts", () => {
   it("are grouped with thin spaces by one formatter", () => {
     expect(groupedInteger(1234567)).toBe("1 234 567");
     expect(groupedInteger(12)).toBe("12");
+  });
+});
+
+describe("An address of Explore that names a graph by another of its names", () => {
+  const answer = {
+    organisms: [{ organism: "sus_scrofa" }, { organism: "homo_sapiens" }] as never,
+    names: [
+      { organism: "sus_scrofa", aliases: ["pig"] },
+      { organism: "homo_sapiens", aliases: ["human"] },
+      { organism: "mus_musculus", aliases: ["mouse"] },
+    ],
+  };
+
+  it("reads the name as the api reads its path: the production name in any case or with spaces, or a short name", () => {
+    expect(organismNamed("sus_scrofa", answer)).toBe("sus_scrofa");
+    expect(organismNamed("PIG", answer)).toBe("sus_scrofa");
+    expect(organismNamed("Homo sapiens", answer)).toBe("homo_sapiens");
+    expect(organismNamed("Homo_Sapiens", answer)).toBe("homo_sapiens");
+    expect(organismNamed(" human ", answer)).toBe("homo_sapiens");
+  });
+
+  it("names no graph for a name of an organism the server does not hold, or of none", () => {
+    expect(organismNamed("mouse", answer)).toBeNull();
+    expect(organismNamed("xenopus_laevis", answer)).toBeNull();
+    expect(organismNamed("", answer)).toBeNull();
+  });
+});
+
+describe("A note on the projections of a name authority", () => {
+  it("holds on a graph whose name authority is another, not on the authority's own organism", () => {
+    expect(projectionOfOwnAuthority("HGNC's projections", "HGNC Symbol")).toBe(true);
+    expect(projectionOfOwnAuthority("HGNC's projections", "VGNC Symbol")).toBe(false);
+    expect(projectionOfOwnAuthority("UniProt's entry names", "HGNC Symbol")).toBe(false);
+    expect(projectionOfOwnAuthority(null, "HGNC Symbol")).toBe(false);
+  });
+
+  it("is not said for HGNC (curated) on the human graph, and is said on pig's", () => {
+    const human = describeDatabase("HGNC (curated)", { symbolDatabases: ["HGNC Symbol"], commonName: "human" });
+    const pig = describeDatabase("HGNC (curated)", {
+      symbolDatabases: ["VGNC Symbol", "HGNC Symbol"],
+      commonName: "pig",
+    });
+    expect(human.meaning?.note ?? null).toBeNull();
+    expect(pig.meaning?.note).toBe("HGNC's projections");
   });
 });

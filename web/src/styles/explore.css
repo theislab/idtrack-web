@@ -59,15 +59,16 @@
   margin-top: 0;
 }
 
+/* A panel's head: its letter on the first line of its title (a long title wraps beside the letter, never under it),
+   the endpoint at the right, or under the title where there is no room. */
 .explore-head {
-  display: flex;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: baseline;
-  flex-wrap: wrap;
   gap: var(--space-1) var(--space-3);
 }
 
 .explore-head__source {
-  margin-left: auto;
   font-size: var(--text-2xs);
   color: var(--ink-3);
 }
@@ -721,8 +722,7 @@ a.organism-switch__item:hover {
   }
 
   .explore-head__source {
-    margin-left: 0;
-    flex-basis: 100%;
+    grid-column: 2 / -1;
   }
 }
 

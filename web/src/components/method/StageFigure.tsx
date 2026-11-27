@@ -333,8 +333,7 @@ function StageDrawing({ stage, graph }: { stage: StageModel; graph: GraphDescrip
 
   // A frame not laid out yet (a panel out of view is skipped by the browser until it nears the window) reports no
   // width: nothing is drawn into it until it has one, so no mark is ever given a negative size.
-  if (x1 - x0 < 40)
-    return <div className="stage-fig fig" ref={ref} style={{ height }} aria-hidden="true" />;
+  if (x1 - x0 < 40) return <div className="stage-fig fig" ref={ref} style={{ height }} aria-hidden="true" />;
   return (
     <div className="stage-fig fig" ref={ref} style={{ height }}>
       <svg

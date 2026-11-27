@@ -635,8 +635,8 @@ function MatrixPanel({ description: d }: { description: GraphDescription }) {
 function DatabaseMeanings({ matrix, organism }: { matrix: DatabaseMatrixData; organism: string }) {
   const graph = { symbolDatabases: matrix.symbol_databases, commonName: commonName(organism) };
   const rows = matrix.databases.map((r) => ({ row: r, d: describeDatabase(r.name, graph) }));
-  const said = rows.filter(({ d }) => d.meaning || d.symbols);
-  const unsaid = rows.filter(({ d }) => !d.meaning && !d.symbols);
+  const said = rows.filter(({ d }) => d.meaning !== null || d.symbols !== null);
+  const unsaid = rows.filter(({ d }) => d.meaning === null && d.symbols === null);
   return (
     <Disclosure summary={`What each of the ${rows.length} database names holds`}>
       <p className="small muted db-meanings__lead">
@@ -896,16 +896,15 @@ function OrganismDetail({
           <Link to="/organisms" className="eyebrow__link">
             Explore
           </Link>{" "}
-          · organism
+          · {commonName(d.organism) ? `the ${commonName(d.organism) ?? ""} graph` : "a graph"}
         </p>
         <h1>
-          <em>{organismName(d.organism)}</em>
-          {commonName(d.organism) ? <span className="muted"> · {commonName(d.organism)}</span> : null}
+          <em>{organismName(d.organism)}</em>, release by release
         </h1>
         <p className="lede">
-          Ensembl releases <Mono>{releaseRanges(d.releases)}</Mono> over {d.assemblies.length} assemblies; the last
-          release, <Mono>{d.snapshot_release}</Mono>, is the graph&apos;s snapshot, served by{" "}
-          {primary?.name ?? <Mono>{d.primary_assembly}</Mono>}.{" "}
+          Ensembl releases <Mono>{releaseRanges(d.releases)}</Mono> over {d.assemblies.length} assemblies, up to the
+          snapshot <Mono>{d.snapshot_release}</Mono> on {primary?.name ?? <Mono>{d.primary_assembly}</Mono>}: their id
+          history, what the graph holds, and what a conversion to each release can end in.{" "}
           <Link to={href("/", { organism: d.organism })}>Convert an identifier of this graph</Link>.
         </p>
         {others.length > 1 ? (

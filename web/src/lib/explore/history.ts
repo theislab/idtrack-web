@@ -6,6 +6,7 @@ import { scaleLinear } from "d3-scale";
 import type { ConversionResult, HistoryResponse, PathStep, ShowcaseResponse } from "../../api/types";
 import { bestSteps, isCaseKind, isHandoff } from "../home/caseKinds";
 import { KIND_TEXT } from "../home/cases";
+import { groupedInteger } from "../numbers";
 
 type HistoryTransition = HistoryResponse["transitions"][number];
 export type ShowcaseCase = ShowcaseResponse["cases"][number];
@@ -196,4 +197,25 @@ export function casesThrough(marks: readonly CaseMark[], release: number): CaseM
         (s) => (s.kind === "history" || s.kind === "self_loop") && laterRelease(s) === release,
       ),
   );
+}
+
+const plural = (n: number, one: string, many: string) => `${groupedInteger(n)} ${n === 1 ? one : many}`;
+
+/** A transition's counts in words, each kind once, the scored edges as a count of edges. */
+export function transitionWords(t: HistoryTransition): string {
+  const moved = t.version_changes + t.id_changes;
+  const fan =
+    t.one_to_many === null || t.one_to_many === undefined || t.many_to_one === null || t.many_to_one === undefined
+      ? ""
+      : `; ${plural(t.one_to_many, "version is", "versions are")} mapped to two or more (a split), ${plural(t.many_to_one, "version receives", "versions receive")} two or more (a merge)`;
+  return `${plural(t.version_changes, "version", "versions")} to another version, ${plural(t.id_changes, "version", "versions")} to another id (${groupedInteger(moved)} changed), ${plural(t.retired, "id", "ids")} retired; ${plural(t.same_version, "id keeps", "ids keep")} its version (re-mapped to itself)${fan}; ${plural(t.scored, "of these edges carries", "of these edges carry")} Ensembl's score`;
+}
+
+/** What changed into a release, in words: every history edge that ends there, by what it does to the id. */
+export function columnWords(c: HistoryColumn): string {
+  const fan =
+    c.fanOut === null || c.fanIn === null
+      ? ""
+      : `; ${plural(c.fanOut, "version is", "versions are")} mapped to two or more, ${plural(c.fanIn, "receives", "receive")} two or more`;
+  return `${plural(changed(c), "history edge changes or retires", "history edges change or retire")} an id (${groupedInteger(c.versionChanges + c.idChanges)} changed, ${groupedInteger(c.retired)} retired); ${plural(c.kept, "keeps", "keep")} it and its version (re-mapped to itself)${fan}`;
 }

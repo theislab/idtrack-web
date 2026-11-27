@@ -270,9 +270,8 @@ function BridgePanel({ v }: { v: Vocabulary }) {
             The best answer&apos;s path, drawn over the releases it spans and two on each side: each lane one stable id,
             each bar one version of it; the identifier read as its gene (through its transcript or translation where it
             names one); the bridge from the gene whose history ends to the other gene, through the id they carried one
-            after the other; below,
-            Ensembl&apos;s mapping score of each history step. Under it, every bridge the search considered, with where
-            the two genes lie and the rule of each id they shared.
+            after the other; below, Ensembl&apos;s mapping score of each history step. Under it, every bridge the search
+            considered, with where the two genes lie and the rule of each id they shared.
           </>
         }
       >

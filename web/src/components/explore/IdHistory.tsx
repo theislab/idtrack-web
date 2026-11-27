@@ -18,12 +18,14 @@ import type { GraphDescription, HistoryResponse } from "../../api/types";
 import {
   casesThrough,
   changed,
+  columnWords,
   fansCounted,
   historyColumns,
   kindWords,
   niceMax,
   shares,
   type CaseMark,
+  transitionWords,
   type HistoryColumn,
 } from "../../lib/explore/history";
 import { caseHref, caseQueryOf } from "../../lib/home/links";
@@ -47,27 +49,7 @@ const NAMES = 32;
  *  the next round share above a larger one. */
 const FAN_SHARE = 0.1;
 
-const plural = (n: number, one: string, many: string) => `${groupedInteger(n)} ${n === 1 ? one : many}`;
 const percent = (share: number) => `${(share * 100).toFixed(1)} %`;
-
-/** A transition's counts in words, each kind once, the scored edges as a count of edges. */
-export function transitionWords(t: HistoryColumn["into"][number]): string {
-  const moved = t.version_changes + t.id_changes;
-  const fan =
-    t.one_to_many === null || t.one_to_many === undefined || t.many_to_one === null || t.many_to_one === undefined
-      ? ""
-      : `; ${plural(t.one_to_many, "version is", "versions are")} mapped to two or more (a split), ${plural(t.many_to_one, "version receives", "versions receive")} two or more (a merge)`;
-  return `${plural(t.version_changes, "version", "versions")} to another version, ${plural(t.id_changes, "version", "versions")} to another id (${groupedInteger(moved)} changed), ${plural(t.retired, "id", "ids")} retired; ${plural(t.same_version, "id keeps", "ids keep")} its version (re-mapped to itself)${fan}; ${plural(t.scored, "of these edges carries", "of these edges carry")} Ensembl's score`;
-}
-
-/** What changed into a release, in words: every history edge that ends there, by what it does to the id. */
-export function columnWords(c: HistoryColumn): string {
-  const fan =
-    c.fanOut === null || c.fanIn === null
-      ? ""
-      : `; ${plural(c.fanOut, "version is", "versions are")} mapped to two or more, ${plural(c.fanIn, "receives", "receive")} two or more`;
-  return `${plural(changed(c), "history edge changes or retires", "history edges change or retire")} an id (${groupedInteger(c.versionChanges + c.idChanges)} changed, ${groupedInteger(c.retired)} retired); ${plural(c.kept, "keeps", "keep")} it and its version (re-mapped to itself)${fan}`;
-}
 
 const NO_MARKS: readonly CaseMark[] = [];
 
