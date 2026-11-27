@@ -382,7 +382,7 @@ function GenesNamed({
           </span>
         </div>
       ) : null}
-      <TableFrame label="Matches" className="table-frame--cards">
+      <TableFrame label={`The genes ${asked} names`} className="table-frame--cards">
         <table className="table table--names table--names-genes table--cards">
           <thead>
             <tr>
@@ -727,7 +727,7 @@ function NamesOf({
   const rows = matches.slice(0, shown);
   return (
     <>
-      <TableFrame label="Matches" className="table-frame--cards">
+      <TableFrame label={`The names of ${matches[0]?.gene ?? "the gene"}`} className="table-frame--cards">
         <table className="table table--names table--cards">
           <thead>
             <tr>

@@ -37,7 +37,7 @@ export function BridgeChecks({ result }: { result: ConversionResult }) {
   const key = (b: Bridge) => `${b.source}>${b.target}`;
   return (
     <div className="bridge-checks">
-      <h4 className="label">The bridges the search considered ({bridges.length})</h4>
+      <h3 className="label">The bridges the search considered ({bridges.length})</h3>
       <ul>
         {bridges.slice(0, SHOWN).map((b) => (
           <Check key={key(b)} b={b} />

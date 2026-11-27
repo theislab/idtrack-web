@@ -158,11 +158,24 @@ const AXE_ACCEPTED: Readonly<Record<string, string>> = {};
 
 /** axe-core over the page: the rules of WCAG 2.0, 2.1 and 2.2 at levels A and AA and axe's best practices, and no
  *  violation of any impact (minor and moderate too) but a rule of {@link AXE_ACCEPTED}. */
+const AXE_TAGS = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22a", "wcag22aa", "best-practice"];
+
 export async function expectAccessible(page: Page): Promise<void> {
-  const results = await new AxeBuilder({ page })
-    .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22a", "wcag22aa", "best-practice"])
-    .analyze();
-  const found = results.violations
+  // Every rule but the targets' size is checked on the page as it stands. The targets' size (WCAG 2.2, 2.5.8) is a
+  // property of each target, not of a scroll position: a target that a scroll has moved partly under the sticky
+  // masthead is measured by axe as its uncovered part. So it is checked with the page at its top, where nothing lies
+  // under the masthead, and the scroll is put back.
+  const results = await new AxeBuilder({ page }).withTags(AXE_TAGS).disableRules(["target-size"]).analyze();
+  const scrolled = await page.evaluate(() => {
+    const at = { x: window.scrollX, y: window.scrollY };
+    window.scrollTo({ left: 0, top: 0, behavior: "instant" });
+    return at;
+  });
+  const sizes = await new AxeBuilder({ page }).withTags(AXE_TAGS).withRules(["target-size"]).analyze();
+  await page.evaluate((at) => {
+    window.scrollTo({ left: at.x, top: at.y, behavior: "instant" });
+  }, scrolled);
+  const found = [...results.violations, ...sizes.violations]
     .filter((v) => !(v.id in AXE_ACCEPTED))
     .map(
       (v) =>

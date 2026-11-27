@@ -258,7 +258,7 @@ describe("the names' lanes", () => {
           />,
         );
         // The figure is drawn once what the genes are called today is settled (here no server answers: it says so).
-        const region = await screen.findByRole("region", { name: "Matches" }, { timeout: 4000 });
+        const region = await screen.findByRole("region", { name: "The genes INS names" }, { timeout: 4000 });
         const groups = groupByGene(matches);
         const bodies = region.querySelectorAll("tbody.names-gene");
         expect(bodies).toHaveLength(Math.min(groups.length, 12));
@@ -309,7 +309,7 @@ describe("the names' lanes", () => {
           endpoint="GET"
         />,
       );
-      const region = screen.getByRole("region", { name: "Matches" });
+      const region = screen.getByRole("region", { name: /^The names of / });
       const rows = within(region).getAllByRole("row").slice(1);
       expect(rows).toHaveLength(Math.min(matches.length, 40));
       const axis = axisOf(graph.releases);

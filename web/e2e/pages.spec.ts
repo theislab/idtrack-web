@@ -211,12 +211,13 @@ test("a batch of 1000 results draws the rows in view and reaches every row", asy
     await page.request.post(`/api/v1/organisms/${data.organism}/convert/batch?format=json`, { data: body })
   ).json()) as { results: { query_id: string }[] };
   const results = Array.from({ length: 1000 }, (_, i) => real.results[i % real.results.length]);
-  await page.route("**/convert/batch?format=json", (route) =>
+  // The server's own answer with its results made a thousand: every other field of the answer as the api sends it.
+  await page.route("**/convert/batch?**", (route) =>
     route.fulfill({
       status: 200,
       contentType: "application/json",
       headers: { "x-request-id": "e2e" },
-      body: JSON.stringify({ count: results.length, results }),
+      body: JSON.stringify({ ...real, count: results.length, results }),
     }),
   );
   await page.goto(`/batch?organism=${data.organism}`);
@@ -355,7 +356,7 @@ test("names: the genes a name names, then the names of one of them", async ({ pa
   await page.goto(`/names?organism=${data.organism}`);
   await page.getByLabel("Name", { exact: true }).fill(data.name);
   await page.getByRole("button", { name: "Find genes" }).click();
-  const matches = page.getByRole("region", { name: "Matches" }).first();
+  const matches = page.getByRole("region", { name: /^The genes .+ names$/ }).first();
   await expect(matches).toBeVisible();
   const answer = (await (
     await page.request.get(`/api/v1/organisms/${data.organism}/genes-named?name=${encodeURIComponent(data.name)}`)
@@ -375,9 +376,11 @@ test("names: the genes a name names, then the names of one of them", async ({ pa
     .at(-1);
   await groups.first().locator(".names-gene__id").getByRole("link").click();
   await expect(page.getByLabel("Ensembl gene, with version")).toHaveValue(latest ?? "");
-  await expect(page.getByRole("region", { name: "Matches" })).toHaveCount(2);
+  // Both tables at once, each named by what it holds: the genes the name names, the names of the gene opened.
+  await expect(page.getByRole("region", { name: /^The genes .+ names$/ })).toHaveCount(1);
+  await expect(page.getByRole("region", { name: /^The names of / })).toHaveCount(1);
   // Every match is its version's exact releases in words on its gene's lane, as the api gives them.
-  const first = page.getByRole("region", { name: "Matches" }).first();
+  const first = page.getByRole("region", { name: /^The genes .+ names$/ });
   if (ids.length <= 12) {
     // Each lane shows its first versions and the rest on a press.
     for (const more of await first.locator(".names-exact__more").all()) await more.click();
