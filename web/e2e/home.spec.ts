@@ -1,15 +1,19 @@
-// The Convert page before a conversion: one screen, the hero. Its line, its sentence, the form and the ways on; the
-// figure of the graph's journeys from the server's showcase (one answer, no conversion asked by the page), with its
-// caption and its text alternative; nothing between the hero and the footer. Every text of the figure stands inside it
-// and over no mark, on the home of every organism the server holds. A conversion asked from the hero turns the page
-// into the answer under the compact form; the strip above an answer that is a case steps through the cases.
+// The Convert page before a conversion: one screen, the hero. Its line, its sentence, the form with examples from the
+// showcase and the ways on; the figure of the graph's journeys from the server's showcase (one answer, no conversion
+// asked by the page), with its legend, its caption and its text alternative; nothing between the hero and the footer.
+// At every common window the figure names every row it draws (fewer rows where the room is short, never the rows
+// without their names) and stays inside its frame; every text of the figure stands inside it and over no mark, on the
+// home of every organism the server holds. An example converts a journey of the showcase that travels; a conversion
+// turns the page into the answer under the form in one row, the answer on the first screen; the strip above an answer
+// that is a case steps through the cases.
 import { expect, test, type Page } from "@playwright/test";
 import type { ConversionResult, GraphDescription, ShowcaseResponse } from "../src/api/types";
 import { isCaseKind } from "../src/lib/home/caseKinds";
 import { caseHref, caseQueryOf } from "../src/lib/home/links";
 import { answerText } from "../src/lib/home/journeyModel";
 import { journeyList, journeySets } from "../src/lib/home/journeys";
-import { data, expectAccessible, isPhone, shot, waitForResult } from "./helpers";
+import { examplesOf } from "../src/lib/home/examples";
+import { convertUrl, data, expectAccessible, isPhone, shot, waitForResult } from "./helpers";
 
 async function organisms(page: Page): Promise<GraphDescription[]> {
   return ((await (await page.request.get("/api/v1/organisms")).json()) as { organisms: GraphDescription[] }).organisms;
@@ -86,7 +90,8 @@ test("the start page is one screen: the hero, its figure, then the footer", asyn
       wide: document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,
     };
   });
-  expect(fit.bottom).toBeLessThanOrEqual(fit.viewport * 1.15);
+  // On a phone the figure follows the form, with its rows named: about a screen and a half in all.
+  expect(fit.bottom).toBeLessThanOrEqual(fit.viewport * (isPhone(info) ? 1.6 : 1.15));
   expect(fit.wide).toBe(false);
   // The figure: its caption names the endpoint, its text alternative says every journey.
   const showcase = await showcaseOf(page, data.organism);
@@ -109,45 +114,57 @@ test("the journeys: every row the showcase's answer, isolated on focus, opened b
   test.skip(showcase.journeys.length === 0, "the server's showcase holds no journeys for this graph");
   await page.goto(`/?organism=${data.organism}`);
   await figureDrawn(page);
-  if (isPhone(info)) {
-    // On a phone the figure is a still image described by its caption; every journey is in its text alternative.
-    await expect(page.locator(".hero .journeys__svg")).toHaveAttribute("role", "img");
-    await expect(page.locator(".hero .journeys__svg")).toHaveAttribute("aria-describedby", /.+/);
-    return;
-  }
   const asked = conversionsAsked(page);
   const list = journeyList(journeySets(showcase));
+  const ids = list.map((j) => (j.model ? j.model.result.query_id : j.identifier));
+  // Every row drawn is a journey of the showcase, in its order, a link named by its identifier.
   const rows = page.locator(".hero .journeys__svg [data-journey][role=link]");
-  await expect(rows).toHaveCount(list.length);
-  for (const [j, journey] of list.entries()) {
-    const m = journey.model;
-    if (!m) continue;
-    await expect(rows.nth(j)).toHaveAttribute(
-      "aria-label",
-      new RegExp(`^${m.result.query_id.replace(/\./g, "\\.")}, `),
-    );
+  const labels = await rows.evaluateAll((gs) => gs.map((g) => g.getAttribute("aria-label") ?? ""));
+  expect(labels.length).toBeGreaterThan(0);
+  let at = -1;
+  for (const label of labels) {
+    const k = ids.findIndex((id, i) => i > at && label.startsWith(`${id}, `));
+    expect(k, label).toBeGreaterThan(at);
+    at = k;
   }
-  const drawn = list.findIndex((j) => j.model);
-  const next = list.findIndex((j, i) => i > drawn && j.model);
-  test.skip(drawn === -1 || next === -1, "fewer than two journeys with an answer to draw");
-  await rows.nth(drawn).locator("rect.fig-hit").hover();
+  test.skip(labels.length < 2, "fewer than two journeys drawn");
+  if (isPhone(info)) {
+    // On a phone a tap shows the journey; a second tap opens it.
+    await rows.nth(0).locator("rect.fig-hit").tap();
+    await expect(page.getByRole("tooltip")).toContainText("Tap again");
+    await rows.nth(0).locator("rect.fig-hit").tap();
+    await waitForResult(page);
+    expect(asked.length).toBe(1);
+    return;
+  }
+  await rows.nth(0).locator("rect.fig-hit").hover();
   await expect(page.locator(".hero .journeys__svg")).toHaveClass(/is-isolating/);
-  await expect(page.getByRole("tooltip")).toContainText(list[drawn]?.model?.result.query_id ?? "-");
+  await expect(page.getByRole("tooltip")).toContainText(labels[0]?.split(",")[0] ?? "-");
   await page.keyboard.press("Escape");
   await expect(page.getByRole("tooltip")).toHaveCount(0);
   await page.mouse.move(0, 0);
-  await rows.nth(next).focus();
+  await rows.nth(1).focus();
   await page.keyboard.press("ArrowRight");
   await expect(page.getByRole("tooltip")).toContainText("step 1 of");
   await expectAccessible(page);
   await shot(page, info, "02-start-journey-focused");
   await page.keyboard.press("Enter");
   await waitForResult(page);
-  await expect(page).toHaveURL(new RegExp(`id=${encodeURIComponent(list[next]?.identifier ?? "")}`));
+  await expect(page).toHaveURL(new RegExp(`id=${encodeURIComponent(labels[1]?.split(",")[0] ?? "")}`));
   expect(asked.length).toBe(1);
 });
 
-test("a conversion from the hero: the hero gives way to the answer under the compact form", async ({ page }, info) => {
+/** Where the answer stands: the top of its first heading, and the window's height. */
+async function answerTop(page: Page): Promise<{ top: number; height: number }> {
+  return page.evaluate(() => ({
+    top: (document.querySelector("[data-result] h2")?.getBoundingClientRect().top ?? 1e6) + window.scrollY,
+    height: window.innerHeight,
+  }));
+}
+
+test("a conversion from the hero: the hero gives way to the answer under the form in one row", async ({
+  page,
+}, info) => {
   await page.goto(`/?organism=${data.organism}`);
   const form = page.getByRole("form", { name: "Conversion" });
   await form.getByLabel("Identifier").fill(data.symbol.identifier);
@@ -159,13 +176,131 @@ test("a conversion from the hero: the hero gives way to the answer under the com
   await form.getByRole("button", { name: "Convert" }).click();
   await waitForResult(page);
   await expect(page.locator(".hero")).toHaveCount(0);
-  await expect(page.locator(".convert-form--compact")).toBeVisible();
+  // No page intro over the answer: the page's name, the form folded in one row, then the answer, on the first screen.
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Convert");
+  await expect(page.locator(".page--convert .lede")).toHaveCount(0);
+  const compact = page.locator(".convert-form--compact");
+  await expect(compact).toBeVisible();
+  await expect(compact.getByRole("button", { name: /releases and database/i })).toHaveAttribute(
+    "aria-expanded",
+    "false",
+  );
   await expect(page.locator("[data-result] h2").first()).toBeFocused();
+  const { top, height } = await answerTop(page);
+  expect(top).toBeLessThan(height * 0.6);
   await shot(page, info, "03-hero-gave-way");
 });
 
+test("a link to an answer opens on the answer: the form in one row above it", async ({ page }, info) => {
+  await page.goto(convertUrl(data.symbol));
+  await waitForResult(page);
+  const { top, height } = await answerTop(page);
+  expect(top).toBeLessThan(height * 0.6);
+  await expectAccessible(page);
+  await shot(page, info, "03b-link-opens-on-answer");
+});
+
+test("the examples are journeys of the showcase that travel, each named by what it shows", async ({ page }, info) => {
+  const showcase = await showcaseOf(page, data.organism);
+  const examples = examplesOf(showcase, data.organism);
+  await page.goto(`/?organism=${data.organism}`);
+  const group = page.getByRole("group", { name: "Examples from this graph's showcase" });
+  if (!examples.length) {
+    await expect(group).toHaveCount(0);
+    return;
+  }
+  const buttons = group.getByRole("button");
+  await expect(buttons).toHaveCount(examples.length);
+  for (const [k, e] of examples.entries()) {
+    expect(e.from).not.toBe(e.to);
+    await expect(buttons.nth(k)).toContainText(e.query.identifier);
+    await expect(buttons.nth(k)).toContainText(e.title);
+    await expect(buttons.nth(k)).toContainText(`${e.from}→${e.to}`);
+  }
+  // The examples stand on one line each, inside the form's column.
+  const boxes = await buttons.evaluateAll((bs) => bs.map((b) => b.getBoundingClientRect().top));
+  for (let k = 1; k < boxes.length; k++) expect(boxes[k]).toBeGreaterThan(boxes[k - 1] ?? 0);
+  const first = examples[0];
+  if (!first) return;
+  await buttons.nth(0).click();
+  await waitForResult(page);
+  await expect(page).toHaveURL(new RegExp(`id=${encodeURIComponent(first.query.identifier)}`));
+  if (first.query.from !== undefined) await expect(page).toHaveURL(new RegExp(`from=${first.query.from}`));
+  const { top, height } = await answerTop(page);
+  expect(top).toBeLessThan(height * 0.6);
+  await shot(page, info, "03c-example-answer");
+});
+
+/** The hero's figure at a window: it names every row it draws, keeps its drawing, legend and caption apart inside its
+ *  frame, and the hero is about one screen. */
+async function heroAt(page: Page): Promise<string[]> {
+  return page.evaluate(() => {
+    const found: string[] = [];
+    const box = (s: string) => document.querySelector(s)?.getBoundingClientRect() ?? null;
+    const svg = box(".hero .journeys__svg");
+    const legend = box(".hero__legend .fig-legend:not(.hero__legend-room .fig-legend)");
+    const caption = box(".hero__caption");
+    const frame = box(".hero__frame");
+    if (!svg || !caption || !frame) return ["the figure is not drawn"];
+    const rows = document.querySelectorAll(".hero .journeys__svg [data-journey]").length;
+    const named = [...document.querySelectorAll(".hero .jr-names > g")].filter((g) =>
+      [...g.querySelectorAll("text")].some((t) => t.textContent.trim().length > 0),
+    ).length;
+    if (rows < 1) found.push("no row drawn");
+    if (named !== rows) found.push(`${rows} rows drawn, ${named} named`);
+    if (legend && svg.bottom > legend.top + 0.5) found.push("the drawing runs into its legend");
+    if (svg.bottom > caption.top + 0.5) found.push("the drawing runs into its caption");
+    if (caption.bottom > frame.bottom + 1) found.push("the caption runs out of the figure's frame");
+    if (svg.top < frame.top - 1) found.push("the drawing runs out of the top of its frame");
+    return found;
+  });
+}
+
+test("at every common window the figure names the journeys it draws and keeps inside its frame", async ({
+  page,
+}, info) => {
+  test.skip(isPhone(info), "the windows are set here, on the desktop project");
+  const showcase = await showcaseOf(page, data.organism);
+  test.skip(showcase.journeys.length === 0, "the server's showcase holds no journeys for this graph");
+  const windows: [number, number][] = [
+    [1440, 900],
+    [1366, 768],
+    [1280, 800],
+    [1280, 720],
+    [1024, 768],
+    [820, 1180],
+    [768, 1024],
+    [390, 844],
+    [2560, 1440],
+  ];
+  for (const [width, height] of windows) {
+    await page.setViewportSize({ width, height });
+    await page.goto(`/?organism=${data.organism}`);
+    await figureDrawn(page);
+    await page.evaluate(async () => {
+      await document.fonts.ready;
+    });
+    expect(await heroAt(page), `${width}x${height}`).toEqual([]);
+    expect(await textsWholeAndClear(page), `${width}x${height}`).toEqual([]);
+    // Two columns down to 900 px; on a desktop window the hero is one screen (a little more on a short one).
+    const fit = await page.evaluate(() => {
+      const text = document.querySelector(".hero__text")?.getBoundingClientRect();
+      const figure = document.querySelector(".hero__figure")?.getBoundingClientRect();
+      const hero = document.querySelector(".hero")?.getBoundingClientRect();
+      return {
+        columns: text && figure ? figure.left >= text.right : false,
+        bottom: (hero?.bottom ?? 0) + window.scrollY,
+      };
+    });
+    if (width > 900) {
+      expect(fit.columns, `${width}x${height}: two columns`).toBe(true);
+      expect(fit.bottom, `${width}x${height}: one screen`).toBeLessThanOrEqual(height * 1.06);
+    }
+  }
+});
+
 test("the figure's texts stand inside it and over no mark, on the home of every organism", async ({ page }, info) => {
-  test.skip(isPhone(info), "the phone's figure is a still image without texts");
+  test.skip(isPhone(info), "the windows of every size are checked on the desktop project");
   for (const graph of await organisms(page)) {
     await page.goto(`/?organism=${graph.organism}`);
     await figureDrawn(page);

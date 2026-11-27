@@ -6,7 +6,7 @@
 // head paints first, before the server's organisms are known; the figure's room is held and its frame (the bands, the
 // axis) drawn before its journeys arrive, so nothing moves. The longer stories of the showcase (the cases, one journey
 // up close, the server's facts) are on Explore (components/explore/Stories.tsx).
-import { useCallback, useId, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { Suspense, useCallback, useId, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import type { GraphDescription } from "../api/types";
 import { databaseLabel } from "../lib/databases";
 import { isEnsembl } from "../lib/home/journeyModel";
@@ -31,6 +31,8 @@ import "../styles/home.css";
 // arrive; the head and the form paint without it.
 const JourneysFigure = lazyPart(() => import("./home/JourneysFigure").then((m) => ({ default: m.JourneysFigure })));
 JourneysFigure.preload();
+// The measured line reads the benchmarks' results: its own chunk, after the head has painted (its room is held).
+const HeroMeasure = lazyPart(() => import("./home/HeroMeasure").then((m) => ({ default: m.HeroMeasure })));
 
 export function ConvertEmpty({ description, form }: { description: GraphDescription | null; form: ReactNode }) {
   const id = useId();
@@ -57,6 +59,15 @@ export function ConvertEmpty({ description, form }: { description: GraphDescript
           Give a gene id or symbol of any release: idtrack follows it through Ensembl&apos;s records to the release and
           database you ask, within one organism, with the evidence for every step and its own inferences marked.
         </p>
+        <div className="hero__measure-room">
+          {description ? (
+            <ErrorBoundary part="The measured line" resetKey={description.organism}>
+              <Suspense fallback={null}>
+                <HeroMeasure organism={description.organism} digest={description.content_digest ?? null} />
+              </Suspense>
+            </ErrorBoundary>
+          ) : null}
+        </div>
         <div className="hero__form">{form}</div>
         <nav className="hero__ways" aria-label="More of idtrack">
           <Link to="/organisms" className="hero__way hero__way--first">
@@ -91,7 +102,7 @@ function legendEntries(marks: readonly LegendMark[]): LegendEntry[] {
   const of: Record<LegendMark, LegendEntry> = {
     version: { key: "version", glyph: "version", text: "new version or replacement" },
     event: { key: "event", glyph: "event", text: "split or merge" },
-    loop: { key: "loop", glyph: "loop", text: "id kept, re-mapped" },
+    loop: { key: "loop", glyph: "loop", text: "re-mapped to itself" },
     handoff: { key: "handoff", glyph: "handoff", text: "step at an assembly change" },
     cross: { key: "cross", glyph: "cross", text: "another database" },
     bridge: { key: "bridge", glyph: "bridge", text: "bridge (inferred)" },
@@ -164,6 +175,8 @@ function HeroFigure({ graph }: { graph: GraphDescription }) {
   const [captionRef, captionHeight] = useHeight<HTMLElement>();
   const [drawn, setDrawn] = useState<JourneysDrawn | null>(null);
   const [listed, setListed] = useState(false);
+  // How a reader reaches a journey: by touch where the primary pointer cannot hover (the caption says so).
+  const [touch] = useState(() => typeof window.matchMedia === "function" && window.matchMedia("(hover: none)").matches);
   const onDrawn = useCallback((d: JourneysDrawn) => {
     setDrawn((p) =>
       p?.drawn === d.drawn && p.of === d.of && p.narrow === d.narrow && p.marks.join() === d.marks.join() ? p : d,
@@ -179,7 +192,7 @@ function HeroFigure({ graph }: { graph: GraphDescription }) {
   // The figure fills the room less its legend, its caption and the air between them.
   const fit =
     roomHeight !== null && legendHeight !== null && captionHeight !== null
-      ? Math.max(160, roomHeight - legendHeight - captionHeight - 2 * 12)
+      ? Math.max(160, roomHeight - legendHeight - captionHeight - 2 * 12 - 2)
       : null;
   const listId = `${id}-list`;
   const some = drawn !== null && drawn.drawn < drawn.of;
@@ -221,7 +234,7 @@ function HeroFigure({ graph }: { graph: GraphDescription }) {
                 }
               >
                 Answered by this server when it started (<Mono>{endpoint}</Mono>).{" "}
-                {drawn?.narrow
+                {touch
                   ? "Tap a journey for its steps, again to open it. "
                   : "Point at a journey for its steps; Enter or a click opens it. "}
                 <button

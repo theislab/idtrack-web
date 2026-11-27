@@ -41,7 +41,7 @@
   --state-warn-surface: #fbf3e6;
 
   /* Type: Inter for the interface and prose, Source Serif 4 for display headings, JetBrains Mono for data. One scale
-     of eight steps; nothing is set outside it (no em-derived or fluid sizes). 11 px is the floor, in figures too. */
+     of nine steps; nothing is set outside it (no em-derived or fluid sizes). 11 px is the floor, in figures too. */
   --font-sans: "Inter Variable", "Inter", "Inter Fallback", "Segoe UI", system-ui, -apple-system, sans-serif;
   --font-display:
     "Source Serif 4 Variable", "Source Serif 4", "Source Serif 4 Fallback", "Iowan Old Style", Georgia, serif;
@@ -56,6 +56,7 @@
   --text-xl: 1.3125rem;
   --text-2xl: 1.75rem;
   --text-3xl: 2.5rem;
+  --text-4xl: 3rem;
 
   /* Three weights, for every face: text, the voice of a control or a label, and what is strong (a heading, a status,
      an answer). Nothing is set in a weight of its own (tests/typescale.test.ts reads every stylesheet). */

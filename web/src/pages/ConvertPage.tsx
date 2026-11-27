@@ -213,7 +213,7 @@ function ConvertForOrganism({
       Boolean(w.field && parameters[w.field.field] !== null),
     );
 
-  // Before a conversion, the hero with the form in it; then the compact form over the answer (also over a refusal of
+  // Before a conversion, the hero with the form in it; then the form in one row over the answer (also over a refusal of
   // the address or a cancelled conversion, which send nothing).
   if (result.state === "idle" && !notRelease && !isCancelled)
     return (
@@ -226,7 +226,12 @@ function ConvertForOrganism({
     <>
       <ConvertTitle />
       {/* One form for the answer's life: it follows the address (a link, Back), and a submit keeps its focus. */}
-      <ConvertForm description={description} parameters={parameters} onSubmit={go} />
+      <ConvertForm
+        description={description}
+        parameters={parameters}
+        onSubmit={go}
+        reveal={notRelease !== null || refused.some((a) => FIELD_OF_ARGUMENT[a] !== undefined)}
+      />
 
       <section
         className="result-area"
@@ -402,12 +407,15 @@ function ConvertForm({
   parameters,
   onSubmit,
   variant = "compact",
+  reveal = false,
 }: {
   description: GraphDescription;
   parameters: ConvertParameters;
   onSubmit: (parameters: ConvertParameters) => void;
   /** In the hero (the releases and the database folded, the organism beside them) or over an answer. */
   variant?: "hero" | "compact";
+  /** Open the folded settings: a value of them was refused (said below the form), so its field is shown. */
+  reveal?: boolean;
 }) {
   const organism = description.organism;
   const hero = variant === "hero";
@@ -467,8 +475,14 @@ function ConvertForm({
   const settingsId = useId();
   const [settingsOpen, setSettingsOpen] = useState(
     () =>
-      hero && (parameters.fromRelease !== null || parameters.toRelease !== null || parameters.finalDatabase !== null),
+      reveal ||
+      (hero && (parameters.fromRelease !== null || parameters.toRelease !== null || parameters.finalDatabase !== null)),
   );
+  const [revealed, setRevealed] = useState(reveal);
+  if (reveal !== revealed) {
+    setRevealed(reveal);
+    if (reveal) setSettingsOpen(true);
+  }
   const [advanced, setAdvanced] = useState(
     parameters.fromDatabase !== null || !parameters.allowBridges || !parameters.explain,
   );
@@ -766,7 +780,6 @@ function Examples({
             <button
               type="button"
               className="convert-example"
-              aria-label={`${e.query.identifier}, read at release ${e.from} and answered at ${e.to}: ${e.title.toLowerCase()}`}
               onClick={() => {
                 onPick(e);
               }}

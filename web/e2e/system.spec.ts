@@ -248,6 +248,7 @@ test.describe("one heading system on every page", () => {
           const face = (e: Element) => getComputedStyle(e).fontFamily.split(",")[0]?.replace(/"/g, "") ?? "";
           const size = (e: Element) => parseFloat(getComputedStyle(e).fontSize);
           const h1 = document.querySelector("main h1");
+          const eyebrowTitle = h1?.classList.contains("eyebrow") ?? false;
           // A section of the page: every h2 of the content but a statement's title and the first request's card.
           const sections = [...document.querySelectorAll("main h2")].filter(
             (e) => !e.closest(".notice") && !e.classList.contains("api-first__title"),
@@ -262,7 +263,7 @@ test.describe("one heading system on every page", () => {
           // The home before a conversion is the hero: its own composition of the same three parts.
           const head = document.querySelector("main .page-head") ?? document.querySelector("main .hero__text");
           return {
-            h1: h1 ? { face: face(h1), size: size(h1) } : null,
+            h1: h1 ? { face: face(h1), size: size(h1), eyebrow: eyebrowTitle, text: h1.textContent } : null,
             sections: sections.map((e) => ({ text: e.textContent.slice(0, 30), face: face(e), size: size(e) })),
             weights: [...weights].sort(),
             head: head
@@ -274,14 +275,24 @@ test.describe("one heading system on every page", () => {
               : null,
           };
         });
-        expect(found.h1?.face, `${name} ${width}`).toBe("Source Serif 4 Variable");
-        expect(found.h1?.size, `${name} ${width}`).toBe(width >= 720 ? 40 : 28);
+        // Over an answer the page's title is its name in the eyebrow's type (the answer is the subject), with no head of
+        // its own; the front page's title is its display line, a step larger from 1180 px.
+        const answer = name === "answer" || name === "backward";
+        if (answer) {
+          expect(found.h1?.eyebrow, `${name} ${width}`).toBe(true);
+          expect(found.h1?.text, `${name} ${width}`).toBe("Convert");
+        } else {
+          expect(found.h1?.face, `${name} ${width}`).toBe("Source Serif 4 Variable");
+          expect(found.h1?.size, `${name} ${width}`).toBe(
+            name === "home" && width > 1180 ? 48 : width >= 720 ? 40 : 28,
+          );
+        }
         for (const s of found.sections) {
           expect(s.face, `${name} ${width}: ${s.text}`).toBe("Source Serif 4 Variable");
           expect(s.size, `${name} ${width}: ${s.text}`).toBe(width >= 720 ? 28 : 21);
         }
         for (const w of found.weights) expect(["400", "520", "640"], `${name} ${width}: weight ${w}`).toContain(w);
-        expect(found.head, `${name}: the page's head`).toEqual({ eyebrow: true, h1: true, lede: true });
+        if (!answer) expect(found.head, `${name}: the page's head`).toEqual({ eyebrow: true, h1: true, lede: true });
       }
     });
   }

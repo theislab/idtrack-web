@@ -48,7 +48,7 @@ import {
   type LegendMark,
   type JourneySet,
 } from "../../lib/home/journeys";
-import { caseHref } from "../../lib/home/links";
+import { caseHref, openAt } from "../../lib/home/links";
 import { clearEnds } from "../../lib/home/rowMarks";
 import { plural, stepsInWords } from "../../lib/home/stepWords";
 import {
@@ -773,10 +773,10 @@ export function JourneysFigure({
                 key={`${n.e.kind}-${n.e.old}-${n.e.reason ?? ""}`}
                 href={toHistory}
                 className="jr-event__link"
-                aria-label={`${words}: Ensembl's id history of the ${organismName(graph.organism)} graph`}
+                aria-label={`${words}: Ensembl's id history of the ${organismName(graph.organism)} graph, release by release`}
                 onClick={(event) => {
                   event.preventDefault();
-                  navigate(toHistory);
+                  openAt(toHistory, "history");
                 }}
               >
                 <text
@@ -787,7 +787,7 @@ export function JourneysFigure({
                 >
                   {n.lines.map((line, k) => (
                     <tspan key={k} x={n.x} dy={k ? 16 : 0} className={k ? "jr-event__count" : undefined}>
-                      {line}
+                      {k < n.lines.length - 1 ? `${line} ` : line}
                     </tspan>
                   ))}
                 </text>
