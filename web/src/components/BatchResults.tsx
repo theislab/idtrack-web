@@ -1038,7 +1038,7 @@ function sharedReading(rows: readonly BatchRow[]): string | null {
   if (!first) return null;
   const words = (row: BatchRow) => {
     const r = row.result;
-    if (r.from_release === null) return null;
+    if (r.from_release === null || row.read === "not_read") return null;
     const how = releaseHow(r);
     return `${READ_WORDS[row.read]} at release ${String(r.from_release)}, ${
       how === "inferred" ? "inferred" : how === "fallback" ? `not ${String(r.from_release_given)} as given` : "as given"
@@ -1485,7 +1485,7 @@ function ResultsTable({
       </p>
       <div ref={frameRef}>
         <TableFrame
-          label={`Results: ${shownWords}`}
+          label={`${label}: ${shownWords}`}
           className={`table-frame--cards ${
             pageScroll ? "table-frame--page" : visible.length + open.size * 4 > 24 ? "table-frame--tall" : ""
           }`}

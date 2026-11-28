@@ -15,7 +15,7 @@ export class RootBoundary extends Component<{ children: ReactNode }, { error: un
     return (
       <main id="main" className="page root-failure">
         <div className="notice notice--danger" role="alert">
-          <h1 className="notice__title">idtrack could not draw this page</h1>
+          <h1 className="notice__title">IDTrack could not draw this page</h1>
           <p>
             It met an error: {error instanceof Error ? error.message : "an error without a message"}. Reload the page;
             if it persists, report it with the page&apos;s address.

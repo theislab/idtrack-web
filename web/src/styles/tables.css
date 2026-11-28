@@ -909,6 +909,22 @@ th[aria-sort] .sort__mark {
 /* The two questions: one shown, chosen above its form; what it answers a press away. */
 .names-choice {
   justify-self: start;
+  max-width: 100%;
+}
+
+.names-choice .segmented__option {
+  white-space: nowrap;
+}
+
+@media (max-width: 640px) {
+  .names-choice {
+    justify-self: stretch;
+  }
+
+  .names-choice .segmented__option {
+    flex: 1;
+    padding: 0 var(--space-2);
+  }
 }
 
 .names-view {
@@ -2211,13 +2227,7 @@ th[aria-sort] .sort__mark {
    none on one quiet line ------------------------------------------------------------------------------------------- */
 
 .counts {
-  margin-top: var(--space-6);
-  padding-top: var(--space-4);
-  border-top: 1px solid var(--line);
-}
-
-.counts__title {
-  margin: 0 0 var(--space-2);
+  margin-bottom: var(--space-3);
 }
 
 .counts__list {
@@ -2565,6 +2575,7 @@ th[aria-sort] .sort__mark {
 .file__preview--table {
   display: block;
   overflow: hidden;
+  mask-image: linear-gradient(to right, #000 88%, transparent);
 }
 
 .file__preview--table table {

@@ -176,6 +176,19 @@
   padding: var(--space-2) 0 var(--space-5) calc(8px + var(--space-3));
 }
 
+/* On a phone the quiet count or word goes under the summary's words, aligned with them. */
+@media (max-width: 640px) {
+  .expandable__summary {
+    flex-wrap: wrap;
+    row-gap: 2px;
+  }
+
+  .expandable__meta {
+    flex-basis: 100%;
+    margin-left: calc(8px + var(--space-3));
+  }
+}
+
 /* ---- Drawer -------------------------------------------------------------------------------------------------- */
 
 .drawer {
