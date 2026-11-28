@@ -82,8 +82,8 @@ CRITERION_FIELDS: dict[str, tuple[tuple[str, First, tuple[str, ...] | None], ...
     "annotation": (("annotation", "lower", ("external ids", "transcripts", "translations")),),
 }
 
-#: The kinds of database of ``GET /organisms/{organism}/databases`` (the API's reading of the graph's own record: its
-#: ``label_databases`` and IDTrack's two gene namespaces), in the API's words.
+#: The kinds of database of ``GET /api/v1/organisms/{organism}/databases`` (the API's reading of the graph's own
+#: record: its ``label_databases`` and IDTrack's two gene namespaces), in the API's words.
 DATABASE_KINDS: dict[str, str] = {
     "ensembl": (
         "One of IDTrack's two Ensembl gene namespaces: `ensembl_gene`, the gene id with its version, and "

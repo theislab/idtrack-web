@@ -713,7 +713,7 @@ def create_app(  # noqa: PLR0915 - every endpoint, in one place
                 description=(
                     "The organism: its Ensembl production name (`homo_sapiens`), with spaces or in any letter case "
                     "(`Homo sapiens`), or a short name IDTrack declares (`human`, `pig`); the names a server holds: "
-                    "`names` of `GET /organisms`."
+                    "`names` of `GET /api/v1/organisms`."
                 ),
                 max_length=100,
                 examples=["homo_sapiens"],
@@ -1011,7 +1011,7 @@ def create_app(  # noqa: PLR0915 - every endpoint, in one place
         description=(
             "The databases a conversion to one release can end in (IDTrack's `API.final_databases(to_release)`): the "
             "values `final_database` takes for that release. What each holds (an accession, a label, an Ensembl id "
-            "with or without version): `GET /organisms/{organism}/databases`."
+            "with or without version): `GET /api/v1/organisms/{organism}/databases`."
         ),
         dependencies=[Depends(only("to_release"))],
     )
@@ -1190,24 +1190,26 @@ def create_app(  # noqa: PLR0915 - every endpoint, in one place
 
     final_database_query = database_query(
         "The database of the targets; omitted: `ensembl_gene`. The values a release takes: "
-        "`GET /organisms/{organism}/final-databases?to_release=`; what each holds: `kind` of "
-        "`GET /organisms/{organism}/databases` (NCBI's gene numbers are `EntrezGene`, its symbols `NCBI gene "
+        "`GET /api/v1/organisms/{organism}/final-databases?to_release=`; what each holds: `kind` of "
+        "`GET /api/v1/organisms/{organism}/databases` (NCBI's gene numbers are `EntrezGene`, its symbols `NCBI gene "
         "(formerly Entrezgene)`).",
         ["HGNC Symbol", "RefSeq_mRNA"],
     )
     from_database_query = database_query(
         "The database the identifier is meant in; omitted: any. The values: `external_databases` of "
-        "`GET /organisms/{organism}` (a database's synonyms are read under its name). An identifier that is not an id "
+        "`GET /api/v1/organisms/{organism}` (a database's synonyms are read under its name). An identifier that "
+        "is not an id "
         "of the database named is read as absent from it (`no_conversion` with `no_gene_at_start`, or `not_found`), "
         "not as retired; some databases come in two forms, accessions and their labels (`RefSeq_peptide` and "
-        "`RefSeq peptide`: `kind` of `GET /organisms/{organism}/databases`)."
+        "`RefSeq peptide`: `kind` of `GET /api/v1/organisms/{organism}/databases`)."
     )
     identifier_query = Annotated[
         str,
         Query(
             description=(
                 "An Ensembl id (with or without version), a symbol or another id of a database the graph holds "
-                "(`external_databases` of `GET /organisms/{organism}`). White space at its ends is no part of it. Ids "
+                "(`external_databases` of `GET /api/v1/organisms/{organism}`). White space at its ends is no "
+                "part of it. Ids "
                 "of databases the graph does not hold are `not_found`: the name authorities' own ids (`HGNC:11998`), "
                 "UniProt's secondary accessions, entry names and isoforms, RNAcentral, microarray probe sets "
                 "(`201746_at`)."

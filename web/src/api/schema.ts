@@ -170,7 +170,7 @@ export type paths = {
     };
     /**
      * The databases a conversion to a release can end in
-     * @description The databases a conversion to one release can end in (IDTrack's `API.final_databases(to_release)`): the values `final_database` takes for that release. What each holds (an accession, a label, an Ensembl id with or without version): `GET /organisms/{organism}/databases`.
+     * @description The databases a conversion to one release can end in (IDTrack's `API.final_databases(to_release)`): the values `final_database` takes for that release. What each holds (an accession, a label, an Ensembl id with or without version): `GET /api/v1/organisms/{organism}/databases`.
      */
     get: operations["final_databases"];
     put?: never;
@@ -526,7 +526,7 @@ export type components = {
       target: string;
       /**
        * Places
-       * @description Where the two genes lie relative to each other: a key of `place_relations` of `GET /vocabulary` (the nodes of the path hold both places).
+       * @description Where the two genes lie relative to each other: a key of `place_relations` of `GET /api/v1/vocabulary` (the nodes of the path hold both places).
        * @enum {string}
        */
       places: "same_place" | "places_apart" | "other_assemblies" | "outside_reference" | "no_place";
@@ -537,7 +537,7 @@ export type components = {
       taken: boolean;
       /**
        * Through
-       * @description Every id the two genes carried in common, as `(node, rule)` with a key of `bridge_rules` of `GET /vocabulary`; the node is an external id or a transcript.
+       * @description Every id the two genes carried in common, as `(node, rule)` with a key of `bridge_rules` of `GET /api/v1/vocabulary`; the node is an external id or a transcript.
        */
       through: [
         string,
@@ -701,7 +701,7 @@ export type components = {
     Caution: {
       /**
        * Code
-       * @description The class of evidence (`cautions` of `GET /vocabulary` gives its meaning).
+       * @description The class of evidence (`cautions` of `GET /api/v1/vocabulary` gives its meaning).
        * @enum {string}
        */
       code:
@@ -902,7 +902,7 @@ export type components = {
       graph_id: string | null;
       /**
        * Match
-       * @description How the identifier matched `graph_id`: a step of `match_steps` of `GET /vocabulary` after the prefixes of `match_prefixes` of `GET /vocabulary` that apply (`"synonym:exact"`, `"unicode:case"`); `null` when it is not in the graph.
+       * @description How the identifier matched `graph_id`: a step of `match_steps` of `GET /api/v1/vocabulary` after the prefixes of `match_prefixes` of `GET /api/v1/vocabulary` that apply (`"synonym:exact"`, `"unicode:case"`); `null` when it is not in the graph.
        */
       match: string | null;
       /**
@@ -957,7 +957,7 @@ export type components = {
       tie: boolean;
       /**
        * Decided By
-       * @description The criterion (`criteria` of `GET /vocabulary`) that put the best answer before the runner-up; `null` without a runner-up.
+       * @description The criterion (`criteria` of `GET /api/v1/vocabulary`) that put the best answer before the runner-up; `null` without a runner-up.
        */
       decided_by:
         | (
@@ -989,7 +989,7 @@ export type components = {
       no_target_genes: string[];
       /**
        * Status
-       * @description One of `statuses` of `GET /vocabulary`.
+       * @description One of `statuses` of `GET /api/v1/vocabulary`.
        * @enum {string}
        */
       status: "converted" | "tie" | "no_target" | "not_found" | "unknown_version" | "no_conversion" | "error";
@@ -1013,7 +1013,7 @@ export type components = {
         | null;
       /**
        * Reasons
-       * @description Every reason that applies, keys of `reasons` of `GET /vocabulary`, in this order: why the result has no target in the requested database (no candidates, or `no_target`: genes stand in for the missing id); `"read_at_another_release"` where the identifier was read at another release than the one given (`from_release_fallback`); `"version_not_judged"` where a version written after an accession was not judged (its database's versions count edits of the record and do not date it). Empty for a result with targets read as asked.
+       * @description Every reason that applies, keys of `reasons` of `GET /api/v1/vocabulary`, in this order: why the result has no target in the requested database (no candidates, or `no_target`: genes stand in for the missing id); `"read_at_another_release"` where the identifier was read at another release than the one given (`from_release_fallback`); `"version_not_judged"` where a version written after an accession was not judged (its database's versions count edits of the record and do not date it). Empty for a result with targets read as asked.
        */
       reasons: (
         | "not_in_graph"
@@ -1038,7 +1038,7 @@ export type components = {
       path: components["schemas"]["ExplainedPath"] | null;
       /**
        * Cautions
-       * @description The API's reading of this result's evidence, by stated rules (`cautions` of `GET /vocabulary`): each fact of the best answer a reader should weigh before trusting it (`tone` `caution`: review the answer) or that is worth knowing (`note`), cautions first, with the section of IDTrack's documented limitations it falls under. Read with the path whatever `explain` asks: every rule holds for every answer. Empty: nothing to weigh. Added by the API to IDTrack's result.
+       * @description The API's reading of this result's evidence, by stated rules (`cautions` of `GET /api/v1/vocabulary`): each fact of the best answer a reader should weigh before trusting it (`tone` `caution`: review the answer) or that is worth knowing (`note`), cautions first, with the section of IDTrack's documented limitations it falls under. Read with the path whatever `explain` asks: every rule holds for every answer. Empty: nothing to weigh. Added by the API to IDTrack's result.
        */
       cautions: components["schemas"]["Caution"][];
     };
@@ -1163,7 +1163,7 @@ export type components = {
       releases: number[];
       /**
        * Kind
-       * @description What its values are (`database_kinds` of `GET /vocabulary`): `ensembl`, one of IDTrack's two Ensembl gene namespaces; `label`, a database whose ids are labels (display names, symbols) rather than accessions (the graph's `label_databases`); `accession`, any other external database.
+       * @description What its values are (`database_kinds` of `GET /api/v1/vocabulary`): `ensembl`, one of IDTrack's two Ensembl gene namespaces; `label`, a database whose ids are labels (display names, symbols) rather than accessions (the graph's `label_databases`); `accession`, any other external database.
        * @enum {string}
        */
       kind: "ensembl" | "accession" | "label";
@@ -1374,7 +1374,7 @@ export type components = {
       input_error: boolean;
       /**
        * Code
-       * @description The API's stable code of the error (one of the error codes of `GET /vocabulary`, as the same identifier sent alone to `/convert` would be answered: `missing_value` for an empty string or a spelling of a missing value, `search_budget_exceeded` for a search over its budget, `internal_error` for a fault). Added by the API to IDTrack's error record.
+       * @description The API's stable code of the error (one of the error codes of `GET /api/v1/vocabulary`, as the same identifier sent alone to `/convert` would be answered: `missing_value` for an empty string or a spelling of a missing value, `search_budget_exceeded` for a search over its budget, `internal_error` for a fault). Added by the API to IDTrack's error record.
        * @enum {string}
        */
       code:
@@ -1714,7 +1714,7 @@ export type components = {
       package_version: string | null;
       /**
        * Package Version Note
-       * @description The build record's own text where it gives no version (for a graph built from a source folder rather than an installed IDTrack); `null` where it gives a version. The graph's description (`GET /organisms/{organism}`) carries the record as it is.
+       * @description The build record's own text where it gives no version (for a graph built from a source folder rather than an installed IDTrack); `null` where it gives a version. The graph's description (`GET /api/v1/organisms/{organism}`) carries the record as it is.
        */
       package_version_note?: string | null;
       /**
@@ -2134,7 +2134,7 @@ export type components = {
       families: number;
       /**
        * Focus Families
-       * @description How many of the families given first hold a gene that the answers of the showcase name (`GET /organisms/{organism}/showcase`).
+       * @description How many of the families given first hold a gene that the answers of the showcase name (`GET /api/v1/organisms/{organism}/showcase`).
        */
       focus_families: number;
       /**
@@ -2332,12 +2332,12 @@ export type components = {
       graph_id: string;
       /**
        * Match
-       * @description How the identifier matched it (`match_steps` of `GET /vocabulary`, `match_prefixes` of `GET /vocabulary`).
+       * @description How the identifier matched it (`match_steps` of `GET /api/v1/vocabulary`, `match_prefixes` of `GET /api/v1/vocabulary`).
        */
       match: string;
       /**
        * Reason
-       * @description Why it is reported: a key of `reading_reasons` of `GET /vocabulary`.
+       * @description Why it is reported: a key of `reading_reasons` of `GET /api/v1/vocabulary`.
        * @enum {string}
        */
       reason: "symbol_without_case" | "make_unique_suffix" | "other_release" | "unversioned_database" | "same_step";
@@ -2470,7 +2470,7 @@ export type components = {
       old_assembly: number | null;
       /**
        * Reason
-       * @description Why the step was taken (or, for a step of `ExplainedPath.refused`, why it was not): a key of `step_reasons` of `GET /vocabulary`.
+       * @description Why the step was taken (or, for a step of `ExplainedPath.refused`, why it was not): a key of `step_reasons` of `GET /api/v1/vocabulary`.
        * @enum {string}
        */
       reason:
@@ -2489,7 +2489,7 @@ export type components = {
         | "mitochondrial_genome";
       /**
        * Places
-       * @description For a history step between two genes: where the event's later gene lies relative to the earlier one (a key of `place_relations` of `GET /vocabulary`; `places_apart`: Ensembl's history moves the gene to another place, which the walk follows); `null` for other steps.
+       * @description For a history step between two genes: where the event's later gene lies relative to the earlier one (a key of `place_relations` of `GET /api/v1/vocabulary`; `places_apart`: Ensembl's history moves the gene to another place, which the walk follows); `null` for other steps.
        */
       places: ("same_place" | "places_apart" | "other_assemblies" | "outside_reference" | "no_place") | null;
     };
@@ -2598,7 +2598,7 @@ export type components = {
       searches_queued?: number | null;
       /**
        * Sending Bytes
-       * @description Bytes of answers the live workers hold for clients that have not taken them yet (bounded per worker by `sending_max_bytes` of `GET /limits`).
+       * @description Bytes of answers the live workers hold for clients that have not taken them yet (bounded per worker by `sending_max_bytes` of `GET /api/v1/limits`).
        */
       sending_bytes?: number | null;
       /**
@@ -2850,7 +2850,7 @@ export type components = {
       organism: string;
       /**
        * Mode
-       * @description The mode asked (`source_modes` of `GET /vocabulary`).
+       * @description The mode asked (`source_modes` of `GET /api/v1/vocabulary`).
        */
       mode: string;
       /** @description The band's first origin (the best), its parts named; `null` when the band is empty. The same origin is `inference.band[0]`, written as IDTrack writes an origin of the mode. */
@@ -3180,7 +3180,7 @@ export type components = {
       errors: components["schemas"]["ErrorTerm"][];
       /**
        * Database Kinds
-       * @description The values of `kind` of a database of `GET /organisms/{organism}/databases`.
+       * @description The values of `kind` of a database of `GET /api/v1/organisms/{organism}/databases`.
        */
       database_kinds?: components["schemas"]["Term"][];
       /**
@@ -3190,7 +3190,7 @@ export type components = {
       allowances?: components["schemas"]["Term"][];
       /**
        * Source Modes
-       * @description The values of `mode` of `POST /organisms/{organism}/source-inference`: what an origin is.
+       * @description The values of `mode` of `POST /api/v1/organisms/{organism}/source-inference`: what an origin is.
        */
       source_modes?: components["schemas"]["Term"][];
       /**
@@ -3297,27 +3297,27 @@ export type components = {
     BatchRequest: {
       /**
        * Identifiers
-       * @description The identifiers, at most `batch_max` of `GET /limits` (`413 too_many_identifiers` beyond), each at most `identifier_max_length` characters without control characters (else the whole batch is refused with `400 invalid_identifier`, `details` naming each such item's index).
+       * @description The identifiers, at most `batch_max` of `GET /api/v1/limits` (`413 too_many_identifiers` beyond), each at most `identifier_max_length` characters without control characters (else the whole batch is refused with `400 invalid_identifier`, `details` naming each such item's index).
        */
       identifiers: string[];
       /**
        * From Release
-       * @description The release the identifiers are read at; `null`: inferred. Without it, an identifier is read at the target release if it exists there, and otherwise at the latest release at which it exists (IDTrack's rule, the same for Ensembl ids, symbols and other databases' ids); the result says which release was used (`from_release`) and whether it was chosen (`from_release_inferred`). So a symbol sent without `from_release` is read as what it names at the target release, not as what it named years ago: give the release of the list's source to read it as it was then (`POST .../source-inference` finds it for a list). An Ensembl release, a whole number from 0 to 999999999 (anything else is `400 invalid_request`); whether the graph covers it is IDTrack's to answer (`400 unknown_release`, with the graph's releases in `allowed`: `GET /organisms/{organism}` lists them as `releases`).
+       * @description The release the identifiers are read at; `null`: inferred. Without it, an identifier is read at the target release if it exists there, and otherwise at the latest release at which it exists (IDTrack's rule, the same for Ensembl ids, symbols and other databases' ids); the result says which release was used (`from_release`) and whether it was chosen (`from_release_inferred`). So a symbol sent without `from_release` is read as what it names at the target release, not as what it named years ago: give the release of the list's source to read it as it was then (`POST .../source-inference` finds it for a list). An Ensembl release, a whole number from 0 to 999999999 (anything else is `400 invalid_request`); whether the graph covers it is IDTrack's to answer (`400 unknown_release`, with the graph's releases in `allowed`: `GET /api/v1/organisms/{organism}` lists them as `releases`).
        */
       from_release?: number | null;
       /**
        * To Release
-       * @description The target release; `null`: the graph's snapshot release. An Ensembl release, a whole number from 0 to 999999999 (anything else is `400 invalid_request`); whether the graph covers it is IDTrack's to answer (`400 unknown_release`, with the graph's releases in `allowed`: `GET /organisms/{organism}` lists them as `releases`).
+       * @description The target release; `null`: the graph's snapshot release. An Ensembl release, a whole number from 0 to 999999999 (anything else is `400 invalid_request`); whether the graph covers it is IDTrack's to answer (`400 unknown_release`, with the graph's releases in `allowed`: `GET /api/v1/organisms/{organism}` lists them as `releases`).
        */
       to_release?: number | null;
       /**
        * Final Database
-       * @description The database of the targets; `null`: `ensembl_gene`. The values a release takes: `GET /organisms/{organism}/final-databases?to_release=` (for example `HGNC Symbol`, `RefSeq_mRNA`); what each holds: `kind` of `GET /organisms/{organism}/databases` (NCBI's gene numbers are `EntrezGene`, its symbols `NCBI gene (formerly Entrezgene)`).
+       * @description The database of the targets; `null`: `ensembl_gene`. The values a release takes: `GET /api/v1/organisms/{organism}/final-databases?to_release=` (for example `HGNC Symbol`, `RefSeq_mRNA`); what each holds: `kind` of `GET /api/v1/organisms/{organism}/databases` (NCBI's gene numbers are `EntrezGene`, its symbols `NCBI gene (formerly Entrezgene)`).
        */
       final_database?: string | null;
       /**
        * From Database
-       * @description The database the identifiers are meant in; `null`: any. The values: `external_databases` of `GET /organisms/{organism}` (a database's synonyms are read under its name). An identifier that is not an id of the database named is read as absent from it (`no_conversion` with `no_gene_at_start`, or `not_found`), not as retired; some databases come in two forms, accessions and their labels (`RefSeq_peptide` and `RefSeq peptide`: `kind` of `GET /organisms/{organism}/databases`).
+       * @description The database the identifiers are meant in; `null`: any. The values: `external_databases` of `GET /api/v1/organisms/{organism}` (a database's synonyms are read under its name). An identifier that is not an id of the database named is read as absent from it (`no_conversion` with `no_gene_at_start`, or `not_found`), not as retired; some databases come in two forms, accessions and their labels (`RefSeq_peptide` and `RefSeq peptide`: `kind` of `GET /api/v1/organisms/{organism}/databases`).
        */
       from_database?: string | null;
       /**
@@ -3346,12 +3346,12 @@ export type components = {
     SourceInferenceRequest: {
       /**
        * Identifiers
-       * @description The identifiers, as a list from one source holds them (at most `batch_max` of `GET /limits`, each checked as a batch's): each distinct identifier counts once at every origin at which it is an identifier, read as it was at each release.
+       * @description The identifiers, as a list from one source holds them (at most `batch_max` of `GET /api/v1/limits`, each checked as a batch's): each distinct identifier counts once at every origin at which it is an identifier, read as it was at each release.
        */
       identifiers: string[];
       /**
        * Mode
-       * @description What an origin is (`source_modes` of `GET /vocabulary`); default `[assembly, release]`.
+       * @description What an origin is (`source_modes` of `GET /api/v1/vocabulary`); default `[assembly, release]`.
        * @default assembly_release
        * @enum {string}
        */
@@ -3658,11 +3658,11 @@ export type components = {
   headers: {
     /** @description The request's id (also `error.request_id`): the client's own `X-Request-ID` where it sent one of 1 to 64 letters, digits and `._:-`, else 32 hexadecimal digits the server made; quote it when reporting an `internal_error`. */
     "X-Request-ID": string;
-    /** @description The version of IDTrack that answered (as `idtrack_version` of `GET /version`). */
+    /** @description The version of IDTrack that answered (as `idtrack_version` of `GET /api/v1/version`). */
     "Idtrack-Version": string;
-    /** @description The content digest of the graph that answered (`content_digest` of the organism in `GET /version`): record it with the answer, so a result stays tied to its graph without a second request. */
+    /** @description The content digest of the graph that answered (`content_digest` of the organism in `GET /api/v1/version`): record it with the answer, so a result stays tied to its graph without a second request. */
     "Idtrack-Graph-Digest": string;
-    /** @description Where the per-client allowances apply (`allowances_enforced` of `GET /limits`): each allowance as the IETF draft on rate-limit fields writes a policy, `"searches";q=30;w=15`: its name (as `allowance` of a `429` names it), `q` the most a client holds, `w` the seconds in which an empty allowance fills again. */
+    /** @description Where the per-client allowances apply (`allowances_enforced` of `GET /api/v1/limits`): each allowance as the IETF draft on rate-limit fields writes a policy, `"searches";q=30;w=15`: its name (as `allowance` of a `429` names it), `q` the most a client holds, `w` the seconds in which an empty allowance fills again. */
     "RateLimit-Policy": string;
     /** @description The client's standing in the allowances this request drew on, `"searches";r=29;t=1`: `r` what is left (whole units: requests, or seconds of search), `t` the seconds until it is full again. */
     RateLimit: string;
@@ -5089,7 +5089,7 @@ export interface operations {
       header?: never;
       path: {
         /**
-         * @description The organism: its Ensembl production name (`homo_sapiens`), with spaces or in any letter case (`Homo sapiens`), or a short name IDTrack declares (`human`, `pig`); the names a server holds: `names` of `GET /organisms`.
+         * @description The organism: its Ensembl production name (`homo_sapiens`), with spaces or in any letter case (`Homo sapiens`), or a short name IDTrack declares (`human`, `pig`); the names a server holds: `names` of `GET /api/v1/organisms`.
          * @example homo_sapiens
          */
         organism: string;
@@ -5674,7 +5674,7 @@ export interface operations {
     parameters: {
       query?: {
         /**
-         * @description The target release; omitted: the snapshot release. An Ensembl release, a whole number from 0 to 999999999 (anything else is `400 invalid_request`); whether the graph covers it is IDTrack's to answer (`400 unknown_release`, with the graph's releases in `allowed`: `GET /organisms/{organism}` lists them as `releases`).
+         * @description The target release; omitted: the snapshot release. An Ensembl release, a whole number from 0 to 999999999 (anything else is `400 invalid_request`); whether the graph covers it is IDTrack's to answer (`400 unknown_release`, with the graph's releases in `allowed`: `GET /api/v1/organisms/{organism}` lists them as `releases`).
          * @example 100
          */
         to_release?: number | null;
@@ -5682,7 +5682,7 @@ export interface operations {
       header?: never;
       path: {
         /**
-         * @description The organism: its Ensembl production name (`homo_sapiens`), with spaces or in any letter case (`Homo sapiens`), or a short name IDTrack declares (`human`, `pig`); the names a server holds: `names` of `GET /organisms`.
+         * @description The organism: its Ensembl production name (`homo_sapiens`), with spaces or in any letter case (`Homo sapiens`), or a short name IDTrack declares (`human`, `pig`); the names a server holds: `names` of `GET /api/v1/organisms`.
          * @example homo_sapiens
          */
         organism: string;
@@ -5757,7 +5757,7 @@ export interface operations {
       header?: never;
       path: {
         /**
-         * @description The organism: its Ensembl production name (`homo_sapiens`), with spaces or in any letter case (`Homo sapiens`), or a short name IDTrack declares (`human`, `pig`); the names a server holds: `names` of `GET /organisms`.
+         * @description The organism: its Ensembl production name (`homo_sapiens`), with spaces or in any letter case (`Homo sapiens`), or a short name IDTrack declares (`human`, `pig`); the names a server holds: `names` of `GET /api/v1/organisms`.
          * @example homo_sapiens
          */
         organism: string;
@@ -6289,7 +6289,7 @@ export interface operations {
       header?: never;
       path: {
         /**
-         * @description The organism: its Ensembl production name (`homo_sapiens`), with spaces or in any letter case (`Homo sapiens`), or a short name IDTrack declares (`human`, `pig`); the names a server holds: `names` of `GET /organisms`.
+         * @description The organism: its Ensembl production name (`homo_sapiens`), with spaces or in any letter case (`Homo sapiens`), or a short name IDTrack declares (`human`, `pig`); the names a server holds: `names` of `GET /api/v1/organisms`.
          * @example homo_sapiens
          */
         organism: string;
@@ -9189,7 +9189,7 @@ export interface operations {
       header?: never;
       path: {
         /**
-         * @description The organism: its Ensembl production name (`homo_sapiens`), with spaces or in any letter case (`Homo sapiens`), or a short name IDTrack declares (`human`, `pig`); the names a server holds: `names` of `GET /organisms`.
+         * @description The organism: its Ensembl production name (`homo_sapiens`), with spaces or in any letter case (`Homo sapiens`), or a short name IDTrack declares (`human`, `pig`); the names a server holds: `names` of `GET /api/v1/organisms`.
          * @example homo_sapiens
          */
         organism: string;
@@ -9668,7 +9668,7 @@ export interface operations {
       header?: never;
       path: {
         /**
-         * @description The organism: its Ensembl production name (`homo_sapiens`), with spaces or in any letter case (`Homo sapiens`), or a short name IDTrack declares (`human`, `pig`); the names a server holds: `names` of `GET /organisms`.
+         * @description The organism: its Ensembl production name (`homo_sapiens`), with spaces or in any letter case (`Homo sapiens`), or a short name IDTrack declares (`human`, `pig`); the names a server holds: `names` of `GET /api/v1/organisms`.
          * @example homo_sapiens
          */
         organism: string;
@@ -10199,7 +10199,7 @@ export interface operations {
       header?: never;
       path: {
         /**
-         * @description The organism: its Ensembl production name (`homo_sapiens`), with spaces or in any letter case (`Homo sapiens`), or a short name IDTrack declares (`human`, `pig`); the names a server holds: `names` of `GET /organisms`.
+         * @description The organism: its Ensembl production name (`homo_sapiens`), with spaces or in any letter case (`Homo sapiens`), or a short name IDTrack declares (`human`, `pig`); the names a server holds: `names` of `GET /api/v1/organisms`.
          * @example homo_sapiens
          */
         organism: string;
@@ -11457,23 +11457,23 @@ export interface operations {
     parameters: {
       query: {
         /**
-         * @description An Ensembl id (with or without version), a symbol or another id of a database the graph holds (`external_databases` of `GET /organisms/{organism}`). White space at its ends is no part of it. Ids of databases the graph does not hold are `not_found`: the name authorities' own ids (`HGNC:11998`), UniProt's secondary accessions, entry names and isoforms, RNAcentral, microarray probe sets (`201746_at`).
+         * @description An Ensembl id (with or without version), a symbol or another id of a database the graph holds (`external_databases` of `GET /api/v1/organisms/{organism}`). White space at its ends is no part of it. Ids of databases the graph does not hold are `not_found`: the name authorities' own ids (`HGNC:11998`), UniProt's secondary accessions, entry names and isoforms, RNAcentral, microarray probe sets (`201746_at`).
          * @example ENSG00000141510
          */
         identifier: string;
         /**
-         * @description The release it is read at; omitted: inferred. Without it, an identifier is read at the target release if it exists there, and otherwise at the latest release at which it exists (IDTrack's rule, the same for Ensembl ids, symbols and other databases' ids); the result says which release was used (`from_release`) and whether it was chosen (`from_release_inferred`). So a symbol sent without `from_release` is read as what it names at the target release, not as what it named years ago: give the release of the list's source to read it as it was then (`POST .../source-inference` finds it for a list). An Ensembl release, a whole number from 0 to 999999999 (anything else is `400 invalid_request`); whether the graph covers it is IDTrack's to answer (`400 unknown_release`, with the graph's releases in `allowed`: `GET /organisms/{organism}` lists them as `releases`).
+         * @description The release it is read at; omitted: inferred. Without it, an identifier is read at the target release if it exists there, and otherwise at the latest release at which it exists (IDTrack's rule, the same for Ensembl ids, symbols and other databases' ids); the result says which release was used (`from_release`) and whether it was chosen (`from_release_inferred`). So a symbol sent without `from_release` is read as what it names at the target release, not as what it named years ago: give the release of the list's source to read it as it was then (`POST .../source-inference` finds it for a list). An Ensembl release, a whole number from 0 to 999999999 (anything else is `400 invalid_request`); whether the graph covers it is IDTrack's to answer (`400 unknown_release`, with the graph's releases in `allowed`: `GET /api/v1/organisms/{organism}` lists them as `releases`).
          * @example 100
          */
         from_release?: number | null;
-        /** @description The target release; omitted: the snapshot release. An Ensembl release, a whole number from 0 to 999999999 (anything else is `400 invalid_request`); whether the graph covers it is IDTrack's to answer (`400 unknown_release`, with the graph's releases in `allowed`: `GET /organisms/{organism}` lists them as `releases`). */
+        /** @description The target release; omitted: the snapshot release. An Ensembl release, a whole number from 0 to 999999999 (anything else is `400 invalid_request`); whether the graph covers it is IDTrack's to answer (`400 unknown_release`, with the graph's releases in `allowed`: `GET /api/v1/organisms/{organism}` lists them as `releases`). */
         to_release?: number | null;
         /**
-         * @description The database of the targets; omitted: `ensembl_gene`. The values a release takes: `GET /organisms/{organism}/final-databases?to_release=`; what each holds: `kind` of `GET /organisms/{organism}/databases` (NCBI's gene numbers are `EntrezGene`, its symbols `NCBI gene (formerly Entrezgene)`).
+         * @description The database of the targets; omitted: `ensembl_gene`. The values a release takes: `GET /api/v1/organisms/{organism}/final-databases?to_release=`; what each holds: `kind` of `GET /api/v1/organisms/{organism}/databases` (NCBI's gene numbers are `EntrezGene`, its symbols `NCBI gene (formerly Entrezgene)`).
          * @example HGNC Symbol
          */
         final_database?: string | null;
-        /** @description The database the identifier is meant in; omitted: any. The values: `external_databases` of `GET /organisms/{organism}` (a database's synonyms are read under its name). An identifier that is not an id of the database named is read as absent from it (`no_conversion` with `no_gene_at_start`, or `not_found`), not as retired; some databases come in two forms, accessions and their labels (`RefSeq_peptide` and `RefSeq peptide`: `kind` of `GET /organisms/{organism}/databases`). */
+        /** @description The database the identifier is meant in; omitted: any. The values: `external_databases` of `GET /api/v1/organisms/{organism}` (a database's synonyms are read under its name). An identifier that is not an id of the database named is read as absent from it (`no_conversion` with `no_gene_at_start`, or `not_found`), not as retired; some databases come in two forms, accessions and their labels (`RefSeq_peptide` and `RefSeq peptide`: `kind` of `GET /api/v1/organisms/{organism}/databases`). */
         from_database?: string | null;
         /** @description Add the path of every candidate (`path`); it makes answers much larger. Written true or false. */
         explain?: boolean;
@@ -11483,7 +11483,7 @@ export interface operations {
       header?: never;
       path: {
         /**
-         * @description The organism: its Ensembl production name (`homo_sapiens`), with spaces or in any letter case (`Homo sapiens`), or a short name IDTrack declares (`human`, `pig`); the names a server holds: `names` of `GET /organisms`.
+         * @description The organism: its Ensembl production name (`homo_sapiens`), with spaces or in any letter case (`Homo sapiens`), or a short name IDTrack declares (`human`, `pig`); the names a server holds: `names` of `GET /api/v1/organisms`.
          * @example homo_sapiens
          */
         organism: string;
@@ -11591,18 +11591,18 @@ export interface operations {
     parameters: {
       query: {
         /**
-         * @description An Ensembl id (with or without version), a symbol or another id of a database the graph holds (`external_databases` of `GET /organisms/{organism}`). White space at its ends is no part of it. Ids of databases the graph does not hold are `not_found`: the name authorities' own ids (`HGNC:11998`), UniProt's secondary accessions, entry names and isoforms, RNAcentral, microarray probe sets (`201746_at`).
+         * @description An Ensembl id (with or without version), a symbol or another id of a database the graph holds (`external_databases` of `GET /api/v1/organisms/{organism}`). White space at its ends is no part of it. Ids of databases the graph does not hold are `not_found`: the name authorities' own ids (`HGNC:11998`), UniProt's secondary accessions, entry names and isoforms, RNAcentral, microarray probe sets (`201746_at`).
          * @example TP53
          */
         identifier: string;
-        /** @description The release it is read at; omitted: inferred. Without it, an identifier is read at the target release if it exists there, and otherwise at the latest release at which it exists (IDTrack's rule, the same for Ensembl ids, symbols and other databases' ids); the result says which release was used (`from_release`) and whether it was chosen (`from_release_inferred`). So a symbol sent without `from_release` is read as what it names at the target release, not as what it named years ago: give the release of the list's source to read it as it was then (`POST .../source-inference` finds it for a list). An Ensembl release, a whole number from 0 to 999999999 (anything else is `400 invalid_request`); whether the graph covers it is IDTrack's to answer (`400 unknown_release`, with the graph's releases in `allowed`: `GET /organisms/{organism}` lists them as `releases`). */
+        /** @description The release it is read at; omitted: inferred. Without it, an identifier is read at the target release if it exists there, and otherwise at the latest release at which it exists (IDTrack's rule, the same for Ensembl ids, symbols and other databases' ids); the result says which release was used (`from_release`) and whether it was chosen (`from_release_inferred`). So a symbol sent without `from_release` is read as what it names at the target release, not as what it named years ago: give the release of the list's source to read it as it was then (`POST .../source-inference` finds it for a list). An Ensembl release, a whole number from 0 to 999999999 (anything else is `400 invalid_request`); whether the graph covers it is IDTrack's to answer (`400 unknown_release`, with the graph's releases in `allowed`: `GET /api/v1/organisms/{organism}` lists them as `releases`). */
         from_release?: number | null;
         /**
-         * @description The target release; omitted: the snapshot release. An Ensembl release, a whole number from 0 to 999999999 (anything else is `400 invalid_request`); whether the graph covers it is IDTrack's to answer (`400 unknown_release`, with the graph's releases in `allowed`: `GET /organisms/{organism}` lists them as `releases`).
+         * @description The target release; omitted: the snapshot release. An Ensembl release, a whole number from 0 to 999999999 (anything else is `400 invalid_request`); whether the graph covers it is IDTrack's to answer (`400 unknown_release`, with the graph's releases in `allowed`: `GET /api/v1/organisms/{organism}` lists them as `releases`).
          * @example 115
          */
         to_release?: number | null;
-        /** @description The database the identifier is meant in; omitted: any. The values: `external_databases` of `GET /organisms/{organism}` (a database's synonyms are read under its name). An identifier that is not an id of the database named is read as absent from it (`no_conversion` with `no_gene_at_start`, or `not_found`), not as retired; some databases come in two forms, accessions and their labels (`RefSeq_peptide` and `RefSeq peptide`: `kind` of `GET /organisms/{organism}/databases`). */
+        /** @description The database the identifier is meant in; omitted: any. The values: `external_databases` of `GET /api/v1/organisms/{organism}` (a database's synonyms are read under its name). An identifier that is not an id of the database named is read as absent from it (`no_conversion` with `no_gene_at_start`, or `not_found`), not as retired; some databases come in two forms, accessions and their labels (`RefSeq_peptide` and `RefSeq peptide`: `kind` of `GET /api/v1/organisms/{organism}/databases`). */
         from_database?: string | null;
         /** @description Allow bridges through ids two genes share when history ends. Written true or false. */
         allow_bridges?: boolean;
@@ -11610,7 +11610,7 @@ export interface operations {
       header?: never;
       path: {
         /**
-         * @description The organism: its Ensembl production name (`homo_sapiens`), with spaces or in any letter case (`Homo sapiens`), or a short name IDTrack declares (`human`, `pig`); the names a server holds: `names` of `GET /organisms`.
+         * @description The organism: its Ensembl production name (`homo_sapiens`), with spaces or in any letter case (`Homo sapiens`), or a short name IDTrack declares (`human`, `pig`); the names a server holds: `names` of `GET /api/v1/organisms`.
          * @example homo_sapiens
          */
         organism: string;
@@ -12415,7 +12415,7 @@ export interface operations {
       header?: never;
       path: {
         /**
-         * @description The organism: its Ensembl production name (`homo_sapiens`), with spaces or in any letter case (`Homo sapiens`), or a short name IDTrack declares (`human`, `pig`); the names a server holds: `names` of `GET /organisms`.
+         * @description The organism: its Ensembl production name (`homo_sapiens`), with spaces or in any letter case (`Homo sapiens`), or a short name IDTrack declares (`human`, `pig`); the names a server holds: `names` of `GET /api/v1/organisms`.
          * @example homo_sapiens
          */
         organism: string;
@@ -12639,7 +12639,7 @@ export interface operations {
       header?: never;
       path: {
         /**
-         * @description The organism: its Ensembl production name (`homo_sapiens`), with spaces or in any letter case (`Homo sapiens`), or a short name IDTrack declares (`human`, `pig`); the names a server holds: `names` of `GET /organisms`.
+         * @description The organism: its Ensembl production name (`homo_sapiens`), with spaces or in any letter case (`Homo sapiens`), or a short name IDTrack declares (`human`, `pig`); the names a server holds: `names` of `GET /api/v1/organisms`.
          * @example homo_sapiens
          */
         organism: string;
@@ -13063,13 +13063,13 @@ export interface operations {
         name: string;
         /** @description Match without letter case. Written true or false. */
         fold_case?: boolean;
-        /** @description Only the matches that hold at this release (whose `releases` hold it); omitted: every match. An Ensembl release, a whole number from 0 to 999999999 (anything else is `400 invalid_request`); whether the graph covers it is IDTrack's to answer (`400 unknown_release`, with the graph's releases in `allowed`: `GET /organisms/{organism}` lists them as `releases`). */
+        /** @description Only the matches that hold at this release (whose `releases` hold it); omitted: every match. An Ensembl release, a whole number from 0 to 999999999 (anything else is `400 invalid_request`); whether the graph covers it is IDTrack's to answer (`400 unknown_release`, with the graph's releases in `allowed`: `GET /api/v1/organisms/{organism}` lists them as `releases`). */
         release?: number | null;
       };
       header?: never;
       path: {
         /**
-         * @description The organism: its Ensembl production name (`homo_sapiens`), with spaces or in any letter case (`Homo sapiens`), or a short name IDTrack declares (`human`, `pig`); the names a server holds: `names` of `GET /organisms`.
+         * @description The organism: its Ensembl production name (`homo_sapiens`), with spaces or in any letter case (`Homo sapiens`), or a short name IDTrack declares (`human`, `pig`); the names a server holds: `names` of `GET /api/v1/organisms`.
          * @example homo_sapiens
          */
         organism: string;
@@ -13870,7 +13870,7 @@ export interface operations {
          */
         gene: string;
         /**
-         * @description Only names that hold at this release; omitted: every release, each match listing its `releases`. An Ensembl release, a whole number from 0 to 999999999 (anything else is `400 invalid_request`); whether the graph covers it is IDTrack's to answer (`400 unknown_release`, with the graph's releases in `allowed`: `GET /organisms/{organism}` lists them as `releases`).
+         * @description Only names that hold at this release; omitted: every release, each match listing its `releases`. An Ensembl release, a whole number from 0 to 999999999 (anything else is `400 invalid_request`); whether the graph covers it is IDTrack's to answer (`400 unknown_release`, with the graph's releases in `allowed`: `GET /api/v1/organisms/{organism}` lists them as `releases`).
          * @example 115
          */
         release?: number | null;
@@ -13878,7 +13878,7 @@ export interface operations {
       header?: never;
       path: {
         /**
-         * @description The organism: its Ensembl production name (`homo_sapiens`), with spaces or in any letter case (`Homo sapiens`), or a short name IDTrack declares (`human`, `pig`); the names a server holds: `names` of `GET /organisms`.
+         * @description The organism: its Ensembl production name (`homo_sapiens`), with spaces or in any letter case (`Homo sapiens`), or a short name IDTrack declares (`human`, `pig`); the names a server holds: `names` of `GET /api/v1/organisms`.
          * @example homo_sapiens
          */
         organism: string;

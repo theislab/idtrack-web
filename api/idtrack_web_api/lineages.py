@@ -1,4 +1,4 @@
-"""``GET /organisms/{organism}/lineages``: the lineages of a graph's gene ids, whole families at a time.
+"""``GET /api/v1/organisms/{organism}/lineages``: the lineages of a graph's gene ids, whole families at a time.
 
 A gene id's lineage is what Ensembl's stable id history says of it as the graph holds it: the runs of the graph's
 releases at which a version of it is active (``TheGraph.active_releases``; a release of the graph at which no version

@@ -115,7 +115,9 @@ class Caution(BaseModel):
     """A fact of a result to weigh before trusting its answer: the API's reading of IDTrack's fields."""
 
     model_config = _STRICT
-    code: str = Field(..., description="The class of evidence (`cautions` of `GET /vocabulary` gives its meaning).")
+    code: str = Field(
+        ..., description="The class of evidence (`cautions` of `GET /api/v1/vocabulary` gives its meaning)."
+    )
     tone: Literal["caution", "note"] = Field(
         ...,
         description=(
@@ -151,7 +153,8 @@ API_FIELDS: dict[str, dict[str, tuple[Any, str]]] = {
         "cautions": (
             list[Caution],
             (
-                "The API's reading of this result's evidence, by stated rules (`cautions` of `GET /vocabulary`): each "
+                "The API's reading of this result's evidence, by stated rules (`cautions` of `GET "
+                "/api/v1/vocabulary`): each "
                 "fact of the best answer a reader should weigh before trusting it (`tone` `caution`: review the "
                 "answer) or that is worth knowing (`note`), cautions first, with the section of IDTrack's documented "
                 "limitations it falls under. Read with the path whatever `explain` asks: every rule holds for every "
@@ -163,7 +166,7 @@ API_FIELDS: dict[str, dict[str, tuple[Any, str]]] = {
         "code": (
             str,
             (
-                "The API's stable code of the error (one of the error codes of `GET /vocabulary`, as the same "
+                "The API's stable code of the error (one of the error codes of `GET /api/v1/vocabulary`, as the same "
                 "identifier sent alone to `/convert` would be answered: `missing_value` for an empty string or a "
                 "spelling of a missing value, `search_budget_exceeded` for a search over its budget, `internal_error` "
                 "for a fault). Added by the API to IDTrack's error record."
@@ -344,7 +347,7 @@ class GraphVersion(BaseModel):
         description=(
             "The build record's own text where it gives no version (for a graph built from a source folder rather "
             "than an installed IDTrack); `null` where it gives a version. The graph's description "
-            "(`GET /organisms/{organism}`) carries the record as it is."
+            "(`GET /api/v1/organisms/{organism}`) carries the record as it is."
         ),
     )
     package_commit: str | None = Field(..., description="The IDTrack commit that built the graph, where known.")
@@ -444,7 +447,8 @@ class DatabaseReleases(BaseModel):
     kind: Literal["ensembl", "accession", "label"] = Field(
         ...,
         description=(
-            "What its values are (`database_kinds` of `GET /vocabulary`): `ensembl`, one of IDTrack's two Ensembl gene "
+            "What its values are (`database_kinds` of `GET /api/v1/vocabulary`): `ensembl`, one of IDTrack's two "
+            "Ensembl gene "
             "namespaces; `label`, a database whose ids are labels (display names, symbols) rather than accessions "
             "(the graph's `label_databases`); `accession`, any other external database."
         ),
@@ -738,14 +742,14 @@ class VocabularyResponse(BaseModel):
     errors: list[ErrorTerm] = Field(..., description="The API's error codes (`error.code`), with their HTTP status.")
     database_kinds: list[Term] = Field(
         default_factory=list,
-        description="The values of `kind` of a database of `GET /organisms/{organism}/databases`.",
+        description="The values of `kind` of a database of `GET /api/v1/organisms/{organism}/databases`.",
     )
     allowances: list[Term] = Field(
         default_factory=list, description="The values of `allowance` of a `429 rate_limited` refusal."
     )
     source_modes: list[Term] = Field(
         default_factory=list,
-        description="The values of `mode` of `POST /organisms/{organism}/source-inference`: what an origin is.",
+        description="The values of `mode` of `POST /api/v1/organisms/{organism}/source-inference`: what an origin is.",
     )
     cautions: list[CautionTerm] = Field(
         default_factory=list,
@@ -1070,7 +1074,7 @@ class RequestsLoad(BaseModel):
         default=None,
         description=(
             "Bytes of answers the live workers hold for clients that have not taken them yet (bounded per worker by "
-            "`sending_max_bytes` of `GET /limits`)."
+            "`sending_max_bytes` of `GET /api/v1/limits`)."
         ),
     )
     last_60_seconds: int = Field(
@@ -1408,7 +1412,7 @@ class LineagesResponse(BaseModel):
         ...,
         description=(
             "How many of the families given first hold a gene that the answers of the showcase name "
-            "(`GET /organisms/{organism}/showcase`)."
+            "(`GET /api/v1/organisms/{organism}/showcase`)."
         ),
     )
     ids: list[str] = Field(
@@ -1449,7 +1453,7 @@ class LineagesResponse(BaseModel):
 RELEASE_TEXT = (
     "An Ensembl release, a whole number from 0 to 999999999 (anything else is `400 invalid_request`); whether the "
     "graph covers it is IDTrack's to answer (`400 unknown_release`, with the graph's releases in `allowed`: "
-    "`GET /organisms/{organism}` lists them as `releases`)."
+    "`GET /api/v1/organisms/{organism}` lists them as `releases`)."
 )
 RELEASE_MAX = 999_999_999
 
@@ -1476,7 +1480,8 @@ class BatchRequest(BaseModel):
         ...,
         min_length=1,
         description=(
-            "The identifiers, at most `batch_max` of `GET /limits` (`413 too_many_identifiers` beyond), each at most "
+            "The identifiers, at most `batch_max` of `GET /api/v1/limits` (`413 too_many_identifiers` beyond), "
+            "each at most "
             "`identifier_max_length` characters without control characters (else the whole batch is refused with "
             "`400 invalid_identifier`, `details` naming each such item's index)."
         ),
@@ -1498,8 +1503,10 @@ class BatchRequest(BaseModel):
         json_schema_extra={"minLength": 1, "maxLength": DATABASE_MAX_LENGTH},
         description=(
             "The database of the targets; `null`: `ensembl_gene`. The values a release takes: "
-            "`GET /organisms/{organism}/final-databases?to_release=` (for example `HGNC Symbol`, `RefSeq_mRNA`); what "
-            "each holds: `kind` of `GET /organisms/{organism}/databases` (NCBI's gene numbers are `EntrezGene`, its "
+            "`GET /api/v1/organisms/{organism}/final-databases?to_release=` (for example `HGNC Symbol`, "
+            "`RefSeq_mRNA`); what "
+            "each holds: `kind` of `GET /api/v1/organisms/{organism}/databases` (NCBI's gene numbers are "
+            "`EntrezGene`, its "
             "symbols `NCBI gene (formerly Entrezgene)`)."
         ),
     )
@@ -1508,10 +1515,11 @@ class BatchRequest(BaseModel):
         json_schema_extra={"minLength": 1, "maxLength": DATABASE_MAX_LENGTH},
         description=(
             "The database the identifiers are meant in; `null`: any. The values: `external_databases` of "
-            "`GET /organisms/{organism}` (a database's synonyms are read under its name). An identifier that is not "
+            "`GET /api/v1/organisms/{organism}` (a database's synonyms are read under its name). An identifier "
+            "that is not "
             "an id of the database named is read as absent from it (`no_conversion` with `no_gene_at_start`, or "
             "`not_found`), not as retired; some databases come in two forms, accessions and their labels "
-            "(`RefSeq_peptide` and `RefSeq peptide`: `kind` of `GET /organisms/{organism}/databases`)."
+            "(`RefSeq_peptide` and `RefSeq peptide`: `kind` of `GET /api/v1/organisms/{organism}/databases`)."
         ),
     )
     explain: bool = Field(
@@ -1539,14 +1547,15 @@ class SourceInferenceRequest(BaseModel):
         ...,
         min_length=1,
         description=(
-            "The identifiers, as a list from one source holds them (at most `batch_max` of `GET /limits`, each checked "
+            "The identifiers, as a list from one source holds them (at most `batch_max` of `GET /api/v1/limits`, "
+            "each checked "
             "as a batch's): each distinct identifier counts once at every origin at which it is an identifier, read "
             "as it was at each release."
         ),
     )
     mode: Literal["assembly_release", "release", "assembly", "complete"] = Field(
         "assembly_release",
-        description="What an origin is (`source_modes` of `GET /vocabulary`); default `[assembly, release]`.",
+        description="What an origin is (`source_modes` of `GET /api/v1/vocabulary`); default `[assembly, release]`.",
     )
 
 
@@ -1572,7 +1581,7 @@ class SourceInferenceResponse(BaseModel):
 
     model_config = _STRICT
     organism: str = Field(..., description="The organism.")
-    mode: str = Field(..., description="The mode asked (`source_modes` of `GET /vocabulary`).")
+    mode: str = Field(..., description="The mode asked (`source_modes` of `GET /api/v1/vocabulary`).")
     best: Origin | None = Field(
         ...,
         description=(

@@ -124,7 +124,7 @@ class ManifestGraph(BaseModel):
         ...,
         description=(
             "The lineages of the graph's gene ids, computed from the graph by the publisher and read by the server at "
-            "start (`GET /organisms/{organism}/lineages`)."
+            "start (`GET /api/v1/organisms/{organism}/lineages`)."
         ),
     )
     content_digest: str = Field(..., pattern=_SHA256.pattern, description="The graph's content digest (its build's).")

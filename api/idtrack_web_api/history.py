@@ -1,4 +1,4 @@
-"""``GET /organisms/{organism}/history``: Ensembl's stable id history of genes in a graph, counted once at the start.
+"""``GET /api/v1/organisms/{organism}/history``: Ensembl's stable id history of genes in a graph, counted at start.
 
 The counts are read from IDTrack's graph through its public interface (:py:meth:`idtrack_web_api.adapter.Graph.
 history_counts`): plain facts of Ensembl's history (an id created, a version followed by another version or by another

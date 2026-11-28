@@ -152,19 +152,21 @@ HEADERS: dict[str, dict[str, Any]] = {
         "schema": {"type": "string", "pattern": "^[A-Za-z0-9._:-]{1,64}$"},
     },
     "Idtrack-Version": {
-        "description": "The version of IDTrack that answered (as `idtrack_version` of `GET /version`).",
+        "description": "The version of IDTrack that answered (as `idtrack_version` of `GET /api/v1/version`).",
         "schema": {"type": "string"},
     },
     "Idtrack-Graph-Digest": {
         "description": (
-            "The content digest of the graph that answered (`content_digest` of the organism in `GET /version`): "
+            "The content digest of the graph that answered (`content_digest` of the organism in `GET "
+            "/api/v1/version`): "
             "record it with the answer, so a result stays tied to its graph without a second request."
         ),
         "schema": {"type": "string"},
     },
     "RateLimit-Policy": {
         "description": (
-            "Where the per-client allowances apply (`allowances_enforced` of `GET /limits`): each allowance as the "
+            "Where the per-client allowances apply (`allowances_enforced` of `GET /api/v1/limits`): each "
+            "allowance as the "
             'IETF draft on rate-limit fields writes a policy, `"searches";q=30;w=15`: its name (as `allowance` of a '
             "`429` names it), `q` the most a client holds, `w` the seconds in which an empty allowance fills again."
         ),
@@ -289,7 +291,7 @@ def cite(text: str) -> str:
     Returns:
         str: The text.
     """
-    return _TABLE_NAME.sub(lambda m: f"`{_TABLES[m.group(1)]}` of `GET /vocabulary`", text)
+    return _TABLE_NAME.sub(lambda m: f"`{_TABLES[m.group(1)]}` of `GET /api/v1/vocabulary`", text)
 
 
 def _cite_vocabulary(node: Any) -> None:

@@ -64,7 +64,10 @@ CODES: dict[str, tuple[int, str]] = {
         ),
     ),
     "payload_too_large": (413, "The request body is larger than the server accepts."),
-    "too_many_identifiers": (413, "A batch with more identifiers than the server accepts (`batch_max` of /limits)."),
+    "too_many_identifiers": (
+        413,
+        "A batch with more identifiers than the server accepts (`batch_max` of `/api/v1/limits`).",
+    ),
     "uri_too_long": (414, "The request's path and query are longer than the server accepts."),
     "unsupported_media_type": (
         415,
@@ -76,7 +79,10 @@ CODES: dict[str, tuple[int, str]] = {
     ),
     "response_too_large": (
         422,
-        "The answer is larger than the server sends (`response_max_bytes` of /limits); it is refused, never cut.",
+        (
+            "The answer is larger than the server sends (`response_max_bytes` of `/api/v1/limits`); it is refused, "
+            "never cut."
+        ),
     ),
     "rate_limited": (
         429,
@@ -90,14 +96,16 @@ CODES: dict[str, tuple[int, str]] = {
         503,
         (
             "The server has more waiting work than it accepts: its queue of searches is full, the search would wait "
-            "(or waited) longer for a worker than `queue_seconds` of /limits, or the server is stopping; the request "
+            "(or waited) longer for a worker than `queue_seconds` of `/api/v1/limits`, or the server is "
+            "stopping; the request "
             "was not searched. Retry after the `Retry-After` header's seconds, unchanged."
         ),
     ),
     "request_budget_exceeded": (
         503,
         (
-            "The request's search needed more time than its budget (`request_seconds` of /limits, counted from when "
+            "The request's search needed more time than its budget (`request_seconds` of `/api/v1/limits`, "
+            "counted from when "
             "its search began); `progress` says how far it went (identifiers of a batch, databases of each-database). "
             "The time a search takes depends on the server's load too, so the same request can succeed later; one "
             "refused again needs fewer identifiers or databases per request."

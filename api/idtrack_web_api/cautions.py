@@ -3,8 +3,8 @@
 IDTrack's result says how it read the identifier, which path each candidate took and how the candidates were ranked;
 it does not say which of those facts make an answer one to review. The API reads them by the rules below, each a
 general rule stated by what the fields mean (never a list of identifiers), and adds the result's ``cautions``: one item
-per class of evidence that holds, each with its ``code`` (``cautions`` of ``GET /vocabulary`` gives its meaning), its
-``tone`` (``caution``: it changes how far the answer can be trusted; ``note``: an exact fact about it that is no fault),
+per class of evidence that holds, each with its ``code`` (``cautions`` of ``GET /api/v1/vocabulary`` gives its
+meaning), its ``tone`` (``caution``: it changes how far the answer can be trusted; ``note``: an exact fact about it that is no fault),
 a sentence with the result's own values, and, where IDTrack documents a limitation of that class, the address of that
 section of the document of limitations the site cites (:py:mod:`idtrack_web_api.limitations`), and, where a conversion
 answers what the mark doubts, that conversion (ask). This module is the one source of these classes: the page shows the

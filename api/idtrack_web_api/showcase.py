@@ -1,4 +1,4 @@
-"""``GET /organisms/{organism}/showcase``: chosen conversions of a graph, answered once when the server starts.
+"""``GET /api/v1/organisms/{organism}/showcase``: chosen conversions of a graph, answered once when the server starts.
 
 The home page draws conversions chosen to show the kinds of journey IDTrack follows (the *journeys*) and phenomena of
 Ensembl's history (the *cases*, each with the kind its answer shows). They are data, one file per organism
