@@ -50,10 +50,8 @@ export function markdownBare(file: string, text: string): Bare[] {
 
 /** Whether a node lies inside an element of code. */
 function inCode(node: ts.Node): boolean {
-  for (let n: ts.Node | undefined = node.parent; n; n = n.parent) {
-    if (ts.isJsxElement(n) && CODE_ELEMENTS.has(n.openingElement.tagName.getText())) return true;
-  }
-  return false;
+  const code = (n: ts.Node) => ts.isJsxElement(n) && CODE_ELEMENTS.has(n.openingElement.tagName.getText());
+  return ts.findAncestor(node.parent, code) !== undefined;
 }
 
 /** Every bare name of the words a page's source gives a person (its JSX texts and read attributes). */

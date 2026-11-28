@@ -329,10 +329,10 @@ $ sudo deploy/build_image.sh 0.1.3 docker
 #25 naming to docker.io/library/idtrack-web:0.1.3 done
 $ sudo docker images idtrack-web
 IMAGE               ID             DISK USAGE   CONTENT SIZE   EXTRA
-idtrack-web:0.1.3   9b3bba874b29        537MB          128MB
+idtrack-web:0.1.3   22e033128085        537MB          128MB
 ```
 
-`deploy/vm/docker-daemon.json` sets Docker's `live-restore` (the containers keep running while Docker itself restarts, as an update of its packages makes it: measured, `systemctl restart docker` took 1.2 s, the containers were not restarted, and of health checks sent through Caddy every 0.2 s for 30 s, 4 in a row failed) and a bound on the log of every container (five files of 20 MB). The build took 67 s on the machine, everything fetched from the network. The build context holds no secret (`.dockerignore` leaves out every `.env` and `*.env` file, `secrets` folder, key and certificate, in any folder), and the api's stage copies the api alone. Where the machine cannot reach the build's hosts (10.1), build on another machine with Docker and copy the image: `docker save idtrack-web:0.1.3 | gzip | ssh <machine> 'gunzip | sudo docker load'`.
+`deploy/vm/docker-daemon.json` sets Docker's `live-restore` (the containers keep running while Docker itself restarts, as an update of its packages makes it: measured, `systemctl restart docker` took 1.2 s, the containers were not restarted, and of health checks sent through Caddy every 0.2 s for 30 s, 4 in a row failed) and a bound on the log of every container (five files of 20 MB). The build took 70 s on the machine, everything fetched from the network. The build context holds no secret (`.dockerignore` leaves out every `.env` and `*.env` file, `secrets` folder, key and certificate, in any folder), and the api's stage copies the api alone. Where the machine cannot reach the build's hosts (10.1), build on another machine with Docker and copy the image: `docker save idtrack-web:0.1.3 | gzip | ssh <machine> 'gunzip | sudo docker load'`.
 
 ### 10.4 The graphs and the configuration
 
@@ -347,7 +347,7 @@ $ sudo docker run --rm --user 0:0 -v /srv/idtrack-web/incoming:/incoming:ro -v /
   "target": "folder /srv/store",
   "done": {
     "idtrack/6/homo_sapiens/9d9d770898828f40197472fd7e9deb1442c9a984e3d82d208dd9e69e57d3ef6b.npz": "copied",
-    "idtrack/6/homo_sapiens/3893148599a7297aa7fec539515b79f574bf8a49f4f0756f59d15d8263edc1e3.lineages.json": "written",
+    "idtrack/6/homo_sapiens/9a7349ec450b4a4c27d764a715e1cfe8aac5b6568c52cab8c2fbd49a5317d987.lineages.json": "written",
     ...
 $ sudo du -sh /srv/idtrack-web/store
 357M	/srv/idtrack-web/store
@@ -414,7 +414,7 @@ $ curl -sI http://<domain>/ | head -n 1
 HTTP/1.1 308 Permanent Redirect
 ```
 
-`up -d` returns once the api is healthy (Caddy waits for it): on the first `up -d`, which also fetches Caddy's image, it returned after 147 s; the container's check, every 5 s until the api is ready (`start_interval`), sees it within 5 s. Both containers run with a read-only root file system, no new privileges and every capability dropped, Caddy keeping only the binding of ports below 1024 (`deploy/compose.yaml`: Caddy is what the internet talks to). Then the daily check (10.10).
+`up -d` returns once the api is healthy (Caddy waits for it): on the first `up -d`, which also fetches Caddy's image, it returned after 146 s; the container's check, every 5 s until the api is ready (`start_interval`), sees it within 5 s. Both containers run with a read-only root file system, no new privileges and every capability dropped, Caddy keeping only the binding of ports below 1024 (`deploy/compose.yaml`: Caddy is what the internet talks to). Then the daily check (10.10).
 
 Where the domain has an `AAAA` record, check that a visitor who comes over IPv6 reaches the api as itself: the compose network holds IPv6 (`enable_ipv6`, the private network `fd30:80::/64`), so Docker forwards the published ports to Caddy's IPv6 address and Caddy names the visitor's own address in `X-Forwarded-For`; a client's allowances are then those of its own `/64`. From a machine with IPv6:
 
@@ -444,7 +444,7 @@ Start: from `docker compose up` to the first answer through Caddy (which checks 
 
 ### 10.8 Reboots, updates and the images' refresh
 
-The service comes back by itself after every reboot: Docker is enabled at boot, and both containers have the restart policy `unless-stopped` (started again unless an administrator stopped them with `docker compose stop` or `down`). Measured: after `sudo systemctl reboot`, SSH answered after 16 s and the site (`https://<domain>/api/v1/health` through Caddy) after 168 s; the machine itself boots in 9.5 s (`systemd-analyze`), the rest is the api loading the graphs, with Caddy answering `503` meanwhile; the daily check then passed.
+The service comes back by itself after every reboot: Docker is enabled at boot, and both containers have the restart policy `unless-stopped` (started again unless an administrator stopped them with `docker compose stop` or `down`). Measured: after `sudo systemctl reboot`, SSH answered after 20 s and the site (`https://<domain>/api/v1/health` through Caddy) after 167 s; the machine itself boots in 9.2 s (`systemd-analyze`), the rest is the api loading the graphs, with Caddy answering `503` meanwhile; the daily check then passed.
 
 Security updates of the machine (`deploy/vm/52idtrack-web-unattended-upgrades`), the weekly window for the reboot they may need (`deploy/vm/reboot-if-required.service` and `.timer`), and the weekly refresh of the two images (`deploy/vm/idtrack-web-refresh.service` and `.timer`):
 
@@ -456,8 +456,8 @@ $ sudo install -m 644 deploy/vm/reboot-if-required.service deploy/vm/reboot-if-r
 $ sudo systemctl daemon-reload && sudo systemctl enable --now reboot-if-required.timer idtrack-web-refresh.timer
 $ systemctl list-timers --no-pager reboot-if-required.timer idtrack-web-refresh.timer | head -n 3
 NEXT                          LEFT LAST PASSED UNIT                      ACTIVATES
-Thu 2026-12-03 01:18:18 UTC 4 days -         - idtrack-web-refresh.timer idtrack-web-refresh.service
-Thu 2026-12-03 02:24:03 UTC 4 days -         - reboot-if-required.timer  reboot-if-required.service
+Thu 2026-12-03 01:22:02 UTC 4 days -         - idtrack-web-refresh.timer idtrack-web-refresh.service
+Thu 2026-12-03 02:26:44 UTC 4 days -         - reboot-if-required.timer  reboot-if-required.service
 $ sudo unattended-upgrade --dry-run --debug 2>&1 | grep 'Allowed origins'
 Allowed origins are: o=Ubuntu,a=resolute, o=Ubuntu,a=resolute-security, o=UbuntuESMApps,a=resolute-apps-security, o=UbuntuESM,a=resolute-infra-security, origin=Docker,label=Docker CE,a=resolute
 $ sudo systemctl start idtrack-web-refresh.service    # once now, so that the daily check finds a refresh
@@ -508,20 +508,20 @@ $ sudo install -m 644 deploy/vm/idtrack-web-check.service deploy/vm/idtrack-web-
     'deploy/vm/idtrack-web-alert@.service' /etc/systemd/system/
 $ sudo systemctl daemon-reload && sudo systemctl enable --now idtrack-web-check.timer
 $ sudo /opt/idtrack-web/deploy/vm/check.sh
-== machine: 7.0.0-43-generic, up since 2026-11-28 12:57:05
+== machine: 7.0.0-43-generic, up since 2026-11-28 13:36:10
 ...
 == workers and memory
 workers: 3 of 3 alive; 0 ended since the server started (the last: -)
-memory: the server's footprint 5083 MiB of its bound 12288 MiB (0.414)
+memory: the server's footprint 4925 MiB of its bound 12288 MiB (0.401)
 the kernel's stops for want of memory in the last 24 h: 0
 == disk
 /dev/vda1        48G  5.8G   42G  13% /
 ...
 == images
 ...
-api: idtrack-web:0.1.3, built 2026-11-28T12:59:00.093484354Z
+api: idtrack-web:0.1.3, built 2026-11-28T13:37:49.304508319Z
 caddy: docker.io/library/caddy:2.11, built 2026-11-05T19:37:08.620385055Z
-the images last refreshed: 2026-11-28T13:03:55Z (0 days ago)
+the images last refreshed: 2026-11-28T13:42:36Z (0 days ago)
 == certificate
 idtrack.example.org: valid until Feb 26 12:07:12 2027 GMT (89 days)
 == logs and the site's own files
@@ -534,7 +534,7 @@ check: ok
 Rehearsed: with the api stopped, the check's service failed and its alert wrote to the journal and the login notice; at the next login over SSH, after Ubuntu's own lines:
 
 ```console
-*** idtrack-web on idtrack-vm: idtrack-web-check.service failed at 2026-11-28 13:04 UTC ***
+*** idtrack-web on idtrack-vm: idtrack-web-check.service failed at 2026-11-28 13:42 UTC ***
 check: the api is not healthy: 'not running' (docker compose logs api)
 check: /api/v1/status could not be read
 check: /.well-known/security.txt is not served
