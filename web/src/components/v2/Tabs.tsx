@@ -1,8 +1,7 @@
 // Tabs (DIRECTION.md, "The disclosure components"): a list of tabs, each with a label and an optional quiet count, a
 // sliding indicator under the chosen one, and one panel. The arrow keys move between tabs and choose (automatic
-// activation), Home and End go to the ends; Tab leaves to the panel. A panel is drawn when its tab is first chosen and
-// kept (hidden) after, so going back to it costs nothing; the panel follows the choice a moment later (a deferred
-// value), so the tab answers at once. With `param`, the choice is kept in the page's address (`?tab=`), so every view can be
+// activation), Home and End go to the ends; Tab leaves to the panel. Only the chosen panel is drawn, and it follows
+// the choice a moment later (a deferred value), so the tab answers at once. With `param`, the choice is kept in the page's address (`?tab=`), so every view can be
 // linked to and survives a reload; an address that names a tab other than the first brings the tab list just under
 // the masthead, so a shared link shows the view it names. With `value`, the page holds the choice (a count that shows
 // its rows chooses the table's tab).
@@ -100,8 +99,6 @@ export function Tabs({
   const [bar, setBar] = useState<{ left: number; width: number } | null>(null);
   // The panel shown: the choice, drawn after the tabs have answered it.
   const shown = useDeferredValue(chosen);
-  const [visited, setVisited] = useState<ReadonlySet<string>>(() => new Set([shown]));
-  if (!visited.has(shown)) setVisited(new Set([...visited, shown]));
   // A choice made by a press of a tab (not by the address).
   const pressed = useRef(false);
 
@@ -167,6 +164,7 @@ export function Tabs({
     });
   };
 
+  const current = items.find((t) => t.id === shown) ?? items.find((t) => t.id === chosen);
   const onKeyDown = (event: KeyboardEvent<HTMLButtonElement>) => {
     const index = items.findIndex((t) => t.id === chosen);
     const next =
@@ -245,21 +243,18 @@ export function Tabs({
           />
         ) : null}
       </div>
-      {items.map((t) =>
-        visited.has(t.id) ? (
-          <div
-            key={t.id}
-            role="tabpanel"
-            id={`${base}-panel-${t.id}`}
-            aria-labelledby={`${base}-tab-${t.id}`}
-            className="tabs__panel"
-            tabIndex={0}
-            hidden={t.id !== shown}
-          >
-            {t.panel()}
-          </div>
-        ) : null,
-      )}
+      {current ? (
+        <div
+          key={current.id}
+          role="tabpanel"
+          id={`${base}-panel-${current.id}`}
+          aria-labelledby={`${base}-tab-${current.id}`}
+          className="tabs__panel"
+          tabIndex={0}
+        >
+          {current.panel()}
+        </div>
+      ) : null}
     </div>
   );
 }

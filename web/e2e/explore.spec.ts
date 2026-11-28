@@ -140,7 +140,8 @@ test("Method: the benchmarks' rates as published, and whether this server's grap
   for (const family of BENCHMARKS.families) {
     if (!familyRows(family).length) continue;
     await one.getByRole("button", { name: `What ${family.title} is judged against` }).click();
-    const card = one.locator(".accuracy__measures");
+    // The card is drawn over the page, outside the table that holds its trigger.
+    const card = page.locator(".accuracy__measures");
     await expect(card).toContainText("Judged against:");
     if (family.truth.history) await expect(card).toContainText("stable_id_event");
     await page.keyboard.press("Escape");

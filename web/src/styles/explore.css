@@ -1,6 +1,5 @@
 /* Explore (pages/OrganismPage.tsx): the graphs side by side, and each graph's assemblies, composition, release-by-
    database matrix and build, as lettered panels of one figure. */
-@import "./figure.css";
 
 /* ---- The stories (components/explore/Stories.tsx) and the graphs' section ---------------------------------------- */
 

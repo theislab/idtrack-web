@@ -1,7 +1,5 @@
 /* The Convert page before a conversion (components/ConvertEmpty.tsx): the hero, the figure of one real answer (a),
    what the server holds (b), and the cases (c). Every height that waits on the api is fixed before it answers. */
-@import "./figure.css";
-
 .home {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
