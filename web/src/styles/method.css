@@ -1095,7 +1095,8 @@
    after it and the link to its section one press away. Two columns where the panel is wide. */
 .limitations-list {
   margin: var(--space-3) 0;
-  padding-left: 1.8em;
+  padding: 0;
+  list-style: none;
   columns: 2 30rem;
   column-gap: var(--space-7);
   font-size: var(--text-sm);
@@ -1105,10 +1106,21 @@
   break-inside: avoid;
 }
 
-.limitations-list li::marker {
-  font-family: var(--font-mono);
+/* A row's title takes the rest of its line and wraps within it, beside its chevron. */
+.limitations-list__row .expandable__title {
+  flex: 1 1 0;
+  min-width: 0;
+  text-align: start;
+}
+
+/* Each row's number in the list, quiet, before its title (the list's order is the documentation's). */
+.limitations-list__n {
+  display: inline-block;
+  min-inline-size: 2ch;
+  margin-inline-end: var(--space-2);
   font-size: var(--text-2xs);
   color: var(--ink-3);
+  text-align: end;
 }
 
 .limitations-list__lead {
@@ -1125,7 +1137,7 @@
 }
 
 .method-using__intro {
-  margin: 0;
+  margin: var(--space-3) 0 0;
   max-width: var(--measure);
   color: var(--ink-2);
 }

@@ -48,10 +48,20 @@ const LIMITATIONS_SHOWN = 8;
 
 /** A limitation as one row: its title on the surface; its whole first sentence (never cut short), the sentence after
  *  it and the link to the section that sizes it one press away. */
-function LimitationItem({ item }: { item: (typeof docs.limitations.items)[number] }) {
+function LimitationItem({ item, n }: { item: (typeof docs.limitations.items)[number]; n: number }) {
   return (
     <li>
-      <Expandable summary={<Prose text={item.title} />} className="limitations-list__row">
+      <Expandable
+        summary={
+          <>
+            <span className="limitations-list__n mono" aria-hidden="true">
+              {n}
+            </span>
+            <Prose text={item.title} />
+          </>
+        }
+        className="limitations-list__row"
+      >
         <p className="limitations-list__lead">
           <Prose text={item.sentence} />
           {item.next ? (
@@ -77,15 +87,15 @@ function Limitations() {
   return (
     <>
       <ol className="limitations-list">
-        {items.slice(0, LIMITATIONS_SHOWN).map((item) => (
-          <LimitationItem key={item.anchor} item={item} />
+        {items.slice(0, LIMITATIONS_SHOWN).map((item, i) => (
+          <LimitationItem key={item.anchor} item={item} n={i + 1} />
         ))}
       </ol>
       {items.length > LIMITATIONS_SHOWN ? (
         <Expandable summary={`And ${items.length - LIMITATIONS_SHOWN} more`} className="limitations-more">
           <ol className="limitations-list" start={LIMITATIONS_SHOWN + 1}>
-            {items.slice(LIMITATIONS_SHOWN).map((item) => (
-              <LimitationItem key={item.anchor} item={item} />
+            {items.slice(LIMITATIONS_SHOWN).map((item, i) => (
+              <LimitationItem key={item.anchor} item={item} n={LIMITATIONS_SHOWN + i + 1} />
             ))}
           </ol>
         </Expandable>
