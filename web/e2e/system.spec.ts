@@ -340,7 +340,7 @@ test("every page is drawn before its code runs: the masthead and the page's head
     for (const path of FRAMED) {
       const raw = await off.newPage();
       await raw.goto(`${path}?organism=${data.organism}`);
-      await expect(raw.locator(".masthead .nav__link")).toHaveCount(7);
+      await expect(raw.locator(".mast .mast__nav .mast__link")).toHaveCount(5);
       await expect(raw.getByRole("heading", { level: 1 })).toBeVisible();
       const place = (p: Page) =>
         p.locator(".page-head .lede").evaluate((e) => {
@@ -354,7 +354,7 @@ test("every page is drawn before its code runs: the masthead and the page's head
         if (m.type() === "error" || m.type() === "warning") problems.push(m.text());
       });
       await page.goto(`${path}?organism=${data.organism}`);
-      await expect(page.locator("footer.footer")).toBeVisible(); // the app drew the page: the frame is replaced
+      await expect(page.locator("footer.foot")).toBeVisible(); // the app drew the page: the frame is replaced
       expect(await place(page), `${path} at ${width} px: the head the code draws is the frame's`).toEqual(before);
       expect(problems, `${path}: nothing refused (an inline style or script) or preloaded in vain`).toEqual([]);
       await raw.close();
@@ -371,7 +371,7 @@ test("every page's lede starts at one x, beside its title", async ({ page }, inf
   const starts = new Set<number>();
   for (const path of FRAMED) {
     await page.goto(path.includes("?") ? path : `${path}?organism=${data.organism}`);
-    await expect(page.locator("footer.footer")).toBeVisible();
+    await expect(page.locator("footer.foot")).toBeVisible();
     const lede = page.locator(".page-head .lede");
     await expect(lede).toBeVisible();
     starts.add(Math.round(await lede.evaluate((e) => e.getBoundingClientRect().left)));

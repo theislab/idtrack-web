@@ -166,7 +166,7 @@ test("every note of the path view stands whole in the window, and every element 
         )
           clipped = true;
       }
-      const mast = document.querySelector(".masthead")?.getBoundingClientRect().bottom ?? 0;
+      const mast = document.querySelector(".mast")?.getBoundingClientRect().bottom ?? 0;
       return {
         top: b.top,
         bottom: b.bottom,
