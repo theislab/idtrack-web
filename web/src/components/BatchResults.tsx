@@ -642,7 +642,6 @@ function Summary({
 }) {
   const vocabulary = useVocabulary();
   const total = results.length;
-  const gaps = Math.max(0, counts.length - 1);
   const endpoint = `POST /api/v1/organisms/${organism}/convert/batch`;
   const noPaths = "The batch was answered without its paths, so this is not counted.";
   const all: Count[] = [
@@ -865,13 +864,17 @@ function Summary({
   return (
     <section className="batch-summary" aria-label="What came back">
       <figure className="batch-bar-figure">
-        <div className="sbar" role="img" aria-label={counts.map(([s, n]) => `${statusTitle(s)} ${n}`).join(", ")}>
-          {counts.map(([status, n]) => (
-            <span
-              key={status}
-              className={`sbar__segment ${statusFill(status)}`}
-              style={{ width: `calc((100% - ${String(gaps * 2)}px) * ${String(n)} / ${String(total)})` }}
-            />
+        {/* One grid track per status, as wide as its share of the row less the gaps; a track whose share is under the
+            minimum takes the minimum, out of the others' room (the grid's own rule for flexible tracks), so that the
+            bar is exactly as wide as its column whatever the shares. */}
+        <div
+          className="sbar"
+          role="img"
+          aria-label={counts.map(([s, n]) => `${statusTitle(s)} ${n}`).join(", ")}
+          style={{ gridTemplateColumns: counts.map(([, n]) => `minmax(var(--sbar-min), ${String(n)}fr)`).join(" ") }}
+        >
+          {counts.map(([status]) => (
+            <span key={status} className={`sbar__segment ${statusFill(status)}`} />
           ))}
         </div>
         <ul className="slegend" aria-label="The statuses and what they mean">
@@ -900,8 +903,8 @@ function Summary({
         <figcaption className="fig-caption batch-bar-figure__caption">
           <CaptionMore lead={<>The status of each result, in proportion.</>}>
             A segment is as wide as the share of the {groupedInteger(total)} identifiers with that status (a segment of
-            a few is at least 3 px wide); each status&rsquo;s name gives the api&rsquo;s meaning of it (
-            <Mono>GET /api/v1/vocabulary</Mono>).
+            a few is at least 3 px wide, its room taken from the others, so that the bar keeps the width of its column);
+            each status&rsquo;s name gives the api&rsquo;s meaning of it (<Mono>GET /api/v1/vocabulary</Mono>).
           </CaptionMore>
         </figcaption>
       </figure>

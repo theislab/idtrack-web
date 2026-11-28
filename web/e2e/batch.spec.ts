@@ -237,6 +237,54 @@ test("the summary draws only the counts that hold rows; the others are one quiet
   await expect(page.getByRole("tabpanel")).toContainText("What the best paths crossed");
 });
 
+test("the status bar is exactly as wide as its column, whatever the shares, and the page never scrolls sideways", async ({
+  page,
+}) => {
+  // 497 / 1 / 2: a share of a few is drawn at its minimum width, taken from the others' room.
+  const lines = [
+    ...Array.from({ length: 497 }, () => data.symbol.identifier),
+    data.notFound.identifier,
+    data.unknownVersion.identifier,
+    data.unknownVersion.identifier,
+  ];
+  await page.goto(`/batch?organism=${data.organism}`);
+  await page.getByLabel("Identifiers", { exact: true }).fill(lines.join("\n"));
+  await page.getByRole("button", { name: /^Convert/ }).click();
+  const bar = page.locator(".sbar");
+  await expect(bar).toBeVisible();
+  for (const width of [320, 390, 1440]) {
+    await page.setViewportSize({ width, height: 844 });
+    await expect
+      .poll(() => page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth))
+      .toBe(0);
+    const box = await bar.evaluate((e) => {
+      const r = e.getBoundingClientRect();
+      const parent = (e.parentElement ?? e).getBoundingClientRect();
+      const segments = [...e.children].map((c) => c.getBoundingClientRect());
+      return {
+        left: r.left,
+        right: r.right,
+        parentRight: parent.right,
+        first: segments[0]?.left ?? 0,
+        last: segments[segments.length - 1]?.right ?? 0,
+        narrowest: Math.min(...segments.map((c) => c.width)),
+        count: segments.length,
+      };
+    });
+    expect(box.count, `three statuses at ${String(width)} px`).toBe(3);
+    expect(box.right).toBeLessThanOrEqual(box.parentRight + 0.5);
+    expect(
+      Math.abs(box.first - box.left),
+      `the first segment starts at the bar's edge at ${String(width)} px`,
+    ).toBeLessThan(0.5);
+    expect(
+      Math.abs(box.last - box.right),
+      `the last segment ends at the bar's edge at ${String(width)} px`,
+    ).toBeLessThan(0.5);
+    expect(box.narrowest).toBeGreaterThanOrEqual(2.9);
+  }
+});
+
 test("a table that fits its frame scrolls with the page, never in a box of its own", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 800 });
   await page.goto(`/batch?organism=${data.organism}`);
