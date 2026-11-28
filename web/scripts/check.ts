@@ -25,7 +25,7 @@ const web = fileURLToPath(new URL("..", import.meta.url));
  * The most warnings ESLint may report (its guards of size: eslint.config.js): the count the code has, so that a new
  * warning fails the check; lowered whenever a function is split, never raised.
  */
-const ESLINT_MAX_WARNINGS = 33;
+const ESLINT_MAX_WARNINGS = 32;
 const bin = (name: string) => `node_modules/.bin/${name}`;
 
 const matches = (output: string, pattern: RegExp) => output.match(pattern)?.length ?? 0;
