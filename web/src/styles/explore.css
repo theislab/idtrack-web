@@ -236,6 +236,16 @@ a.organism-switch__item:hover {
   color: var(--paper);
 }
 
+/* Forced colours: the graph in view keeps its mark, in the system's highlight. */
+@media (forced-colors: active) {
+  .organism-switch__item--on {
+    forced-color-adjust: none;
+    background: Highlight;
+    border-color: Highlight;
+    color: HighlightText;
+  }
+}
+
 /* ---- Assemblies on one axis ---------------------------------------------------------------------------------- */
 
 .arows {

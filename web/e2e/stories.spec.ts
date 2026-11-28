@@ -76,7 +76,8 @@ test("Explore: every case is a small figure as tall as what it draws, the key dr
   await expect(first.locator(".case__line")).toContainText(cases[0]?.query.identifier ?? "-");
   await expect(first.locator(".case__concept")).toHaveCount(0);
   await first.getByRole("button", { name: /^About this case/ }).click();
-  await expect(first.locator(".case__concept")).toBeVisible();
+  // The hover card is drawn over the page, named by its trigger.
+  await expect(page.getByRole("region", { name: /^About this case/ }).locator(".case__concept")).toBeVisible();
   await page.keyboard.press("Escape");
   // Every text of a sketch inside its drawing.
   const outside = await page.locator(".case-sketch svg").evaluateAll((svgs) =>
