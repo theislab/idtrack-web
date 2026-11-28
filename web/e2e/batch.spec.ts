@@ -198,7 +198,7 @@ test("a refusal for time is waited out with the paths, and asked without them on
   expect(explains).toEqual([true, true, false]);
   await page.waitForTimeout(2000);
   expect(explains).toEqual([true, true, false]);
-  await expect(page.locator(".batch-figure-head__setting")).toContainText("not sent (why?)");
+  await expect(page.locator(".batch-figure-head__setting")).toContainText("without the paths (why?)");
 });
 
 test("an item read as another item's copy opens the path of that item, whose answer is the row's", async ({ page }) => {
@@ -317,6 +317,7 @@ test("a list converted without a release is asked where it comes from, and read 
   expect(asked).toEqual([null, best]);
   // The form holds the release now, and a list read at a release is not asked where it comes from again.
   await expect(page.locator(".list-release")).toHaveCount(0);
+  await page.getByRole("button", { name: "Change the list or the setting" }).click();
   await page.getByRole("button", { name: /Setting for every identifier/ }).click();
   await expect(page.getByLabel("From release", { exact: true })).toHaveValue(String(best));
 });
@@ -336,6 +337,55 @@ test("Infer it from the list fills From release where the list dates itself", as
   const best = (await page.locator(".infer__use .mono").first().innerText()).trim();
   await expect(from).toHaveValue(best);
   await expect(page.locator(".batch-form__setting")).toContainText(`from ${best} to`);
+});
+
+test("one result, one count on every tab: an identifier the graph did not match is read at no release", async ({
+  page,
+  request,
+}) => {
+  const { snapshot_release: top } = (await (await request.get(`/api/v1/organisms/${data.organism}`)).json()) as {
+    snapshot_release: number;
+  };
+  // The setting is read from the address; the tab is kept in it.
+  await page.goto(`/batch?organism=${data.organism}&from=${String(top)}`);
+  await page.getByLabel("Identifiers", { exact: true }).fill(list());
+  await page.getByRole("button", { name: /^Convert/ }).click();
+  await expect(page.locator(".batch-figure-head__setting")).toContainText(`read at ${String(top)}`);
+  const asked = (await (
+    await request.post(`/api/v1/organisms/${data.organism}/convert/batch?format=json`, {
+      data: { identifiers: data.batch, from_release: top, explain: false },
+    })
+  ).json()) as { results: { graph_id: string | null; from_release: number | null }[] };
+  const none = asked.results.filter((r) => r.graph_id === null).length;
+  expect(none).toBeGreaterThan(0);
+  await page.getByRole("button", { name: /^Filter and sort/ }).click();
+  await expect(page.getByRole("group", { name: "Show the rows by read" })).toContainText(`not read ${String(none)}`);
+  await page.getByRole("tab", { name: "Through the releases" }).click();
+  await expect(page).toHaveURL(/view=releases/);
+  await expect(page.locator(".batch-readat__data")).toContainText(`${String(none)} read at no release`);
+  await expect(page.locator(".batch-readat__data")).toContainText(
+    `${String(top)} (${String(data.batch.length - none)})`,
+  );
+  await page.reload();
+  await expect(page.getByRole("tab", { name: "Through the releases" })).toHaveAttribute("aria-selected", "true");
+});
+
+test("after Convert the form folds to one line, and the first row of the answer is in the first screen", async ({
+  page,
+}, info) => {
+  test.skip(info.project.name.startsWith("phone"), "the first screen of a wide window");
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto(`/batch?organism=${data.organism}`);
+  await page.getByLabel("Identifiers", { exact: true }).fill(list());
+  await page.getByRole("button", { name: /^Convert/ }).click();
+  await expect(page.locator("#batch-summary")).toBeFocused();
+  await expect(page.getByLabel("Identifiers", { exact: true })).toBeHidden();
+  await expect(page.locator(".batch-folded")).toContainText(`The list: ${String(data.batch.length)} identifiers`);
+  const firstRow = page.locator("table.table--batch tbody tr").first();
+  await expect(firstRow).toBeVisible();
+  await expect.poll(async () => (await firstRow.boundingBox())?.y ?? 9999).toBeLessThan(900 - 40);
+  await page.getByRole("button", { name: "Change the list or the setting" }).click();
+  await expect(page.getByLabel("Identifiers", { exact: true })).toBeFocused();
 });
 
 test("a table that fits its frame scrolls with the page, never in a box of its own", async ({ page }) => {

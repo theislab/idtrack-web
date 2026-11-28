@@ -21,7 +21,7 @@ import { commonName, organismName } from "../lib/organismNames";
 import { useOrganisms } from "../lib/organisms";
 import { announce } from "../lib/announce";
 import { refusedArguments } from "../lib/refusals";
-import { BATCH_TEXT_DRAFT } from "../lib/batchList";
+import { BATCH_CONVERT_DRAFT, BATCH_TEXT_DRAFT } from "../lib/batchList";
 import { draftOver, isRecord, keepDraftOver, readDraft, writeDraft } from "../lib/drafts";
 import { revealArea, useFocusMove } from "../lib/focus";
 import { lazyPart } from "../lib/lazyPart";
@@ -681,7 +681,7 @@ function ConvertForm({
       {pasted ? (
         <div className="notice convert-form__pasted" role="status">
           <p>
-            You pasted {groupedInteger(pasted.length)} lines. This field converts one identifier; Batch converts a list
+            You pasted {groupedInteger(pasted.length)} lines. This field converts one identifier; A list converts a list
             {limits ? ` of up to ${groupedInteger(limits.batch_max)}` : ""} with the same setting.
           </p>
           <div className="notice__actions">
@@ -689,6 +689,7 @@ function ConvertForm({
               variant="primary"
               onClick={() => {
                 writeDraft(BATCH_TEXT_DRAFT, pasted.join("\n"));
+                writeDraft(BATCH_CONVERT_DRAFT, "now");
                 navigate(href("/batch", { organism }));
               }}
             >

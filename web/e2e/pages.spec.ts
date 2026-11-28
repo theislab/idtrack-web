@@ -33,9 +33,11 @@ test("a batch: results in order with each status, exported as the api returned t
   for (const [i, result] of parsed.results.entries()) {
     await expect(rows.nth(i)).toContainText(statusTitle(result.status));
   }
-  // The files are in the drawer "Download and cite".
+  // The files are in the drawer "Download and cite": the table first, the api's own files and the provenance one press
+  // further, under "For programs and provenance".
   await page.getByRole("button", { name: "Download and cite" }).click();
   await expect(page.getByRole("dialog", { name: "Download and cite" })).toBeVisible();
+  await page.getByRole("button", { name: /^For programs and provenance/ }).click();
   const downloadJson = page.waitForEvent("download");
   await page.getByRole("button", { name: /api.s JSON$/ }).click();
   const savedJson = readFileSync(await (await downloadJson).path(), "utf8");
@@ -102,6 +104,7 @@ test("a batch's figure: the statuses counted, sorted, filtered, opened to every 
     results: {
       query_id: string;
       status: string;
+      graph_id: string | null;
       from_release: number | null;
       from_release_inferred: boolean;
       to_release: number;
@@ -125,13 +128,17 @@ test("a batch's figure: the statuses counted, sorted, filtered, opened to every 
   const timing = /app;dur=([^,;]+)/.exec(response.headers()["server-timing"] ?? "");
   expect(timing, "the batch's answer carries Server-Timing").not.toBeNull();
   await page.getByRole("button", { name: "Download and cite" }).click();
+  await page.getByRole("button", { name: /^For programs and provenance/ }).click();
   await expect(page.locator(".batch-figure-head__time")).toContainText(`answered in ${timing?.[1] ?? "-"}\u00a0ms`);
   await page.keyboard.press("Escape");
   await expect(page.getByRole("dialog", { name: "Download and cite" })).toBeHidden();
   // How the batch was answered: one press away, under the statuses.
   await page.getByRole("button", { name: /^How the batch was answered/ }).click();
   // The counts: one numeral face, words for people (no field names), each count of rows from the answer.
-  const inferred = parsed.results.filter((r) => r.from_release !== null && r.from_release_inferred).length;
+  // Read at a release only where the graph matched the identifier (graph_id).
+  const inferred = parsed.results.filter(
+    (r) => r.graph_id !== null && r.from_release !== null && r.from_release_inferred,
+  ).length;
   const inferredCount = page.locator(".count", { hasText: "Read at a release inferred" });
   if (inferred) await expect(inferredCount.locator(".count__value .mono")).toHaveText(String(inferred));
   else await expect(page.locator(".counts__none")).toContainText("read at a release inferred");
@@ -165,10 +172,11 @@ test("a batch's figure: the statuses counted, sorted, filtered, opened to every 
     await expect(rows.nth(i).locator(".emark", { hasText: /through .*bridge/ })).toHaveCount(bridged ? 1 : 0);
   }
 
-  // Panel b: a status shows only its rows; the sort by status follows the vocabulary's order. The tools of a short
-  // table are folded behind one line, so that its rows come first.
-  const tools = page.locator("details.batch-tools");
-  if ((await tools.getAttribute("open")) === null) await tools.locator("summary").click();
+  // Panel b: a status shows only its rows; the sort by status follows the vocabulary's order. The tools are folded
+  // behind one toggle on the tab row, so that the rows come first.
+  const toggle = page.getByRole("button", { name: /^Filter and sort/ });
+  await expect(toggle).toHaveAttribute("aria-expanded", "false");
+  await toggle.click();
   for (const [status, n] of counts) {
     const chip = page
       .locator(".batch-tools__filters")
@@ -235,7 +243,9 @@ test("a batch of 1000 results draws the rows in view and reaches every row", asy
   const rows = table.locator("tbody:not(.batch-spacer) > tr");
   await expect(rows.first()).toBeVisible();
   expect(await rows.count()).toBeLessThan(200);
-  await expect(page.locator(".batch-tools__shown")).toContainText("All 1 000 rows");
+  // Every row is counted on its tab; the rows shown are said only where a filter or a sort changes them.
+  await expect(page.getByRole("tab", { name: /^Table/ })).toContainText("1 000");
+  await expect(page.locator(".batch-tools__shown")).toHaveText("");
   const last = await page.evaluate(async () => {
     const wrap = document.querySelector<HTMLElement>(".table--batch")?.closest<HTMLElement>(".table-wrap");
     wrap?.scrollIntoView({ block: "end" });
@@ -315,7 +325,9 @@ test("a pasted table: its header found by the form of its cells, its column read
     expect(cells.slice(0, 4)).toEqual([String(i + 1), String(i + 2), id, String(-1.5 + i)]);
   }
   await page.keyboard.press("Escape");
-  // The person can say otherwise: with the header switched off, its line is an identifier too.
+  // The person can say otherwise: with the header switched off, its line is an identifier too (the form, folded under
+  // the answer, opens with a press).
+  await page.getByRole("button", { name: "Change the list or the setting" }).click();
   await page.getByRole("switch", { name: "First line is a header" }).uncheck();
   await expect(page.locator(".batch-form__count .mono").first()).toHaveText(String(data.batch.length + 1));
   await expectAccessible(page);

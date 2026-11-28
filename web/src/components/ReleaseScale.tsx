@@ -434,7 +434,9 @@ export function EventStrip({
   const top = 16;
   const base = height - 2;
   const columns = [...events.entries()].filter(([release]) => axis.index.has(release));
-  const totals = columns.map(([release, kinds]) => [release, sumOf(kinds)] as const);
+  // A column is as tall as the identifiers that stepped at its release, each once (the number written on it); an
+  // identifier whose step is of several kinds shares its height among their hues, so height and number agree.
+  const totals = columns.map(([release, kinds]) => [release, rows.get(release) ?? sumOf(kinds)] as const);
   const max = Math.max(1, ...totals.map(([, t]) => t));
   const cell = width / Math.max(1, n);
   const barWidth = Math.max(2, Math.min(10, cell - 1));
@@ -493,12 +495,14 @@ export function EventStrip({
           {columns.map(([release, kinds]) => {
             let y = base;
             const cx = x(release);
+            const stepped = rows.get(release) ?? sumOf(kinds);
+            const share = stepped / Math.max(1, sumOf(kinds));
             return (
               <g key={release}>
                 {order.map(([kind, hue]) => {
                   const count = kinds.get(kind) ?? 0;
                   if (!count) return null;
-                  const h = Math.max(1.5, scale(count));
+                  const h = Math.max(1.5, scale(count * share));
                   y -= h;
                   return (
                     <rect

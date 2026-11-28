@@ -24,6 +24,7 @@ import { Expandable } from "../components/v2/Expandable";
 import { HoverCard } from "../components/v2/HoverCard";
 import { announce } from "../lib/announce";
 import {
+  BATCH_CONVERT_DRAFT,
   BATCH_TEXT_DRAFT,
   decodeFile,
   linesWithControls,
@@ -46,7 +47,7 @@ import { organismName } from "../lib/organismNames";
 import { useOrganisms } from "../lib/organisms";
 import { useRequest } from "../lib/useRequest";
 import { useLimits } from "../lib/vocabularyContext";
-import { href } from "../lib/router";
+import { href, navigate, useLocation } from "../lib/router";
 import "../styles/tables.css";
 
 /** A list longer than this many characters is read only once typing pauses (a few hundred ms), and kept for the
@@ -61,8 +62,11 @@ const LARGE_INSERT_LINES = 200;
 export function BatchHead() {
   return (
     <header className="page-head">
-      <h1>Many identifiers, one setting</h1>
-      <p className="lede">Every identifier is converted with one setting, by the rules of a single conversion.</p>
+      <h1>Convert a list</h1>
+      <p className="lede">
+        Paste gene ids or symbols, or a column from a spreadsheet, and get each one&rsquo;s gene and symbol at the
+        release you choose.
+      </p>
     </header>
   );
 }
@@ -88,6 +92,31 @@ const NO_SETTINGS: Settings = {
   fromDatabase: "",
   allowBridges: true,
 };
+
+/** The setting's parameters in the address, by the Convert page's names: `from`, `to`, `db`, `from_db`, and
+ *  `bridges=false` where bridges are not allowed; a value left empty is left out. */
+function addressOf(settings: Settings): Record<string, string | null> {
+  return {
+    from: settings.fromRelease.trim() || null,
+    to: settings.toRelease.trim() || null,
+    db: settings.finalDatabase || null,
+    from_db: settings.fromDatabase || null,
+    bridges: settings.allowBridges ? null : "false",
+  };
+}
+
+/** The setting the address names, or null where it names none of it. */
+function settingsOf(search: URLSearchParams): Settings | null {
+  const names = ["from", "to", "db", "from_db", "bridges"];
+  if (!names.some((n) => search.has(n))) return null;
+  return {
+    fromRelease: search.get("from") ?? "",
+    toRelease: search.get("to") ?? "",
+    finalDatabase: search.get("db") ?? "",
+    fromDatabase: search.get("from_db") ?? "",
+    allowBridges: search.get("bridges") !== "false",
+  };
+}
 
 const isSettings = (value: unknown): value is Settings =>
   isRecord(value) &&
@@ -246,12 +275,34 @@ function BatchForOrganism({ description }: { description: GraphDescription }) {
   const [typed, setTyped] = useState(() => readDraft(BATCH_TEXT_DRAFT, isText) ?? "");
   const [choice, setChoice] = useState<TableChoice>(() => readDraft("batch.table", isChoice) ?? {});
   const [fileNote, setFileNote] = useState<string | null>(null);
-  const [settings, setSettings] = useState<Settings>(() => readDraft(settingsKey, isSettings) ?? NO_SETTINGS);
+  // The setting is kept in the address (a link or a reload gives the same setting) and for the organism's session; an
+  // address that names any of it wins.
+  const location = useLocation();
+  const [settings, setSettings] = useState<Settings>(
+    () => settingsOf(location.search) ?? readDraft(settingsKey, isSettings) ?? NO_SETTINGS,
+  );
+  const keep = (next: Settings) => {
+    writeDraft(settingsKey, next);
+    const search = new URLSearchParams(window.location.search);
+    for (const [name, value] of Object.entries(addressOf(next))) {
+      if (value === null) search.delete(name);
+      else search.set(name, value);
+    }
+    const text = search.toString();
+    navigate(`${window.location.pathname}${text ? `?${text}` : ""}`, { replace: true });
+  };
+  useEffect(() => {
+    // The address says the setting from the first render on (a draft of the session put back into it).
+    keep(settings);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once, when the page opens
+  }, []);
   const [problem, setProblem] = useState<string | null>(null);
   // The release read at as IDTrack's source inference of the list gave it, while the form holds that release.
   const [inferred, setInferred] = useState<InferredRelease | null>(null);
   // The setting folds under one line that says it; it opens where one of its values is refused.
   const [settingOpen, setSettingOpen] = useState(false);
+  // Once a list is converted, the form folds to one line (its answer is the screen's subject); a press opens it.
+  const [formOpen, setFormOpen] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
   const area = useRef<HTMLElement>(null);
   const setText = (value: string) => {
@@ -268,11 +319,9 @@ function BatchForOrganism({ description }: { description: GraphDescription }) {
   const setting =
     <K extends keyof Settings>(name: K) =>
     (value: Settings[K]) => {
-      setSettings((current) => {
-        const next = { ...current, [name]: value };
-        writeDraft(settingsKey, next);
-        return next;
-      });
+      const next = { ...settings, [name]: value };
+      setSettings(next);
+      keep(next);
     };
   const { fromRelease, toRelease, finalDatabase, fromDatabase, allowBridges } = settings;
   const setFromRelease = setting("fromRelease");
@@ -375,6 +424,9 @@ function BatchForOrganism({ description }: { description: GraphDescription }) {
     : "";
   const submit = (event: SyntheticEvent) => {
     event.preventDefault();
+    convert();
+  };
+  const convert = () => {
     if (run.state === "loading") return;
     // The list as typed now (the reading may be a render behind).
     const now = parseTable(list.current?.value() ?? typed, choice);
@@ -424,6 +476,7 @@ function BatchForOrganism({ description }: { description: GraphDescription }) {
       read_copies: true,
     };
     announce(`Converting ${groupedInteger(now.identifiers.length)} identifiers…`);
+    setFormOpen(false);
     followed.current = startBatch(organism, body, {
       separator: now.separator,
       header: now.header,
@@ -439,16 +492,14 @@ function BatchForOrganism({ description }: { description: GraphDescription }) {
   const takeExample = (set: ExampleSet) => {
     setText(set.identifiers.join("\n"));
     choose({});
-    setSettings((current) => {
-      const next = {
-        ...current,
-        fromRelease: set.from === null ? "" : String(set.from),
-        toRelease: set.to === null ? "" : String(set.to),
-        finalDatabase: set.database ?? "",
-      };
-      writeDraft(settingsKey, next);
-      return next;
-    });
+    const next = {
+      ...settings,
+      fromRelease: set.from === null ? "" : String(set.from),
+      toRelease: set.to === null ? "" : String(set.to),
+      finalDatabase: set.database ?? "",
+    };
+    setSettings(next);
+    keep(next);
     setFileNote(
       `An example: ${groupedInteger(set.identifiers.length)} identifiers of the Convert page's first figure, with its settings (${exampleWords(set, description.snapshot_release)}).`,
     );
@@ -473,6 +524,14 @@ function BatchForOrganism({ description }: { description: GraphDescription }) {
   );
   // The list read at the release IDTrack's source inference gives it, from the answer's line: the same batch asked
   // again at that release, which the form then holds too.
+  // A list handed over by the Convert page's paste offer is converted on arrival, once.
+  const arrival = useRef(readDraft(BATCH_CONVERT_DRAFT, isText) === "now");
+  useEffect(() => {
+    if (!arrival.current) return;
+    arrival.current = false;
+    writeDraft(BATCH_CONVERT_DRAFT, undefined);
+    convert();
+  });
   const latest = useRef({ run, source: batch.source, setFromRelease });
   useEffect(() => {
     latest.current = { run, source: batch.source, setFromRelease };
@@ -510,7 +569,37 @@ function BatchForOrganism({ description }: { description: GraphDescription }) {
   return (
     <div className="page page--batch">
       <BatchHead />
-      <form className="panel batch-form" onSubmit={submit} noValidate aria-label="Batch conversion">
+      {run.state !== "idle" && !formOpen ? (
+        <p className="batch-folded">
+          <span>
+            The list: <Mono>{groupedInteger(run.request.identifiers.length)}</Mono>{" "}
+            {run.request.identifiers.length === 1 ? "identifier" : "identifiers"}
+            {batch.source?.places ? ` (${groupedInteger(batch.source.places.length)} lines)` : ""}.
+          </span>{" "}
+          <Button
+            variant="quiet"
+            className="batch-folded__open"
+            aria-expanded="false"
+            aria-controls="batch-form"
+            onClick={() => {
+              setFormOpen(true);
+              window.requestAnimationFrame(() => {
+                list.current?.focus();
+              });
+            }}
+          >
+            Change the list or the setting
+          </Button>
+        </p>
+      ) : null}
+      <form
+        id="batch-form"
+        className="batch-form"
+        onSubmit={submit}
+        noValidate
+        aria-label="Batch conversion"
+        hidden={run.state !== "idle" && !formOpen}
+      >
         <div className="batch-form__list">
           <Field
             label="Identifiers"

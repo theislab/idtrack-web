@@ -50,7 +50,7 @@ test.describe("never a white page", () => {
     await shot(page, info, "s1-chunk-missing");
     missing = false;
     await alert.getByRole("button", { name: "Try again" }).click();
-    await expect(page.getByRole("heading", { level: 1, name: /Many identifiers/ })).toBeVisible();
+    await expect(page.getByRole("heading", { level: 1, name: /Convert a list/ })).toBeVisible();
   });
 
   test("offline, a page not yet loaded says so and loads by itself when the connection returns", async ({
@@ -153,7 +153,7 @@ test.describe("focus and one sentence per outcome", () => {
     await batch.focus();
     await page.keyboard.press("Enter");
     await expect.poll(async () => (await focused(page)).tag).toBe("H1");
-    await expect(page).toHaveTitle("Batch · IDTrack");
+    await expect(page).toHaveTitle("Convert a list · IDTrack");
   });
 
   test("a pressed Convert while its conversion is on its way asks nothing more", async ({ page }) => {
@@ -226,7 +226,9 @@ test.describe("state that survives", () => {
     await expect(page.getByRole("button", { name: "Download and cite" })).toBeVisible();
   });
 
-  test("a pasted column in the Convert field is offered to Batch as a list", async ({ page }, info) => {
+  test("a pasted column in the Convert field is offered to A list, which converts it on arrival", async ({
+    page,
+  }, info) => {
     await page.goto(`/convert?organism=${data.organism}`);
     const field = page.getByRole("textbox", { name: "Identifier", exact: true });
     await field.focus();
@@ -241,8 +243,20 @@ test.describe("state that survives", () => {
     await expectAccessible(page);
     await shot(page, info, "s4-pasted-column");
     await page.getByRole("button", { name: "Convert the 3 as a list" }).click();
-    await expect(page.getByRole("heading", { level: 1, name: /Many identifiers/ })).toBeVisible();
+    await expect(page.getByRole("heading", { level: 1, name: /Convert a list/ })).toBeVisible();
     await expect(page.getByLabel("Identifiers", { exact: true })).toHaveValue(data.batch.slice(0, 3).join("\n"));
+    await expect(page.locator("#batch-summary")).toContainText("3 identifiers");
+    // Once: a reload shows the answer kept for the session, and asks nothing again.
+    let asked = 0;
+    await page.route("**/convert/batch?format=json", (route) => {
+      // The list's own asks (the answer then asks the names beside its genes, which is no ask of the list).
+      const body = route.request().postDataJSON() as { identifiers: string[] };
+      if (body.identifiers.join("\n") === data.batch.slice(0, 3).join("\n")) asked += 1;
+      return route.continue();
+    });
+    await page.reload();
+    await expect(page.locator("#batch-summary")).toContainText("3 identifiers");
+    expect(asked).toBe(0);
   });
 });
 
@@ -343,7 +357,7 @@ test.describe("the page never asks twice", () => {
     });
     const tabs = page.getByRole("navigation", { name: "Convert" });
     await tabs.getByRole("link", { name: "A list" }).click();
-    await expect(page.getByRole("heading", { level: 1, name: /Many identifiers/ })).toBeVisible();
+    await expect(page.getByRole("heading", { level: 1, name: /Convert a list/ })).toBeVisible();
     await tabs.getByRole("link", { name: "One identifier" }).click();
     await expect(page.getByRole("heading", { level: 1, name: /^Convert an identifier$/ })).toBeVisible();
     await page.waitForLoadState("networkidle");
@@ -444,7 +458,7 @@ test.describe("counting visits, only with consent", () => {
     expect(cookies).not.toContain("_ga_E2ETEST");
     const before = { requests: google.length, events: (await counted()).length };
     await page.getByRole("navigation", { name: "Convert" }).getByRole("link", { name: "A list" }).click();
-    await expect(page.getByRole("heading", { level: 1, name: "Many identifiers, one setting" })).toBeVisible();
+    await expect(page.getByRole("heading", { level: 1, name: "Convert a list" })).toBeVisible();
     await page.getByRole("navigation", { name: "Convert" }).getByRole("link", { name: "Names" }).click();
     await expect(page.getByRole("heading", { level: 1, name: /What a name names/ })).toBeVisible();
     await page.waitForTimeout(500);

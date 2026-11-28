@@ -298,7 +298,34 @@
 
 .batch-form__actions .button--primary {
   min-width: 160px;
-  min-height: 44px;
+  min-height: 52px;
+}
+
+/* Once a list is converted, the form is folded (hidden) under this one line; a press opens it. */
+.batch-form[hidden] {
+  display: none;
+}
+/* Once a list is converted, the form is this one line; a press opens it. */
+.batch-folded {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-3);
+  margin: 0;
+  font-size: var(--text-md);
+  color: var(--ink-2);
+}
+
+.batch-folded .mono {
+  color: var(--ink-1);
+}
+
+.button.batch-folded__open {
+  padding: 0;
+  min-height: 32px;
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 
 .result-area {
@@ -449,6 +476,31 @@
 
 .batch-bar-figure {
   margin: 0;
+}
+
+/* The bar and its key on one line: the bar takes the room the key leaves (at least half the line); below 900 px the
+   key goes under the bar. */
+.batch-bar-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-6);
+}
+
+.batch-bar-line > .sbar {
+  flex: 1 1 50%;
+  min-width: 0;
+}
+
+.batch-bar-line > .slegend {
+  flex: 0 1 auto;
+  margin: 0;
+}
+
+@media (max-width: 900px) {
+  .batch-bar-line > .sbar {
+    flex-basis: 100%;
+  }
 }
 
 /* The statuses in proportion: a grid of one track per status (BatchResults sets the tracks), the gaps inside the
@@ -624,40 +676,73 @@
 
 /* The results table: its tools, then the table, which scrolls with the page under its sticky head where it fits.
    The tools of the table, folded behind one line where the rows should come first (a short table, a phone). */
+/* The filters and the sort, opened by their toggle on the tab row: above the rows, between two hairlines. */
 .batch-tools {
-  margin-top: var(--space-4);
-  border-top: 1px solid var(--line);
+  margin-top: var(--space-3);
   border-bottom: 1px solid var(--line);
 }
 
-.batch-tools__summary {
+/* The tables' controls stand on the tab row, at its right (from 1101 px, where both fit the row; on a narrower screen
+   on a line of their own before it): the database beside each gene, and the toggle of the filters and the sort. */
+.batch-tabs {
+  position: relative;
+}
+
+.batch-table-tools {
   display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-2) var(--space-5);
+}
+
+.batch-table-tools .batch-names {
+  margin: 0;
+}
+
+@media (min-width: 1101px) {
+  .batch-table-tools {
+    position: absolute;
+    top: 0;
+    right: 0;
+    z-index: 1;
+    height: 48px;
+  }
+}
+
+@media (max-width: 1100px) {
+  .batch-table-tools {
+    justify-content: flex-start;
+    margin-bottom: var(--space-3);
+  }
+}
+
+.batch-tools__toggle {
+  display: inline-flex;
   align-items: center;
   gap: var(--space-2);
-  min-height: 40px;
+  min-height: 36px;
+  padding: 0 var(--space-1);
+  border: 0;
+  background: none;
   cursor: pointer;
+  font: inherit;
   font-size: var(--text-sm);
-  font-weight: var(--weight-strong);
+  font-weight: var(--weight-medium);
   color: var(--ink-1);
-  list-style: none;
 }
 
-.batch-tools__summary::-webkit-details-marker {
-  display: none;
-}
-
-.batch-tools__summary::before {
-  content: "";
+.batch-tools__mark {
   width: 7px;
   height: 7px;
   border-right: 1.5px solid currentcolor;
   border-bottom: 1.5px solid currentcolor;
-  transform: rotate(-45deg);
-  transition: transform 150ms ease;
+  transform: rotate(45deg) translate(-2px, -2px);
+  transition: transform var(--dur-1, 120ms) ease;
 }
 
-.batch-tools[open] > .batch-tools__summary::before {
-  transform: rotate(45deg);
+.batch-tools__toggle[aria-expanded="true"] .batch-tools__mark {
+  transform: rotate(-135deg) translate(-2px, -2px);
 }
 
 .batch-tools__summary-state {
@@ -812,9 +897,11 @@
   color: var(--ink-1);
 }
 
+/* An idle column's mark in the quiet ink at full strength (at least 3:1 on the head, WCAG 1.4.11); the sorted column's
+   in the text's ink. */
 .sort__mark {
   font-size: var(--text-2xs);
-  opacity: 0.45;
+  color: var(--ink-3);
 }
 
 th[aria-sort] .sort {
@@ -822,7 +909,7 @@ th[aria-sort] .sort {
 }
 
 th[aria-sort] .sort__mark {
-  opacity: 1;
+  color: inherit;
 }
 
 .num .sort {
@@ -2571,6 +2658,35 @@ th[aria-sort] .sort__mark {
 .file__facts .mono,
 .file__about .mono {
   color: var(--ink-1);
+}
+
+/* How a program reads the table: one line per language, the notes skipped by their count. */
+.file__read {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: var(--space-1) var(--space-3);
+  margin: 0;
+  font-size: var(--text-xs);
+  line-height: var(--leading-caption);
+}
+
+.file__read dt {
+  color: var(--ink-2);
+  font-weight: var(--weight-medium);
+}
+
+.file__read dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+/* The files for programs and the provenance, a press under the table and the sentence. */
+.batch-downloads__more {
+  margin-top: var(--space-5);
+}
+
+.batch-downloads__more .files {
+  margin-top: var(--space-3);
 }
 
 .file__actions {

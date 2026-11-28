@@ -1002,7 +1002,7 @@ function NoAnswerWaysOn({
       ) : null}
       {result.status === "not_found" ? <NotFoundHints result={result} organism={organism} /> : null}
       {result.status === "no_conversion" ? <RetiredLife result={result} description={description} /> : null}
-      {result.status === "not_found" ? (
+      {result.status === "not_found" && !looksLikeSpreadsheetDate(result.query_id) ? (
         <p className="answer__next">
           <Link to={href("/names", { organism, name: result.query_id, fold_case: true })}>
             Look <Mono>{result.query_id}</Mono> up among the names of the graph

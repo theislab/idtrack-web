@@ -251,6 +251,8 @@ describe("the batch's figure", () => {
         expect(rows()[i]?.textContent).toContain(r.query_id);
       });
       expect(screen.queryByText("Server time")).toBeNull();
+      // The filters are one press away, on the tab row.
+      fireEvent.click(screen.getByRole("button", { name: /^Filter and sort/ }));
       const byStatus = screen.getByRole("group", { name: "Show the rows by status" });
       for (const [status, n] of statusCounts(results, order)) {
         const chip = within(byStatus).getByRole("button", { name: new RegExp(`^${status.replace(/_/g, " ")}`, "i") });
@@ -280,8 +282,9 @@ describe("the batch's figure", () => {
         />
       </VocabularyContext.Provider>,
     );
-    // The server's times are with the files and the provenance, in the drawer "Download and cite".
+    // The server's times are with the files for programs and the provenance, in the drawer "Download and cite".
     fireEvent.click(screen.getByRole("button", { name: "Download and cite" }));
+    fireEvent.click(screen.getByRole("button", { name: /^For programs and provenance/ }));
     const time = screen.getByRole("button", { name: /^answered in 12\.5 ms on the server/ });
     expect(time.textContent).toBe("12.5\u00a0ms");
     fireEvent.click(time);

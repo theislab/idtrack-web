@@ -2,8 +2,12 @@
 // found from its bytes, so that what is sent is what the person sees.
 
 /** The draft key under which the batch's typed or pasted list is kept (lib/drafts.ts); the Convert page puts a
- *  pasted column there to hand it to Batch. */
+ *  pasted column there to hand it to A list. */
 export const BATCH_TEXT_DRAFT = "batch.text";
+
+/** The draft key by which the Convert page asks A list to convert the list it hands over as soon as it arrives (the
+ *  value `now`; read and removed once). */
+export const BATCH_CONVERT_DRAFT = "batch.convert";
 
 /** Every common line ending: LF, CRLF, CR, and the line and next-line separators some exports write. */
 const LINE_ENDS = /\r\n|\r|\n|\u2028|\u0085/;

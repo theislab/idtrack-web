@@ -15,7 +15,7 @@ export type Route =
 const PAGES: Record<string, { page: Exclude<Route["page"], "organism" | "redirect" | "none">; title: string }> = {
   "/": { page: "home", title: "Gene ids through Ensembl's history" },
   "/convert": { page: "convert", title: "Convert" },
-  "/batch": { page: "batch", title: "Batch" },
+  "/batch": { page: "batch", title: "Convert a list" },
   "/names": { page: "names", title: "Names" },
   "/organisms": { page: "organisms", title: "Explore" },
   "/developers": { page: "developers", title: "API" },

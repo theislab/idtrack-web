@@ -79,7 +79,7 @@ import { GlyphSwatch } from "./figure/glyphs";
 import { useRowWindow } from "../lib/useRowWindow";
 import { organismName } from "../lib/organismNames";
 import { saveText } from "../lib/save";
-import { href } from "../lib/router";
+import { href, navigate, useLocation } from "../lib/router";
 import { useAction, useRequest } from "../lib/useRequest";
 import { ABSENT, criterionValue, firstWords, yesNo } from "../lib/values";
 import { criterionOf, matchParts, spaced, statusTitle, type Vocabulary } from "../lib/vocabulary";
@@ -188,9 +188,9 @@ export const BatchResults = memo(function BatchResults({
             {request.from_database === null ? "any database" : databaseLabel(request.from_database)}
           </Setting>
           <Setting label="bridges">{request.allow_bridges ? "allowed" : "not allowed"}</Setting>
-          <Setting label="paths">
+          <Setting label="">
             {request.explain ? (
-              "every path"
+              "with every path"
             ) : pathsRefused ? (
               <Toggletip
                 className="batch-figure-head__refused"
@@ -215,10 +215,10 @@ export const BatchResults = memo(function BatchResults({
                   </span>
                 }
               >
-                not sent (why?)
+                without the paths (why?)
               </Toggletip>
             ) : (
-              "not asked"
+              "without the paths"
             )}
           </Setting>
         </p>
@@ -308,7 +308,19 @@ function BatchPanels({
   );
   const lives = useRetiredLives(description, rows ?? [], names.authority);
   const [filter, setFilter] = useState<Filter>(NO_FILTER);
-  const [tab, setTab] = useState("table");
+  // The tab is kept in the address (`view`: the table, the default, is left out), as an answer keeps its tab.
+  const location = useLocation();
+  const asked = location.search.get("view");
+  const tab = asked === "releases" || asked === "none" ? asked : "table";
+  const setTab = useCallback((id: string) => {
+    const search = new URLSearchParams(window.location.search);
+    if (id === "table") search.delete("view");
+    else search.set("view", id);
+    const text = search.toString();
+    navigate(`${window.location.pathname}${text ? `?${text}` : ""}`, { replace: true });
+  }, []);
+  // The filters and the sort of the tables fold behind one toggle on the tab row, so that the rows come first.
+  const [toolsOpen, setToolsOpen] = useState(false);
   // The api's TSV, once asked: kept here, so that the provenance names it whenever the drawer is opened again.
   const [tsvAsked, setTsvAsked] = useState<TsvAsked | null>(null);
   const tabs = useRef<HTMLDivElement>(null);
@@ -341,6 +353,17 @@ function BatchPanels({
         renamed={renamed}
       />
       <div className="batch-tabs" ref={tabs}>
+        {tab === "table" || tab === "none" ? (
+          <TableTools
+            description={description}
+            request={request}
+            names={names}
+            toolsOpen={toolsOpen}
+            setToolsOpen={setToolsOpen}
+            controls={`batch-tools-${tab}`}
+            filtered={tab === "table" && isFiltered(filter)}
+          />
+        ) : null}
         <Tabs
           label="The results"
           value={tab}
@@ -363,6 +386,7 @@ function BatchPanels({
                   names={names}
                   renamed={renamedIndices}
                   lives={lives}
+                  toolsOpen={toolsOpen}
                 />
               ),
             },
@@ -401,6 +425,7 @@ function BatchPanels({
                         renamed={renamedIndices}
                         lives={lives}
                         label="No answer"
+                        toolsOpen={toolsOpen}
                       />
                     ),
                   },
@@ -428,6 +453,94 @@ function BatchPanels({
         />
       </Drawer>
     </>
+  );
+}
+
+/** The controls of the tables, on the tab row: the database whose ids stand beside each gene, and the toggle of the
+ *  filters and the sort (which open above the rows). */
+function TableTools({
+  description,
+  request,
+  names,
+  toolsOpen,
+  setToolsOpen,
+  controls,
+  filtered,
+}: {
+  description: GraphDescription;
+  request: Required<BatchRequest>;
+  names: NamesState;
+  toolsOpen: boolean;
+  setToolsOpen: (open: boolean) => void;
+  /** The id of the tools the toggle opens. */
+  controls: string;
+  filtered: boolean;
+}) {
+  const target = request.to_release ?? description.snapshot_release;
+  const database = request.final_database ?? "ensembl_gene";
+  const finalOptions = useMemo(() => {
+    const listed = sortDatabases(description.final_databases).filter((d) => d !== "ensembl_gene" && d !== database);
+    const first = names.authority && listed.includes(names.authority) ? [names.authority] : [];
+    return [...first, ...listed.filter((d) => d !== names.authority)];
+  }, [description, database, names.authority]);
+  return (
+    <div className="batch-table-tools">
+      <div className="batch-names">
+        <span className="field__head">
+          <label className="batch-names__label" htmlFor="batch-names">
+            Beside each gene
+          </label>
+          <Hint descriptionId="batch-names-hint">
+            {names.state === "loading"
+              ? "Asking the server…"
+              : names.state === "failed"
+                ? "The server did not give them."
+                : request.final_database !== null && request.final_database === (names.authority ?? "")
+                  ? `The answers are in ${databaseLabel(request.final_database)}, the organism's symbols: nothing more is asked.`
+                  : `Its id in this database. ${names.authority ? `${databaseLabel(names.authority)} gives the organism's symbols. ` : ""}One more request of the same endpoint, with the genes as identifiers, read and answered at release ${String(target)}.`}
+          </Hint>
+        </span>
+        <Select
+          id="batch-names"
+          className="batch-names__select"
+          value={names.database ?? NONE}
+          aria-describedby="batch-names-hint"
+          onChange={(e) => {
+            names.setDatabase(e.target.value === NONE ? null : e.target.value);
+          }}
+        >
+          {finalOptions.map((d) => (
+            <option key={d} value={d}>
+              {databaseLabel(d)}
+              {d === names.authority ? " (the organism's symbols)" : ""}
+            </option>
+          ))}
+          <option value={NONE}>no other database</option>
+        </Select>
+        {names.state === "loading" ? <span className="batch-names__state muted">asking the server…</span> : null}
+        {names.state === "failed" ? (
+          <span className="batch-names__state">
+            The server did not give them.{" "}
+            <button type="button" className="link-button" onClick={names.retry}>
+              Try again
+            </button>
+          </span>
+        ) : null}
+      </div>
+      <button
+        type="button"
+        className="batch-tools__toggle"
+        aria-expanded={toolsOpen}
+        aria-controls={controls}
+        onClick={() => {
+          setToolsOpen(!toolsOpen);
+        }}
+      >
+        <span className="batch-tools__mark" aria-hidden="true" />
+        Filter and sort
+        {filtered ? <span className="batch-tools__summary-state"> · a filter is on</span> : null}
+      </button>
+    </div>
   );
 }
 
@@ -888,39 +1001,41 @@ function Summary({
         {/* One grid track per status, as wide as its share of the row less the gaps; a track whose share is under the
             minimum takes the minimum, out of the others' room (the grid's own rule for flexible tracks), so that the
             bar is exactly as wide as its column whatever the shares. */}
-        <div
-          className="sbar"
-          role="img"
-          aria-label={counts.map(([s, n]) => `${statusTitle(s)} ${n}`).join(", ")}
-          style={{ gridTemplateColumns: counts.map(([, n]) => `minmax(var(--sbar-min), ${String(n)}fr)`).join(" ") }}
-        >
-          {counts.map(([status]) => (
-            <span key={status} className={`sbar__segment ${statusFill(status)}`} />
-          ))}
+        <div className="batch-bar-line">
+          <div
+            className="sbar"
+            role="img"
+            aria-label={counts.map(([s, n]) => `${statusTitle(s)} ${n}`).join(", ")}
+            style={{ gridTemplateColumns: counts.map(([, n]) => `minmax(var(--sbar-min), ${String(n)}fr)`).join(" ") }}
+          >
+            {counts.map(([status]) => (
+              <span key={status} className={`sbar__segment ${statusFill(status)}`} />
+            ))}
+          </div>
+          <ul className="slegend" aria-label="The statuses and what they mean">
+            {counts.map(([status, n]) => {
+              const meaning = vocabulary.statuses.get(status);
+              return (
+                <li key={status} className="slegend__item">
+                  <span className={`slegend__swatch ${statusFill(status)}`} aria-hidden="true" />
+                  <span className="slegend__count mono">{groupedInteger(n)}</span>
+                  {meaning ? (
+                    <HoverCard
+                      trigger={statusTitle(status)}
+                      className="slegend__name"
+                      triggerClassName="slegend__term"
+                      label={`${statusTitle(status)}: what it means`}
+                    >
+                      <Prose text={meaning} />
+                    </HoverCard>
+                  ) : (
+                    <span className="slegend__name">{statusTitle(status)}</span>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
         </div>
-        <ul className="slegend" aria-label="The statuses and what they mean">
-          {counts.map(([status, n]) => {
-            const meaning = vocabulary.statuses.get(status);
-            return (
-              <li key={status} className="slegend__item">
-                <span className={`slegend__swatch ${statusFill(status)}`} aria-hidden="true" />
-                <span className="slegend__count mono">{groupedInteger(n)}</span>
-                {meaning ? (
-                  <HoverCard
-                    trigger={statusTitle(status)}
-                    className="slegend__name"
-                    triggerClassName="slegend__term"
-                    label={`${statusTitle(status)}: what it means`}
-                  >
-                    <Prose text={meaning} />
-                  </HoverCard>
-                ) : (
-                  <span className="slegend__name">{statusTitle(status)}</span>
-                )}
-              </li>
-            );
-          })}
-        </ul>
         <figcaption className="fig-caption batch-bar-figure__caption">
           <CaptionMore lead={<>The status of each result, in proportion.</>}>
             A segment is as wide as the share of the {groupedInteger(total)} identifiers with that status (a segment of
@@ -1085,6 +1200,7 @@ function ResultsTable({
   renamed,
   lives,
   label = "Results",
+  toolsOpen,
 }: {
   description: GraphDescription;
   rows: BatchRow[];
@@ -1101,6 +1217,8 @@ function ResultsTable({
   lives: Lives | null;
   /** The table's name ("Results", "No answer"), before the rows it shows. */
   label?: string;
+  /** The filters and the sort are open (their toggle stands on the tab row). */
+  toolsOpen: boolean;
 }) {
   const [ownFilter, setOwnFilter] = useState<Filter>(NO_FILTER);
   const filter = shownFilter ?? ownFilter;
@@ -1113,12 +1231,6 @@ function ResultsTable({
   const [text, setText] = useState("");
   const [open, setOpen] = useState<Set<number>>(() => new Set());
   const [flash, setFlash] = useState<number | null>(null);
-  // The tools of a long table are open; a short one's (and every one on a phone) are a press away, so that its rows
-  // come first.
-  const [toolsOpen, setToolsOpen] = useState(
-    () =>
-      rows.length > 24 && !(typeof window.matchMedia === "function" && window.matchMedia("(max-width: 640px)").matches),
-  );
   const needle = useDeferredValue(text);
   const sorted = useMemo(() => sortRows(rows, sort, statusOrder), [rows, sort, statusOrder]);
   const visible = useMemo(
@@ -1307,11 +1419,6 @@ function ResultsTable({
         ? "in input order, reversed"
         : `by ${(columns.find((c) => c.sort === sort.key)?.title ?? sort.key).toLowerCase()}, ${sort.descending ? "descending" : "ascending"}`;
   const shownWords = `${visible.length === rows.length ? `All ${groupedInteger(rows.length)}` : `${groupedInteger(visible.length)} of ${groupedInteger(rows.length)}`} rows${isFiltered(filter) || needle.trim() ? " (filtered)" : ""}, ${orderWords}`;
-  const finalOptions = useMemo(() => {
-    const listed = sortDatabases(description.final_databases).filter((d) => d !== "ensembl_gene" && d !== database);
-    const first = names.authority && listed.includes(names.authority) ? [names.authority] : [];
-    return [...first, ...listed.filter((d) => d !== names.authority)];
-  }, [description, database, names.authority]);
   const crossingCounts = useMemo(
     () =>
       CROSSINGS.flatMap((k): [Crossing, number][] =>
@@ -1326,65 +1433,10 @@ function ResultsTable({
       {reading || !anyEvidence ? (
         <p className="batch-lead">
           {reading ? <>Every identifier was read {reading.replace(/^as written/, "as written,")}.</> : null}
-          {anyEvidence ? null : <> No answer holds a caution.</>}
+          {anyEvidence ? null : <> No row here has a caution.</>}
         </p>
       ) : null}
-      <div className="batch-names">
-        <span className="field__head">
-          <label className="batch-names__label" htmlFor="batch-names">
-            Beside each gene, its id in
-          </label>
-          <Hint descriptionId="batch-names-hint">
-            {names.state === "loading"
-              ? "Asking the server…"
-              : names.state === "failed"
-                ? "The server did not give them."
-                : request.final_database !== null && request.final_database === (names.authority ?? "")
-                  ? `The answers are in ${databaseLabel(request.final_database)}, the organism's symbols: nothing more is asked.`
-                  : `${names.authority ? `${databaseLabel(names.authority)} gives the organism's symbols. ` : ""}One more request of the same endpoint, with the genes as identifiers, read and answered at release ${String(target)}.`}
-          </Hint>
-        </span>
-        <Select
-          id="batch-names"
-          className="batch-names__select"
-          value={names.database ?? NONE}
-          aria-describedby="batch-names-hint"
-          onChange={(e) => {
-            names.setDatabase(e.target.value === NONE ? null : e.target.value);
-          }}
-        >
-          {finalOptions.map((d) => (
-            <option key={d} value={d}>
-              {databaseLabel(d)}
-              {d === names.authority ? " (the organism's symbols)" : ""}
-            </option>
-          ))}
-          <option value={NONE}>no other database</option>
-        </Select>
-        {names.state === "loading" ? <span className="batch-names__state muted">asking the server…</span> : null}
-        {names.state === "failed" ? (
-          <span className="batch-names__state">
-            The server did not give them.{" "}
-            <button type="button" className="link-button" onClick={names.retry}>
-              Try again
-            </button>
-          </span>
-        ) : null}
-      </div>
-      <details
-        className="batch-tools"
-        open={toolsOpen}
-        onToggle={(e) => {
-          setToolsOpen(e.currentTarget.open);
-        }}
-      >
-        <summary className="batch-tools__summary">
-          Filter and sort
-          <span className="batch-tools__summary-state">
-            {isFiltered(filter) || needle.trim() ? " · a filter is on" : ""}
-            {sort.key !== "order" || sort.descending ? ` · ${orderWords}` : ""}
-          </span>
-        </summary>
+      <div className="batch-tools" id={`batch-tools-${label === "Results" ? "table" : "none"}`} hidden={!toolsOpen}>
         <div className="batch-tools__body">
           <ChipGroup label="Status">
             <button
@@ -1504,9 +1556,10 @@ function ResultsTable({
             </div>
           </div>
         </div>
-      </details>
+      </div>
+      {/* The rows shown, said where a filter or a sort makes them other than the tab's count in input order. */}
       <p className="batch-tools__shown" aria-live="polite">
-        {shownWords}.
+        {isFiltered(filter) || needle.trim() || sort.key !== "order" || sort.descending ? `${shownWords}.` : null}
       </p>
       <div ref={frameRef}>
         <TableFrame
@@ -1674,6 +1727,30 @@ function GeneWithNames({ gene, names, strong }: { gene: string; names: NamesStat
   );
 }
 
+/** A value a criterion compared, as the cell shows it: a long decimal as IDTrack's text cut after its sixth
+ *  significant digit with "…" (never rounded; the whole on focus and to a screen reader), anything else as written. */
+function CriterionText({ text }: { text: string }) {
+  const value = Number(text);
+  return /^-?\d+\.\d+$/.test(text) && Number.isFinite(value) && pythonFloat(value) === text ? (
+    <ScoreValue score={value} />
+  ) : (
+    <Mono>{text}</Mono>
+  );
+}
+
+/** The runner-up of a decision by its name beside the genes where it has one, else its id (the id on focus). */
+function RunnerUp({ gene, names }: { gene: string; names: NamesState }) {
+  const own = names.state === "done" ? namesOfGene(names, gene) : [];
+  return own.length ? (
+    <span className="mono" title={gene}>
+      {own[0]}
+      <span className="visually-hidden"> ({gene})</span>
+    </span>
+  ) : (
+    <Mono>{gene}</Mono>
+  );
+}
+
 /** A few genes with their names, then "and N more" (every one is in the opened row). */
 function GeneList({ genes, names, strong }: { genes: readonly string[]; names: NamesState; strong?: boolean }) {
   const shown = genes.length > SHOWN + 1 ? genes.slice(0, SHOWN) : genes;
@@ -1815,8 +1892,8 @@ function Row({
           ) : null}
           {spreadsheetDate(row) ? (
             <span className="sub batch-why batch-why--hint">
-              The form of a spreadsheet&rsquo;s date: a symbol such as MARCH1 becomes <Mono>1-Mar</Mono> in a
-              spreadsheet. Export the column as text and convert it again.
+              <Mono>{r.query_id}</Mono> has the form of a date a spreadsheet makes of a symbol it opens; the symbol
+              cannot be read back from it. Convert the column as its source wrote it, before a spreadsheet opened it.
             </span>
           ) : null}
         </td>
@@ -1945,10 +2022,15 @@ function Row({
                 criterion {criterion.index + 1} of {vocabulary.criteria.length}
               </span>
               {decision ? (
-                <span className="sub b-decided__values">
-                  <Mono>{decision.short?.a ?? decision.a}</Mono> <span className="muted">vs</span>{" "}
-                  <Mono>{decision.short?.b ?? decision.b}</Mono>
-                </span>
+                <>
+                  <span className="sub b-decided__values">
+                    <CriterionText text={decision.short?.a ?? decision.a} /> <span className="muted">vs</span>{" "}
+                    <CriterionText text={decision.short?.b ?? decision.b} />
+                  </span>
+                  <span className="sub b-decided__runner">
+                    ahead of <RunnerUp gene={decision.runnerUp.gene} names={names} />
+                  </span>
+                </>
               ) : null}
             </span>
           ) : r.decided_by ? (
@@ -2615,11 +2697,11 @@ function Releases({
               {summary.paths && eventTotal ? (
                 <>
                   {elsewhere.length && !oneRelease ? "Below the arcs" : "Above the axis"}, a column at each release
-                  where the best paths took a step of Ensembl&rsquo;s history, as tall as the number of identifiers
-                  whose path stepped there, of each kind (one step of two kinds, a split and merge or a step across
-                  assemblies, is in both), stacked in the hue of its family: history, splits and merges, assembly
-                  changes; the number on a column counts each identifier once. A step is placed at the first release of
-                  its later id, in Ensembl&rsquo;s direction.{" "}
+                  where the best paths took a step of Ensembl&rsquo;s history, as tall as the identifiers whose path
+                  stepped there, each once (the number on the tallest columns), split among the hues of the step
+                  families in proportion to their kinds: history, splits and merges, assembly changes (one step of two
+                  kinds, a split and merge or a step across assemblies, shares its height between the two). A step is
+                  placed at the first release of its later id, in Ensembl&rsquo;s direction.{" "}
                 </>
               ) : null}
               Behind, the assemblies that serve the releases. Counted from the answer of <Mono>{endpoint}</Mono>
@@ -2892,7 +2974,13 @@ function Downloads({
   const preview = useMemo(() => {
     const { made } = provenance();
     const table = rowTable(rows.slice(0, 3), made, source, names.names, lives?.byRow ?? null);
-    const head = table.split("\n").filter((l) => l.startsWith("#")).length;
+    // The lines of notes the files begin with, counted in the whole table (its notes define every code its rows
+    // write, so the first rows alone may hold fewer).
+    const whole = (format: TableFormat) =>
+      rowTable(rows, made, source, names.names, lives?.byRow ?? null, format)
+        .split("\n")
+        .findIndex((l) => !l.startsWith("#"));
+    const head = { tsv: whole("tsv"), csv: whole("csv") };
     const columns = (table.split("\n").find((l) => !l.startsWith("#")) ?? "").split("\t").length;
     return {
       table: table
@@ -2934,50 +3022,35 @@ function Downloads({
   const app = timing.find((t) => t.name === "app" && t.dur !== null);
   return (
     <div className="batch-downloads">
-      <p className="batch-figure-head__meta">
-        {app ? (
-          <span className="batch-figure-head__time">
-            answered in{" "}
-            <Toggletip
-              label={`answered in ${app.dur ?? ""} ms on the server: its timings`}
-              tip={
-                <span className="toggletip__text">
-                  The server&rsquo;s own times of this request (its <Mono>Server-Timing</Mono> header), in milliseconds:{" "}
-                  {timing.map((t, i) => (
-                    <Fragment key={t.name}>
-                      {i ? " · " : ""}
-                      {t.name} <Mono>{t.dur ?? ABSENT}</Mono>
-                    </Fragment>
-                  ))}
-                  .
-                </span>
-              }
-            >
-              <span className="nowrap">
-                <Mono>{app.dur}</Mono>&nbsp;ms
-              </span>
-            </Toggletip>{" "}
-            on the server
-          </span>
-        ) : null}
-        {requestId ? (
-          <span>
-            request <Mono>{requestId}</Mono>
-          </span>
-        ) : null}
-      </p>
       <ul className="files">
         <li className="file">
           <div className="file__head">
-            <span className="file__name">Table, one row per identifier</span>
-            <span className="file__kind">made by this page</span>
+            <span className="file__name">Download the table</span>
+            <span className="file__kind">one row per identifier</span>
           </div>
           <TablePreview text={preview.table} />
           <p className="file__facts">
             <Mono>{groupedInteger(rows.length)}</Mono> rows × <Mono>{preview.columns}</Mono> columns, in your order
-            {source?.separator ? ", your own columns first" : ""}; begun by <Mono>{preview.head}</Mono> lines that start
-            with <Mono>#</Mono>: where it came from, what each column holds and every code it writes.
+            {source?.separator ? ", your own columns first" : ""}; begun by <Mono>{preview.head.tsv}</Mono> lines that
+            start with <Mono>#</Mono>: where it came from, what each column holds and every code it writes. To read it,
+            skip them:
           </p>
+          <dl className="file__read">
+            <dt>pandas</dt>
+            <dd>
+              <code className="code-quiet">{`pd.read_csv(path, sep="\\t", skiprows=${String(preview.head.tsv)})`}</code>{" "}
+              <span className="muted">(the CSV: </span>
+              <code className="code-quiet">{`pd.read_csv(path, skiprows=${String(preview.head.csv)})`}</code>
+              <span className="muted">)</span>
+            </dd>
+            <dt>R</dt>
+            <dd>
+              <code className="code-quiet">{`read.delim(path, skip = ${String(preview.head.tsv)})`}</code>{" "}
+              <span className="muted">(the CSV: </span>
+              <code className="code-quiet">{`read.csv(path, skip = ${String(preview.head.csv)})`}</code>
+              <span className="muted">)</span>
+            </dd>
+          </dl>
           <div className="file__actions">
             {namesPending ? (
               <span className="file__wait">Waiting for the names…</span>
@@ -3004,84 +3077,6 @@ function Downloads({
             </Button>
           </div>
         </li>
-        <li className="file">
-          <div className="file__head">
-            <span className="file__name">The api&rsquo;s JSON</span>
-            <span className="file__kind">the answer, byte for byte</span>
-          </div>
-          <FilePreview
-            text={raw.slice(0, 600).replace(/,"/g, ',\n "')}
-            lines={4}
-            label="The first characters of the api's answer"
-          />
-          <p className="file__facts">
-            <Mono>{groupedInteger(jsonBytes)}</Mono> bytes;{" "}
-            {source?.places ? (
-              <>
-                the answer of the <Mono>{groupedInteger(request.identifiers.length)}</Mono> different identifiers sent
-                (each once)
-              </>
-            ) : (
-              <>
-                <Mono>{groupedInteger(count)}</Mono> results
-              </>
-            )}
-            {request.explain ? ", each with every candidate's path" : ", without the paths"} (the preview breaks its
-            first line; the file is as sent).
-          </p>
-          <div className="file__actions">
-            <Button onClick={saveJson} aria-label="Save the api's JSON">
-              Save
-            </Button>
-          </div>
-        </li>
-        <li className="file">
-          <div className="file__head">
-            <span className="file__name">The api&rsquo;s TSV</span>
-            <span className="file__kind">one row per candidate</span>
-          </div>
-          <p className="file__about">
-            Every field of each result, one row per candidate (<Mono>input_index</Mono> counts from 0), as the api
-            writes its table: a second request of the same body without the paths, answered by the same graph. Its cells
-            are as given: a spreadsheet may read a cell that begins with <Mono>=</Mono> as a formula.
-          </p>
-          <p className="file__facts">
-            {tsvAsked ? (
-              <>
-                Saved: <Mono>{groupedInteger(tsvAsked.bytes)}</Mono> bytes, request{" "}
-                <Mono>{tsvAsked.request_id ?? ABSENT}</Mono> (in the provenance).
-              </>
-            ) : (
-              "Asked when saved; its request id goes into the provenance."
-            )}
-          </p>
-          <div className="file__actions">
-            <Button
-              onClick={saveTsv}
-              disabled={tsv.state === "loading"}
-              aria-label={tsv.state === "loading" ? undefined : "Ask and save the api's TSV"}
-            >
-              {tsv.state === "loading" ? "Asking for the TSV…" : "Ask and save"}
-            </Button>
-          </div>
-          {tsv.state === "failed" ? <ErrorPanel error={tsv.error} context="The TSV" level={3} /> : null}
-        </li>
-        <li className="file">
-          <div className="file__head">
-            <span className="file__name">Provenance</span>
-            <span className="file__kind">JSON</span>
-          </div>
-          <FilePreview text={preview.provenance} lines={4} label="The first lines of the provenance" />
-          <p className="file__facts">
-            The server, IDTrack&rsquo;s and the api&rsquo;s versions, the graph&rsquo;s content digest, the request as
-            sent and as answered (target <Mono>{resolvedTo}</Mono>), and every other request the table holds answers of.
-          </p>
-          <div className="file__actions">
-            <Button onClick={saveProvenance} aria-label="Save the provenance">
-              Save
-            </Button>
-          </div>
-        </li>
       </ul>
       <figure className="cite">
         <figcaption className="cite__title setting__label">For a methods section</figcaption>
@@ -3101,8 +3096,128 @@ function Downloads({
           <Link to={href("/method", {})}>Cite IDTrack itself (Method)</Link>
         </p>
       </figure>
+      <Expandable
+        className="batch-downloads__more"
+        summary="For programs and provenance"
+        meta="the api's JSON and TSV, the provenance"
+      >
+        <p className="batch-figure-head__meta">
+          {app ? (
+            <span className="batch-figure-head__time">
+              answered in{" "}
+              <Toggletip
+                label={`answered in ${app.dur ?? ""} ms on the server: its timings`}
+                tip={
+                  <span className="toggletip__text">
+                    The server&rsquo;s own times of this request (its <Mono>Server-Timing</Mono> header), in
+                    milliseconds:{" "}
+                    {timing.map((t, i) => (
+                      <Fragment key={t.name}>
+                        {i ? " · " : ""}
+                        {t.name} <Mono>{t.dur ?? ABSENT}</Mono>
+                      </Fragment>
+                    ))}
+                    .
+                  </span>
+                }
+              >
+                <span className="nowrap">
+                  <Mono>{app.dur}</Mono>&nbsp;ms
+                </span>
+              </Toggletip>{" "}
+              on the server
+            </span>
+          ) : null}
+          {requestId ? (
+            <span>
+              request <Mono>{requestId}</Mono>
+            </span>
+          ) : null}
+        </p>
+
+        <ul className="files">
+          <li className="file">
+            <div className="file__head">
+              <span className="file__name">The api&rsquo;s JSON</span>
+              <span className="file__kind">the answer, byte for byte</span>
+            </div>
+            <FilePreview
+              text={raw.slice(0, 600).replace(/,"/g, ',\n "')}
+              lines={4}
+              label="The first characters of the api's answer"
+            />
+            <p className="file__facts">
+              <Mono>{groupedInteger(jsonBytes)}</Mono> bytes;{" "}
+              {source?.places ? (
+                <>
+                  the answer of the <Mono>{groupedInteger(request.identifiers.length)}</Mono> different identifiers sent
+                  (each once)
+                </>
+              ) : (
+                <>
+                  <Mono>{groupedInteger(count)}</Mono> results
+                </>
+              )}
+              {request.explain ? ", each with every candidate's path" : ", without the paths"} (the preview breaks its
+              first line; the file is as sent).
+            </p>
+            <div className="file__actions">
+              <Button onClick={saveJson} aria-label="Save the api's JSON">
+                Save
+              </Button>
+            </div>
+          </li>
+          <li className="file">
+            <div className="file__head">
+              <span className="file__name">The api&rsquo;s TSV</span>
+              <span className="file__kind">one row per candidate</span>
+            </div>
+            <p className="file__about">
+              Every field of each result, one row per candidate (<Mono>input_index</Mono> counts from 0), as the api
+              writes its table: a second request of the same body without the paths, answered by the same graph. Its
+              cells are as given: a spreadsheet may read a cell that begins with <Mono>=</Mono> as a formula.
+            </p>
+            <p className="file__facts">
+              {tsvAsked ? (
+                <>
+                  Saved: <Mono>{groupedInteger(tsvAsked.bytes)}</Mono> bytes, request{" "}
+                  <Mono>{tsvAsked.request_id ?? ABSENT}</Mono> (in the provenance).
+                </>
+              ) : (
+                "Asked when saved; its request id goes into the provenance."
+              )}
+            </p>
+            <div className="file__actions">
+              <Button
+                onClick={saveTsv}
+                disabled={tsv.state === "loading"}
+                aria-label={tsv.state === "loading" ? undefined : "Ask and save the api's TSV"}
+              >
+                {tsv.state === "loading" ? "Asking for the TSV…" : "Ask and save"}
+              </Button>
+            </div>
+            {tsv.state === "failed" ? <ErrorPanel error={tsv.error} context="The TSV" level={3} /> : null}
+          </li>
+          <li className="file">
+            <div className="file__head">
+              <span className="file__name">Provenance</span>
+              <span className="file__kind">JSON</span>
+            </div>
+            <FilePreview text={preview.provenance} lines={4} label="The first lines of the provenance" />
+            <p className="file__facts">
+              The server, IDTrack&rsquo;s and the api&rsquo;s versions, the graph&rsquo;s content digest, the request as
+              sent and as answered (target <Mono>{resolvedTo}</Mono>), and every other request the table holds answers
+              of.
+            </p>
+            <div className="file__actions">
+              <Button onClick={saveProvenance} aria-label="Save the provenance">
+                Save
+              </Button>
+            </div>
+          </li>
+        </ul>
+      </Expandable>
     </div>
   );
 }
-
 const isRetired = (row: BatchRow) => row.result.status === "no_conversion" && row.result.graph_id !== null;
