@@ -51,12 +51,12 @@ describe("the walk's case", () => {
       (r) => holdsStage("walk", r) && !bestSteps(r).some((s) => s.kind === "bridge_near"),
     );
     expect(eligible.length).toBeGreaterThan(0);
-    expect(chosen).not.toBeNull();
-    const size = bestPathSize(chosen?.result as ConversionResult);
+    if (!chosen) throw new Error("no walk case chosen");
+    const size = bestPathSize(chosen.result);
     for (const r of eligible) expect(bestPathSize(r)).toBeLessThanOrEqual(size);
-    expect(holdsStage("walk", chosen?.result as ConversionResult)).toBe(true);
+    expect(holdsStage("walk", chosen.result)).toBe(true);
     // Whatever order the showcase gives them in, the same answer is chosen.
-    expect(walkCase(showcaseOf([...results].reverse()))?.result.query_id).toBe(chosen?.result.query_id);
+    expect(walkCase(showcaseOf([...results].reverse()))?.result.query_id).toBe(chosen.result.query_id);
   }, 30_000);
 
   it("is none where the showcase holds no such answer", () => {
