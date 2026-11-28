@@ -50,7 +50,9 @@ describe("indentJson", () => {
         const indented = indentedText(entry.raw);
         expect(indented, entry.name).not.toBeNull();
         expect(squeeze(indented ?? ""), entry.name).toBe(squeeze(entry.raw));
-        expect(JSON.parse(indented ?? ""), entry.name).toEqual(JSON.parse(entry.raw));
+        // The same value: both texts parsed and written again compare as one string (indenting keeps the order of
+        // keys), which is as strict as a deep comparison and fast enough for the largest recorded answers.
+        expect(JSON.stringify(JSON.parse(indented ?? "")), entry.name).toBe(JSON.stringify(JSON.parse(entry.raw)));
         checked += 1;
       }
     }
