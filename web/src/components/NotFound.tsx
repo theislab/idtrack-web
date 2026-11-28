@@ -31,7 +31,8 @@ export function NoSuchFigure() {
 export function NotFound({ path }: { path: string }) {
   return (
     <div className="page notfound">
-      <header className="notfound__head">
+      <header className="page-head notfound__head">
+        <p className="eyebrow">Not a page of IDTrack</p>
         <h1>No such page</h1>
         <p className="lede">
           The address <Mono>{path}</Mono> leads to no page of IDTrack. Like an identifier at its last release, it ends

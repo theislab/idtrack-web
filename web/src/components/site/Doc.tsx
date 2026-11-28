@@ -12,7 +12,8 @@ export interface DocSection {
   title: string;
 }
 
-/** The head of a document: its title, one sentence, when it was updated, and the page in its other language. */
+/** The head of a document, in every page's composition (the eyebrow, the title, the lede): then when it was updated,
+ *  and the page in its other language. */
 export function DocHead({
   title,
   lede,
@@ -29,9 +30,10 @@ export function DocHead({
   other?: { to: string; lang: "en" | "de" };
 }) {
   return (
-    <header className="doc__head">
+    <header className="page-head doc__head">
+      <p className="eyebrow">{lang === "de" ? "Über diese Website" : "About this site"}</p>
       <h1>{title}</h1>
-      <p className="doc__lede">{lede}</p>
+      <p className="lede">{lede}</p>
       <p className="doc__meta">
         {lang === "de" ? "Stand" : "Updated"} <time dateTime={updated}>{writtenDate(updated, lang)}</time>
         {other ? (

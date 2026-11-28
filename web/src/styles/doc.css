@@ -1,19 +1,11 @@
 /* The site's own pages as documents (components/site/Doc.tsx): one column of good measure, the list of sections
    beside it on a wide screen, facts as quiet two-column lists; and how they print. */
 
+/* The head is every page's (app.css, .page-head); a rule closes it. */
 .doc__head {
-  display: grid;
-  gap: var(--space-3);
-  max-width: 44rem;
   padding-bottom: var(--space-6);
   margin-bottom: var(--space-7);
   border-bottom: 1px solid var(--line);
-}
-
-.doc__lede {
-  color: var(--ink-2);
-  font-size: var(--text-lg);
-  line-height: var(--leading-text);
 }
 
 .doc__meta {

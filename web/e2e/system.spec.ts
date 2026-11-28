@@ -50,6 +50,20 @@ const PAGES: [string, string, (page: Page) => Promise<void>][] = [
       await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
     },
   ],
+  ...(
+    [
+      ["legal notice", "/legal"],
+      ["privacy (German)", "/privacy/de"],
+      ["licences", "/licences"],
+      ["accessibility", "/accessibility"],
+    ] as const
+  ).map(([name, url]): [string, string, (page: Page) => Promise<void>] => [
+    name,
+    url,
+    async (page) => {
+      await expect(page.locator(".doc__section").first()).toBeVisible();
+    },
+  ]),
   [
     "not found",
     "/no/such/page",

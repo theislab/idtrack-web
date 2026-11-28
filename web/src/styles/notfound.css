@@ -1,10 +1,9 @@
 /* The page of an address that is not a page of IDTrack, and the figure of every "no such" state
    (components/NotFound.tsx). Calm: the title, one sentence, the figure, the way back. */
 
+/* The head is every page's (app.css, .page-head); the figure follows close under it. */
 .notfound__head {
-  display: grid;
-  gap: var(--space-3);
-  max-width: var(--measure);
+  margin-bottom: 0;
 }
 
 .notfound__figure {
