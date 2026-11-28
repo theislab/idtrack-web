@@ -16,8 +16,11 @@ uncompressed, until the server restarts; a hashed file of the build the server s
 loading its lazy parts. The page's Content-Security-Policy names its inline scripts by their hashes
 (:py:func:`idtrack_web_api.guard.page_policy`), read from the ``index.html`` that is sent (again whenever the file on
 disk changes), so that the policy always fits the page it comes with; a path that is not a route of the page
-(:py:data:`PAGE_ROUTES`) is answered with the page and ``404``. Only the build's own files are sent: no hidden file (a
-name that begins with ``.``, but ``.well-known``) and nothing outside the build's folder, even through a link.
+(:py:data:`PAGE_ROUTES`) is answered with the page and ``404``, and so is a path that names no file of the build where
+the request asks for HTML (a browser's ``Accept`` names ``text/html``: a person who typed a wrong address with a dot
+in it, ``/ENSG00000141510.20``, sees the page that says so), and ``/index.html`` itself (the page's template, not one
+of its addresses). Only the build's own files are sent: no hidden file (a name that begins with ``.``, but
+``.well-known``) and nothing outside the build's folder, even through a link.
 
 The page is sent with the answers every view needs first written into it (:py:data:`PRELOAD_ID`: ``/organisms``,
 ``/version``, ``/vocabulary``, ``/limits``, each its text exactly as the api sends it), so that its first paint waits
@@ -28,8 +31,12 @@ Each address gets the page with its **frame** (:py:data:`FRAMES_FILE`, written b
 the masthead and the page's head as HTML inside the page's root, drawn before any code has arrived, in its head the
 links that fetch that page's own code beside the entry (:py:func:`frame_of` picks it by the address, as the page's
 routes do), and the page's own title, description, canonical address and the cards of its link (Open Graph, Twitter),
-into which the server writes the site's address (``public_url``, else the request's) and the page's canonical path. The
-app replaces the frame when it first renders. A build without the file is sent without frames.
+into which the server writes the site's address (``public_url``, else the request's) and the page's canonical path.
+The server also writes into the frame what only it knows: the address of IDTrack's documentation it is set to
+(``docs_url``, in place of the build's default, so that a link drawn before any code runs follows the setting too), a
+graph's own title and description on its page (``/organisms/<name>``, from the graph the server holds), and the
+page's language on the document (``<html lang="de">`` for a page at ``/<page>/de``). The app replaces the frame when
+it first renders. A build without the file is sent without frames.
 
 The build also lists its pages (``pages`` of :py:data:`FRAMES_FILE`, from the page's routes), from which the server
 makes ``/sitemap.xml`` with each graph's page added; ``/robots.txt`` allows every page and names the sitemap
@@ -69,12 +76,21 @@ IMMUTABLE = "public, max-age=31536000, immutable"
 #: ``/organisms/<name>``): any other path without a file extension is answered with the page and ``404``.
 PAGE_ROUTES = re.compile(
     r"^/(convert|batch|names|organisms|developers|method|legal|privacy|licences|accessibility)?/?$"
-    r"|^/(legal|privacy)/de/?$|^/organisms/[^/]+/?$"
+    r"|^/(legal|privacy|accessibility)/de/?$|^/organisms/[^/]+/?$"
 )
+#: The pages in German: those at ``/<page>/de`` (``web/src/lib/routes.ts``).
+GERMAN_PAGE = re.compile(r"^/[a-z]+/de/?$")
+#: The build's own default address of IDTrack's documentation, which the server replaces by its setting.
+BUILD_DOCS_URL = "https://idtrack.readthedocs.io/en/stable/"
 _INLINE_SCRIPT = re.compile(rb"<script(?![^>]*\bsrc=)[^>]*>(.*?)</script>", re.DOTALL | re.IGNORECASE)
 #: The page's own title and description, replaced by a frame's.
 _TITLE = re.compile(rb"\s*<title>.*?</title>", re.DOTALL)
 _DESCRIPTION = re.compile(rb'\s*<meta\s+name="description"[^>]*>', re.DOTALL)
+#: The document's language as the page's file declares it.
+_LANGUAGE = re.compile(rb"<html\s+lang=\"[^\"]*\"")
+#: A frame's own title and description in its ``meta`` (each also its link cards').
+_FRAME_TITLE = re.compile(r"<title>(.*?)</title>", re.DOTALL)
+_FRAME_DESCRIPTION = re.compile(r'<meta name="description" content="([^"]*)">')
 #: The most forms of the page kept in memory (each frame by site address and canonical path).
 PAGES_HELD = 64
 REVALIDATE = "no-cache"
@@ -100,6 +116,7 @@ _FRAME_OF_PATH = {
     "privacy/de": "privacy-de",
     "licences": "licences",
     "accessibility": "accessibility",
+    "accessibility/de": "accessibility-de",
 }
 #: The places in a frame's ``meta`` the server fills: the site's address and the page's canonical path.
 ORIGIN_SLOT = "%ORIGIN%"
@@ -203,15 +220,24 @@ def accepts(header: str | None, wanted: str) -> bool:
 class Frontend:
     """The files of a built frontend, their compressed forms made once, and the answers for them."""
 
-    def __init__(self, root: Path, preload: dict[str, bytes] | None = None, *, analytics: bool = False) -> None:
+    def __init__(
+        self,
+        root: Path,
+        preload: dict[str, bytes] | None = None,
+        *,
+        analytics: bool = False,
+        docs_url: str = BUILD_DOCS_URL,
+    ) -> None:
         """Compress every text file of the build.
 
         Args:
             root: The built frontend (``web/dist``).
-            preload: The answers written into the page, by path (their bytes exactly as the api sends them).
+            preload: The answers written into the page, by path (their bytes exactly as the API sends them).
             analytics: Whether the site counts visits with Google Analytics (its hosts are allowed by the policy).
+            docs_url: The address of IDTrack's documentation the server is set to (written into the frames).
         """
         self.analytics = analytics
+        self.docs_url = docs_url
         self.preload = _preload_block(preload or {})
         self._pages_sent: dict[str, tuple[bytes, bytes, bytes, bytes, str]] = {}
         self._frames: tuple[tuple[int, int], dict[str, dict[str, str]]] | None = None
@@ -282,6 +308,8 @@ class Frontend:
             return None
         if not target.is_relative_to(self.root) or _hidden(target.relative_to(self.root).parts):
             return None
+        if target == self.index:
+            return None  # the page's template: sent at the page's addresses only, never by its own name
         if target.suffix == ".br" and target.with_suffix("").is_file():
             return None  # a file's Brotli form is sent in the file's place, never by its own name
         return target if target.is_file() or target in self._kept else None
@@ -329,9 +357,15 @@ class Frontend:
         return [p for p in listed if isinstance(p, str) and p.startswith("/")] if isinstance(listed, list) else []
 
     def _answer_page(
-        self, headers: Headers, status: int, frame: str | None = None, site: str = "", canonical: str = "/"
+        self,
+        headers: Headers,
+        status: int,
+        frame: str | None = None,
+        site: str = "",
+        canonical: str = "/",
+        card: tuple[str, str] | None = None,
     ) -> Response:
-        sent, packed, digest = self.page(frame, site, canonical)
+        sent, packed, digest = self.page(frame, site, canonical, card)
         coding = "gzip" if accepts_gzip(headers.get("accept-encoding")) else None
         etag = f'"{digest}{"-gzip" if coding else ""}"'
         common = {"Cache-Control": REVALIDATE, "ETag": etag, "Vary": "Accept-Encoding"}
@@ -348,16 +382,20 @@ class Frontend:
             )
         return Response(content=sent, status_code=status, media_type="text/html", headers=common)
 
-    def page(self, frame: str | None = None, site: str = "", canonical: str = "/") -> tuple[bytes, bytes, str]:
+    def page(
+        self, frame: str | None = None, site: str = "", canonical: str = "/", card: tuple[str, str] | None = None
+    ) -> tuple[bytes, bytes, str]:
         """Return ``index.html`` as it is sent: with the answers and the frame written in, compressed, and its tag.
 
         They are made again when the file on disk or the build's frames change. A frame's own title and description
-        take the place of the page's; its canonical address and link cards get the site's address and the path.
+        take the place of the page's; its canonical address and link cards get the site's address and the path; its
+        links to IDTrack's documentation the server's address of it; a page in German declares its language.
 
         Args:
             frame: The name of the page's frame (:py:func:`frame_of`); ``None``: none.
             site: The site's address for absolute links (``https://host``; empty: links relative to the site).
             canonical: The page's canonical path.
+            card: The page's own title and description in place of the frame's (a graph's page), or ``None``.
 
         Returns:
             tuple[bytes, bytes, str]: The page, its gzip form, and its ``ETag`` digest.
@@ -368,12 +406,17 @@ class Frontend:
         held = self._pages_sent.get(key)
         if held is None or held[0] != file or held[1] != parts:
             links, markup, meta = json.loads(parts) if parts else ("", "", "")
+            markup = markup.replace(BUILD_DOCS_URL, html.escape(self.docs_url))
             sent = file
+            if frame not in {None, "none"} and GERMAN_PAGE.match(canonical):
+                sent = _LANGUAGE.sub(b'<html lang="de"', sent, count=1)
             if markup and _ROOT in sent:
                 sent = sent.replace(_ROOT, b'<div id="root">' + markup.encode() + b"</div>", 1)
             if meta:
                 sent = _TITLE.sub(b"", sent, count=1)
                 sent = _DESCRIPTION.sub(b"", sent, count=1)
+                if card is not None:
+                    meta = _with_card(meta, *card)
                 meta = meta.replace(ORIGIN_SLOT, html.escape(site)).replace(PATH_SLOT, html.escape(canonical))
             head = sent.find(b"</head>")
             if head >= 0:
@@ -394,6 +437,7 @@ class Frontend:
         frame: str | None = None,
         site: str = "",
         canonical: str = "/",
+        card: tuple[str, str] | None = None,
     ) -> Response:
         """Return the answer for a file of the build.
 
@@ -404,6 +448,7 @@ class Frontend:
             frame: For the page: the name of its frame (:py:func:`frame_of`); ``None``: none.
             site: For the page: the site's address, written into its canonical address and link cards.
             canonical: For the page: its canonical path.
+            card: For a graph's page: its own title and description.
 
         Returns:
             Response: The file, compressed when the client accepts it, with ``Cache-Control``, ``ETag`` and
@@ -412,7 +457,7 @@ class Frontend:
         relative = target.relative_to(self.root)
         cache = IMMUTABLE if relative.parts[0] == HASHED_FOLDER and len(relative.parts) > 1 else REVALIDATE
         if target == self.index and target.is_file():
-            return self._answer_page(headers, status, frame, site, canonical)
+            return self._answer_page(headers, status, frame, site, canonical, card)
         if not target.is_file():  # a hashed file of the build at the start, since removed from disk
             data = self._kept[target]
             media = media_type(target)
@@ -448,6 +493,38 @@ class Frontend:
                 headers={**common, "Content-Encoding": coding},
             )
         return FileResponse(target, status_code=status, headers=common, media_type=media_type(target))
+
+
+def _with_card(meta: str, title: str, description: str) -> str:
+    """Return a frame's ``meta`` with its own title and description (every tag that repeats them) replaced."""
+    found_title = _FRAME_TITLE.search(meta)
+    found_description = _FRAME_DESCRIPTION.search(meta)
+    if found_title is not None:
+        meta = meta.replace(found_title.group(1), html.escape(title, quote=False))
+    if found_description is not None:
+        meta = meta.replace(f'content="{found_description.group(1)}"', f'content="{html.escape(description)}"')
+    return meta
+
+
+def prefers_html(accept: str | None) -> bool:
+    """Return whether a request asks for HTML (its ``Accept`` names ``text/html`` with a weight above 0): a browser.
+
+    Args:
+        accept: The ``Accept`` header (``None``: absent; a program's ``*/*`` is no request for HTML).
+
+    Returns:
+        bool: Whether the page should answer.
+    """
+    for item in (accept or "").split(","):
+        kind, _, parameters = item.strip().partition(";")
+        if kind.strip().lower() != "text/html":
+            continue
+        name, _, value = parameters.strip().partition("=")
+        try:
+            return name.strip().lower() != "q" or float(value) > 0
+        except ValueError:
+            return False
+    return False
 
 
 def robots_txt(site: str) -> str:
@@ -514,6 +591,7 @@ __all__ = [
     "accepts",
     "accepts_gzip",
     "frame_of",
+    "prefers_html",
     "robots_txt",
     "sitemap_xml",
 ]

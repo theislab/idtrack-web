@@ -14,7 +14,9 @@ In the order a request meets it:
    of the server's identity (its start, versions and graphs: an answer is a function of the graphs and the arguments)
    and the request's path and query; ``If-None-Match`` naming it is answered ``304`` at once, and an answer this worker
    sent before is sent again from memory (:py:class:`AnswerCache`), without a search.
-7. **The client's allowances** (:py:mod:`idtrack_web_api.limits`): a search takes a token of the client's searches,
+7. **The client's allowances** (:py:mod:`idtrack_web_api.limits`): a search takes a token of the client's searches
+   (given back, and a token of its reads taken instead, where the request is refused for what it holds before any
+   search: a ``4xx`` other than ``408``, ``422`` and ``429``),
    needs a balance of search time and a place among the client's searches in progress; any other request of the api
    (and an answer from memory) a token of its reads; ``/health`` none. Each answer of the api says the client's
    standing in ``RateLimit-Policy`` and ``RateLimit`` (the IETF draft's fields) where the allowances are enforced.
@@ -54,7 +56,7 @@ from typing import TYPE_CHECKING, Any
 import anyio
 
 from idtrack_web_api.errors import ApiError, error_json
-from idtrack_web_api.limits import READ_SHARE, Admission, RateLimiter, client_key
+from idtrack_web_api.limits import NETWORK_SHARE, READ_SHARE, Admission, RateLimiter, Wait, client_key
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterable
@@ -92,6 +94,10 @@ SEARCH_PATH = re.compile(
     r"^/api/v1/organisms/[^/]+/(convert|convert/batch|convert/each-database|genes-named|names-of|source-inference)$"
 )
 _SEARCH_METHODS = frozenset({"GET", "HEAD", "POST"})
+#: The statuses of a searching request refused for what it holds, before any search (a malformed or unknown
+#: argument, a body too large, an organism not held): such a request gives its search token back and counts as a read.
+#: Not among them: ``408`` (the client was too slow), ``422`` (a search ran out of its budget), ``429``.
+_SHAPE_REFUSALS = frozenset({400, 404, 405, 413, 414, 415})
 #: GETs of the api that are never conditional nor kept: the live answers.
 _LIVE = frozenset({HEALTH_PATH, STATUS_PATH})
 #: A request id the client may give (``X-Request-ID``): it is then the request's id, in the answer and the log.
@@ -133,8 +139,11 @@ def is_search(method: str, path: str) -> bool:
     return method in _SEARCH_METHODS and SEARCH_PATH.match(path) is not None
 
 
-#: The hosts Google's tag loads from and sends to, allowed only where the site counts visits (``analytics``).
-ANALYTICS_SCRIPTS = "https://www.googletagmanager.com"
+#: Where Google's tag loads its scripts from and the hosts it sends to, allowed only where the site counts visits
+#: (``analytics``). The scripts are allowed by the tag's own folder (``/gtag/js?id=...`` and the scripts it loads beside
+#: itself there), not the whole host: the host also serves Tag Manager containers (``/gtm.js``), which the site never
+#: loads.
+ANALYTICS_SCRIPTS = "https://www.googletagmanager.com/gtag/"
 ANALYTICS_CONNECT = "https://*.google-analytics.com https://*.analytics.google.com https://www.googletagmanager.com"
 
 
@@ -510,10 +519,29 @@ class Guard:
                 headers.append((b"content-length", str(len(body)).encode()))
             return headers
 
-        def give_back() -> None:
-            """Give the client its search's token back: refused for the server's capacity, not for the client's."""
+        def give_back() -> bool:
+            """Give the client its search's token back (refused for the server's capacity, or before any search)."""
             if searching and (own is not None or (connection is not None and connection.admitted is not None)):
                 self.limiter.give_back(client, "search")
+                return True
+            return False
+
+        def settle(answered: int) -> None:
+            """Give a search's token back where it searched nothing.
+
+            Refused for the server's capacity, or for what the request holds (then charged as a read: the allowance of
+            searches counts the requests that were searched).
+            """
+            if not searching:
+                return
+            if state.pop("capacity", False):  # the app refused it for the server's capacity
+                give_back()
+            elif answered in _SHAPE_REFUSALS and not state.get("refused_shape"):
+                state["refused_shape"] = True
+                if give_back():
+                    self.limiter.take(client, "read")
+                    if limits:
+                        limits[:] = self.rate_headers(client, "search")
 
         async def compressed(body: bytes) -> bytes:
             """Compress an answer: a large one beside the event loop, its time part of a search's writing."""
@@ -536,7 +564,7 @@ class Guard:
             headers = list(start.get("headers", []))
             kind = next((v for k, v in headers if k == b"content-type"), b"")
             kept: Kept | None = None
-            if start["status"] == 200 and etag is not None:
+            if start["status"] == 200 and etag is not None and not state.get("answer_kept"):
                 kept = Kept(200, tuple(h for h in headers if h[0] in _KEPT_HEADERS), body, gzipped)
             coded = False
             if (
@@ -552,8 +580,7 @@ class Guard:
                 coded = True
             if kept is not None:
                 captured["kept"] = kept
-            if searching and state.pop("capacity", False):  # the app refused it for the server's capacity
-                give_back()
+            settle(start["status"])
             if start["status"] < 400 and body and self.sending + len(body) > self.settings.sending_max_bytes:
                 give_back()
                 await refuse(
@@ -598,7 +625,8 @@ class Guard:
                 if message["type"] == "http.response.body":
                     buffered["body"].append(message.get("body", b""))
                     if not message.get("more_body", False):
-                        await finish(buffered["start"], b"".join(buffered["body"]))
+                        # An endpoint that keeps its answers compressed already gives them (``gzipped`` of the state).
+                        await finish(buffered["start"], b"".join(buffered["body"]), state.get("gzipped"))
                     return
                 await send(message)
                 return
@@ -812,13 +840,14 @@ class Guard:
             ApiError | Admission: The refusal (``429 rate_limited``, naming the allowance), or the admission (its place
             to give back when the request ends).
         """
-        wait = self.limiter.take(client, "search")
-        if wait is not None:
-            again = RateLimiter.retry_after(wait)
+        taken = self.limiter.take(client, "search")
+        if taken is not None:
+            again = RateLimiter.retry_after(taken.seconds)
             return ApiError(
                 "rate_limited",
-                f"This client's allowance of searching requests is used up (it holds {self.settings.rate_burst} at "
-                f"most and fills again at {self.settings.rate_per_minute} per minute); retry in {again} s.",
+                f"{_whose(taken, 'searching requests')} is used up (it holds "
+                f"{self.settings.rate_burst * _share(taken)} at most and fills again at "
+                f"{self.settings.rate_per_minute * _share(taken)} per minute); retry in {again} s.",
                 headers={"Retry-After": again},
                 allowance="searches",
             )
@@ -850,15 +879,15 @@ class Guard:
 
     async def _limited(self, client: str, refuse: Any) -> bool:
         """Take the client's token of a read; answer 429 and return whether it was refused."""
-        wait = self.limiter.take(client, "read")
-        if wait is not None:
-            again = RateLimiter.retry_after(wait)
+        taken = self.limiter.take(client, "read")
+        if taken is not None:
+            again = RateLimiter.retry_after(taken.seconds)
             await refuse(
                 ApiError(
                     "rate_limited",
-                    f"This client's allowance of requests that read is used up (it holds "
-                    f"{self.settings.rate_burst * READ_SHARE} at most and fills again at "
-                    f"{self.settings.rate_per_minute * READ_SHARE} per minute); retry in {again} s.",
+                    f"{_whose(taken, 'requests that read')} is used up (it holds "
+                    f"{self.settings.rate_burst * READ_SHARE * _share(taken)} at most and fills again at "
+                    f"{self.settings.rate_per_minute * READ_SHARE * _share(taken)} per minute); retry in {again} s.",
                     headers={"Retry-After": again},
                     allowance="reads",
                 )
@@ -971,6 +1000,17 @@ class Guard:
             return await receive()
 
         return replay
+
+
+def _whose(taken: Wait, what: str) -> str:
+    """Whose allowance a refusal names: the client's own, or its IPv6 network's that its clients share."""
+    if taken.network is None:
+        return f"This client's allowance of {what}"
+    return f"The allowance of {what} that the clients of the IPv6 network {taken.network} share"
+
+
+def _share(taken: Wait) -> int:
+    return 1 if taken.network is None else NETWORK_SHARE
 
 
 def _gzip(body: bytes) -> bytes:

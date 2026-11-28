@@ -237,6 +237,21 @@ class ValidationDetail(BaseModel):
     message: str = Field(..., description="What is wrong.")
 
 
+class Progress(BaseModel):
+    """How far a request's search went before its time budget ran out."""
+
+    model_config = _STRICT
+    answered: int = Field(..., description="The items answered within the budget.")
+    of: int = Field(..., description="The items the request asked for.")
+    items: Literal["identifiers", "databases"] = Field(
+        ...,
+        description=(
+            "What was counted: the distinct identifiers of a batch, or the databases of "
+            "`GET .../convert/each-database`."
+        ),
+    )
+
+
 class ErrorBody(BaseModel):
     """An error: a stable code, a message that says what to change, and the request's id."""
 
@@ -273,6 +288,13 @@ class ErrorBody(BaseModel):
         description=(
             "For `rate_limited`: which of the client's allowances it used up (`/api/v1/limits` gives each); `null` "
             "otherwise."
+        ),
+    )
+    progress: Progress | None = Field(
+        default=None,
+        description=(
+            "For `request_budget_exceeded` of a batch or of each-database: how far the search went (`answered` of "
+            "`of` `items`), so that a client can send the request again in pieces small enough; `null` otherwise."
         ),
     )
 
@@ -351,6 +373,16 @@ class VersionResponse(BaseModel):
         description=(
             "The Google Analytics measurement id the site counts visits with, after a visitor's consent "
             "(`IDTRACK_WEB_ANALYTICS_ID`); `null`: the site counts nothing."
+        ),
+    )
+    https_route: Literal["lets_encrypt", "institute_certificate", "behind_proxy"] | None = Field(
+        default=None,
+        description=(
+            "How visitors reach this server over https (`IDTRACK_WEB_HTTPS_ROUTE`, SETUP.md section 10.5), so that the "
+            "privacy page says who holds the certificate and who sees a visitor's address: `lets_encrypt` (the "
+            "server's proxy holds a certificate of Let's Encrypt), `institute_certificate` (it holds one the "
+            "institute gave), `behind_proxy` (the institute's reverse proxy holds the certificate and passes each "
+            "request, with the visitor's address, on); `null`: not stated."
         ),
     )
 
@@ -651,8 +683,22 @@ class ErrorTerm(BaseModel):
             "is given); `false`: the same request gets the same answer until it is changed."
         ),
     )
+    retry_after: bool = Field(
+        ...,
+        description=(
+            "`true`: the refusal carries the `Retry-After` header and `retry_after`, the seconds to wait before "
+            "sending it again."
+        ),
+    )
+    retry: str = Field(
+        ...,
+        description=(
+            "How a client goes on after this code, in words: when and how to send the request again, or that it must "
+            "change."
+        ),
+    )
     source: Literal["idtrack-web"] = Field(
-        default="idtrack-web", description="Whose words `title` and `meaning` are: the api's (its own codes)."
+        default="idtrack-web", description="Whose words `title` and `meaning` are: the API's (its own codes)."
     )
 
 
@@ -738,16 +784,26 @@ class LimitsResponse(BaseModel):
         ...,
         description=(
             "Searching requests (conversions, batches, names) per minute per client; `0`: no per-client allowance of "
-            "any kind. A client is its address, an IPv6 address by its `/64`."
+            "any kind. A client is its address, an IPv6 address by its `/64`. A searching request refused for what it "
+            "holds before any search (a `4xx` other than `408`, `422` and `429`: a malformed or unknown argument, a "
+            "batch over `batch_max`) is not counted here but among the reads."
         ),
     )
     rate_burst: int = Field(..., description="Searching requests a client may make at once before the rate applies.")
     read_share: int = Field(
         ...,
         description=(
-            "Every other request of the api (the tables and documents answered from memory, an answer sent again from "
+            "Every other request of the API (the tables and documents answered from memory, an answer sent again from "
             "the server's memory, a `304`) draws on an allowance this many times `rate_per_minute` and `rate_burst`; "
             "`/health` on none."
+        ),
+    )
+    network_share: int = Field(
+        ...,
+        description=(
+            "The clients of one IPv6 `/48` network (65,536 `/64`) share, beside each one's own, allowances of "
+            "searching requests and of reads this many times one client's; a `429` that one of them used up names "
+            "the network in its message."
         ),
     )
     rate_search_seconds: float = Field(
@@ -1355,14 +1411,14 @@ class LineagesResponse(BaseModel):
             "(`GET /organisms/{organism}/showcase`)."
         ),
     )
-    limit: int = Field(..., description="The most gene ids asked for.")
     ids: list[str] = Field(
         ...,
         description=(
             "The gene ids given: whole families, first those that hold a gene the showcase's answers name (in the "
             "order they are named), then the others in the order of the SHA-256 digest of each family's smallest "
-            "id, until the next family would pass `limit`; within a family by the first release at which it is active, "
-            "then by the id. Every other list of an id is in this order."
+            "id, until the next family would pass `limit` (so every `limit` from one family's end to the next one's "
+            "gives this same answer); within a family by the first release at which it is active, then by the id. "
+            "Every other list of an id is in this order."
         ),
     )
     family_starts: list[int] = Field(..., description="The index in `ids` of each family's first id, ascending.")

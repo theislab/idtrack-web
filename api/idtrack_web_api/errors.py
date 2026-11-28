@@ -1,10 +1,13 @@
-"""The api's errors: each has an HTTP status, a stable code and a message that says what to change.
+"""The API's errors: each has an HTTP status, a stable code and a message that says what to change.
 
-idtrack's refusals of an input arrive through the adapter (:py:func:`idtrack_web_api.adapter.input_problem`) with a code
+IDTrack's refusals of an input arrive through the adapter (:py:func:`idtrack_web_api.adapter.input_problem`) with a code
 of their own (a 4xx); a search over its budget is ``422 search_budget_exceeded``; anything else is
 ``500 internal_error`` with the request's id to quote, and its traceback goes to the server's log only. Every code is
-answered by some endpoint: a refusal of idtrack's that the api's own checks make unreachable (a wrong type, a version
-or assembly where the api takes none) is not listed, and would be answered as ``invalid_input``.
+answered by some endpoint: a refusal of IDTrack's that the API's own checks make unreachable (a wrong type, a version
+or assembly where the API takes none) is not listed, and would be answered as ``invalid_input``.
+
+How a client retries each code is one table (:py:data:`RETRY`), from which ``/vocabulary``, ``/llms-full.txt``,
+README.md and the API page write it.
 """
 
 from __future__ import annotations
@@ -15,7 +18,7 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
-#: Every code the api answers with: its HTTP status and when it is answered. README.md, ``/llms-full.txt`` and the
+#: Every code the API answers with: its HTTP status and when it is answered. README.md, ``/llms-full.txt`` and the
 #: OpenAPI document are written from this table (``idtrack-web docs``), and ``/vocabulary`` serves it.
 CODES: dict[str, tuple[int, str]] = {
     "invalid_request": (
@@ -43,10 +46,10 @@ CODES: dict[str, tuple[int, str]] = {
     ),
     "missing_value": (
         400,
-        "An identifier is empty or a spelling of a missing value (idtrack's refusal), or a name to look up is empty.",
+        "An identifier is empty or a spelling of a missing value (IDTrack's refusal), or a name to look up is empty.",
     ),
     "invalid_argument": (400, "An argument whose value is not accepted (an empty or over-long database name)."),
-    "invalid_input": (400, "Another input idtrack refuses (idtrack's message says which)."),
+    "invalid_input": (400, "Another input IDTrack refuses (IDTrack's message says which)."),
     "unknown_organism": (404, "An organism this server does not hold (`allowed` lists those it holds)."),
     "not_found": (404, "No such endpoint or file."),
     "method_not_allowed": (
@@ -95,7 +98,9 @@ CODES: dict[str, tuple[int, str]] = {
         503,
         (
             "The request's search needed more time than its budget (`request_seconds` of /limits, counted from when "
-            "its search began); send fewer identifiers per request (a batch's message says how many it converted)."
+            "its search began); `progress` says how far it went (identifiers of a batch, databases of each-database). "
+            "The time a search takes depends on the server's load too, so the same request can succeed later; one "
+            "refused again needs fewer identifiers or databases per request."
         ),
     ),
 }
@@ -111,7 +116,7 @@ TITLES: dict[str, str] = {
     "unknown_identifier": "An identifier this graph does not hold.",
     "missing_value": "An identifier is empty, or stands for a missing value.",
     "invalid_argument": "A value this endpoint does not accept.",
-    "invalid_input": "An input idtrack does not accept.",
+    "invalid_input": "An input IDTrack does not accept.",
     "unknown_organism": "An organism this server does not hold.",
     "not_found": "Nothing is at this address.",
     "method_not_allowed": "This address does not take this kind of request.",
@@ -136,11 +141,38 @@ ALLOWANCES: dict[str, str] = {
     "concurrent_searches": "Searching requests in progress at once (`rate_concurrent_searches`).",
 }
 
-#: The codes after which the same request may succeed when sent again (after ``Retry-After`` where it is given); every
-#: other code answers the same request the same way until it is changed.
-RETRYABLE: frozenset[str] = frozenset(
-    {"request_timeout", "rate_limited", "internal_error", "server_busy", "request_budget_exceeded"}
-)
+#: How a client retries each code that the same request may succeed after: whether the refusal carries
+#: ``Retry-After`` (and ``retry_after``), and what to do, in words. Every other code answers the same request the same
+#: way until it is changed.
+RETRY: dict[str, tuple[bool, str]] = {
+    "request_timeout": (False, "Send it again, whole and at once (it carries no `Retry-After`)."),
+    "rate_limited": (True, "Wait the `Retry-After` seconds, then send it again unchanged."),
+    "internal_error": (False, "Send it again after a few seconds, waiting longer each time it repeats."),
+    "server_busy": (True, "Wait the `Retry-After` seconds, then send it again unchanged."),
+    "request_budget_exceeded": (
+        True,
+        (
+            "Wait the `Retry-After` seconds and send it again; refused again, send it in smaller pieces (`progress` "
+            "says how far it went: halve a batch, or ask the databases you need with `GET .../convert`)."
+        ),
+    ),
+}
+#: The codes after which the same request may succeed when sent again (:py:data:`RETRY`).
+RETRYABLE: frozenset[str] = frozenset(RETRY)
+#: How to go on after any other code.
+NOT_RETRYABLE = "Change the request: the same request is answered the same way."
+
+
+def retry_words(code: str) -> str:
+    """Return how a client goes on after a code: :py:data:`RETRY`'s words, or that the request must change.
+
+    Args:
+        code: A key of :py:data:`CODES`.
+
+    Returns:
+        str: The words.
+    """
+    return RETRY[code][1] if code in RETRY else NOT_RETRYABLE
 
 
 class ApiError(Exception):
@@ -155,6 +187,7 @@ class ApiError(Exception):
         details: For ``invalid_request``: the problems, as ``{"location": [...], "message": ...}``.
         headers: Extra response headers (``Retry-After``).
         allowance: For ``rate_limited``: the allowance used up (a key of :py:data:`ALLOWANCES`).
+        progress: For ``request_budget_exceeded``: how far the search went (``answered`` of ``of`` ``items``).
     """
 
     def __init__(
@@ -167,6 +200,7 @@ class ApiError(Exception):
         details: list[dict[str, Any]] | None = None,
         headers: dict[str, str] | None = None,
         allowance: str | None = None,
+        progress: dict[str, Any] | None = None,
     ) -> None:
         super().__init__(message)
         if code not in CODES:
@@ -183,6 +217,7 @@ class ApiError(Exception):
             msg = f"Unknown allowance {allowance!r}"
             raise ValueError(msg)
         self.allowance = allowance
+        self.progress = progress
 
     def body(self, request_id: str) -> dict[str, Any]:
         """Return the response body.
@@ -203,6 +238,7 @@ class ApiError(Exception):
                 "request_id": request_id,
                 "retry_after": int(self.headers["Retry-After"]) if "Retry-After" in self.headers else None,
                 "allowance": self.allowance,
+                "progress": self.progress,
             }
         }
 

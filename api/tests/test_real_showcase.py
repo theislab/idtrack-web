@@ -8,6 +8,8 @@ own fields, never from the identifier.
 
 from __future__ import annotations
 
+import itertools
+import json
 from dataclasses import replace
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -84,12 +86,17 @@ def holds_kind(kind: str, result: dict[str, Any], assemblies: set[int]) -> bool:
     raise AssertionError(msg)
 
 
+#: The store each organism's client serves, by organism (its files, such as the lineages file, are read by tests).
+STORES: dict[str, Path] = {}
+
+
 def client_of(organism: str, tmp_path_factory: pytest.TempPathFactory) -> Iterator[TestClient]:
     graph = real_graph_of(real_graphs_folder(), organism)
     if isinstance(graph, str):
         pytest.skip(graph)
     root = tmp_path_factory.mktemp(f"real_{organism}")
     publish([graph], DirectoryTarget(root, link=True))
+    STORES[organism] = root
     settings = replace(settings_of(root), rate_per_minute=0)
     registry: Registry = registry_of(settings)
     with TestClient(asgi_app(settings, registry)) as client:
@@ -206,3 +213,29 @@ def test_history_is_read_from_the_graph(human: TestClient) -> None:
     )
     data = human.get(f"{P}/organisms/homo_sapiens/history").json()
     assert data["releases"][-1]["versions_active"] == count
+
+
+@pytest.mark.parametrize("organism", ["homo_sapiens", "sus_scrofa"])
+def test_lineages_agree_with_the_history(organism: str, human: TestClient, pig: TestClient) -> None:
+    """Every gene id of the published lineages file, counted active at each release from its runs, gives `/history`'s
+    `genes_active` at every release of the graph (the human graph holds ids active again after a gap, whose runs end at
+    the gap), and `/lineages` gives that file's families."""
+    client = human if organism == "homo_sapiens" else pig
+    [path] = sorted(STORES[organism].glob(f"idtrack/*/{organism}/*.lineages.json"))
+    content = json.loads(path.read_bytes())
+    history = client.get(f"{P}/organisms/{organism}/history").json()
+    for row in history["releases"]:
+        release = row["release"]
+        active = sum(1 for runs in content["active"] if any(a <= release <= b for a, b in runs))
+        assert active == row["genes_active"], (organism, release)
+    releases = content["releases"]
+    for runs in content["active"]:
+        # Runs are of consecutive releases of the graph, apart from each other by at least one release without one.
+        for (_, last), (first, _) in itertools.pairwise(runs):
+            assert releases.index(first) > releases.index(last) + 1, runs
+    gaps = sum(1 for runs in content["active"] if len(runs) > 1)
+    if organism == "homo_sapiens":
+        assert gaps > 0, "the human graph holds ids active again after a gap"
+    given = client.get(f"{P}/organisms/{organism}/lineages", params={"limit": 50_000}).json()
+    file_runs = dict(zip(content["ids"], content["active"], strict=True))
+    assert all(file_runs[i] == runs for i, runs in zip(given["ids"], given["active"], strict=True))

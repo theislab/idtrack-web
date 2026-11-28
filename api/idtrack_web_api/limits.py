@@ -3,7 +3,9 @@
 **Per client** (its address, as the trusted reverse proxy reports it; an IPv6 address by its ``/64`` network, the
 block one host normally holds, so that a host cannot take a fresh allowance by changing the last 64 bits): three
 token buckets, kept in shared memory that is made before the workers are forked, so that each holds for the server as
-a whole, not per worker:
+a whole, not per worker. **Per IPv6 network**: the clients of one ``/48`` (the block a site is normally given, which
+holds 65,536 ``/64``) share, beside each one's own, a bucket of searches and one of reads :py:data:`NETWORK_SHARE`
+times one client's, so that one holder of a ``/48`` cannot multiply its allowance by its ``/64``:
 
 - **searches**: every request that searches (a conversion, a batch, a name) takes one token; ``rate_per_minute``
   tokens come back per minute, and a bucket holds at most ``rate_burst``;
@@ -46,6 +48,8 @@ import anyio
 
 #: The reads' bucket is this many times as large, and refills this many times as fast, as the searches' bucket.
 READ_SHARE = 10
+#: The buckets of searches and reads that the clients of one IPv6 ``/48`` share are this many times one client's.
+NETWORK_SHARE = 16
 #: The key of every client whose address cannot be read as an IP address (one shared allowance).
 UNREADABLE_CLIENT = "unreadable"
 
@@ -69,6 +73,19 @@ _HOLDER, _BUCKET, _GENERATION = 0, 1, 2
 Place = tuple[int, int]
 #: The place of a search admitted without one (the allowances off, or every row in use): giving it back does nothing.
 NO_PLACE: Place = (-1, 0)
+
+
+@dataclass(frozen=True)
+class Wait:
+    """A token refused: the seconds until one is there, and whether the bucket used up was the client's network's.
+
+    Attributes:
+        seconds: The wait.
+        network: The client's IPv6 ``/48`` whose shared bucket is used up (``None``: the client's own bucket).
+    """
+
+    seconds: float
+    network: str | None = None
 
 
 @dataclass(frozen=True)
@@ -104,6 +121,20 @@ def client_key(host: str | None) -> str:
             return str(address.ipv4_mapped)
         return str(ipaddress.IPv6Network((address, 64), strict=False))
     return str(address)
+
+
+def network_key(client: str) -> str | None:
+    """Return the IPv6 ``/48`` network of a client's key (its ``/64``), whose clients share a bucket; else ``None``.
+
+    Args:
+        client: The client's key (:py:func:`client_key`).
+
+    Returns:
+        str | None: The ``/48``, written as ``2001:db8:1::/48``; ``None`` for an IPv4 client or one not read.
+    """
+    if not client.endswith("/64"):
+        return None
+    return str(ipaddress.IPv6Network(client).supernet(new_prefix=48))
 
 
 class RateLimiter:
@@ -155,8 +186,13 @@ class RateLimiter:
             return _SEARCH, self.rate, self.burst
         return _READ, self.rate * READ_SHARE, self.burst * READ_SHARE
 
-    def take(self, client: str, kind: Kind = "search", now: float | None = None) -> float | None:
-        """Take one token of a client's bucket of searches or of reads.
+    def _refilled(self, i: int, at: float, rate: float, burst: float) -> float:
+        """Return a bucket's tokens at a time (called with the lock held)."""
+        tokens, then = self._table[i], self._table[i + 1]
+        return burst if then == 0.0 else min(burst, tokens + (at - then) * rate)
+
+    def take(self, client: str, kind: Kind = "search", now: float | None = None) -> Wait | None:
+        """Take one token of a client's bucket of searches or of reads (and of its IPv6 network's, where it has one).
 
         Args:
             client: The client's key (:py:func:`client_key`).
@@ -164,24 +200,33 @@ class RateLimiter:
             now: The time (``time.monotonic()``; for tests).
 
         Returns:
-            float | None: ``None`` when the request may go on; otherwise the seconds until a token is available.
+            Wait | None: ``None`` when the request may go on (a token taken of each bucket); otherwise the wait until
+            every bucket has one, and which was used up (none is taken).
         """
         if not self.enabled:
             return None
         at = time.monotonic() if now is None else now
         field, rate, burst = self._bucket(kind)
         i = self._slot(client) + field
+        network = network_key(client)
+        j = None if network is None else self._slot(network) + field
         with self._lock:
-            tokens, then = self._table[i], self._table[i + 1]
-            tokens = burst if then == 0.0 else min(burst, tokens + (at - then) * rate)
-            if tokens >= 1.0:
+            tokens = self._refilled(i, at, rate, burst)
+            shared = 1.0 if j is None else self._refilled(j, at, rate * NETWORK_SHARE, burst * NETWORK_SHARE)
+            if tokens >= 1.0 and shared >= 1.0:
                 self._table[i], self._table[i + 1] = tokens - 1.0, at
+                if j is not None:
+                    self._table[j], self._table[j + 1] = shared - 1.0, at
                 return None
             self._table[i], self._table[i + 1] = tokens, at
-            return (1.0 - tokens) / rate
+            if j is not None:
+                self._table[j], self._table[j + 1] = shared, at
+            own = max(0.0, 1.0 - tokens) / rate
+            theirs = max(0.0, 1.0 - shared) / (rate * NETWORK_SHARE)
+            return Wait(own) if own >= theirs else Wait(theirs, network)
 
     def give_back(self, client: str, kind: Kind = "search", now: float | None = None) -> None:
-        """Give a token back to a client's bucket (a searching request that turned out to need no search).
+        """Give a token back to a client's bucket and its network's (a searching request that searched nothing).
 
         Args:
             client: The client's key.
@@ -193,10 +238,14 @@ class RateLimiter:
         at = time.monotonic() if now is None else now
         field, rate, burst = self._bucket(kind)
         i = self._slot(client) + field
+        network = network_key(client)
         with self._lock:
-            tokens, then = self._table[i], self._table[i + 1]
-            tokens = burst if then == 0.0 else min(burst, tokens + (at - then) * rate)
+            tokens = self._refilled(i, at, rate, burst)
             self._table[i], self._table[i + 1] = min(burst, tokens + 1.0), at
+            if network is not None:
+                j = self._slot(network) + field
+                shared = self._refilled(j, at, rate * NETWORK_SHARE, burst * NETWORK_SHARE)
+                self._table[j], self._table[j + 1] = min(burst * NETWORK_SHARE, shared + 1.0), at
 
     def remaining(self, client: str, kind: Kind = "search", now: float | None = None) -> tuple[int, float] | None:
         """Return the whole tokens left in a client's bucket and the seconds until it is full again (no token taken).

@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING, Any
 
 import pytest
 
-from idtrack_web_api import tsv, writing
+from idtrack_web_api import lineages, tsv, writing
 from idtrack_web_api.contract import ENDPOINT_ERRORS
 from idtrack_web_api.errors import CODES
 from idtrack_web_api.frontend import Frontend
@@ -532,6 +532,35 @@ def test_the_fan_of_ensembls_mapping_is_counted_from_the_edges(client: TestClien
         assert transition["many_to_one"] == sum(1 for e in earlier.get(pair, {}).values() if len(e) > 1)
         fanned += transition["one_to_many"] + transition["many_to_one"]
     assert fanned > 0, "the cut graph holds a fan of Ensembl's mapping"
+
+
+def test_a_release_without_the_id_ends_its_run() -> None:
+    """A gene id's runs are of consecutive releases of the graph: one at which it is not active ends a run (the id is
+    active again after a gap: two runs); a release the graph does not hold is no gap."""
+    releases = list(range(98, 106))
+    assert lineages.active_runs(sum(1 << r for r in (100, 101, 103)), releases) == [[100, 101], [103, 103]]
+    assert lineages.active_runs(sum(1 << r for r in (98, 105)), releases) == [[98, 98], [105, 105]]
+    assert lineages.active_runs(sum(1 << r for r in range(98, 106)), releases) == [[98, 105]]
+    assert lineages.active_runs((1 << 60) | (1 << 62), [59, 60, 62, 63]) == [[60, 62]]
+    assert lineages.active_runs(0, releases) == []
+
+
+def test_a_lineages_answer_is_the_families_that_fit(client: TestClient) -> None:
+    """Every limit from one family's end to the next one's gives one answer, byte for byte, with no echo of the limit;
+    the answer is that of the whole order cut after those families."""
+    whole = client.get(f"{P}/organisms/pig/lineages", params={"limit": 50_000}).json()
+    ends = [*whole["family_starts"][1:], len(whole["ids"])]
+    some = [e for e in ends if e > 1][:3]
+    for end in some:
+        nexts = [e for e in ends if e > end]
+        top = (nexts[0] if nexts else 50_001) - 1
+        answers = {client.get(f"{P}/organisms/pig/lineages", params={"limit": limit}).content for limit in (end, top)}
+        assert len(answers) == 1, (end, top)
+        body = json.loads(answers.pop())
+        assert "limit" not in body
+        assert body["ids"] == whole["ids"][:end]
+        assert body["edges"] == [e for e in whole["edges"] if e[0] < end]
+        assert body["family_starts"] == [s for s in whole["family_starts"] if s < end]
 
 
 def test_lineages_are_read_from_the_graph(client: TestClient, cut_idtrack: API) -> None:

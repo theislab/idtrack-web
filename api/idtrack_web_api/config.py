@@ -21,6 +21,10 @@ if TYPE_CHECKING:
 PREFIX = "IDTRACK_WEB_"
 #: idtrack's documentation, where it is published by default (Read the Docs, the stable version).
 DOCS_URL = "https://idtrack.readthedocs.io/en/stable/"
+#: The ways a deployment serves https (SETUP.md, section 10.5): Caddy holds a certificate of Let's Encrypt
+#: (``lets_encrypt``), or one the institute gave (``institute_certificate``); or the institute's reverse proxy holds
+#: the certificate and passes each request, with the visitor's address, to Caddy (``behind_proxy``).
+HTTPS_ROUTES = ("lets_encrypt", "institute_certificate", "behind_proxy")
 SOURCES = ("directory", "s3")
 LOG_LEVELS = ("DEBUG", "INFO", "WARNING", "ERROR")
 
@@ -77,6 +81,9 @@ class Settings:
             Read the Docs' stable version unless the documentation is served under another name.
         analytics_id: The Google Analytics measurement id of the site (``G-...``); the page counts visits with it only
             after the visitor's consent. ``None``: no analytics, and the page's policy allows no other host.
+        https_route: How visitors reach the site over https, of the ways SETUP.md documents (section 10.5), for the
+            privacy page to say who holds the certificate and who sees each visitor's address
+            (:py:data:`HTTPS_ROUTES`); ``None``: not stated (a server not deployed so).
         cors_origins: Origins allowed to call the api from a browser: ``*`` (any page: the api is keyless and
             read-only, and sends no credential), or a list.
         log_level: The level of the server's log.
@@ -119,6 +126,7 @@ class Settings:
     public_url: str | None = None
     docs_url: str = DOCS_URL
     analytics_id: str | None = None
+    https_route: str | None = None
     cors_origins: tuple[str, ...] = ("*",)
     log_level: str = "INFO"
 
@@ -276,6 +284,16 @@ def _analytics_id(environ: Mapping[str, str], name: str) -> str | None:
     return raw
 
 
+def _https_route(environ: Mapping[str, str], name: str) -> str | None:
+    raw = environ.get(PREFIX + name, "").strip()
+    if not raw:
+        return None
+    if raw not in HTTPS_ROUTES:
+        msg = f"{PREFIX}{name}={raw!r} must be one of {', '.join(HTTPS_ROUTES)} (SETUP.md, section 10.5)."
+        raise ConfigError(msg)
+    return raw
+
+
 def _public_url(environ: Mapping[str, str], name: str) -> str | None:
     raw = _https_url(environ, name)
     if raw is None:
@@ -386,6 +404,7 @@ def load_settings(environ: Mapping[str, str] | None = None) -> Settings:
         public_url=_public_url(env, "PUBLIC_URL"),
         docs_url=_docs_url(env, "DOCS_URL"),
         analytics_id=_analytics_id(env, "ANALYTICS_ID"),
+        https_route=_https_route(env, "HTTPS_ROUTE"),
         cors_origins=_origins(env, "CORS_ORIGINS"),
         log_level=log_level,
     )

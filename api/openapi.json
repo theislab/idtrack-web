@@ -5893,7 +5893,7 @@
               "minimum": 1,
               "default": 12000
             },
-            "description": "The most gene ids to give, from 1 to 50000; omitted: 12000. A family is given whole or not at all."
+            "description": "The most gene ids to give, from 1 to 50000; omitted: 12000. A family is given whole or not at all, so the answer is the families that fit: every limit from one family's end to the next one's gives the same answer."
           }
         ],
         "responses": {
@@ -9702,6 +9702,7 @@
               "match_separator",
               "match_version_newer_than_graph",
               "other_release",
+              "other_release_same_gene",
               "other_reading",
               "listed_as_copy",
               "number_read",
@@ -9716,10 +9717,10 @@
               "lowest_score"
             ],
             "x-enum-descriptions": [
-              "The best answer is reached through a bridge: where Ensembl's history gives a gene no successor, the walk left it through an id it carries and entered another gene that carries the same id. That is idtrack's inference; no record of Ensembl states it.",
-              "A bridge on the best answer's path joins two genes that lived at the same releases: the gene it enters did not take the place of the gene it leaves in Ensembl's records, so their shared ids are no sign of succession.",
+              "The best answer is reached through a bridge: where Ensembl's history gives a gene no successor, the walk left it through an id it carries and entered another gene that carries the same id. That is IDTrack's inference; no record of Ensembl states it.",
+              "A bridge on the best answer's path joins two genes that both exist at one release: the gene it enters lived beside the gene it leaves rather than after it. A bridge's gene is a plausible successor at that place, not one that Ensembl's history proves, and here the two genes overlap in time.",
               "The bridge taken enters the gene nearest in releases, while another gene, reached by a bridge from the same gene through ids the bridge taken does not pass, ranks below by the bridge's gap alone.",
-              "A gene ranked below the best answer carries, at the target release, the name typed in the organism's name authority, and no gene of the best answer does: the name followed its gene from the release it was read at, and at the target release it is another gene's.",
+              "At the target release, the name typed is the organism's name authority's symbol of a gene outside the best answer (IDTrack's `genes_named`), and no gene of the best answer carries it: the name was followed with its gene from the release it was read at, or ranked by the candidates' evidence at that release, and at the target release the authority gives it to another gene.",
               "The name is read through several databases at the release read, but the best answer through some of them only, and no gene of it has the name from a name authority or as Ensembl's display name: the databases left out give the name to other genes (ranked below, or among the copies set apart).",
               "The best answer's path leaves the entry gene's stable id while the id itself lived on: a candidate ranked below follows the id to a later version, and a branch outranks the id's own continuation.",
               "The database asked is a symbol database of the graph that is not the organism's name authority: it holds another authority's symbols as Ensembl projects them onto the organism's genes.",
@@ -9735,12 +9736,13 @@
               "The identifier matched only without letter case.",
               "The identifier matched only with its separators taken as one.",
               "The identifier's version is newer than any version the graph holds: it was read as the latest version held.",
-              "At other releases the same string names another gene (or reads as another id): a list made at that time means that gene. Read it at such a release (`from_release`) to have what it meant then.",
+              "At other releases the same string is read otherwise (as another id, or matched another way) and answers other genes than the best answer, part of it, or none: a list made at that time means those. Read it at such a release (`from_release`) to have what it meant then.",
+              "At other releases the same string is read otherwise (as another id, or matched another way) but answers the same genes as the best answer: the release a list was made at does not change its answer.",
               "The same string is also read as another id, with another answer.",
               "The best answer is also listed among the copies the result sets apart (`alternative_locus_genes`): the answer is the gene, and code that drops the genes of that list would drop it.",
               "The identifier is a bare number, read in every database whose ids are numbers; name the database as `from_database` to read it in one database only.",
-              "The targets are every id the best gene carries in the database asked: idtrack converts at the level of the gene, not the counterpart of the identifier alone.",
-              "The best answer descends through a split of Ensembl's history, and other successors were reached: idtrack ranks the successors of a split by Ensembl's scores and the candidates' evidence, not by which of them lies where the old gene lay.",
+              "The targets are every id the best gene carries in the database asked: IDTrack converts at the level of the gene, not the counterpart of the identifier alone.",
+              "The best answer descends through a split of Ensembl's history, and other successors were reached: IDTrack ranks the successors of a split by Ensembl's scores and the candidates' evidence, not by which of them lies where the old gene lay.",
               "The same string is also read as another id at the same step.",
               "The identifier's version was not judged (`version_not_judged`).",
               "The identifier was read after a Unicode normalisation.",
@@ -9942,6 +9944,7 @@
               "match_separator",
               "match_version_newer_than_graph",
               "other_release",
+              "other_release_same_gene",
               "other_reading",
               "listed_as_copy",
               "number_read",
@@ -9956,10 +9959,10 @@
               "lowest_score"
             ],
             "x-enum-descriptions": [
-              "The best answer is reached through a bridge: where Ensembl's history gives a gene no successor, the walk left it through an id it carries and entered another gene that carries the same id. That is idtrack's inference; no record of Ensembl states it.",
-              "A bridge on the best answer's path joins two genes that lived at the same releases: the gene it enters did not take the place of the gene it leaves in Ensembl's records, so their shared ids are no sign of succession.",
+              "The best answer is reached through a bridge: where Ensembl's history gives a gene no successor, the walk left it through an id it carries and entered another gene that carries the same id. That is IDTrack's inference; no record of Ensembl states it.",
+              "A bridge on the best answer's path joins two genes that both exist at one release: the gene it enters lived beside the gene it leaves rather than after it. A bridge's gene is a plausible successor at that place, not one that Ensembl's history proves, and here the two genes overlap in time.",
               "The bridge taken enters the gene nearest in releases, while another gene, reached by a bridge from the same gene through ids the bridge taken does not pass, ranks below by the bridge's gap alone.",
-              "A gene ranked below the best answer carries, at the target release, the name typed in the organism's name authority, and no gene of the best answer does: the name followed its gene from the release it was read at, and at the target release it is another gene's.",
+              "At the target release, the name typed is the organism's name authority's symbol of a gene outside the best answer (IDTrack's `genes_named`), and no gene of the best answer carries it: the name was followed with its gene from the release it was read at, or ranked by the candidates' evidence at that release, and at the target release the authority gives it to another gene.",
               "The name is read through several databases at the release read, but the best answer through some of them only, and no gene of it has the name from a name authority or as Ensembl's display name: the databases left out give the name to other genes (ranked below, or among the copies set apart).",
               "The best answer's path leaves the entry gene's stable id while the id itself lived on: a candidate ranked below follows the id to a later version, and a branch outranks the id's own continuation.",
               "The database asked is a symbol database of the graph that is not the organism's name authority: it holds another authority's symbols as Ensembl projects them onto the organism's genes.",
@@ -9975,12 +9978,13 @@
               "The identifier matched only without letter case.",
               "The identifier matched only with its separators taken as one.",
               "The identifier's version is newer than any version the graph holds: it was read as the latest version held.",
-              "At other releases the same string names another gene (or reads as another id): a list made at that time means that gene. Read it at such a release (`from_release`) to have what it meant then.",
+              "At other releases the same string is read otherwise (as another id, or matched another way) and answers other genes than the best answer, part of it, or none: a list made at that time means those. Read it at such a release (`from_release`) to have what it meant then.",
+              "At other releases the same string is read otherwise (as another id, or matched another way) but answers the same genes as the best answer: the release a list was made at does not change its answer.",
               "The same string is also read as another id, with another answer.",
               "The best answer is also listed among the copies the result sets apart (`alternative_locus_genes`): the answer is the gene, and code that drops the genes of that list would drop it.",
               "The identifier is a bare number, read in every database whose ids are numbers; name the database as `from_database` to read it in one database only.",
-              "The targets are every id the best gene carries in the database asked: idtrack converts at the level of the gene, not the counterpart of the identifier alone.",
-              "The best answer descends through a split of Ensembl's history, and other successors were reached: idtrack ranks the successors of a split by Ensembl's scores and the candidates' evidence, not by which of them lies where the old gene lay.",
+              "The targets are every id the best gene carries in the database asked: IDTrack converts at the level of the gene, not the counterpart of the identifier alone.",
+              "The best answer descends through a split of Ensembl's history, and other successors were reached: IDTrack ranks the successors of a split by Ensembl's scores and the candidates' evidence, not by which of them lies where the old gene lay.",
               "The same string is also read as another id at the same step.",
               "The identifier's version was not judged (`version_not_judged`).",
               "The identifier was read after a Unicode normalisation.",
@@ -10855,9 +10859,9 @@
               "A release the graph does not cover (`allowed` lists the graph's releases).",
               "A database the graph does not hold at that release (`allowed` lists those it holds).",
               "An identifier the call needs to exist in the graph does not (the gene of names-of).",
-              "An identifier is empty or a spelling of a missing value (idtrack's refusal), or a name to look up is empty.",
+              "An identifier is empty or a spelling of a missing value (IDTrack's refusal), or a name to look up is empty.",
               "An argument whose value is not accepted (an empty or over-long database name).",
-              "Another input idtrack refuses (idtrack's message says which).",
+              "Another input IDTrack refuses (IDTrack's message says which).",
               "An organism this server does not hold (`allowed` lists those it holds).",
               "No such endpoint or file.",
               "The endpoint does not take this method (the `Allow` header and `allowed` list the methods it takes).",
@@ -10871,7 +10875,7 @@
               "This client sent more requests, or used more search time, than its allowance; wait the `Retry-After` header's seconds.",
               "A fault of the server; quote the request id when reporting it.",
               "The server has more waiting work than it accepts: its queue of searches is full, the search would wait (or waited) longer for a worker than `queue_seconds` of /limits, or the server is stopping; the request was not searched. Retry after the `Retry-After` header's seconds, unchanged.",
-              "The request's search needed more time than its budget (`request_seconds` of /limits, counted from when its search began); send fewer identifiers per request (a batch's message says how many it converted)."
+              "The request's search needed more time than its budget (`request_seconds` of /limits, counted from when its search began); `progress` says how far it went (identifiers of a batch, databases of each-database). The time a search takes depends on the server's load too, so the same request can succeed later; one refused again needs fewer identifiers or databases per request."
             ]
           },
           "message": {
@@ -10962,6 +10966,17 @@
             ],
             "title": "Allowance",
             "description": "For `rate_limited`: which of the client's allowances it used up (`/api/v1/limits` gives each); `null` otherwise."
+          },
+          "progress": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Progress"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "For `request_budget_exceeded` of a batch or of each-database: how far the search went (`answered` of `of` `items`), so that a client can send the request again in pieces small enough; `null` otherwise."
           }
         },
         "additionalProperties": false,
@@ -11013,9 +11028,9 @@
               "A release the graph does not cover (`allowed` lists the graph's releases).",
               "A database the graph does not hold at that release (`allowed` lists those it holds).",
               "An identifier the call needs to exist in the graph does not (the gene of names-of).",
-              "An identifier is empty or a spelling of a missing value (idtrack's refusal), or a name to look up is empty.",
+              "An identifier is empty or a spelling of a missing value (IDTrack's refusal), or a name to look up is empty.",
               "An argument whose value is not accepted (an empty or over-long database name).",
-              "Another input idtrack refuses (idtrack's message says which).",
+              "Another input IDTrack refuses (IDTrack's message says which).",
               "An organism this server does not hold (`allowed` lists those it holds).",
               "One identifier's search needed more than its budget (states or seconds); the same request fails again.",
               "A fault of the server; quote the request id when reporting it."
@@ -11075,11 +11090,21 @@
             "title": "Retryable",
             "description": "`true`: the same request may succeed when sent again (after the `Retry-After` header's seconds where it is given); `false`: the same request gets the same answer until it is changed."
           },
+          "retry_after": {
+            "type": "boolean",
+            "title": "Retry After",
+            "description": "`true`: the refusal carries the `Retry-After` header and `retry_after`, the seconds to wait before sending it again."
+          },
+          "retry": {
+            "type": "string",
+            "title": "Retry",
+            "description": "How a client goes on after this code, in words: when and how to send the request again, or that it must change."
+          },
           "source": {
             "type": "string",
             "const": "idtrack-web",
             "title": "Source",
-            "description": "Whose words `title` and `meaning` are: the api's (its own codes).",
+            "description": "Whose words `title` and `meaning` are: the API's (its own codes).",
             "default": "idtrack-web"
           }
         },
@@ -11090,7 +11115,9 @@
           "status",
           "title",
           "meaning",
-          "retryable"
+          "retryable",
+          "retry_after",
+          "retry"
         ],
         "title": "ErrorTerm",
         "description": "An error code of the api, its status and when it is answered."
@@ -11999,7 +12026,7 @@
           "rate_per_minute": {
             "type": "integer",
             "title": "Rate Per Minute",
-            "description": "Searching requests (conversions, batches, names) per minute per client; `0`: no per-client allowance of any kind. A client is its address, an IPv6 address by its `/64`."
+            "description": "Searching requests (conversions, batches, names) per minute per client; `0`: no per-client allowance of any kind. A client is its address, an IPv6 address by its `/64`. A searching request refused for what it holds before any search (a `4xx` other than `408`, `422` and `429`: a malformed or unknown argument, a batch over `batch_max`) is not counted here but among the reads."
           },
           "rate_burst": {
             "type": "integer",
@@ -12009,7 +12036,12 @@
           "read_share": {
             "type": "integer",
             "title": "Read Share",
-            "description": "Every other request of the api (the tables and documents answered from memory, an answer sent again from the server's memory, a `304`) draws on an allowance this many times `rate_per_minute` and `rate_burst`; `/health` on none."
+            "description": "Every other request of the API (the tables and documents answered from memory, an answer sent again from the server's memory, a `304`) draws on an allowance this many times `rate_per_minute` and `rate_burst`; `/health` on none."
+          },
+          "network_share": {
+            "type": "integer",
+            "title": "Network Share",
+            "description": "The clients of one IPv6 `/48` network (65,536 `/64`) share, beside each one's own, allowances of searching requests and of reads this many times one client's; a `429` that one of them used up names the network in its message."
           },
           "rate_search_seconds": {
             "type": "number",
@@ -12094,6 +12126,7 @@
           "rate_per_minute",
           "rate_burst",
           "read_share",
+          "network_share",
           "rate_search_seconds",
           "rate_search_burst_seconds",
           "queue_max",
@@ -12139,18 +12172,13 @@
             "title": "Focus Families",
             "description": "How many of the families given first hold a gene that the answers of the showcase name (`GET /organisms/{organism}/showcase`)."
           },
-          "limit": {
-            "type": "integer",
-            "title": "Limit",
-            "description": "The most gene ids asked for."
-          },
           "ids": {
             "items": {
               "type": "string"
             },
             "type": "array",
             "title": "Ids",
-            "description": "The gene ids given: whole families, first those that hold a gene the showcase's answers name (in the order they are named), then the others in the order of the SHA-256 digest of each family's smallest id, until the next family would pass `limit`; within a family by the first release at which it is active, then by the id. Every other list of an id is in this order."
+            "description": "The gene ids given: whole families, first those that hold a gene the showcase's answers name (in the order they are named), then the others in the order of the SHA-256 digest of each family's smallest id, until the next family would pass `limit` (so every `limit` from one family's end to the next one's gives this same answer); within a family by the first release at which it is active, then by the id. Every other list of an id is in this order."
           },
           "family_starts": {
             "items": {
@@ -12216,7 +12244,6 @@
           "genes",
           "families",
           "focus_families",
-          "limit",
           "ids",
           "family_starts",
           "active",
@@ -13022,6 +13049,38 @@
         ],
         "title": "ProcessLoad",
         "description": "One process of the server (the master, or a worker): its CPU and memory as last sampled."
+      },
+      "Progress": {
+        "properties": {
+          "answered": {
+            "type": "integer",
+            "title": "Answered",
+            "description": "The items answered within the budget."
+          },
+          "of": {
+            "type": "integer",
+            "title": "Of",
+            "description": "The items the request asked for."
+          },
+          "items": {
+            "type": "string",
+            "enum": [
+              "identifiers",
+              "databases"
+            ],
+            "title": "Items",
+            "description": "What was counted: the distinct identifiers of a batch, or the databases of `GET .../convert/each-database`."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "answered",
+          "of",
+          "items"
+        ],
+        "title": "Progress",
+        "description": "How far a request's search went before its time budget ran out."
       },
       "RequestsLoad": {
         "properties": {
@@ -13978,6 +14037,23 @@
             ],
             "title": "Analytics Id",
             "description": "The Google Analytics measurement id the site counts visits with, after a visitor's consent (`IDTRACK_WEB_ANALYTICS_ID`); `null`: the site counts nothing."
+          },
+          "https_route": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "lets_encrypt",
+                  "institute_certificate",
+                  "behind_proxy"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Https Route",
+            "description": "How visitors reach this server over https (`IDTRACK_WEB_HTTPS_ROUTE`, SETUP.md section 10.5), so that the privacy page says who holds the certificate and who sees a visitor's address: `lets_encrypt` (the server's proxy holds a certificate of Let's Encrypt), `institute_certificate` (it holds one the institute gave), `behind_proxy` (the institute's reverse proxy holds the certificate and passes each request, with the visitor's address, on); `null`: not stated."
           }
         },
         "additionalProperties": false,

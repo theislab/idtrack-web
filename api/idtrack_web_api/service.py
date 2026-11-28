@@ -202,6 +202,7 @@ def out_of_time(settings: Settings, converted: int, total: int) -> ApiError:
         "request.",
         argument="identifiers",
         headers={"Retry-After": "5"},
+        progress={"answered": converted, "of": total, "items": "identifiers"},
     )
 
 
@@ -213,11 +214,13 @@ def _searched(arguments: ConversionArguments) -> ConversionArguments:
 def caution_facts(graph: Graph, asked: str | None, budget_seconds: float) -> Facts:
     """Return what the rules of the cautions read beside a result, from idtrack's own calls on the graph.
 
-    The organism's name authority at a release is the first of its symbol databases (idtrack's order) that a
-    conversion to the release can end in; a gene's symbols there are the best targets of idtrack's conversion of the
-    gene read at that release, to it, without bridges (each gene alone); whether a name is any gene's in a database is
-    idtrack's ``genes_named`` in any letter case (looked up first, so that symbols are converted only for a name some
-    gene carries).
+    The organism's name authority at a release is the first of its symbol databases (IDTrack's order) that a
+    conversion to the release can end in; a gene's symbols there are the best targets of IDTrack's conversion of the
+    gene read at that release, to it, without bridges (each gene alone); the genes to which a database gives a name at
+    a release are IDTrack's ``genes_named`` in any letter case, its matches of that database that are no synonym and
+    hold at the release (looked up first, so that symbols are converted only for a name some gene carries), each with
+    the first release from which a version of the same stable id holds it there without a break (the graph's
+    releases, one after another, back from that release).
 
     Args:
         graph: The graph (the adapter's).
@@ -238,13 +241,32 @@ def caution_facts(graph: Graph, asked: str | None, budget_seconds: float) -> Fac
                 finals[release] = []
         return next((d for d in symbol_databases if d in finals[release]), None)
 
-    def named(name: str, database: str) -> bool:
+    releases = list(graph.releases())
+
+    def holders(name: str, database: str, release: int) -> dict[str, int]:
         try:
             matches = graph.genes_named(name, fold_case=True)
         except InputRefusedError:
-            return False
+            return {}
         typed = name.lower()
-        return any(m["database"] == database and not m["synonym"] and m["name"].lower() == typed for m in matches)
+        held: dict[str, set[int]] = {}
+        at: dict[str, str] = {}
+        for m in matches:
+            if m["database"] != database or m["synonym"] or m["name"].lower() != typed:
+                continue
+            stable = m["gene"].rsplit(".", 1)[0]
+            held.setdefault(stable, set()).update(int(r) for r in m.get("releases", ()))
+            if release in m.get("releases", ()):
+                at[stable] = m["gene"]
+        found: dict[str, int] = {}
+        for stable, gene in at.items():
+            first = release
+            for earlier in reversed([r for r in releases if r < release]):
+                if earlier not in held[stable]:
+                    break
+                first = earlier
+            found[gene] = first
+        return found
 
     def symbols_of(genes: list[str], release: int, database: str) -> dict[str, list[str]]:
         arguments = ConversionArguments(
@@ -266,26 +288,25 @@ def caution_facts(graph: Graph, asked: str | None, budget_seconds: float) -> Fac
             found[gene] = [] if result.get("no_target") else list(dict.fromkeys(best))
         return found
 
-    return Facts(symbol_databases, authority_at, named, symbols_of, asked)
+    return Facts(symbol_databases, authority_at, holders, symbols_of, asked)
 
 
-def with_cautions(result: dict[str, Any], settings: Settings, facts: Facts, *, explain: bool) -> dict[str, Any]:
+def with_cautions(result: dict[str, Any], facts: Facts, *, explain: bool) -> dict[str, Any]:
     """Add a result's cautions (:py:mod:`idtrack_web_api.cautions`), then drop its path where it was not asked for.
 
-    A result searched with its path and stripped of it is idtrack's result without the path, field for field (the
+    A result searched with its path and stripped of it is IDTrack's result without the path, field for field (the
     path, and each candidate's indices into it, ``path`` and ``final_path``, empty): ``tests/test_endpoints.py`` holds
-    the api to it.
+    the API to it.
 
     Args:
-        result: idtrack's ``to_dict()`` of a search made with its path.
-        settings: The settings (the address of idtrack's documentation).
+        result: IDTrack's ``to_dict()`` of a search made with its path.
         facts: What the rules read beside the result (:py:func:`caution_facts`).
         explain: Whether the request asked for the path.
 
     Returns:
         dict[str, Any]: The result, with ``cautions``.
     """
-    result["cautions"] = [] if result.get("status") == "error" else cautions_of(result, settings.docs_url, facts)
+    result["cautions"] = [] if result.get("status") == "error" else cautions_of(result, facts)
     if not explain:
         result["path"] = None
         for candidate in result.get("candidates", []):
@@ -334,7 +355,7 @@ def convert_one(
             "at.",
         ) from None
     facts = caution_facts(graph.graph, arguments.final_database, settings.search_seconds)
-    return with_cautions(result, settings, facts, explain=arguments.explain)
+    return with_cautions(result, facts, explain=arguments.explain)
 
 
 def convert_batch(
@@ -395,7 +416,7 @@ def convert_batch(
                 if error.get("type") == SEARCH_BUDGET_ERROR_TYPE and budget < settings.search_seconds:
                     raise out_of_time(settings, len(done), total)
                 error["code"] = item_error_code(str(error.get("type")))
-            with_cautions(result, settings, facts, explain=arguments.explain)
+            with_cautions(result, facts, explain=arguments.explain)
         done.update(zip(group, results, strict=True))
     return [done[identifier] for identifier in identifiers]
 
@@ -579,6 +600,7 @@ def convert_each_database(
                 f"{len(found)} of the {len(databases)} databases were answered within the request's time budget "
                 f"({settings.request_seconds:g} s); ask `GET .../convert` for the databases you need.",
                 headers={"Retry-After": "5"},
+                progress={"answered": len(found), "of": len(databases), "items": "databases"},
             )
         each = ConversionArguments(
             from_release=arguments.from_release,

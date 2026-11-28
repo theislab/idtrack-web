@@ -1,10 +1,11 @@
 """``GET /organisms/{organism}/lineages``: the lineages of a graph's gene ids, whole families at a time.
 
-A gene id's lineage is what Ensembl's stable id history says of it as the graph holds it: the releases at which a
-version of it is active (``TheGraph.active_releases``), the releases at which a new version of it begins (a history
-edge from one version of the id to another), and its history edges to versions of other ids, each with its two
-releases and Ensembl's mapping score. Ids joined by such edges, directly or through others, form a family; a family is
-given whole or not at all, so that every edge between ids given has both its ends.
+A gene id's lineage is what Ensembl's stable id history says of it as the graph holds it: the runs of the graph's
+releases at which a version of it is active (``TheGraph.active_releases``; a release of the graph at which no version
+is active ends a run, so an id active again after a gap has a run on each side of it), the releases at which a new
+version of it begins (a history edge from one version of the id to another), and its history edges to versions of
+other ids, each with its two releases and Ensembl's mapping score. Ids joined by such edges, directly or through
+others, form a family; a family is given whole or not at all, so that every edge between ids given has both its ends.
 
 Reading every gene id's lineage walks the whole graph (about 30 s for the human graph), so it is done once, when the
 graph is published (``idtrack-web publish``, :py:func:`compute`): the publisher writes the lineages of every gene id
@@ -12,12 +13,16 @@ as one JSON file named by its content beside the graph file, and the manifest na
 (SETUP.md, section 7, "The lineages file"). The server reads that file at start (:py:func:`read`) and orders the
 families (:py:func:`table`): first those that hold a gene of the showcase's answers (the journeys and cases the site
 draws), in the order of the showcase; then every other family in the file's order, the SHA-256 digest of its smallest
-id (a fixed order that favours no kind of family). A request for ``limit`` gene ids is given the families in that
-order until the next would pass it.
+id (a fixed order that favours no kind of family), and writes each list of the answer once over every family
+(:py:class:`Table`). A request for ``limit`` gene ids is given the families in that order until the next would pass
+it: its answer is a function of how many families fit (:py:meth:`Table.families_within`), cut from those lists
+(:py:func:`body_bytes`) at the cost of copying its bytes; the answers the site's pages ask for are written at the start
+(:py:data:`PREPARED_LIMITS`).
 """
 
 from __future__ import annotations
 
+import bisect
 import hashlib
 import json
 import logging
@@ -41,6 +46,12 @@ log = logging.getLogger(__name__)
 DEFAULT_LIMIT = 12_000
 #: The most gene ids one answer gives (about 2 MB of JSON for the human graph).
 LIMIT_MAX = 50_000
+#: The limits whose answers the server writes at its start: those the site's pages ask for (the home's picture and an
+#: organism's History tab: ``web/src/components/hero/HeroField.tsx``, ``web/src/components/explore/LineageField.tsx``),
+#: the default and the largest.
+PREPARED_LIMITS = (1_500, 4_000, DEFAULT_LIMIT, LIMIT_MAX)
+#: How many other answers each worker keeps (the last asked).
+RECENT_ANSWERS = 16
 #: The version of the lineages file's own layout (``layout`` in the file).
 FILE_LAYOUT = 1
 #: The largest lineages file read (the human graph's is about 9 MB).
@@ -69,31 +80,62 @@ Family = tuple[list[tuple[str, list[list[int]], list[int]]], list[tuple[int, int
 
 @dataclass(frozen=True)
 class Table:
-    """The lineages of one graph, in the order they are given."""
+    """The lineages of one graph, in the order they are given, with every answer's parts written once.
+
+    The body for the first *k* families is the same few heading fields and, for each list, the first items of the one
+    list over every family (an edge's indices are its ids' places in the whole order, which a prefix keeps): each list
+    is written once as JSON items joined by commas (``parts``), with the byte at which each family's items end
+    (``ends``), so that an answer of any size is cut from them (:py:func:`body_bytes`) rather than written again.
+    """
 
     organism: str
     content_digest: str
     releases: list[int]
     genes: int
     families: int
-    #: Per family, in the order given.
-    rows: list[Family]
     #: How many of the first families hold a gene of the showcase's answers.
     focus: int
+    #: Per family in the order given, the number of ids given with it and the families before it (``sizes[0]`` is 0).
+    sizes: list[int]
+    #: Per list of the body (``ids``, ``family_starts``, ``active``, ``versions``, ``edges``), its items over every
+    #: family as JSON joined by commas.
+    parts: dict[str, bytes]
+    #: Per list, the byte of ``parts`` at which the items of the first *k* families end (``ends[name][0]`` is 0).
+    ends: dict[str, list[int]]
+
+    def families_within(self, limit: int) -> int:
+        """Return how many families, taken whole in the order, fit in *limit* gene ids (the next would pass it).
+
+        Args:
+            limit: The most gene ids.
+
+        Returns:
+            int: The families: every *limit* from one family's end to the next one's gives the same number.
+        """
+        return bisect.bisect_right(self.sizes, limit) - 1
 
 
-def _runs(mask: int, releases: list[int]) -> list[list[int]]:
-    """The runs of consecutive graph releases set in an active-release mask, as ``[first, last]``."""
+#: The lists of the body, in its order (after the heading fields).
+LISTS = ("ids", "family_starts", "active", "versions", "edges")
+
+
+def active_runs(mask: int, releases: list[int]) -> list[list[int]]:
+    """The runs of consecutive graph releases set in an active-release mask, as ``[first, last]``.
+
+    A run is a stretch of the graph's releases, one after the other in *releases*, at each of which the mask is set:
+    a release of the graph at which it is not set ends the run, so that an id active again after a gap has two.
+    """
     runs: list[list[int]] = []
-    previous: int | None = None
+    open_run = False
     for release in releases:
         if not mask >> release & 1:
+            open_run = False
             continue
-        if runs and runs[-1][1] == previous:
+        if open_run:
             runs[-1][1] = release
         else:
             runs.append([release, release])
-        previous = release
+            open_run = True
     return runs
 
 
@@ -191,7 +233,7 @@ def compute(graph: Graph) -> LineagesFile:
     changes: list[list[int]] = []
     links: list[list[int | float | None]] = []
     for root in sorted(members, key=lambda r: hashlib.sha256(r.encode()).hexdigest()):
-        runs = {base: _runs(masks[base], releases) for base in members[root]}
+        runs = {base: active_runs(masks[base], releases) for base in members[root]}
         # Within a family: by the first release a version of the id is active, then by the id.
         order = sorted(members[root], key=lambda b: (runs[b][0][0] if runs[b] else releases[-1] + 1, b))
         offset = len(ids)
@@ -310,55 +352,70 @@ def table(content: LineagesFile, showcase: object = None) -> Table:
             focus.append(named)
     chosen = set(focus)
     ordered = [rows[f] for f in focus] + [row for f, row in enumerate(rows) if f not in chosen]
+    return _written(content, ordered, len(focus))
+
+
+def _written(content: LineagesFile, ordered: list[Family], focus: int) -> Table:
+    """Write each family's items of every list once, in the order given (:py:class:`Table`)."""
+    pieces: dict[str, list[bytes]] = {name: [] for name in LISTS}
+    ends: dict[str, list[int]] = {name: [0] for name in LISTS}
+    sizes = [0]
+    for family, family_edges in ordered:
+        offset = sizes[-1]
+        items: dict[str, list[object]] = {
+            "ids": [base for base, _, _ in family],
+            "family_starts": [offset],
+            "active": [runs for _, runs, _ in family],
+            "versions": [changes for _, _, changes in family],
+            "edges": [[offset + a, offset + b, old, new, score] for a, b, old, new, score in family_edges],
+        }
+        for name in LISTS:
+            # A family's items as JSON without the brackets: joined to the items before it by a comma.
+            text = json.dumps(items[name], ensure_ascii=False, allow_nan=False, separators=(",", ":"))[1:-1].encode()
+            if text:
+                pieces[name].append(text)
+            ends[name].append(ends[name][-1] + len(text) + (1 if text and ends[name][-1] else 0))
+        sizes.append(offset + len(family))
     return Table(
         organism=content["organism"],
         content_digest=content["content_digest"],
         releases=content["releases"],
         genes=content["genes"],
-        families=len(rows),
-        rows=ordered,
-        focus=len(focus),
+        families=len(ordered),
+        focus=focus,
+        sizes=sizes,
+        parts={name: b",".join(pieces[name]) for name in LISTS},
+        ends=ends,
     )
 
 
-def body(table: Table, limit: int) -> dict[str, object]:
-    """Return the body of ``/organisms/{organism}/lineages`` for at most *limit* gene ids.
+def body_bytes(table: Table, families: int) -> bytes:
+    """Return the body of ``/organisms/{organism}/lineages`` that gives the first *families* families, as JSON.
+
+    The answer to a ``limit`` is this body for :py:meth:`Table.families_within` of it: a function of the families
+    given, cut from the lists written once (:py:class:`Table`), so that its cost is that of copying its bytes.
 
     Args:
         table: The graph's lineages.
-        limit: The most gene ids to give.
+        families: How many of the families, in the order, to give.
 
     Returns:
-        dict[str, object]: As :py:class:`idtrack_web_api.schemas.LineagesResponse` describes it.
+        bytes: As :py:class:`idtrack_web_api.schemas.LineagesResponse` describes it.
     """
-    ids: list[str] = []
-    active: list[list[list[int]]] = []
-    versions: list[list[int]] = []
-    edges: list[list[int | float | None]] = []
-    families: list[int] = []
-    for family, family_edges in table.rows:
-        if len(ids) + len(family) > limit:
-            # The next family in the order does not fit; a smaller one after it is not taken instead, so that the
-            # families given are always a prefix of the one order.
-            break
-        offset = len(ids)
-        families.append(offset)
-        for base, runs, changes in family:
-            ids.append(base)
-            active.append(runs)
-            versions.append(changes)
-        edges.extend([offset + a, offset + b, old, new, score] for a, b, old, new, score in family_edges)
-    return {
-        "organism": table.organism,
-        "content_digest": table.content_digest,
-        "releases": table.releases,
-        "genes": table.genes,
-        "families": table.families,
-        "focus_families": min(table.focus, len(families)),
-        "limit": limit,
-        "ids": ids,
-        "family_starts": families,
-        "active": active,
-        "versions": versions,
-        "edges": edges,
-    }
+    head = json.dumps(
+        {
+            "organism": table.organism,
+            "content_digest": table.content_digest,
+            "releases": table.releases,
+            "genes": table.genes,
+            "families": table.families,
+            "focus_families": min(table.focus, families),
+        },
+        ensure_ascii=False,
+        allow_nan=False,
+        separators=(",", ":"),
+    ).encode()
+    lists = b",".join(
+        b'"' + name.encode() + b'":[' + table.parts[name][: table.ends[name][families]] + b"]" for name in LISTS
+    )
+    return head[:-1] + b"," + lists + b"}"

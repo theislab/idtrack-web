@@ -4,13 +4,15 @@ from __future__ import annotations
 
 import csv
 import io
+import json
 from dataclasses import replace
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from idtrack_web_api import tsv
 from idtrack_web_api.adapter import Graph
 from idtrack_web_api.cautions import CAUTIONS, PATH_CODES, Facts, cautions_of
-from idtrack_web_api.config import DOCS_URL
+from idtrack_web_api import limitations
 from idtrack_web_api.service import caution_facts
 from tests.test_endpoints import sample_identifiers
 
@@ -34,7 +36,7 @@ def test_cautions_are_read_with_the_path_whatever_explain_asks(
         explained = [r.to_dict() for r in cut_idtrack.convert_many(identifiers, explain=True, **arguments)]
         asked = arguments.get("final_database")
         facts = caution_facts(graph, asked if isinstance(asked, str) else None, 10.0)
-        expected = [cautions_of(r, DOCS_URL, facts) for r in explained]
+        expected = [cautions_of(r, facts) for r in explained]
         for explain in (False, True):
             response = client.post(
                 f"{P}/organisms/pig/convert/batch", json={"identifiers": identifiers, "explain": explain, **arguments}
@@ -86,14 +88,14 @@ def test_each_rule_reads_what_its_meaning_says() -> None:
         "bridges": [],
         "steps": [{"kind": "bridge_near", "source": "G0", "target": "NM_1"}, {"kind": "bridge_far", "target": "G1"}],
     }
-    found = cautions_of(result(candidates=[candidate(bridges=1, path=[0, 1])], path=path), DOCS_URL)
+    found = cautions_of(result(candidates=[candidate(bridges=1, path=[0, 1])], path=path))
     assert codes(found) == ["bridge"] and "`NM_1`" in found[0]["text"]
-    assert found[0]["limitation"] == f"{DOCS_URL}limitations.html#answers-that-only-a-bridge-reaches"
+    assert found[0]["limitation"] == f"{limitations.DOCUMENT}#answers-that-only-a-bridge-reaches"
     # A bare number held only at an earlier release than the target: a caution; read at the target: a note.
     old = result(query_id="1898", graph_id="1898", from_release=52, from_databases=["HGNC"], candidates=[candidate()])
-    assert codes(cautions_of(old, DOCS_URL)) == ["bare_number"]
+    assert codes(cautions_of(old)) == ["bare_number"]
     now = old | {"from_release": 115, "from_release_inferred": False}
-    assert [(c["code"], c["tone"]) for c in cautions_of(now, DOCS_URL)] == [("number_read", "note")]
+    assert [(c["code"], c["tone"]) for c in cautions_of(now)] == [("number_read", "note")]
     # Every best gene outside the reference sequence at the target release, with the regions.
     nodes = [
         {
@@ -105,10 +107,10 @@ def test_each_rule_reads_what_its_meaning_says() -> None:
         }
     ]
     outside = result(candidates=[candidate()], path={"nodes": nodes, "steps": [], "bridges": []})
-    found = cautions_of(outside, DOCS_URL)
+    found = cautions_of(outside)
     assert codes(found) == ["outside_reference"] and "HSCHR6_MHC_COX" in found[0]["text"]
     # A synonym read without letter case: both marks, the synonym's with idtrack's section of that class.
-    loose = cautions_of(result(match="synonym:case", candidates=[candidate()]), DOCS_URL)
+    loose = cautions_of(result(match="synonym:case", candidates=[candidate()]))
     assert codes(loose) == ["match_synonym", "match_case"]
     assert str(loose[0]["limitation"]).endswith("#symbols-typed-in-small-letters-where-symbols-are-written-in-capitals")
     # Another meaning at other releases, its releases written as runs.
@@ -119,26 +121,39 @@ def test_each_rule_reads_what_its_meaning_says() -> None:
         "genes": ["G9"],
         "match": "exact",
     }
-    found = cautions_of(result(candidates=[candidate()], other_readings=[reading]), DOCS_URL)
+    found = cautions_of(result(candidates=[candidate()], other_readings=[reading]))
     assert codes(found) == ["other_release"] and "52-54, 60" in found[0]["text"]
+    assert "named another gene" in found[0]["text"] and "Without a release it is read as it is at release 115" in (
+        found[0]["text"]
+    )
     # Cautions come before notes, whatever the order of the rules.
-    mixed = cautions_of(result(match="unicode:synonym:exact", candidates=[candidate()]), DOCS_URL)
+    mixed = cautions_of(result(match="unicode:synonym:exact", candidates=[candidate()]))
     assert [c["tone"] for c in mixed] == ["caution", "note"]
-    # A gene ranked below carries the name typed in the name authority at the target release, and no best gene does.
+    # The name typed is the name authority's symbol of a gene ranked below at the target release, and of no best gene.
     symbols = {"G1": ["OLD1"], "G2": ["TYPED"]}
+    holders = {"G2": 61}
     facts = Facts(
         symbol_databases=("HGNC Symbol",),
         authority_at=lambda _release: "HGNC Symbol",
-        named=lambda _name, _database: True,
+        holders=lambda _name, _database, _release: holders,
         symbols_of=lambda genes, _release, _database: {g: symbols.get(g, []) for g in genes},
     )
     runner = result(
         query_id="typed", graph_id="TYPED", from_release=80, candidates=[candidate(), candidate(gene="G2", best=False)]
     )
-    found = cautions_of(runner, DOCS_URL, facts)
+    found = cautions_of(runner, facts)
     assert codes(found)[:1] == ["runner_named"] and found[0]["alert"]
-    assert "(rank 2)" in found[0]["text"] and found[0]["ask"]["changes"] == ["from_release", "to_release"]
-    assert codes(cautions_of(runner, DOCS_URL)) == []  # without the organism's symbols the rule holds nothing
+    assert "`G2` (rank 2; since release 61)" in found[0]["text"] and "`G1` carries `OLD1`" in found[0]["text"]
+    assert found[0]["ask"]["changes"] == ["from_release", "to_release"]
+    assert codes(cautions_of(runner)) == []  # without the organism's symbols the rule holds nothing
+    # The same where the gene that holds the name is no candidate at all: the name moved to a gene the walk never met.
+    holders = {"G7.3": 56}
+    found = cautions_of(runner, facts)
+    assert codes(found)[:1] == ["runner_named"]
+    assert "`G7.3` (not among the candidates; since release 56)" in found[0]["text"]
+    # Where a gene of the best answer holds the name (any version of its stable id), nothing is said.
+    holders = {"G1": 48}
+    assert "runner_named" not in codes(cautions_of(runner, facts))
     # The best answer read through some of the databases that read the name only, with no authority nor display name.
     elsewhere = result(
         from_databases=["EntrezGene", "HGNC Symbol"],
@@ -147,12 +162,11 @@ def test_each_rule_reads_what_its_meaning_says() -> None:
             candidate(gene="G3", best=False, entry_databases=["HGNC Symbol"]),
         ],
     )
-    found = cautions_of(elsewhere, DOCS_URL, facts)
+    found = cautions_of(elsewhere, facts)
     assert codes(found) == ["name_elsewhere"] and found[0]["ask"]["from_database"] == "HGNC Symbol"
     # A symbol database that is not the organism's name authority, asked: a note with the authority as the way on.
     projected = cautions_of(
         result(candidates=[candidate()]),
-        DOCS_URL,
         replace(facts, symbol_databases=("VGNC Symbol", "HGNC Symbol"), asked="HGNC Symbol"),
     )
     assert [(c["code"], c["ask"]["final_database"]) for c in projected] == [("projected_symbols", "VGNC Symbol")]
@@ -170,10 +184,37 @@ def test_each_rule_reads_what_its_meaning_says() -> None:
         ],
         path={"nodes": [], "bridges": [], "steps": steps},
     )
-    found = cautions_of(branch, DOCS_URL)
+    found = cautions_of(branch)
     assert codes(found) == ["own_continuation"] and "own continuation rank 2:" in found[0]["text"]
     # A result without answer has no caution of its answer.
-    assert cautions_of(result(status="not_found", candidates=[], graph_id=None, match=None), DOCS_URL) == []
+    assert cautions_of(result(status="not_found", candidates=[], graph_id=None, match=None)) == []
+
+
+def test_another_reading_of_the_same_gene_is_a_note_and_its_release_is_said(client: TestClient) -> None:
+    """A reading at other releases whose genes are the best answer's is no other meaning: a note, with no way to
+    read it there; one of other genes is a caution that says another gene only where its genes differ; the sentence
+    says how the result itself was read: at the release given, at another one, or without a release."""
+    same = {"reason": "other_release", "releases": [48, 49, 50], "graph_id": "X", "genes": ["G1"], "match": "exact"}
+    given = result(from_release=67, from_release_given=67, from_release_inferred=False, match="synonym:exact")
+    found = cautions_of(given | {"candidates": [candidate()], "other_readings": [same]})
+    [note] = [c for c in found if c["code"] == "other_release_same_gene"]
+    assert note["tone"] == "note" and note["read_at"] is None and note["ask"] is None
+    assert "another gene" not in note["text"] and "the same gene as the best answer" in note["text"]
+    assert "It was read at release 67, as given" in note["text"]
+    assert "other_release" not in codes(found)
+    other = same | {"genes": ["G9"]}
+    [caution] = cautions_of(given | {"candidates": [candidate()], "other_readings": [other]})[1:]
+    assert caution["code"] == "other_release" and "named another gene" in caution["text"]
+    assert "It was read at release 67, as given" in caution["text"] and caution["read_at"] == 50
+    fallback = given | {"from_release": 70, "candidates": [candidate()], "other_readings": [other]}
+    assert "It was read at release 70, where the graph holds it" in cautions_of(fallback)[1]["text"]
+    # Part of the best answer, or no gene: no "another gene".
+    two = [candidate(), candidate(gene="G2", target="G2")]
+    part = cautions_of(given | {"status": "tie", "candidates": two, "other_readings": [same]})[1]
+    assert part["code"] == "other_release" and "part of the best answer" in part["text"]
+    assert "another gene" not in part["text"]
+    none = cautions_of(given | {"candidates": [candidate()], "other_readings": [same | {"genes": []}]})[1]
+    assert "answers no gene" in none["text"] and "another gene" not in none["text"]
 
 
 def test_the_vocabulary_states_every_caution(client: TestClient, openapi: dict[str, Any]) -> None:
@@ -181,16 +222,24 @@ def test_the_vocabulary_states_every_caution(client: TestClient, openapi: dict[s
     assert [t["code"] for t in terms] == list(CAUTIONS)
     assert all(t["meaning"] and t["tone"] in {"caution", "note"} for t in terms)
     assert {t["code"] for t in terms if t["reads_path"]} == PATH_CODES
-    for term in terms:
-        assert term["limitation"] is None or term["limitation"].startswith(f"{DOCS_URL}limitations.html#")
     enum = openapi["components"]["schemas"]["Caution"]["properties"]["code"]["enum"]
     assert enum == list(CAUTIONS)
 
 
-def test_the_documentation_address_follows_the_setting(make_client: Callable[..., TestClient]) -> None:
+def test_every_limitation_is_a_section_of_the_document_the_site_cites(
+    make_client: Callable[..., TestClient],
+) -> None:
+    """A caution's limitation is a section of IDTrack's limitations at the documentation commit the pages quote
+    (``web/src/generated/limitations.json``): the same document, every anchor one of its sections, whatever the
+    server's address of the documentation is set to."""
+    generated = json.loads((Path(__file__).parents[2] / "web/src/generated/limitations.json").read_text("utf-8"))
+    assert limitations.EVERY == generated["source"]
+    assert limitations.SECTIONS == {s["anchor"]: s["title"] for s in generated["sections"]}
+    anchors = [anchor for _, _, anchor in CAUTIONS.values() if anchor is not None]
+    assert set(anchors) <= set(limitations.SECTIONS), set(anchors) - set(limitations.SECTIONS)
     moved = make_client(rate_per_minute=0, docs_url="https://docs.example.org/")
-    terms = moved.get(f"{P}/vocabulary").json()["cautions"]
-    assert all(t["limitation"] is None or t["limitation"].startswith("https://docs.example.org/") for t in terms)
+    for term in moved.get(f"{P}/vocabulary").json()["cautions"]:
+        assert term["limitation"] is None or term["limitation"] in {limitations.url(a) for a in anchors}
 
 
 def test_the_table_names_each_results_cautions(client: TestClient, cut_idtrack: API) -> None:

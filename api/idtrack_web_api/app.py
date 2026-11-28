@@ -19,7 +19,7 @@ import re
 import sys
 import threading
 import time
-from collections.abc import AsyncIterator, Callable, Iterable
+from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Annotated, Any, Literal, TypeVar
@@ -41,10 +41,18 @@ from idtrack_web_api import contract, docs, history, lineages, schemas, service,
 from idtrack_web_api.adapter import FORMAT_VERSION, idtrack_commit, idtrack_version, organism_aliases
 from idtrack_web_api.config import DOCS_URL, Settings
 from idtrack_web_api.errors import ApiError, error_json, listed
-from idtrack_web_api.frontend import SITE_TEXT_CACHE, Frontend, accepts_gzip, frame_of, robots_txt, sitemap_xml
+from idtrack_web_api.frontend import (
+    SITE_TEXT_CACHE,
+    Frontend,
+    accepts_gzip,
+    frame_of,
+    prefers_html,
+    robots_txt,
+    sitemap_xml,
+)
 from idtrack_web_api.graphs import LoadedGraph, Registry
 from idtrack_web_api.guard import API_PREFIX, CONNECTION, SEND_MIN_RATE, STATUS_PATH, Guard
-from idtrack_web_api.limits import READ_SHARE, RateLimiter, SearchSlot
+from idtrack_web_api.limits import NETWORK_SHARE, READ_SHARE, RateLimiter, SearchSlot
 from idtrack_web_api.monitor import CACHE_SECONDS, LoadMonitor
 from idtrack_web_api.vocabulary import vocabulary
 
@@ -199,33 +207,61 @@ def _plural(count: Any, one: str) -> str:
     return f"{count} {one}" + ("" if count == 1 else "s")
 
 
-#: The api's words for each kind of validation problem (pydantic's ``type``): a function of the problem's context, of
-#: what was sent (``sent``: "not a string", or the query's text) and of the validator's own text without its prefix.
-_PROBLEM_WORDS: dict[str, Callable[[dict[str, Any], str, str], str]] = {
-    "value_error": lambda _ctx, _sent, text: text,
-    "int_type": lambda _ctx, sent, _text: f"must be a whole number written as a JSON number (such as 115), {sent}",
-    "int_parsing": lambda _ctx, sent, _text: f"must be a whole number written as a JSON number (such as 115), {sent}",
-    "int_from_float": lambda _ctx, sent, _text: (
-        f"must be a whole number written as a JSON number (such as 115), {sent}"
-    ),
-    "bool_type": lambda _ctx, sent, _text: f"must be `true` or `false`, {sent}",
-    "bool_parsing": lambda _ctx, sent, _text: f"must be `true` or `false`, {sent}",
-    "string_type": lambda _ctx, sent, _text: f"must be a string, {sent}",
-    "list_type": lambda _ctx, sent, _text: f"must be an array, {sent}",
-    "missing": lambda _ctx, _sent, _text: "is required",
-    "too_short": lambda ctx, _sent, _text: (
+#: A whole number, as each place writes it: a query in digits, a body as a JSON number.
+_WHOLE = {
+    True: "must be a whole number, written in digits only",
+    False: "must be a whole number written as a JSON number (such as 115)",
+}
+#: The kinds of problem whose value is outside a set: the value is quoted (it has the right type), and the set listed.
+_CHOICES = frozenset({"literal_error", "enum"})
+
+#: The API's words for each kind of validation problem (pydantic's ``type``): a function of the problem's context, of
+#: what was sent (``sent``: "not a string", or the value itself where it is a query's text or one outside a set), of
+#: the validator's own text without its prefix, and of whether it is in the query (or the path).
+_PROBLEM_WORDS: dict[str, Callable[[dict[str, Any], str, str, bool], str]] = {
+    "value_error": lambda _ctx, _sent, text, _query: text,
+    "int_type": lambda _ctx, sent, _text, query: f"{_WHOLE[query]}, {sent}",
+    "int_parsing": lambda _ctx, sent, _text, query: f"{_WHOLE[query]}, {sent}",
+    "int_from_float": lambda _ctx, sent, _text, query: f"{_WHOLE[query]}, {sent}",
+    "bool_type": lambda _ctx, sent, _text, _query: f"must be `true` or `false`, {sent}",
+    "bool_parsing": lambda _ctx, sent, _text, _query: f"must be `true` or `false`, {sent}",
+    "string_type": lambda _ctx, sent, _text, _query: f"must be a string, {sent}",
+    "list_type": lambda _ctx, sent, _text, _query: f"must be an array, {sent}",
+    "missing": lambda _ctx, _sent, _text, _query: "is required",
+    "too_short": lambda ctx, _sent, _text, _query: (
         f"must hold at least {_plural(ctx.get('min_length'), 'item')}, not {ctx.get('actual_length')}"
     ),
-    "too_long": lambda ctx, _sent, _text: (
+    "too_long": lambda ctx, _sent, _text, _query: (
         f"must hold at most {_plural(ctx.get('max_length'), 'item')}, not {ctx.get('actual_length')}"
     ),
-    "string_too_short": lambda ctx, _sent, _text: f"must have at least {_plural(ctx.get('min_length'), 'character')}",
-    "string_too_long": lambda ctx, _sent, _text: f"must have at most {_plural(ctx.get('max_length'), 'character')}",
-    "literal_error": lambda ctx, sent, _text: f"must be {str(ctx.get('expected', '')).replace(chr(39), '`')}, {sent}",
-    "enum": lambda ctx, sent, _text: f"must be {str(ctx.get('expected', '')).replace(chr(39), '`')}, {sent}",
-    "greater_than_equal": lambda ctx, _sent, _text: f"must be at least {ctx.get('ge')}",
-    "less_than_equal": lambda ctx, _sent, _text: f"must be at most {ctx.get('le')}",
+    "string_too_short": lambda ctx, _sent, _text, _query: (
+        f"must have at least {_plural(ctx.get('min_length'), 'character')}"
+    ),
+    "string_too_long": lambda ctx, _sent, _text, _query: (
+        f"must have at most {_plural(ctx.get('max_length'), 'character')}"
+    ),
+    "literal_error": lambda ctx, sent, _text, _query: (
+        f"must be {str(ctx.get('expected', '')).replace(chr(39), '`')}, {sent}"
+    ),
+    "enum": lambda ctx, sent, _text, _query: f"must be {str(ctx.get('expected', '')).replace(chr(39), '`')}, {sent}",
+    "greater_than_equal": lambda ctx, _sent, _text, _query: f"must be at least {ctx.get('ge')}",
+    "less_than_equal": lambda ctx, _sent, _text, _query: f"must be at most {ctx.get('le')}",
 }
+_EXPECTED = re.compile(r"'((?:[^'\\]|\\.)*)'")
+
+
+def choices_of(error: dict[str, Any]) -> list[str] | None:
+    """Return the values a problem's set accepts (an enumeration or literal), as the validator lists them, or ``None``.
+
+    Args:
+        error: One problem as pydantic reports it.
+
+    Returns:
+        list[str] | None: The values, for a value outside a set; ``None`` for any other problem.
+    """
+    if str(error.get("type", "")) not in _CHOICES:
+        return None
+    return _EXPECTED.findall(str((error.get("ctx") or {}).get("expected", ""))) or None
 
 
 def problem_text(error: dict[str, Any]) -> str:
@@ -243,10 +279,13 @@ def problem_text(error: dict[str, Any]) -> str:
     """
     given = error.get("input")
     in_query = (error.get("loc") or ("",))[0] in {"query", "path"}
-    sent = f"not {json.dumps(given, ensure_ascii=False)[:80]}" if in_query else f"not {_json_type(given)}"
+    kind = str(error.get("type", ""))
+    # A query's value is always text: it is quoted. So is a value of the body of the right type outside a set.
+    quoted = in_query or (kind in _CHOICES and isinstance(given, (str, int, float, bool)) and given is not None)
+    sent = f"not {json.dumps(given, ensure_ascii=False)[:80]}" if quoted else f"not {_json_type(given)}"
     text = str(error.get("msg", "")).removeprefix("Value error, ").replace(" after validation", "")
-    words = _PROBLEM_WORDS.get(str(error.get("type", "")))
-    return text if words is None else words(error.get("ctx") or {}, sent, text)
+    words = _PROBLEM_WORDS.get(kind)
+    return text if words is None else words(error.get("ctx") or {}, sent, text, in_query)
 
 
 def _problems(errors: list[Any], prefix: tuple[str, ...] = ()) -> list[dict[str, Any]]:
@@ -279,22 +318,51 @@ def _argument(details: list[dict[str, Any]]) -> str | None:
     return None
 
 
-def invalid_request_error(problems: list[dict[str, Any]], prefix: str = "The request is not valid") -> ApiError:
+def invalid_request_error(
+    problems: list[dict[str, Any]], prefix: str = "The request is not valid", allowed: list[str] | None = None
+) -> ApiError:
     """Return ``invalid_request`` for problems: at most :py:data:`DETAILS_MAX` listed, the rest counted.
 
     Args:
         problems: ``{"location": [...], "message": ...}`` each.
         prefix: The message's first words.
+        allowed: The values the one argument at fault accepts, where they can be listed (a set's values, a body's
+            keys); kept only when every problem is about that argument.
 
     Returns:
-        ApiError: The error, with ``argument`` when every problem is about one argument.
+        ApiError: The error, with ``argument`` when every problem is about one argument, and then ``allowed``.
     """
     shown = problems[:DETAILS_MAX]
     parts = [f"{_where(d['location'])} {str(d['message']).rstrip('.')}" for d in shown]
     more = len(problems) - len(shown)
     if more:
         parts.append(f"and {more} more")
-    return ApiError("invalid_request", f"{prefix}: {'; '.join(parts)}.", argument=_argument(problems), details=shown)
+    argument = _argument(problems)
+    return ApiError(
+        "invalid_request",
+        f"{prefix}: {'; '.join(parts)}.",
+        argument=argument,
+        allowed=allowed if argument is not None else None,
+        details=shown,
+    )
+
+
+def validation_error(
+    errors: list[Any], prefix: tuple[str, ...] = (), words: str = "The request is not valid"
+) -> ApiError:
+    """Return ``invalid_request`` for the validator's problems, with the set's values where one value is outside it.
+
+    Args:
+        errors: The problems as pydantic reports them.
+        prefix: Where they are (``("body",)`` for a body's).
+        words: The message's first words.
+
+    Returns:
+        ApiError: The error.
+    """
+    choices = [choices_of(e) for e in errors]
+    allowed = choices[0] if len(errors) == 1 else None
+    return invalid_request_error(_problems(errors, prefix), words, allowed)
 
 
 #: The deepest nesting of arrays and objects a request's body may have (a batch needs three: the object, the list of
@@ -423,13 +491,14 @@ def read_json_body(
         refusal = invalid_request_error(
             [{"location": ["body", k], "message": "is a key the body does not take"} for k in unknown],
             "The body is not valid",
+            list(model.model_fields),
         )
         refusal.message = f"{refusal.message[:-1]}; it takes {listed(list(model.model_fields))}."
         raise refusal
     try:
         return model.model_validate(data)
     except pydantic.ValidationError as error:
-        raise invalid_request_error(_problems(error.errors(), ("body",)), "The body is not valid") from None
+        raise validation_error(list(error.errors()), ("body",), "The body is not valid") from None
 
 
 def create_app(  # noqa: PLR0915 - every endpoint, in one place
@@ -480,8 +549,8 @@ def create_app(  # noqa: PLR0915 - every endpoint, in one place
     app.state.registry = registry
     app.state.slot = slot
     app.state.monitor = monitor
-    version_body = _json_bytes(_version(registry, settings.docs_url, settings.analytics_id))
-    vocabulary_body = _json_bytes(vocabulary(settings.docs_url))
+    version_body = _json_bytes(_version(registry, settings))
+    vocabulary_body = _json_bytes(vocabulary())
     limits_body = _json_bytes(limits(settings))
     organisms_body = _json_bytes(
         {
@@ -510,6 +579,16 @@ def create_app(  # noqa: PLR0915 - every endpoint, in one place
         for organism, graph in registry.graphs.items()
     }
     del showcases
+    # The lineages' answers the site's pages ask for, the default and the largest, written and compressed now (the
+    # workers inherit them); any other is cut when asked (:py:func:`lineages.body_bytes`) and kept among the last few.
+    lineage_answers: dict[tuple[str, int], tuple[bytes, bytes | None]] = {}
+    for organism, lineage_table in lineage_tables.items():
+        for asked in lineages.PREPARED_LIMITS:
+            families = lineage_table.families_within(asked)
+            if (organism, families) not in lineage_answers:
+                prepared = lineages.body_bytes(lineage_table, families)
+                lineage_answers[organism, families] = (prepared, gzip.compress(prepared, compresslevel=5, mtime=0))
+    lineage_recent: collections.OrderedDict[tuple[str, int], tuple[bytes, bytes | None]] = collections.OrderedDict()
     history_bodies = {organism: _json_bytes(history.compute(graph)) for organism, graph in registry.graphs.items()}
 
     # ---------------------------------------------------------------------------------------------------------------
@@ -556,7 +635,7 @@ def create_app(  # noqa: PLR0915 - every endpoint, in one place
 
     @app.exception_handler(RequestValidationError)
     async def invalid_request(request: Request, error: RequestValidationError) -> Response:
-        return _error_response(request, invalid_request_error(_problems(list(error.errors()))))
+        return _error_response(request, validation_error(list(error.errors())))
 
     @app.exception_handler(Exception)
     async def fault(request: Request, _error: Exception) -> Response:
@@ -1023,9 +1102,13 @@ def create_app(  # noqa: PLR0915 - every endpoint, in one place
     async def history_endpoint(graph: Annotated[LoadedGraph, Depends(graph_of)]) -> Response:
         return memory(history_bodies[graph.organism], graph)
 
-    @functools.lru_cache(maxsize=16)
-    def lineage_bytes(organism: str, limit: int) -> bytes:
-        return _json_bytes(lineages.body(lineage_tables[organism], limit))
+    def lineage_answer(key: tuple[str, int], found: tuple[bytes, bytes | None] | None, *, compressed: bool) -> Any:
+        """Cut the body of a number of families (or compress one cut before), on a thread beside the event loop."""
+        body = found[0] if found is not None else lineages.body_bytes(lineage_tables[key[0]], key[1])
+        packed = found[1] if found is not None else None
+        if compressed and packed is None:
+            packed = gzip.compress(body, compresslevel=5, mtime=0)
+        return body, packed
 
     @app.get(
         f"{API_PREFIX}/organisms/{{organism}}/lineages",
@@ -1049,6 +1132,7 @@ def create_app(  # noqa: PLR0915 - every endpoint, in one place
         dependencies=[Depends(only("limit"))],
     )
     async def lineages_endpoint(
+        request: Request,
         graph: Annotated[LoadedGraph, Depends(graph_of)],
         limit: Annotated[
             int,
@@ -1057,12 +1141,33 @@ def create_app(  # noqa: PLR0915 - every endpoint, in one place
                 le=lineages.LIMIT_MAX,
                 description=(
                     f"The most gene ids to give, from 1 to {lineages.LIMIT_MAX}; omitted: {lineages.DEFAULT_LIMIT}. "
-                    "A family is given whole or not at all."
+                    "A family is given whole or not at all, so the answer is the families that fit: every limit from "
+                    "one family's end to the next one's gives the same answer."
                 ),
             ),
         ] = lineages.DEFAULT_LIMIT,
     ) -> Response:
-        return memory(lineage_bytes(graph.organism, limit), graph)
+        # The answer is a function of the families that fit, not of the limit: every limit between two families' ends
+        # is one answer, written once. One not prepared at the start is cut and compressed beside the event loop, and
+        # that time is charged to the client as a search's (``write`` of ``Server-Timing``).
+        key = (graph.organism, lineage_tables[graph.organism].families_within(limit))
+        compressed = accepts_gzip(request.headers.get("accept-encoding"))
+        state = request.scope["state"]
+        found = lineage_answers.get(key) or lineage_recent.get(key)
+        if found is None or (compressed and found[1] is None):
+            began = time.monotonic()
+            found = await anyio.to_thread.run_sync(functools.partial(lineage_answer, key, found, compressed=compressed))
+            timing = state.setdefault("timing", {})
+            timing["write"] = timing.get("write", 0.0) + time.monotonic() - began
+        if key not in lineage_answers:
+            lineage_recent[key] = found
+            lineage_recent.move_to_end(key)
+            while len(lineage_recent) > lineages.RECENT_ANSWERS:
+                lineage_recent.popitem(last=False)
+        state["answer_kept"] = True  # kept here, by the families given: the outer layer keeps no copy by the query
+        if compressed:
+            state["gzipped"] = found[1]
+        return memory(found[0], graph)
 
     from_release_query = _release_query(f"The release it is read at; omitted: inferred. {schemas.FROM_RELEASE_RULE}")
     to_release_query = _release_query("The target release; omitted: the snapshot release.")
@@ -1611,8 +1716,9 @@ def create_app(  # noqa: PLR0915 - every endpoint, in one place
             resolve,
             preload,
             base_url,
-            list(registry.graphs),
+            {organism: _card(graph) for organism, graph in registry.graphs.items()},
             analytics=settings.analytics_id is not None,
+            docs_url=settings.docs_url,
         )
     return app
 
@@ -1625,17 +1731,20 @@ def _serve_frontend(
     resolve: Callable[[str], str | None] = lambda name: name,
     preload: dict[str, bytes] | None = None,
     site_of: Callable[[Request], str] = lambda _request: "",
-    organisms: Iterable[str] = (),
+    organisms: dict[str, tuple[str, str]] | None = None,
     *,
     analytics: bool = False,
+    docs_url: str = DOCS_URL,
 ) -> None:
     """Serve the built frontend: its files, and ``index.html`` for every other path without a file extension.
 
     Text files go compressed to clients that accept gzip, the content-hashed files under ``assets/`` are cached as
     immutable and every other file is revalidated (:py:mod:`idtrack_web_api.frontend`). A path of the page's routes
-    gets ``index.html`` with ``200``; any other path without a file extension gets it with ``404`` (the page says
-    so), so that the status tells crawlers and link checkers the truth; so does the page of an organism the server does
-    not hold (``/organisms/<name>``: ``404``). Every path under ``/api`` that is no endpoint
+    gets ``index.html`` with ``200``; any other path without a file extension, and any path that names no file where
+    the request asks for HTML (``/index.html`` too), gets it with ``404`` (the page says so), so that the status tells
+    crawlers and link checkers the truth; so does the page of an organism the server does not hold
+    (``/organisms/<name>``: ``404``). Every other path that names no file is a JSON ``404``. Every path under ``/api``
+    that is no endpoint
     is a JSON ``404`` (``405`` with ``Allow`` where the path takes other methods). ``/robots.txt`` and
     ``/sitemap.xml`` are made from the site's address, the build's pages and the graphs held.
 
@@ -1647,12 +1756,15 @@ def _serve_frontend(
         resolve: The production name of an organism by any of its names (``None``: not held).
         preload: The answers written into the page.
         site_of: The site's address for absolute links, for a request.
-        organisms: The production names of the graphs held (their pages are in the sitemap).
+        organisms: The graphs held by production name (their pages are in the sitemap), each with its page's title and
+            description (:py:func:`_card`).
         analytics: Whether the site counts visits (the page's policy then allows Google's hosts).
+        docs_url: The address of IDTrack's documentation the server is set to (written into the pages' frames).
     """
-    files = Frontend(root, preload, analytics=analytics)
+    files = Frontend(root, preload, analytics=analytics, docs_url=docs_url)
     app.state.frontend = files
-    held = sorted(organisms)
+    cards = organisms or {}
+    held = sorted(cards)
 
     def site_text(request: Request, body: str, media: str) -> Response:
         data = body.encode("utf-8")
@@ -1682,9 +1794,11 @@ def _serve_frontend(
         target = files.file(path)
         if target is not None:
             return files.answer(target, request.headers)
-        if "." not in Path(path).name and files.index.is_file():
+        asks_page = "." not in Path(path).name or prefers_html(request.headers.get("accept"))
+        if asks_page and files.index.is_file():
             page = files.is_page(f"/{path}")
             canonical = "/" + path.strip("/")
+            card = None
             organism = ORGANISM_PAGE.match(f"/{path}")
             if organism is not None:
                 name = resolve(organism.group(1))
@@ -1692,6 +1806,7 @@ def _serve_frontend(
                     page = False  # the page of a graph this server does not hold: the page says so, the status too
                 else:
                     canonical = f"/organisms/{name}"  # its production name, whatever name the address used
+                    card = cards.get(name)
             frame = frame_of(f"/{path}", has_identifier="id" in request.query_params) if page else "none"
             return files.answer(
                 files.index,
@@ -1700,6 +1815,7 @@ def _serve_frontend(
                 frame=frame,
                 site=site_of(request),
                 canonical=canonical,
+                card=card,
             )
         msg = "not_found"
         raise ApiError(msg, f"There is no file /{path}.")
@@ -1711,6 +1827,7 @@ ALLOWANCE_FIELDS: tuple[str, ...] = (
     "rate_per_minute",
     "rate_burst",
     "read_share",
+    "network_share",
     "rate_search_seconds",
     "rate_search_burst_seconds",
     "rate_concurrent_searches",
@@ -1738,6 +1855,7 @@ def limits(settings: Settings) -> dict[str, Any]:
         "rate_per_minute": settings.rate_per_minute,
         "rate_burst": settings.rate_burst,
         "read_share": READ_SHARE,
+        "network_share": NETWORK_SHARE,
         "rate_search_seconds": float(settings.rate_search_seconds),
         "rate_search_burst_seconds": float(settings.rate_search_burst_seconds),
         "queue_max": settings.queue_max,
@@ -1753,8 +1871,35 @@ def limits(settings: Settings) -> dict[str, Any]:
     }
 
 
-def _version(registry: Registry, docs_url: str = DOCS_URL, analytics_id: str | None = None) -> dict[str, Any]:
-    """Return the body of ``/version``."""
+def _card(graph: LoadedGraph) -> tuple[str, str]:
+    """Return a graph's page's title and description, as its link cards give them.
+
+    The title is the organism's name as the page writes it (``web/src/lib/organismNames.ts``); the description names
+    the releases and the genome assemblies the graph holds.
+    """
+    name = graph.organism.replace("_", " ")
+    name = name[:1].upper() + name[1:]
+    description = graph.description
+    releases = list(description.get("releases", []))
+    assemblies = [str(a.get("name")) for a in description.get("assemblies", []) if a.get("name")]
+    span = f"releases {releases[0]} to {releases[-1]}" if releases else "no release"
+    held = f", {listed_words(assemblies)}" if assemblies else ""
+    return (
+        f"{name} · IDTrack",
+        f"The {name} graph of IDTrack: Ensembl {span}{held}; what it holds, its databases and its history.",
+    )
+
+
+def listed_words(items: list[str]) -> str:
+    """Return items as words: ``A, B and C``."""
+    return items[0] if len(items) == 1 else f"{', '.join(items[:-1])} and {items[-1]}"
+
+
+def _version(registry: Registry, settings: Settings) -> dict[str, Any]:
+    """Return the body of ``/version``: the versions, and the settings the pages state.
+
+    The settings are the documentation's address, the measurement id of the statistics and the route of https.
+    """
     graphs = []
     for graph in registry.graphs.values():
         identity = graph.graph.identity()
@@ -1777,8 +1922,9 @@ def _version(registry: Registry, docs_url: str = DOCS_URL, analytics_id: str | N
         "graph_format_version": FORMAT_VERSION,
         "manifest": registry.manifest_file.model_dump(mode="json"),
         "graphs": graphs,
-        "docs_url": docs_url,
-        "analytics_id": analytics_id,
+        "docs_url": settings.docs_url,
+        "analytics_id": settings.analytics_id,
+        "https_route": settings.https_route,
     }
 
 
@@ -1789,16 +1935,17 @@ def _package_version(recorded: str | None) -> dict[str, str | None]:
     return {"package_version": None, "package_version_note": recorded}
 
 
-def server_identity(registry: Registry) -> str:
+def server_identity(registry: Registry, settings: Settings) -> str:
     """Return what every ``ETag`` of a server includes: its start (made once, before the fork), versions and graphs.
 
     Args:
         registry: The loaded graphs.
+        settings: The server's settings (``/version`` reports some).
 
     Returns:
         str: A digest; a new one at every start, so that no answer of an earlier start is taken for the current one.
     """
-    text = json.dumps([time.time_ns(), _version(registry)], sort_keys=True, default=str)
+    text = json.dumps([time.time_ns(), _version(registry, settings)], sort_keys=True, default=str)
     return hashlib.blake2b(text.encode(), digest_size=16).hexdigest()
 
 
@@ -1828,7 +1975,13 @@ def asgi_app(settings: Settings, registry: Registry, monitor: LoadMonitor | None
     frontend: Frontend | None = getattr(app.state, "frontend", None)
     page = frontend.policy if frontend is not None else None
     return Guard(
-        app, settings, limiter, monitor, identity=server_identity(registry), page=page, methods=app.state.methods_at
+        app,
+        settings,
+        limiter,
+        monitor,
+        identity=server_identity(registry, settings),
+        page=page,
+        methods=app.state.methods_at,
     )
 
 

@@ -32,8 +32,7 @@ from idtrack_web_api.adapter import (
     STEP_REASONS,
 )
 from idtrack_web_api.cautions import vocabulary_terms
-from idtrack_web_api.config import DOCS_URL
-from idtrack_web_api.errors import ALLOWANCES, CODES, RETRYABLE, TITLES
+from idtrack_web_api.errors import ALLOWANCES, CODES, RETRY, RETRYABLE, TITLES, retry_words
 
 #: The meaning of each value of ``ConversionResult.status``, in the api's words: idtrack's table ``STATUSES`` holds the
 #: codes only. Each restates idtrack's documentation of the status (its usage guide, "Outcome", and the attributes of
@@ -118,11 +117,8 @@ def _terms(table: dict[str, str]) -> list[dict[str, Any]]:
     return [{"code": code, "meaning": schemas.plain_text(text), "source": "idtrack"} for code, text in table.items()]
 
 
-def vocabulary(docs_url: str = DOCS_URL) -> dict[str, Any]:
+def vocabulary() -> dict[str, Any]:
     """Return the body of ``/vocabulary``.
-
-    Args:
-        docs_url: Where idtrack's documentation is published (the cautions' limitations are sections of it).
 
     Returns:
         dict[str, Any]: As :py:class:`idtrack_web_api.schemas.VocabularyResponse` describes it.
@@ -173,6 +169,8 @@ def vocabulary(docs_url: str = DOCS_URL) -> dict[str, Any]:
                 "title": TITLES[code],
                 "meaning": text,
                 "retryable": code in RETRYABLE,
+                "retry_after": code in RETRY and RETRY[code][0],
+                "retry": retry_words(code),
                 "source": "idtrack-web",
             }
             for code, (status, text) in CODES.items()
@@ -182,7 +180,7 @@ def vocabulary(docs_url: str = DOCS_URL) -> dict[str, Any]:
         "source_modes": [
             {"code": mode, "meaning": SOURCE_MODE_MEANINGS[mode], "source": "idtrack-web"} for mode in SOURCE_MODES
         ],
-        "cautions": vocabulary_terms(docs_url),
+        "cautions": vocabulary_terms(),
     }
 
 

@@ -20,8 +20,9 @@ without consuming it (``MSG_PEEK``) and routes it by its method and path (:py:fu
   request only) until the search's answer is written (not until a slow client has read it). A search is answered
   ``503 server_busy`` with ``Retry-After`` rather than queued when the queue holds as many searches as it may
   (``queue_max`` times the workers), or when its wait, estimated from the searches waiting before it and the recent
-  searches' mean time, would pass ``queue_seconds``; a search that waited ``queue_seconds`` for a worker anyway is
-  answered so without being searched (:py:mod:`idtrack_web_api.app`).
+  searches' mean time (``search_seconds`` before any search was measured), would pass ``queue_seconds``; a search
+  that waited ``queue_seconds`` for a worker anyway is answered so without being searched
+  (:py:mod:`idtrack_web_api.app`).
 
 So a search waits only for the first worker that is free of searches, never behind another search in a worker that
 took it (but for one whose body completed in that worker while it waited), and a health check waits for nothing but
@@ -642,13 +643,15 @@ class _Taker:
         """Return the refusal of a search that would wait longer for a worker than a search may, by an estimate.
 
         Every worker holds a search; the estimate is the searches queued before it shared among the workers, plus the
-        one each worker runs, each taking the recent searches' mean time (``None``: within ``queue_seconds``, or no
-        search measured yet).
+        one each worker runs, each taking the recent searches' mean time; before any search has been measured (a
+        server just started), each is taken to last ``search_seconds``, the longest one identifier's search may take,
+        so that a burst that meets a server with no measure yet is refused at once rather than after waiting
+        ``queue_seconds`` (``None``: within ``queue_seconds``).
         """
         if self.gate is None or self.handoff is None:
             return None
         settings = self.gate.settings
-        mean = self.gate.monitor.mean_search_seconds()
+        mean = self.gate.monitor.mean_search_seconds() or settings.search_seconds
         estimate = mean * (self.handoff.waiting / max(1, settings.workers) + 1.0)
         if estimate <= settings.queue_seconds:
             return None

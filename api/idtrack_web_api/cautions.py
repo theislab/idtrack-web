@@ -1,13 +1,14 @@
-"""The evidence of an answer a reader should weigh before trusting it: the api's reading of idtrack's own fields.
+"""The evidence of an answer a reader should weigh before trusting it: the API's reading of IDTrack's own fields.
 
-idtrack's result says how it read the identifier, which path each candidate took and how the candidates were ranked;
-it does not say which of those facts make an answer one to review. The api reads them by the rules below, each a
+IDTrack's result says how it read the identifier, which path each candidate took and how the candidates were ranked;
+it does not say which of those facts make an answer one to review. The API reads them by the rules below, each a
 general rule stated by what the fields mean (never a list of identifiers), and adds the result's ``cautions``: one item
 per class of evidence that holds, each with its ``code`` (``cautions`` of ``GET /vocabulary`` gives its meaning), its
 ``tone`` (``caution``: it changes how far the answer can be trusted; ``note``: an exact fact about it that is no fault),
-a sentence with the result's own values, and, where idtrack documents a limitation of that class, the address of that
-section of idtrack's documentation, and, where a conversion answers what the mark doubts, that conversion (ask).
-This module is the one source of these classes: the page shows the marks the api sends.
+a sentence with the result's own values, and, where IDTrack documents a limitation of that class, the address of that
+section of the document of limitations the site cites (:py:mod:`idtrack_web_api.limitations`), and, where a conversion
+answers what the mark doubts, that conversion (ask). This module is the one source of these classes: the page shows the
+marks the API sends. A mark says only what the result's fields (and IDTrack's public calls it names) show.
 
 The rules read the best answer: the candidates marked best, and the steps of their paths. A search is always made with
 its path (a request without ``explain`` gets the result without it), so every rule holds for every answer; which
@@ -21,19 +22,21 @@ import re
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Literal
 
+from idtrack_web_api import limitations
+
 if TYPE_CHECKING:
     from collections.abc import Callable
 
 Tone = Literal["caution", "note"]
 
-#: Every class of evidence: its tone, what it means (the vocabulary's text), and the section of idtrack's
-#: documentation of limitations that describes it (its anchor on limitations.html), if any.
+#: Every class of evidence: its tone, what it means (the vocabulary's text), and the section of IDTrack's
+#: limitations that describes it (its anchor, a key of :py:data:`idtrack_web_api.limitations.SECTIONS`), if any.
 CAUTIONS: dict[str, tuple[Tone, str, str | None]] = {
     "bridge": (
         "caution",
         (
             "The best answer is reached through a bridge: where Ensembl's history gives a gene no successor, the walk "
-            "left it through an id it carries and entered another gene that carries the same id. That is idtrack's "
+            "left it through an id it carries and entered another gene that carries the same id. That is IDTrack's "
             "inference; no record of Ensembl states it."
         ),
         "answers-that-only-a-bridge-reaches",
@@ -41,9 +44,9 @@ CAUTIONS: dict[str, tuple[Tone, str, str | None]] = {
     "bridge_beside": (
         "caution",
         (
-            "A bridge on the best answer's path joins two genes that lived at the same releases: the gene it enters "
-            "did not take the place of the gene it leaves in Ensembl's records, so their shared ids are no sign of "
-            "succession."
+            "A bridge on the best answer's path joins two genes that both exist at one release: the gene it enters "
+            "lived beside the gene it leaves rather than after it. A bridge's gene is a plausible successor at that "
+            "place, not one that Ensembl's history proves, and here the two genes overlap in time."
         ),
         "answers-that-only-a-bridge-reaches",
     ),
@@ -58,9 +61,10 @@ CAUTIONS: dict[str, tuple[Tone, str, str | None]] = {
     "runner_named": (
         "caution",
         (
-            "A gene ranked below the best answer carries, at the target release, the name typed in the organism's name "
-            "authority, and no gene of the best answer does: the name followed its gene from the release it was read "
-            "at, and at the target release it is another gene's."
+            "At the target release, the name typed is the organism's name authority's symbol of a gene outside the "
+            "best answer (IDTrack's `genes_named`), and no gene of the best answer carries it: the name was followed "
+            "with its gene from the release it was read at, or ranked by the candidates' evidence at that release, and "
+            "at the target release the authority gives it to another gene."
         ),
         "a-symbol-of-the-name-authority-can-answer-another-gene",
     ),
@@ -171,10 +175,19 @@ CAUTIONS: dict[str, tuple[Tone, str, str | None]] = {
     "other_release": (
         "caution",
         (
-            "At other releases the same string names another gene (or reads as another id): a list made at that time "
-            "means that gene. Read it at such a release (`from_release`) to have what it meant then."
+            "At other releases the same string is read otherwise (as another id, or matched another way) and answers "
+            "other genes than the best answer, part of it, or none: a list made at that time means those. Read it at "
+            "such a release (`from_release`) to have what it meant then."
         ),
         "without-a-release-a-string-is-what-it-means-today",
+    ),
+    "other_release_same_gene": (
+        "note",
+        (
+            "At other releases the same string is read otherwise (as another id, or matched another way) but answers "
+            "the same genes as the best answer: the release a list was made at does not change its answer."
+        ),
+        None,
     ),
     "other_reading": (
         "caution",
@@ -200,7 +213,7 @@ CAUTIONS: dict[str, tuple[Tone, str, str | None]] = {
     "one_gene": (
         "note",
         (
-            "The targets are every id the best gene carries in the database asked: idtrack converts at the level of "
+            "The targets are every id the best gene carries in the database asked: IDTrack converts at the level of "
             "the gene, not the counterpart of the identifier alone."
         ),
         None,
@@ -209,7 +222,7 @@ CAUTIONS: dict[str, tuple[Tone, str, str | None]] = {
         "note",
         (
             "The best answer descends through a split of Ensembl's history, and other successors were reached: "
-            "idtrack ranks the successors of a split by Ensembl's scores and the candidates' evidence, not by which "
+            "IDTrack ranks the successors of a split by Ensembl's scores and the candidates' evidence, not by which "
             "of them lies where the old gene lay."
         ),
         "among-the-successors-of-a-split-the-best-answer-does-not-look-at-the-old-place",
@@ -268,7 +281,7 @@ PATH_CODES = frozenset(
         "lowest_score",
     }
 )
-#: The anchor that replaces ``copies-on-patches-and-alternative-loci`` for an LRG record's gene id (idtrack documents
+#: The anchor that replaces ``copies-on-patches-and-alternative-loci`` for an LRG record's gene id (IDTrack documents
 #: that class apart).
 _LRG_COPY = "the-grch37-gene-ids-of-lrg-records-list-their-answer-among-the-copies"
 _HISTORY = frozenset({"history", "self_loop"})
@@ -287,37 +300,36 @@ SYMBOLS_MAX = 200
 
 @dataclass(frozen=True)
 class Facts:
-    """What the rules read beside the result: the organism's symbol databases and its genes' symbols.
+    """What the rules read beside the result: the organism's symbol databases, who holds a name, genes' symbols.
 
     Attributes:
-        symbol_databases: The organism's symbol databases in idtrack's order (``idtrack.organisms.SYMBOL_DATABASES``):
+        symbol_databases: The organism's symbol databases in IDTrack's order (``idtrack.organisms.SYMBOL_DATABASES``):
             the first a conversion to a release can end in is the organism's name authority there.
         authority_at: The organism's name authority at a release, or ``None`` where the graph holds none there.
-        named: Whether any gene's link of a database spells a name so, in any letter case (idtrack's ``genes_named``):
-            where none does, no gene carries the name and the symbols need not be looked up.
-        symbols_of: The symbols of genes at a release in a database: the best targets of idtrack's conversion of each
+        holders: The genes to which a database gives a name (not as a synonym, in any letter case) at a release, each
+            with the first release from which it holds the name there without a break (IDTrack's ``genes_named``).
+        symbols_of: The symbols of genes at a release in a database: the best targets of IDTrack's conversion of each
             gene (read at that release, to it, without bridges), as the page shows a gene's symbol.
         asked: The database the conversion asked for (``None``: Ensembl genes).
     """
 
     symbol_databases: tuple[str, ...] = ()
     authority_at: Callable[[int], str | None] = lambda _release: None
-    named: Callable[[str, str], bool] = lambda _name, _database: False
+    holders: Callable[[str, str, int], dict[str, int]] = lambda _name, _database, _release: {}
     symbols_of: Callable[[list[str], int, str], dict[str, list[str]]] = lambda _genes, _release, _database: {}
     asked: str | None = None
 
 
-def limitation_url(anchor: str | None, docs_url: str) -> str | None:
-    """Return the address of a section of idtrack's limitations (``None`` for none).
+def limitation_url(anchor: str | None) -> str | None:
+    """Return the address of a section of IDTrack's limitations in the document the site cites (``None`` for none).
 
     Args:
-        anchor: The section's anchor.
-        docs_url: Where idtrack's documentation is published (its root, ending in ``/``).
+        anchor: The section's anchor (a key of :py:data:`idtrack_web_api.limitations.SECTIONS`).
 
     Returns:
         str | None: The address.
     """
-    return None if anchor is None else f"{docs_url}limitations.html#{anchor}"
+    return None if anchor is None else limitations.url(anchor)
 
 
 def _code(value: Any) -> str:
@@ -393,7 +405,6 @@ class _Context:
 
     result: dict[str, Any]
     facts: Facts
-    docs_url: str
     bests: list[dict[str, Any]] = field(default_factory=list)
     steps: list[dict[str, Any]] = field(default_factory=list)
     nodes: dict[str, dict[str, Any]] = field(default_factory=dict)
@@ -498,7 +509,7 @@ def _bridge(c: _Context) -> list[Mark]:
             f"The best answer is reached through {_plural(most, 'bridge')}"
             + (f" (through {', '.join(map(_code, through))})" if through else "")
             + ": where Ensembl's history gives a gene no successor, the walk leaves it through an id it carries and "
-            "enters another gene that carries the same id. That is idtrack's inference; no record of Ensembl "
+            "enters another gene that carries the same id. That is IDTrack's inference; no record of Ensembl "
             "states it.",
         )
     ]
@@ -530,8 +541,9 @@ def _bridge_beside(c: _Context) -> list[Mark]:
             "the bridge joins two genes of one time"
             if len(beside) == 1
             else f"{len(beside)} bridges join genes of one time",
-            f"{'; '.join(beside)}: the bridge joins two genes that lived side by side, so the gene it enters did not "
-            "take the place of the gene it leaves in Ensembl's records; their shared ids are no sign of succession.",
+            f"{'; '.join(beside)}: the bridge joins two genes that lived side by side, so the gene it enters is not "
+            "one that came after the gene it leaves. A bridge's gene is a plausible successor at that place, not one "
+            "that Ensembl's history proves.",
         )
     ]
 
@@ -583,52 +595,51 @@ def _bridge_rival(c: _Context) -> list[Mark]:
 
 
 def _runner_named(c: _Context) -> list[Mark]:
+    """The name typed is, at the target release, the name authority's symbol of a gene outside the best answer."""
     r = c.result
     if not c.bests or r.get("no_target") or r.get("graph_id") is None:
         return []
     to = r["to_release"]
     authority = c.facts.authority_at(to)
-    typed = str(r.get("query_id", ""))
-    if authority is None or not c.facts.named(typed.strip(), authority):
+    typed = str(r.get("query_id", "")).strip()
+    if authority is None or not typed:
         return []
+    holders = c.facts.holders(typed, authority, to)
+    best_ids = {_stable(x["gene"]) for x in c.bests}
+    if not holders or any(_stable(g) in best_ids for g in holders):
+        return []
+    others = list(holders)
+    ranks = {_stable(g): i + 1 for i, g in reversed(list(enumerate(x["gene"] for x in r.get("candidates", []))))}
     if authority == (r.get("final_database") or c.facts.asked):  # the targets are the symbols: nothing to ask
         symbols: dict[str, list[str]] = {}
-        for x in r.get("candidates", []):
+        for x in c.bests:
             symbols.setdefault(x["gene"], [])
             if x["target"] not in symbols[x["gene"]]:
                 symbols[x["gene"]].append(x["target"])
-    else:  # the best genes' symbols first: where one carries the name, no other gene's is needed
-        best_genes = list(dict.fromkeys(x["gene"] for x in c.bests))
-        symbols = c.facts.symbols_of(best_genes, to, authority)
-    lowered = typed.lower()
-
-    def named(gene: str) -> bool:
-        return any(s.lower() == lowered for s in symbols.get(gene, []))
-
-    if any(named(x["gene"]) for x in c.bests):
-        return []
-    others = [g for g in dict.fromkeys(x["gene"] for x in r.get("candidates", [])) if g not in symbols]
-    if others:
-        symbols |= c.facts.symbols_of(others[: max(0, SYMBOLS_MAX - len(symbols))], to, authority)
-    below = [(x, i + 1) for i, x in enumerate(r["candidates"]) if not x.get("best") and named(x["gene"])]
-    if not below:
-        return []
+    else:
+        symbols = c.facts.symbols_of(list(dict.fromkeys(x["gene"] for x in c.bests))[:SYMBOLS_MAX], to, authority)
     best_names = []
     for gene in dict.fromkeys(x["gene"] for x in c.bests):
         own = symbols.get(gene, [])
         best_names.append(
             f"{_code(gene)} carries {', '.join(map(_code, own))}" if own else f"{_code(gene)} carries none"
         )
-    named_genes = list(dict.fromkeys(x["gene"] for x, _ in below))
-    at_own = r.get("from_release") == to
+
+    def holder(gene: str) -> str:
+        rank = ranks.get(_stable(gene))
+        where = f"rank {rank}" if rank is not None else "not among the candidates"
+        return f"{_code(gene)} ({where}; since release {holders[gene]})"
+
+    frm = r.get("from_release")
+    at_own = frm == to
     split = any(s.get("kind") == "history" and s.get("reason") in _SPLITS for s in c.steps)
     how = (
-        "idtrack ranked the best answer first by the evidence of the candidates (Ensembl's display name, then the "
+        "IDTrack ranked the best answer first by the evidence of the candidates (Ensembl's display name, then the "
         "support of the name)."
         if at_own
-        else f"The name was read at release {r.get('from_release')} and followed through Ensembl's history to {to}"
+        else f"The name was read at release {frm} and followed with its gene through Ensembl's history to {to}"
         + (", where its gene's successors are ranked by Ensembl's scores" if split else "")
-        + f"; at {to} the name is another gene's."
+        + f"; at {to} the authority gives the name to another gene."
     )
     anchor = (
         "a-symbol-of-the-name-authority-can-answer-another-gene"
@@ -637,14 +648,14 @@ def _runner_named(c: _Context) -> list[Mark]:
         if split
         else "without-a-release-a-string-is-what-it-means-today"
     )
-    verb = "carries" if len(named_genes) == 1 else "carry"
+    whose = "the symbol" if len(others) == 1 else "a symbol"
     return [
         _mark(
             "runner_named",
-            f"a gene ranked below carries {_code(typed)} at {to}",
-            f"At release {to}, {_list([_code(g) for g in named_genes])} ({_rank_words([k for _, k in below])}) "
-            f"{verb} {_code(typed)} as {authority}; of the best answer, {_list(best_names)}. {how} Ask {_code(typed)} "
-            f"at release {to} to read the name as it is then.",
+            f"{_code(typed)} is another gene's {authority} at {to}",
+            f"At release {to}, {_code(typed)} is {whose} in {authority} of {_list([holder(g) for g in others])}, "
+            f"outside the best answer; of the best answer, {_list(best_names)}. {how} Ask {_code(typed)} at release "
+            f"{to} to read the name as it is then.",
             limitation=anchor,
             alert=True,
             ask={"words": f"Ask {typed} at release {to}", "from_release": to, "to_release": to},
@@ -770,7 +781,7 @@ def _own_continuation(c: _Context) -> list[Mark]:
             "the id's own continuation ranks below a branch",
             f"The best answer's path leaves {_code(own)} at {c.event(first)}, while the id itself lived on"
             + (f" ({c.event(step)})" if step else "")
-            + f". The candidates that follow the id's own continuation rank {ranks}: idtrack ranks a branch and the "
+            + f". The candidates that follow the id's own continuation rank {ranks}: IDTrack ranks a branch and the "
             "id's continuation by the product of Ensembl's scores.",
             alert=True,
         )
@@ -914,7 +925,7 @@ def _number(c: _Context) -> list[Mark]:
         many = any(len(o.get("genes", [])) > 1 for o in others)
         other_text = (
             f" Read without its version, as {_code(digits)}, it answers {', '.join(map(_code, genes))}: another "
-            f"gene{'s' if many else ''}, reported by idtrack beside the answer."
+            f"gene{'s' if many else ''}, reported by IDTrack beside the answer."
         )
     what = (
         f"{_code(query)} is a number written with the version {version}"
@@ -953,7 +964,7 @@ def _one_gene(c: _Context) -> list[Mark]:
             "one_gene",
             f"all {len(targets)} ids of one gene",
             f"The {len(targets)} targets are the ids {_code(gene)} carries in "
-            f"{r.get('final_database') or 'the database asked'} at release {r.get('to_release')}. idtrack converts at "
+            f"{r.get('final_database') or 'the database asked'} at release {r.get('to_release')}. IDTrack converts at "
             "the level of the gene: the identifier is read as its gene and followed as a gene, and the answer in the "
             f"database asked is every id of the best gene there, not the counterpart of {_code(r.get('query_id'))} "
             "alone.",
@@ -975,7 +986,7 @@ def _split_ranked(c: _Context) -> list[Mark]:
             "a split: its successors ranked by score, not by place",
             f"The path of the best answer passes Ensembl's {str(split['reason']).replace('_', ' ')} at "
             f"{c.event(split)}, and {_plural(len(others), 'other gene')} {'was' if len(others) == 1 else 'were'} "
-            "reached. idtrack ranks the successors of a split by Ensembl's scores and the candidates' evidence, not by "
+            "reached. IDTrack ranks the successors of a split by Ensembl's scores and the candidates' evidence, not by "
             "which of them lies where the old gene lay.",
         )
     ]
@@ -1052,28 +1063,59 @@ def _match(c: _Context) -> list[Mark]:
     return [_mark(code, words, text, **({"limitation": a} if a else {})) for code, words, a in found]
 
 
+def _read_at_words(r: dict[str, Any]) -> str:
+    """How the result itself was read: at the release given, at another, or without a release."""
+    given, frm = r.get("from_release_given"), r.get("from_release")
+    if given is None:
+        return f"Without a release it is read as it is at release {frm}"
+    if given == frm:
+        return f"It was read at release {frm}, as given"
+    return f"It was read at release {frm}, where the graph holds it"
+
+
 def _readings(c: _Context) -> list[Mark]:
     r = c.result
     named = [id(o) for o in _number_readings(c)]
+    best_genes = list(dict.fromkeys(x["gene"] for x in c.bests))
     out = []
     for reading in r.get("other_readings") or []:
         if id(reading) in named:
             continue
-        genes = ", ".join(map(_code, reading.get("genes") or [])) or "no gene"
+        reading_genes = list(reading.get("genes") or [])
+        genes = ", ".join(map(_code, reading_genes)) or "no gene"
         if reading.get("reason") == "other_release" and reading.get("releases"):
             releases = list(reading["releases"])
-            meant = (
-                "named another gene"
-                if reading.get("graph_id") == r.get("query_id")
-                else f"was read as {_code(reading.get('graph_id'))}"
+            at = _ranges(releases)
+            how = f"is read as {_code(reading.get('graph_id'))} (matched as {_code(reading.get('match'))})"
+            if best_genes and set(reading_genes) == set(best_genes):
+                many = len(best_genes) > 1
+                out.append(
+                    _mark(
+                        "other_release_same_gene",
+                        f"the same {'genes' if many else 'gene'} at releases {at}",
+                        f"At releases {at}, {_code(r.get('query_id'))} {how}; read there, it answers the same "
+                        f"{'genes' if many else 'gene'} as the best answer, {genes} at release {r.get('to_release')}. "
+                        f"{_read_at_words(r)}; a list made at those releases means the same.",
+                    )
+                )
+                continue
+            other = [g for g in reading_genes if g not in best_genes]
+            if reading.get("graph_id") == r.get("query_id") and other and best_genes:
+                meant = f"named {'another gene' if len(other) == 1 else 'other genes'}"
+            else:
+                meant = how
+            part = (
+                ", part of the best answer"
+                if reading_genes and not other and set(reading_genes) != set(best_genes)
+                else ""
             )
+            those = "that gene" if len(reading_genes) == 1 else "those genes" if reading_genes else "no gene"
             out.append(
                 _mark(
                     "other_release",
-                    f"another meaning at releases {_ranges(releases)}",
-                    f"At releases {_ranges(releases)}, {_code(r.get('query_id'))} {meant}; read there, it answers "
-                    f"{genes} at release {r.get('to_release')}. Without a release it is read as it is at release "
-                    f"{r.get('from_release')}; a list made at that other time means that gene.",
+                    f"another meaning at releases {at}",
+                    f"At releases {at}, {_code(r.get('query_id'))} {meant}; read there, it answers {genes} at release "
+                    f"{r.get('to_release')}{part}. {_read_at_words(r)}; a list made at that other time means {those}.",
                     read_at=releases[-1],
                 )
             )
@@ -1107,7 +1149,7 @@ def _projected_symbols(c: _Context) -> list[Mark]:
         _mark(
             "projected_symbols",
             f"{asked} is not this organism's name authority",
-            f"{asked} is a symbol database of this graph, after {authority} in idtrack's order of the organism's "
+            f"{asked} is a symbol database of this graph, after {authority} in IDTrack's order of the organism's "
             "symbol databases: it holds another authority's symbols as Ensembl projects them onto this organism's "
             f"genes. The organism's own name authority is {authority}.",
             ask={"words": f"Ask in {authority}", "final_database": authority},
@@ -1160,12 +1202,11 @@ RULES: tuple[Callable[[_Context], list[Mark]], ...] = (
 ASK_FIELDS = ("identifier", "from_release", "to_release", "final_database", "from_database")
 
 
-def cautions_of(result: dict[str, Any], docs_url: str, facts: Facts | None = None) -> list[dict[str, Any]]:
+def cautions_of(result: dict[str, Any], facts: Facts | None = None) -> list[dict[str, Any]]:
     """Return the cautions and notes of a result (its path read where it has one), cautions first.
 
     Args:
-        result: idtrack's ``ConversionResult.to_dict()``, with its path.
-        docs_url: Where idtrack's documentation is published (its root, ending in ``/``).
+        result: IDTrack's ``ConversionResult.to_dict()``, with its path.
         facts: What the rules read beside the result (:py:class:`Facts`; ``None``: none, so the rules that need the
             organism's symbols hold no mark).
 
@@ -1174,7 +1215,7 @@ def cautions_of(result: dict[str, Any], docs_url: str, facts: Facts | None = Non
         per class of evidence (and, for the other readings of the string, one per reading), cautions before notes,
         each tone in the order of :py:data:`RULES`.
     """
-    c = _Context(result, facts or Facts(), docs_url)
+    c = _Context(result, facts or Facts())
     made = []
     for rule in RULES:
         for mark in rule(c):
@@ -1186,7 +1227,7 @@ def cautions_of(result: dict[str, Any], docs_url: str, facts: Facts | None = Non
                     "tone": tone,
                     "label": mark["label"],
                     "text": mark["text"],
-                    "limitation": limitation_url(mark.get("limitation", anchor), docs_url),
+                    "limitation": limitation_url(mark.get("limitation", anchor)),
                     "alert": bool(mark.get("alert", False)),
                     "ask": None
                     if ask is None
@@ -1201,11 +1242,8 @@ def cautions_of(result: dict[str, Any], docs_url: str, facts: Facts | None = Non
     return [m for m in made if m["tone"] == "caution"] + [m for m in made if m["tone"] == "note"]
 
 
-def vocabulary_terms(docs_url: str) -> list[dict[str, Any]]:
+def vocabulary_terms() -> list[dict[str, Any]]:
     """Return the cautions table of /vocabulary.
-
-    Args:
-        docs_url: Where idtrack's documentation is published.
 
     Returns:
         list[dict[str, Any]]: Per code its tone, meaning, whether it reads the path, and its limitation's address.
@@ -1216,7 +1254,7 @@ def vocabulary_terms(docs_url: str) -> list[dict[str, Any]]:
             "tone": tone,
             "meaning": meaning,
             "reads_path": code in PATH_CODES,
-            "limitation": limitation_url(anchor, docs_url),
+            "limitation": limitation_url(anchor),
             "source": "idtrack-web",
         }
         for code, (tone, meaning, anchor) in CAUTIONS.items()
