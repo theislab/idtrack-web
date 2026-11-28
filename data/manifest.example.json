@@ -12,9 +12,9 @@
       "idtrack_commit": "23239cfeef786ccb999609cf3f0303041d0f09e7",
       "idtrack_version": "none: built from a source folder, not an installed idtrack",
       "lineages": {
-        "key": "idtrack/6/homo_sapiens/3893148599a7297aa7fec539515b79f574bf8a49f4f0756f59d15d8263edc1e3.lineages.json",
-        "sha256": "3893148599a7297aa7fec539515b79f574bf8a49f4f0756f59d15d8263edc1e3",
-        "size": 5878902
+        "key": "idtrack/6/homo_sapiens/9a7349ec450b4a4c27d764a715e1cfe8aac5b6568c52cab8c2fbd49a5317d987.lineages.json",
+        "sha256": "9a7349ec450b4a4c27d764a715e1cfe8aac5b6568c52cab8c2fbd49a5317d987",
+        "size": 5878974
       },
       "organism": "homo_sapiens",
       "snapshot_release": 115
@@ -66,9 +66,9 @@
       "idtrack_commit": "9e2591ab8eef3f28253eeed4a5a1205ebcd32540",
       "idtrack_version": "none: built from a source folder, not an installed idtrack",
       "lineages": {
-        "key": "idtrack/6/mus_musculus/42707f02f828f976d80109917cea63fd76b0659ffe4b1b5faca4665fdcc6614a.lineages.json",
-        "sha256": "42707f02f828f976d80109917cea63fd76b0659ffe4b1b5faca4665fdcc6614a",
-        "size": 5718123
+        "key": "idtrack/6/mus_musculus/11579d5d8ca845f5c0ebc7a161220d263b7a3645acee9c1f7ada05f88e2db80a.lineages.json",
+        "sha256": "11579d5d8ca845f5c0ebc7a161220d263b7a3645acee9c1f7ada05f88e2db80a",
+        "size": 5718143
       },
       "organism": "mus_musculus",
       "snapshot_release": 115
@@ -92,7 +92,7 @@
       "snapshot_release": 115
     }
   ],
-  "published": "2026-11-28T00:34:06Z",
-  "publisher": "idtrack-web-api 0.1.2, idtrack 0.1.2",
+  "published": "2026-11-28T12:12:14Z",
+  "publisher": "idtrack-web-api 0.1.2, IDTrack 0.1.2",
   "schema_version": 2
 }

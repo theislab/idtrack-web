@@ -325,7 +325,7 @@ test("the api page lists every endpoint of the server's OpenAPI document", async
   );
   const llms = await page.request.get("/llms.txt");
   expect(llms.status()).toBe(200);
-  expect(await llms.text()).toContain("# idtrack web api");
+  expect(await llms.text()).toContain("# IDTrack web API");
   // The texts for programs and agents, one click away at the head of the page.
   const agents = page.getByRole("navigation", { name: "The api as text, for programs and agents" });
   await expect(agents.getByRole("link", { name: "llms.txt", exact: true })).toHaveAttribute("href", "/llms.txt");

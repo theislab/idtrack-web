@@ -648,12 +648,12 @@ def _runner_named(c: _Context) -> list[Mark]:
         if split
         else "without-a-release-a-string-is-what-it-means-today"
     )
-    whose = "the symbol" if len(others) == 1 else "a symbol"
+    genes = "a gene" if len(others) == 1 else "genes"
     return [
         _mark(
             "runner_named",
-            f"{_code(typed)} is another gene's {authority} at {to}",
-            f"At release {to}, {_code(typed)} is {whose} in {authority} of {_list([holder(g) for g in others])}, "
+            f"{authority} gives {_code(typed)} to another gene at {to}",
+            f"At release {to}, {authority} gives {_code(typed)} to {_list([holder(g) for g in others])}, {genes} "
             f"outside the best answer; of the best answer, {_list(best_names)}. {how} Ask {_code(typed)} at release "
             f"{to} to read the name as it is then.",
             limitation=anchor,
