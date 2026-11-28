@@ -39,6 +39,52 @@
   mask-image: radial-gradient(ellipse 44% 40% at 19% 33%, transparent 35%, black 100%);
 }
 
+/* The constellation is composed in the room beside or under the words, so it needs no mask. */
+.hero2__field[data-picture="constellation"] .hero2__canvas {
+  mask-image: none;
+}
+
+/* The constellation's labels: the id of the journey turned toward the viewer, and the releases at the axis's ends. */
+.hero2__stars {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.hero2__star-id,
+.hero2__axis-end {
+  position: absolute;
+  top: 0;
+  left: 0;
+  white-space: nowrap;
+  will-change: transform, opacity;
+}
+
+.hero2__star-id {
+  margin: -22px 0 0 12px;
+  font-size: var(--text-2xs);
+  letter-spacing: 0.02em;
+  color: var(--ink-2);
+  text-shadow:
+    0 0 2px var(--paper),
+    0 0 6px var(--paper),
+    0 0 12px var(--paper);
+  visibility: hidden;
+  transition: none;
+}
+
+.hero2__star-id--left {
+  translate: calc(-100% - 24px) 0;
+}
+
+.hero2__axis-end {
+  translate: -50% -50%;
+  font-size: var(--text-2xs);
+  color: var(--ink-3);
+  text-shadow: 0 0 6px var(--paper);
+  opacity: 0;
+}
+
 @keyframes hero2-in {
   to {
     opacity: 1;
@@ -269,6 +315,17 @@
   border-radius: 50%;
   background: var(--ink-1);
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--ink-1) 14%, transparent);
+}
+
+.hero2__key-answer {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--ink-1);
+  box-shadow:
+    0 0 0 2px var(--paper),
+    0 0 0 3px var(--ink-1);
+  margin: 0 2px;
 }
 
 .hero2__key-line {

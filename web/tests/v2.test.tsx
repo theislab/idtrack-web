@@ -6,7 +6,6 @@ import { act, cleanup, fireEvent, render, screen } from "@testing-library/react"
 import { useState } from "react";
 import { afterEach, describe, expect, it } from "vitest";
 import type { HistoryResponse, LineagesResponse, ShowcaseResponse } from "../src/api/types";
-import { constellationOf } from "../src/components/hero/constellation";
 import { simplified } from "../src/components/hero/field";
 import { ringsOf } from "../src/components/hero/rings";
 import { HeroMenu } from "../src/components/shell/HeroMenu";
@@ -16,6 +15,18 @@ import { Expandable } from "../src/components/v2/Expandable";
 import { HoverCard } from "../src/components/v2/HoverCard";
 import { Segmented } from "../src/components/v2/Segmented";
 import { Tabs } from "../src/components/v2/Tabs";
+import {
+  constellationOf,
+  convolutedAnswers,
+  fitPose,
+  KIND,
+  project,
+  ROLE,
+  roomOf,
+  SEGMENT,
+  STAR,
+  TILT,
+} from "../src/lib/hero/constellationModel";
 import { idAt, layoutLineages, SEGMENT_FLOATS } from "../src/lib/hero/lineageLayout";
 import { resetAddress } from "./disclose";
 import { conversions } from "./fixtures";
@@ -263,34 +274,133 @@ describe("the rings", () => {
 });
 
 describe("the constellation", () => {
-  it("draws the journeys whose paths pass the most ids, each step a line and each id a star", () => {
-    const answers = conversions()
-      .map((c) => c.result)
-      .filter((r) => r.path?.steps.length);
-    const showcase = {
-      organism: "homo_sapiens",
-      content_digest: null,
-      checked_on: null,
-      journeys: answers.map((result) => ({
-        query: {
-          identifier: result.query_id,
-          from_release: null,
-          to_release: null,
-          final_database: null,
-          explain: true,
-        },
-        result,
-        error: null,
-      })),
-      cases: [],
-    } as ShowcaseResponse;
-    const model = constellationOf(showcase, 5);
-    expect(model.journeys.length).toBeLessThanOrEqual(5);
+  const answers = conversions()
+    .map((c) => c.result)
+    .filter((r) => r.path?.steps.length);
+  const showcase = {
+    organism: "homo_sapiens",
+    content_digest: null,
+    checked_on: null,
+    journeys: answers.map((result) => ({
+      query: { identifier: result.query_id, from_release: null, to_release: null, final_database: null, explain: true },
+      result,
+      error: null,
+    })),
+    cases: [],
+  } as ShowcaseResponse;
+  const span = { first: 48, last: 115, changes: [55, 76] };
+  const model = constellationOf(showcase, 5, span);
+  const xOf = (release: number) => ((release - span.first) / (span.last - span.first)) * 2 - 1;
+
+  it("draws the answers whose paths pass the most ids and steps, each id a star and each step a curve", () => {
+    const chosen = convolutedAnswers(showcase, 5);
+    expect(model.journeys.map((j) => j.identifier)).toEqual(chosen.map((r) => r.query_id));
     expect(model.journeys.length).toBeGreaterThan(0);
-    const steps = model.journeys.reduce((n, j) => n + j.steps, 0);
-    expect(model.lines.length / 8).toBeLessThanOrEqual(steps);
-    expect(model.stars.length / 5).toBe(model.journeys.reduce((n, j) => n + j.nodes, 0));
-    for (let i = 0; i < model.stars.length; i += 5) expect(Math.abs(model.stars[i] ?? 2)).toBeLessThanOrEqual(1);
+    const size = (r: (typeof chosen)[number]) =>
+      new Set(r.path?.steps.flatMap((s) => [s.source, s.target])).size + (r.path?.steps.length ?? 0);
+    for (let i = 1; i < chosen.length; i++)
+      expect(size(chosen[i - 1] ?? chosen[i]!)).toBeGreaterThanOrEqual(size(chosen[i]!));
+    chosen.forEach((r, j) => {
+      const journey = model.journeys[j];
+      const steps = (r.path?.steps ?? []).filter((s) => s.source !== null && s.source !== s.target);
+      const ids = new Set(steps.flatMap((s) => [s.source ?? "", s.target]));
+      expect(journey?.steps).toBe(steps.length);
+      expect(journey?.nodes).toBeGreaterThanOrEqual(ids.size);
+      // The fans are the steps where Ensembl's mapping splits or merges.
+      expect(journey?.fans).toBe(
+        steps.filter((s) => (s.kind === "history" || s.kind === "self_loop") && (s.splits > 0 || s.merges > 0)).length,
+      );
+      expect(journey?.answer).toBe(
+        r.candidates
+          .filter((c) => c.best)
+          .map((c) => c.target)
+          .join(", "),
+      );
+      // The star of the id asked for is the journey's anchor, and it is the only one with the query's role.
+      const anchor = journey?.anchor ?? -1;
+      expect(model.stars[anchor * STAR + 3]).toBe(j);
+      expect(model.stars[anchor * STAR + 6]).toBe(ROLE.query);
+    });
+    const stars = model.stars.length / STAR;
+    expect(stars).toBe(model.journeys.reduce((n, j) => n + j.nodes, 0));
+  });
+
+  it("puts every star and segment at its releases on the axis of time, the axis and its rings at the changes", () => {
+    for (let i = 0; i < model.stars.length; i += STAR) {
+      expect(Math.abs(model.stars[i] ?? 2)).toBeLessThanOrEqual(1 + 1e-6);
+      // Its place in the path is between the id asked for (0) and the farthest id (1).
+      expect(model.stars[i + 5]).toBeGreaterThanOrEqual(0);
+      expect(model.stars[i + 5]).toBeLessThanOrEqual(1);
+    }
+    let axis = 0;
+    for (let i = 0; i < model.segments.length; i += SEGMENT) {
+      expect(Math.abs(model.segments[i] ?? 2)).toBeLessThanOrEqual(1 + 1e-6);
+      expect(Math.abs(model.segments[i + 3] ?? 2)).toBeLessThanOrEqual(1 + 1e-6);
+      if (model.segments[i + 6] === KIND.axis) axis++;
+    }
+    expect(model.changes).toEqual([55, 76]);
+    expect(axis).toBe(24 + 40 * 2);
+    // A star of an Ensembl id stands where the id begins (its first active release).
+    const r = convolutedAnswers(showcase, 1)[0];
+    const begins = r?.path?.nodes.find((n) => n.kind === "ensembl_gene" && n.active.length && n.id !== r.query_id);
+    if (begins) {
+      const first = Math.max(span.first, begins.active[0]?.[0] ?? 0);
+      const xs: number[] = [];
+      for (let i = 0; i < model.stars.length; i += STAR) if (model.stars[i + 3] === 0) xs.push(model.stars[i] ?? 9);
+      expect(xs.some((x) => Math.abs(x - xOf(first)) < 1e-5)).toBe(true);
+    }
+  });
+
+  it("is composed beside the words on a wide screen and under them on a phone, never behind them", () => {
+    const words = { left: 104, top: 120, right: 650, bottom: 520 };
+    const caption = { left: 104, top: 820, right: 1336, bottom: 880 };
+    const wide = roomOf(1440, 836, words, caption);
+    expect(wide.left).toBeGreaterThan(words.right);
+    expect(wide.bottom).toBeLessThan(caption.top);
+    const phone = roomOf(
+      390,
+      788,
+      { left: 16, top: 30, right: 374, bottom: 470 },
+      { left: 16, top: 690, right: 374, bottom: 780 },
+    );
+    expect(phone.top).toBeGreaterThan(470);
+    expect(phone.bottom).toBeLessThan(690);
+    expect(phone.left).toBeGreaterThanOrEqual(16);
+    expect(phone.right).toBeLessThanOrEqual(374);
+  });
+
+  it("stays inside its room at every turn and at every tilt the pointer may give it", () => {
+    for (const room of [
+      { left: 700, top: 40, right: 1370, bottom: 800 },
+      { left: 16, top: 486, right: 374, bottom: 682 },
+    ]) {
+      const pose = fitPose(model, room, 10, { roll: 0.1, yaw: 0.62 });
+      const seen = { left: Infinity, top: Infinity, right: -Infinity, bottom: -Infinity };
+      for (let turn = 0; turn < Math.PI * 2; turn += 0.2)
+        for (const yaw of [0.62 - TILT.yaw, 0.62, 0.62 + TILT.yaw])
+          for (let i = 0; i < model.segments.length; i += SEGMENT) {
+            const q = project(
+              { ...pose, turn, yaw },
+              model.segments[i] ?? 0,
+              model.segments[i + 1] ?? 0,
+              model.segments[i + 2] ?? 0,
+            );
+            seen.left = Math.min(seen.left, q.x);
+            seen.right = Math.max(seen.right, q.x);
+            seen.top = Math.min(seen.top, q.y);
+            seen.bottom = Math.max(seen.bottom, q.y);
+          }
+      expect(seen.left).toBeGreaterThanOrEqual(room.left);
+      expect(seen.right).toBeLessThanOrEqual(room.right);
+      expect(seen.top).toBeGreaterThanOrEqual(room.top);
+      expect(seen.bottom).toBeLessThanOrEqual(room.bottom);
+      // And it fills its room: one side of it within its margin and a few px.
+      const slack = Math.min(
+        seen.left - room.left + (room.right - seen.right),
+        seen.top - room.top + (room.bottom - seen.bottom),
+      );
+      expect(slack).toBeLessThan(2 * 10 + 40);
+    }
   });
 });
 

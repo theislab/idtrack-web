@@ -20,7 +20,8 @@ import { groupedInteger } from "../../lib/numbers";
 import { organismName } from "../../lib/organismNames";
 import { useShowcase } from "../../lib/showcase";
 import { assemblyBands } from "../figure/releases";
-import { constellationOf, createConstellation, type Constellation } from "./constellation";
+import { constellationOf, type Constellation, type Rect } from "../../lib/hero/constellationModel";
+import { createConstellation } from "./constellation";
 import { createField, fieldAt, placeOf, type FieldColours, type FieldFrame } from "./field";
 import { createRings, ringsOf, type RingsModel } from "./rings";
 
@@ -231,8 +232,15 @@ export function HeroField({ description }: { description: GraphDescription }) {
   const layout = useLineageLayout(description.organism, narrow ? NARROW_LIMIT : WIDE_LIMIT, eras, lineal);
   const showcase = useShowcase(choice === "constellation" ? description.organism : null);
   const stars = useMemo(
-    () => (showcase.state === "done" ? constellationOf(showcase.answer.data, JOURNEYS) : null),
-    [showcase],
+    () =>
+      showcase.state === "done"
+        ? constellationOf(showcase.answer.data, JOURNEYS, {
+            first: description.releases[0] ?? 0,
+            last: description.releases[description.releases.length - 1] ?? 0,
+            changes: eras,
+          })
+        : null,
+    [showcase, description, eras],
   );
   const history = useHistory(choice === "rings" ? description.organism : null);
   const rings = useMemo(
@@ -373,23 +381,43 @@ export function HeroField({ description }: { description: GraphDescription }) {
     const canvas = document.createElement("canvas");
     canvas.className = "hero2__canvas";
     element.prepend(canvas);
-    const view = createConstellation(canvas, stars, reducedMotion());
+    const view = createConstellation(canvas, element, stars, reducedMotion());
     element.dataset["mode"] = view.mode;
     view.setColours(readColours(element));
+    // The picture is composed in the room the words and the caption leave (nothing behind a letter).
+    const hero = element.closest(".hero2");
+    const words = [...(hero?.querySelectorAll(".hero2__words > *") ?? [])];
+    const caption = hero?.querySelector(".hero2__caption") ?? null;
     const measure = () => {
-      const { width, height } = element.getBoundingClientRect();
-      const narrowNow = width < 720;
-      view.resize(width, height, {
-        cx: narrowNow ? width / 2 : width * 0.68,
-        cy: narrowNow ? height * 0.72 : height * 0.54,
-        hw: narrowNow ? width * 0.4 : width * 0.26,
-        hh: narrowNow ? height * 0.18 : height * 0.34,
+      const field = element.getBoundingClientRect();
+      const within = (r: DOMRect): Rect => ({
+        left: r.left - field.left,
+        top: r.top - field.top,
+        right: r.right - field.left,
+        bottom: r.bottom - field.top,
       });
+      // The words as inked (a line of text as long as it runs, not its block's full width).
+      const inked = (w: Element) => {
+        const range = document.createRange();
+        range.selectNodeContents(w);
+        return within(range.getBoundingClientRect());
+      };
+      const boxes = words.map(inked).filter((r) => r.right > r.left);
+      const union = boxes.length
+        ? {
+            left: Math.min(...boxes.map((r) => r.left)),
+            top: Math.min(...boxes.map((r) => r.top)),
+            right: Math.max(...boxes.map((r) => r.right)),
+            bottom: Math.max(...boxes.map((r) => r.bottom)),
+          }
+        : null;
+      view.resize(field.width, field.height, union, caption ? within(caption.getBoundingClientRect()) : null);
       setFrame(null);
     };
     measure();
     const resize = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(measure);
     resize?.observe(element);
+    for (const w of [...words, caption]) if (w) resize?.observe(w);
     const stopVisible = watchVisible(element, (on) => {
       view.setRunning(on);
     });
@@ -424,7 +452,7 @@ export function HeroField({ description }: { description: GraphDescription }) {
       stopVisible();
       resize?.disconnect();
       view.destroy();
-      canvas.remove();
+      view.element.remove();
       setLifted(null);
     };
   }, [stars, choice]);
@@ -587,29 +615,42 @@ function Caption({
         </span>
       </p>
     );
-  if (stars)
+  if (stars) {
+    const fans = stars.journeys.reduce((n, j) => n + j.fans, 0);
+    const bridges = stars.journeys.reduce((n, j) => n + j.bridges, 0);
     return (
       <p className="hero2__caption">
         <span>
-          The <span className="mono">{stars.journeys.length}</span> most convoluted journeys of the <em>{name}</em>{" "}
-          showcase, each the path of its answer, releases <span className="mono">{`${stars.first}–${stars.last}`}</span>{" "}
-          along the axis
+          The paths of the <span className="mono">{stars.journeys.length}</span> most convoluted answers of the{" "}
+          <em>{name}</em> showcase about the axis of time,{" "}
+          <span className="mono">{`${stars.first}–${stars.last}`}</span>
         </span>
         <span className="hero2__key">
           <span className="hero2__key-star" aria-hidden="true" /> an id
         </span>
         <span className="hero2__key">
+          <span className="hero2__key-answer" aria-hidden="true" /> an answer
+        </span>
+        <span className="hero2__key">
           <span className="hero2__key-line hero2__key-line--event" aria-hidden="true" /> a split or merge
         </span>
         <span className="hero2__key">
-          <span className="hero2__key-line hero2__key-line--external" aria-hidden="true" /> another database or a bridge
+          <span className="hero2__key-line hero2__key-line--external" aria-hidden="true" /> another database
         </span>
         <span className="hero2__source mono">GET /api/v1/organisms/{description.organism}/showcase</span>
         <span className="visually-hidden">
-          . The journeys: {stars.journeys.map((j) => `${j.identifier} to ${j.answer}, ${j.steps} steps`).join("; ")}.
+          . Releases run along the axis; each journey stands on its own strand about it. Each id is a star where it
+          begins, larger where more steps of the path meet it and brighter along the path toward the answer, with a ring
+          about the id asked for and about each answer, and a thread over the releases at which it is active; each step
+          is a curve from one id to the next: {groupedInteger(fans)} steps where Ensembl&apos;s mapping splits or
+          merges, {groupedInteger(bridges)} steps into or through another database, the others steps of Ensembl&apos;s
+          id history (between assemblies in their own colour). A ring about the axis marks each change of assembly
+          {stars.changes.length ? ` (releases ${stars.changes.join(", ")})` : ""}. The journeys:{" "}
+          {stars.journeys.map((j) => `${j.identifier} to ${j.answer || "no answer"}, ${j.steps} steps`).join("; ")}.
         </span>
       </p>
     );
+  }
   return (
     <p className="hero2__caption hero2__caption--waiting" aria-hidden="true">
       &nbsp;
