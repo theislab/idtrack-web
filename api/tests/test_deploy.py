@@ -89,6 +89,13 @@ def test_the_caddy_files_share_their_logs_and_their_maintenance() -> None:
     assert parts[0] == parts[1] == parts[2]
 
 
+def block_of(text: str, opening: str) -> str:
+    """Return a service of a compose file: from the line ``opening`` to the next line as little indented."""
+    lines = text[text.index(opening) + len(opening) :].split("\n")
+    end = next((i for i, line in enumerate(lines) if line and not line.startswith("    ")), len(lines))
+    return opening + "\n".join(lines[:end]) + "\n"
+
+
 @pytest.mark.parametrize(
     ("compose", "way"),
     [
@@ -102,7 +109,8 @@ def test_each_way_to_a_certificate_tells_the_api(compose: str, way: str) -> None
     overriding earlier ones as COMPOSE_FILE lists them, so that the privacy page says who holds the certificate and who
     receives a visitor's address on the deployment as it is set up."""
     text = (DEPLOY / "vm" / compose).read_text(encoding="utf-8")
-    assert f"  api:\n    environment:\n      IDTRACK_WEB_HTTPS_ROUTE: {way}\n" in text
+    service = block_of(text, "  api:\n")
+    assert f"    environment:\n      IDTRACK_WEB_HTTPS_ROUTE: {way}\n" in service
 
 
 def test_the_maintenance_page_is_allowed_its_style_and_nothing_else() -> None:
