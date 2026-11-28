@@ -400,7 +400,7 @@ const REACH = 12;
 
 /** The top of the window's free room: the bottom of the sticky masthead (a note never stands under it). */
 function freeTop(): number {
-  const header = document.querySelector(".masthead");
+  const header = document.querySelector("header.mast");
   return header ? Math.max(0, header.getBoundingClientRect().bottom) : 0;
 }
 
