@@ -62,7 +62,7 @@ test("Method: every stage is drawn on the real answer its case claims, linked to
       await scrollThrough(page);
       const figure = page.locator("figure.stage-case");
       await expect(figure).toContainText(walk.query.identifier);
-      await expect(figure.locator(".stage-thread__lit")).toHaveCount(1);
+      await expect(figure.locator(".stage-fig .stage-thread__lit")).toHaveCount(1);
       await figure.getByRole("button", { name: "Next step" }).click();
       await expect(figure.locator(".stage-replay__readout")).toContainText(/^Step 1 of \d+/);
     }

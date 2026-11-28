@@ -5,7 +5,7 @@
 // stand in the body, whose height is held while the answer comes (styles/method.css, by stage), so nothing above or
 // beside it moves; the caption says
 // its claim and the rest on a press, with the endpoint. A server that does not hold the graph a case was checked on
-// shows no case rather than a claim nobody checked.
+// shows no case rather than a claim nobody checked, in a place as tall as the case's.
 import { useId, type ReactNode } from "react";
 import { api } from "../../api/client";
 import type { ConversionResult, GraphDescription } from "../../api/types";
@@ -140,7 +140,19 @@ export function StageCase({
         <div className="stage-case__body stage-case__body--waiting" />
       </figure>
     );
-  if (!graph || (stage !== "walk" && !asked.query)) return null;
+  // A server that does not hold the graph this stage's case was checked on shows no case rather than a claim nobody
+  // checked; the figure's place stays as tall as it was held, so nothing under it moves.
+  if (!graph || (stage !== "walk" && !asked.query))
+    return (
+      <figure className={`stage-case stage-case--${stage}`}>
+        <div className="stage-case__body stage-case__body--waiting">
+          <p className="stage-case__failed">
+            This server does not hold the graph this stage&apos;s case was checked on (by its content digest), so no
+            case is drawn here; the stage is described above and its terms below.
+          </p>
+        </div>
+      </figure>
+    );
   const result = asked.result;
   // An answer that no longer shows what the stage is drawn for (another graph under the same digest cannot be; a
   // changed engine can) is not drawn as if it did.
