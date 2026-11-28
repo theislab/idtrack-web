@@ -1757,11 +1757,6 @@ th[aria-sort] .sort__mark {
   color: var(--ink-1);
 }
 
-.crossed__item.is-zero .crossed__name,
-.crossed__item.is-zero .crossed__count {
-  color: var(--ink-3);
-}
-
 .crossed__bar {
   height: 6px;
   background: var(--surface-sunk);
@@ -1792,10 +1787,6 @@ th[aria-sort] .sort__mark {
   text-align: right;
   font-size: var(--text-sm);
   font-variant-numeric: tabular-nums slashed-zero;
-}
-
-.crossed__none {
-  min-width: 1px;
 }
 
 .batch-readat__events {
@@ -2565,13 +2556,6 @@ th[aria-sort] .sort__mark {
 
 .b-decided__values .mono {
   color: var(--ink-1);
-}
-
-.b-evidence__notes {
-  display: inline-block;
-  margin-top: 2px;
-  font-size: var(--text-xs);
-  color: var(--ink-3);
 }
 
 .batch-retry {
