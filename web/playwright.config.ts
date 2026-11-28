@@ -2,8 +2,8 @@
 // frontend (as in production): E2E_BASE_URL (default http://127.0.0.1:8000). E2E_DATA names the graph's test data
 // (e2e/data/<name>.json: `pig` for the real pig graph, `cut` for the api tests' small graph); E2E_SCREENSHOTS the
 // folder the screenshots of every flow go to (default test-results/screenshots); E2E_BROWSER the browser engine
-// (`chromium`, the default, `firefox` or `webkit`, each installed by `npx playwright install <engine>`). SETUP.md,
-// "The frontend".
+// (`chromium`, the default, `firefox` or `webkit`, each installed by `npx playwright install <engine>`); E2E_GTAG a
+// copy of Google's tag recorded once, which the tests of counting visits serve in its place. SETUP.md, "The frontend".
 import { defineConfig, devices } from "@playwright/test";
 
 const baseURL = process.env["E2E_BASE_URL"] ?? "http://127.0.0.1:8000";
