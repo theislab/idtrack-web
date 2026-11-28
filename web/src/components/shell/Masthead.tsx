@@ -176,27 +176,43 @@ function preloadPointed(event: Event): void {
   if (to?.startsWith("/")) void preloadRoute(new URL(to, window.location.href).pathname);
 }
 
-/** Where the masthead scrolls with the page (a phone, a short window), it slides back in when the page is scrolled
- *  up, and away again when it is scrolled down. */
+/** Where the masthead scrolls with the page (a phone, a short window), it slides back in when the reader scrolls the
+ *  page up (a finger or a wheel), and away again when it goes down or the focus moves into the page: a scroll the page
+ *  makes itself (bringing a focused element into view) never brings it back over what it shows. */
 function useHeadroom(): boolean {
   const [away, setAway] = useState(false);
   const last = useRef(0);
+  const touched = useRef(0);
   useEffect(() => {
     const matchMedia = (window as { matchMedia?: Window["matchMedia"] }).matchMedia;
     const fixed =
       typeof matchMedia === "function" ? matchMedia.call(window, "(min-width: 641px) and (min-height: 600px)") : null;
     last.current = window.scrollY;
+    const byReader = () => {
+      touched.current = Date.now();
+    };
     const onScroll = () => {
       const y = window.scrollY;
       const step = y - last.current;
       if (fixed?.matches || y < 64) setAway(false);
       else if (step > 4) setAway(true);
-      else if (step < -4) setAway(false);
+      else if (step < -4 && Date.now() - touched.current < 800) setAway(false);
       if (Math.abs(step) > 4) last.current = y;
     };
+    const onFocus = (event: FocusEvent) => {
+      const target = event.target;
+      if (window.scrollY >= 64 && target instanceof Element && !target.closest(".mast") && !fixed?.matches)
+        setAway(true);
+    };
     window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("wheel", byReader, { passive: true });
+    window.addEventListener("touchmove", byReader, { passive: true });
+    document.addEventListener("focusin", onFocus);
     return () => {
       window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("wheel", byReader);
+      window.removeEventListener("touchmove", byReader);
+      document.removeEventListener("focusin", onFocus);
     };
   }, []);
   return away;

@@ -34,9 +34,14 @@ test("a branch that outranks the id's own continuation is said beside the status
   const alert = cautions.locator(".answer__caution--alert");
   await expect(alert).toContainText("Another gene may be the one meant");
   await expect(alert).toContainText("the id's own continuation ranks below a branch");
-  // The limitation it falls under is on the card of what it rests on, a press on its (i) away.
+  // The limitation it falls under is on the card of what it rests on, a press on its (i) away; the card is drawn over
+  // the page, named by its trigger.
   await alert.getByRole("button", { name: /^What .* rests on$/ }).click();
-  await expect(alert.getByRole("link", { name: /A branch can outrank the gene's own continuation/ })).toBeVisible();
+  await expect(
+    page
+      .getByRole("region", { name: /^What .* rests on$/ })
+      .getByRole("link", { name: /A branch can outrank the gene's own continuation/ }),
+  ).toBeVisible();
   await expectAccessible(page);
 });
 
