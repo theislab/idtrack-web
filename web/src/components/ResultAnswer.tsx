@@ -24,7 +24,7 @@ import {
 import { docsPage } from "../lib/links";
 import { bestWords, noTargetOf, NOT_HELD_WORDS, notHeldScheme, type NoTarget } from "../lib/noTarget";
 import { looksLikeSpreadsheetDate } from "../lib/batchList";
-import { groupedInteger, releaseRanges } from "../lib/numbers";
+import { groupedInteger } from "../lib/numbers";
 import { commonName, organismName } from "../lib/organismNames";
 import type { PathModel } from "../lib/pathModel";
 import { assemblyText, stableId, type AssemblyNames } from "../lib/pathReading";
@@ -35,7 +35,7 @@ import { useVocabulary } from "../lib/vocabularyContext";
 import { readerText, statusTone } from "../lib/resultWords";
 import { EvidenceCard } from "./Evidence";
 import { lowerFirst, sentenceCase, standingClaim, verdictOrder } from "../lib/evidenceWords";
-import { pathEvents, sameGeneReading } from "../lib/answerWords";
+import { pathEvents } from "../lib/answerWords";
 import { IdMenu, SymbolOf, type IdContext } from "./IdMenu";
 import { Reasons, Term } from "./ResultParts";
 import { Drawer } from "./v2/Drawer";
@@ -515,60 +515,6 @@ function AnswerTargets({
   );
 }
 
-/** What the string meant at other releases, where it led to another gene than the answer, with a way to read it there
- *  (a list of that time means that gene). A reading that leads to the answer's own gene is no other meaning: it is
- *  stated on the Reading tab, not here. */
-function OtherMeanings({
-  result,
-  readAtHref,
-  context,
-}: {
-  result: ConversionResult;
-  readAtHref: (release: number) => string;
-  context: IdContext;
-}) {
-  const others = result.other_readings.filter(
-    (r) => r.reason === "other_release" && r.releases.length && !sameGeneReading(result, r),
-  );
-  if (!others.length) return null;
-  return (
-    <ul className="answer__meanings">
-      {others.map((reading) => {
-        const at = reading.releases[reading.releases.length - 1];
-        return (
-          <li key={`${reading.graph_id}|${reading.releases.join(",")}`}>
-            At releases <Mono>{releaseRanges(reading.releases)}</Mono>,{" "}
-            <Mono>
-              <bdi>{result.query_id}</bdi>
-            </Mono>{" "}
-            {reading.graph_id === result.query_id && reading.genes.length ? (
-              "named another gene"
-            ) : reading.graph_id === result.query_id ? (
-              "named a gene"
-            ) : (
-              <>
-                was read as <Mono>{reading.graph_id}</Mono>
-              </>
-            )}
-            ; read there, it answers{" "}
-            {reading.genes.length
-              ? reading.genes.map((gene, i) => (
-                  <span key={gene}>
-                    {i ? ", " : ""}
-                    <IdMenu id={gene} release={result.to_release} context={context} strong />{" "}
-                    <SymbolOf gene={gene} context={context} />
-                  </span>
-                ))
-              : "no gene"}{" "}
-            at release <Mono>{result.to_release}</Mono>. A list made at that time means that gene.{" "}
-            {at !== undefined ? <Link to={readAtHref(at)}>Read it at release {at} →</Link> : null}
-          </li>
-        );
-      })}
-    </ul>
-  );
-}
-
 /** "; its path holds Ensembl's splits at 60 → 61 and 63 → 64 and a merge at 62 → 63", or nothing (`own`: as a
  *  sentence of its own). */
 function EventsClause({ model, own = false }: { model: PathModel; own?: boolean }) {
@@ -720,6 +666,12 @@ function CautionLines({
                 <>
                   {" "}
                   <Link to={askHref(mark.ask)}>{mark.ask.words} →</Link>
+                </>
+              ) : null}
+              {mark.readAt !== undefined ? (
+                <>
+                  {" "}
+                  <Link to={readAtHref(mark.readAt)}>Read it at release {mark.readAt} →</Link>
                 </>
               ) : null}{" "}
               <HoverCard
@@ -1390,7 +1342,6 @@ export const AnswerPanel = memo(function AnswerPanel({
         {status}
         {sentence}
         {cautionLines}
-        <OtherMeanings result={result} readAtHref={readAtHref} context={context} />
         <ReasonNotes result={result} />
       </>
     );

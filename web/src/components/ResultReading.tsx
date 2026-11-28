@@ -26,7 +26,7 @@ import { ABSENT } from "../lib/values";
 import { useVocabulary } from "../lib/vocabularyContext";
 import { IdMenu, type IdContext } from "./IdMenu";
 import { FigurePanel, Match, Reasons, Term } from "./ResultParts";
-import { sameGeneReading, visibleCharacters } from "../lib/answerWords";
+import { visibleCharacters } from "../lib/answerWords";
 import { usePhone } from "../lib/usePhone";
 import { Button, CopyButton, Mono, Readout, Select, TableFrame } from "./ui";
 import { useWidth } from "./figure/useWidth";
@@ -568,9 +568,6 @@ export function OtherReadings({ result, context }: { result: ConversionResult; c
                         </span>
                       ))
                     : "no gene"}
-                  {sameGeneReading(result, reading) ? (
-                    <span className="muted"> (the answer&apos;s own gene)</span>
-                  ) : null}
                 </td>
                 <td data-label="At releases">
                   {reading.releases.length ? <Mono>{reading.releases.join(", ")}</Mono> : ABSENT}

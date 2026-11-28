@@ -350,19 +350,6 @@
   font-weight: var(--weight-strong);
 }
 
-/* What the string meant at other releases: under the caution that names it, its words set in from the triangles, with
-   the gene it answers there and the way to read it then (no second frame: the caution is the mark). */
-.answer__meanings {
-  display: grid;
-  gap: var(--space-1);
-  margin: 0;
-  padding: 0 0 0 calc(18px + var(--space-1));
-  list-style: none;
-  max-width: 920px;
-  font-size: var(--text-sm);
-  color: var(--ink-2);
-}
-
 .answer__note-code {
   font-size: var(--text-2xs);
   color: var(--ink-3);
@@ -2578,8 +2565,16 @@ a.anatomy__link:hover .anatomy__go {
   min-width: 0;
 }
 
+/* While the life of an identifier is asked for, its room is held at the height of a life of one gene (the most common:
+   measured 270 px on a wide screen, 355 to 377 px on a phone), so the verdict moves little when it comes. */
 .life--waiting {
-  min-height: 120px;
+  min-height: 270px;
+}
+
+@media (max-width: 640px) {
+  .life--waiting {
+    min-height: 360px;
+  }
 }
 
 .life__words {

@@ -1,18 +1,7 @@
-// Facts of one answer that its verdict and its Reading tab state in words: whether a reading at other releases leads
-// to the answer's own gene, Ensembl's events on the best answer's path, an identifier as typed with what a Unicode
-// normalisation removed made visible (components/ResultAnswer.tsx, components/ResultReading.tsx).
-import type { ConversionResult } from "../api/types";
+// Facts of one answer that its verdict and its Reading tab state in words: Ensembl's events on the best answer's path,
+// and an identifier as typed with what a Unicode normalisation removed made visible (components/ResultAnswer.tsx,
+// components/ResultReading.tsx).
 import type { PathModel } from "./pathModel";
-
-/** Whether a reading of the string at other releases leads to the best answer's genes alone: the string was then a name
- *  of the same gene (no other meaning a reader must weigh). */
-export function sameGeneReading(
-  result: ConversionResult,
-  reading: ConversionResult["other_readings"][number],
-): boolean {
-  const best = new Set(result.candidates.filter((c) => c.best).map((c) => c.gene));
-  return reading.genes.length > 0 && reading.genes.every((gene) => best.has(gene));
-}
 
 /** Ensembl's events of a reason on the best path, in the page's words ("split" -> "splits"). */
 const EVENT_WORDS: Record<string, [string, string]> = {

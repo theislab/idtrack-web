@@ -74,25 +74,27 @@ afterEach(() => {
 });
 
 describe("a reading at other releases", () => {
-  it("that leads to the answer's own gene is no other meaning on the verdict, and is named so on the Reading tab", () => {
+  it("that leads to the answer's own gene is the api's note, not a caution: no other meaning on the verdict", () => {
     const result = show("convert_other_release_same_gene");
-    const reading = result.other_readings.find((r) => r.reason === "other_release");
-    const best = result.candidates.find((c) => c.best);
+    const codes = result.cautions.map((c) => c.code);
     // The recorded answer: C17orf44 read at 67; at its other releases it is read as the same gene.
-    expect(reading?.genes).toEqual([best?.gene]);
-    expect(document.querySelector(".answer__meanings")).toBeNull();
-    expect(text(".answer")).not.toContain("named another gene");
-    openTab("Reading");
-    expect(document.body.textContent).toContain("(the answer's own gene)");
+    expect(codes).toContain("other_release_same_gene");
+    expect(codes).not.toContain("other_release");
+    const verdict = text(".answer");
+    expect(verdict).not.toContain("named another gene");
+    expect(screen.queryAllByRole("link", { name: /^Read it at release/ })).toHaveLength(0);
+    openTab(/^Evidence/);
+    expect(document.body.textContent).toContain("the same gene at releases");
   });
 
-  it("that leads to another gene says so on the verdict, with the way to read it there", () => {
+  it("that leads to another gene is the api's caution on the verdict, with the way to read it there", () => {
     const result = show("convert_other_release_rnr1");
-    const other = result.other_readings.find((r) => r.reason === "other_release" && r.genes.length);
-    const best = new Set(result.candidates.filter((c) => c.best).map((c) => c.gene));
-    expect(other?.genes.some((g) => !best.has(g))).toBe(true);
-    expect(text(".answer__meanings")).toMatch(/named another gene|was read as/);
-    expect(screen.getAllByRole("link", { name: /^Read it at release \d+/ }).length).toBeGreaterThan(0);
+    const caution = result.cautions.find((c) => c.code === "other_release");
+    expect(caution?.read_at).not.toBeNull();
+    const line = [...document.querySelectorAll(".answer__caution")].find((l) =>
+      l.textContent.toLowerCase().includes((caution?.label ?? "-").toLowerCase()),
+    );
+    expect(line?.querySelector("a")?.textContent).toBe(`Read it at release ${caution?.read_at ?? ""} →`);
   });
 });
 
@@ -131,7 +133,7 @@ describe("the cautions and notes of the verdict", () => {
     expect(lines[0]?.textContent).toMatch(/^Another gene may be the one meant: /);
     const bridge = lines.find((l) => l.textContent.startsWith("Through 1 bridge"));
     expect(bridge?.textContent).toMatch(
-      /^Through 1 bridge: that is idtrack's inference; no record of Ensembl states it\./,
+      /^Through 1 bridge: that is IDTrack's inference; no record of Ensembl states it\./,
     );
     // Each line ends in a sentence and carries a visible (i) that opens what it rests on.
     for (const line of lines) {
@@ -191,7 +193,7 @@ describe("the cautions and notes of the verdict", () => {
   it("reads a class's standing claim only where the answer's own text closes with it", () => {
     const marks = evidenceOf(load("convert_showcase_bridge"), vocabulary);
     const bridge = marks.find((m) => m.kind === "bridge");
-    expect(bridge && standingClaim(bridge)).toBe("That is idtrack's inference; no record of Ensembl states it.");
+    expect(bridge && standingClaim(bridge)).toBe("That is IDTrack's inference; no record of Ensembl states it.");
     for (const mark of marks.filter((m) => m.kind !== "bridge")) expect(standingClaim(mark)).toBeNull();
   });
 });
