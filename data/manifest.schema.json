@@ -51,7 +51,7 @@
         },
         "lineages": {
           "$ref": "#/$defs/ManifestFile",
-          "description": "The lineages of the graph's gene ids, computed from the graph by the publisher and read by the server at start (`GET /organisms/{organism}/lineages`)."
+          "description": "The lineages of the graph's gene ids, computed from the graph by the publisher and read by the server at start (`GET /api/v1/organisms/{organism}/lineages`)."
         },
         "content_digest": {
           "description": "The graph's content digest (its build's).",
