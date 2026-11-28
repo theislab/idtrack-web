@@ -356,16 +356,20 @@ test("one result, one count on every tab: an identifier the graph did not match 
       data: { identifiers: data.batch, from_release: top, explain: false },
     })
   ).json()) as { results: { graph_id: string | null; from_release: number | null }[] };
+  // Read at a release only where the graph matched the identifier; the others at none, whatever release was given.
   const none = asked.results.filter((r) => r.graph_id === null).length;
   expect(none).toBeGreaterThan(0);
+  const byRelease = new Map<number, number>();
+  for (const r of asked.results)
+    if (r.graph_id !== null && r.from_release !== null)
+      byRelease.set(r.from_release, (byRelease.get(r.from_release) ?? 0) + 1);
   await page.getByRole("button", { name: /^Filter and sort/ }).click();
   await expect(page.getByRole("group", { name: "Show the rows by read" })).toContainText(`not read ${String(none)}`);
   await page.getByRole("tab", { name: "Through the releases" }).click();
   await expect(page).toHaveURL(/view=releases/);
-  await expect(page.locator(".batch-readat__data")).toContainText(`${String(none)} read at no release`);
-  await expect(page.locator(".batch-readat__data")).toContainText(
-    `${String(top)} (${String(data.batch.length - none)})`,
-  );
+  const line = page.locator(".batch-readat__data").first();
+  await expect(line).toContainText(`${String(none)} read at no release`);
+  for (const [release, n] of byRelease) await expect(line).toContainText(`${String(release)} (${String(n)})`);
   await page.reload();
   await expect(page.getByRole("tab", { name: "Through the releases" })).toHaveAttribute("aria-selected", "true");
 });

@@ -1390,7 +1390,29 @@ function ResultsTable({
         ),
       });
     if (!reading) list.push({ key: "read", title: "Read", sort: "release", width: 128 });
-    list.push({ key: "decided", title: "Decided by", sort: "decided", width: 132 });
+    // The runner-up a decided row names stands whole on its line (an id where no name is beside it).
+    list.push({
+      key: "decided",
+      title: "Decided by",
+      sort: "decided",
+      width: Math.max(
+        132,
+        monoWidth(
+          longest(
+            rows.flatMap((r) =>
+              r.result.decided_by
+                ? r.result.candidates
+                    .filter((c) => !c.best)
+                    .slice(0, 1)
+                    .flatMap((c) => [c.gene, ...namesOfGene(names, c.gene).slice(0, 1)])
+                : [],
+            ),
+            0,
+            26,
+          ),
+        ),
+      ),
+    });
     if (anyEvidence) list.push({ key: "evidence", title: "Cautions", sort: "evidence", width: 172 });
     list.push({ key: "path", title: "", width: 58 });
     return list;
@@ -1738,17 +1760,10 @@ function CriterionText({ text }: { text: string }) {
   );
 }
 
-/** The runner-up of a decision by its name beside the genes where it has one, else its id (the id on focus). */
+/** The runner-up of a decision by its name beside the genes where it has one, else its id (both in the opened row). */
 function RunnerUp({ gene, names }: { gene: string; names: NamesState }) {
   const own = names.state === "done" ? namesOfGene(names, gene) : [];
-  return own.length ? (
-    <span className="mono" title={gene}>
-      {own[0]}
-      <span className="visually-hidden"> ({gene})</span>
-    </span>
-  ) : (
-    <Mono>{gene}</Mono>
-  );
+  return <Mono>{own[0] ?? gene}</Mono>;
 }
 
 /** A few genes with their names, then "and N more" (every one is in the opened row). */
