@@ -855,13 +855,13 @@ $ IDTRACK_WEB_SOURCE=directory IDTRACK_WEB_DIRECTORY=/tmp/idtrack-store IDTRACK_
     IDTRACK_WEB_RATE_PER_MINUTE=0 IDTRACK_WEB_STATIC_DIR=<repository>/web/dist uv run --no-sync idtrack-web serve &
 $ cd ../web && E2E_BASE_URL=http://127.0.0.1:8000 E2E_DATA=cut npm run e2e
 ...
-  74 skipped
-  350 passed (5.9m)
+  168 skipped
+  552 passed (7.5m)
 ```
 
-- `E2E_DATA` names the graph the server holds: `cut` (the api tests' small pig graph, as CI), `pig` (the real pig graph: publish it instead, section 7) or `human` (the real human graph, which needs a server with more memory, section 9; it adds a very large answer, 368 candidates, and genes on alternative loci). Each is `web/e2e/data/<name>.json`, the identifiers each flow uses (and its `cases`); a new graph needs its own file. Measured with IDTrack 0.1.2 and the graphs of format 6, in Chromium: `cut` 350 passed, 74 skipped; `pig` 406 passed, 58 skipped; `human` 414 passed, 50 skipped.
+- `E2E_DATA` names the graph the server holds: `cut` (the api tests' small pig graph, as CI), `pig` (the real pig graph: publish it instead, section 7) or `human` (the real human graph, which needs a server with more memory, section 9; it adds a very large answer, 368 candidates, and genes on alternative loci). Each is `web/e2e/data/<name>.json`, the identifiers each flow uses (and its `cases`); a new graph needs its own file. Measured with IDTrack 0.1.2 and the graphs of format 6, in Chromium, with four workers: `cut` 552 passed, 168 skipped (7.5 minutes); `human` 648 passed, 116 skipped (10.9 minutes); `pig` 635 passed, 128 skipped, and one test of Explore's id history (`e2e/explore.spec.ts:144`) failed at one of its four sizes and themes (the keyboard's End reached release 63, not the last), and passed at each of them run again three times.
 - `IDTRACK_WEB_RATE_PER_MINUTE=0`: the tests send several hundred requests from one address, which the default rate limit would refuse.
-- The skipped: the zoom test is the wide screens' and the timeline test the phones' (4); the sweep of every page at four widths sets its own widths and runs once per theme, in the desktop projects (20), and the masthead's test is the wide screens' (2); the two flows of `web/e2e/graph.spec.ts` run only where the graph's data names their identifiers (human).
+- The skipped: a test of one size runs at that size only (the zoom and the masthead's tests the wide screens', the timeline the phones'); the sweep of every page at four widths sets its own widths and runs once per theme, in the desktop projects; the two flows of `web/e2e/graph.spec.ts` run only where the graph's data names their identifiers (human).
 - Screenshots go to `web/test-results/screenshots/<flow>--<desktop|phone>-<light|dark>.png` (or `E2E_SCREENSHOTS`); a report to `web/playwright-report/` (`npx playwright show-report`). CI keeps both as the artefact `e2e-report`.
 - `PLAYWRIGHT_BROWSERS_PATH` sets where the browsers are kept (by default the user's cache).
 - `E2E_BROWSER=firefox` (after `npx playwright install firefox`) runs the same tests in Firefox: `pig` 156 passed, 12 skipped. `webkit` needs the browser's system libraries (`npx playwright install --with-deps webkit`, as root) and has not been run.
