@@ -770,8 +770,10 @@
   white-space: nowrap;
 }
 
+/* Never a scrolling box: a family's hover card opens over the rows above and below it, unclipped; the tables fit (on
+   a narrow screen each family is a block). */
 .accuracy__frame {
-  overflow-x: auto;
+  overflow: visible;
 }
 
 .accuracy__table {
@@ -1022,6 +1024,59 @@
   color: var(--ink-2);
 }
 
+/* Below the width the five organisms' columns need, the matrix is a block per family, its organisms in a grid. */
+@media (max-width: 1000px) {
+  .accuracy__table--all thead tr:first-child {
+    position: absolute;
+    inline-size: 1px;
+    block-size: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+
+  .accuracy__table--all,
+  .accuracy__table--all thead,
+  .accuracy__table--all tbody {
+    display: block;
+  }
+
+  .accuracy__table--all .accuracy__axis-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .accuracy__table--all .accuracy__axis-row td:not(:first-child, :nth-child(2)) {
+    display: none;
+  }
+
+  .accuracy__table--all tbody tr {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    border-bottom: 1px solid var(--line);
+    padding-bottom: var(--space-2);
+  }
+
+  .accuracy__table--all tbody th {
+    grid-column: 1 / -1;
+    border: 0;
+    padding-inline: 0;
+  }
+
+  .accuracy__table--all tbody td {
+    min-width: 0;
+    border: 0;
+    padding: var(--space-1) var(--space-2) var(--space-1) 0;
+    text-align: left;
+  }
+
+  .accuracy__table--all tbody td::before {
+    content: attr(data-label);
+    display: block;
+    font-size: var(--text-xs);
+    color: var(--ink-3);
+  }
+}
+
 /* In the matrix's narrow columns the axis names its ends and 10⁻² (every tick is drawn). */
 .accuracy__axis-row .wrong-axis__tick:nth-child(2) .wrong-axis__label {
   display: none;
@@ -1088,56 +1143,6 @@
   .accuracy__tabs .tabs__list,
   .method-using__tabs .tabs__list {
     mask-image: linear-gradient(to right, #000000 calc(100% - 24px), transparent);
-  }
-
-  .accuracy__table--all thead tr:first-child {
-    position: absolute;
-    inline-size: 1px;
-    block-size: 1px;
-    overflow: hidden;
-    clip-path: inset(50%);
-  }
-
-  .accuracy__table--all,
-  .accuracy__table--all thead,
-  .accuracy__table--all tbody {
-    display: block;
-  }
-
-  .accuracy__table--all .accuracy__axis-row {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .accuracy__table--all .accuracy__axis-row td:not(:first-child, :nth-child(2)) {
-    display: none;
-  }
-
-  .accuracy__table--all tbody tr {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    border-bottom: 1px solid var(--line);
-    padding-bottom: var(--space-2);
-  }
-
-  .accuracy__table--all tbody th {
-    grid-column: 1 / -1;
-    border: 0;
-    padding-inline: 0;
-  }
-
-  .accuracy__table--all tbody td {
-    min-width: 0;
-    border: 0;
-    padding: var(--space-1) var(--space-2) var(--space-1) 0;
-    text-align: left;
-  }
-
-  .accuracy__table--all tbody td::before {
-    content: attr(data-label);
-    display: block;
-    font-size: var(--text-xs);
-    color: var(--ink-3);
   }
 }
 
