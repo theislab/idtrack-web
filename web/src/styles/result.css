@@ -735,10 +735,6 @@ a.anatomy__link:hover .anatomy__go {
   margin-left: auto;
 }
 
-.pv-toolbar__group {
-  display: inline-flex;
-}
-
 .pv-tool,
 .pv-tool.button--quiet {
   min-height: 32px;
@@ -748,12 +744,6 @@ a.anatomy__link:hover .anatomy__go {
   font-size: var(--text-sm);
   font-weight: var(--weight-medium);
   color: var(--ink-2);
-}
-
-.pv-toolbar__group .pv-tool {
-  min-width: 32px;
-  font-family: var(--font-mono);
-  font-size: var(--text-md);
 }
 
 @media (hover: hover) {
