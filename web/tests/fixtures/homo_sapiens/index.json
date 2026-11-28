@@ -1415,5 +1415,50 @@
   "status": 200,
   "content_type": "application/json",
   "file": "convert_tie_entry_genes.json"
+ },
+ {
+  "name": "showcase_merge_back",
+  "method": "GET",
+  "path": "/organisms/homo_sapiens/convert",
+  "query": {
+   "identifier": "ENSG00000258574",
+   "explain": "true",
+   "from_release": 64,
+   "to_release": 48
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "showcase_merge_back.json"
+ },
+ {
+  "name": "showcase_replaced_back",
+  "method": "GET",
+  "path": "/organisms/homo_sapiens/convert",
+  "query": {
+   "identifier": "ENSG00000291237",
+   "explain": "true",
+   "from_release": 115,
+   "to_release": 48
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "showcase_replaced_back.json"
+ },
+ {
+  "name": "showcase_split_back",
+  "method": "GET",
+  "path": "/organisms/homo_sapiens/convert",
+  "query": {
+   "identifier": "ENSG00000239975",
+   "explain": "true",
+   "from_release": 115,
+   "to_release": 48
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "showcase_split_back.json"
  }
 ]

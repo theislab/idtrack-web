@@ -1207,5 +1207,50 @@
   "status": 200,
   "content_type": "application/json",
   "file": "databases.json"
+ },
+ {
+  "name": "showcase_merge_back",
+  "method": "GET",
+  "path": "/organisms/sus_scrofa/convert",
+  "query": {
+   "identifier": "ENSSSCG00000052456",
+   "explain": "true",
+   "from_release": 115,
+   "to_release": 56
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "showcase_merge_back.json"
+ },
+ {
+  "name": "showcase_replaced_back",
+  "method": "GET",
+  "path": "/organisms/sus_scrofa/convert",
+  "query": {
+   "identifier": "ENSSSCG00000030921",
+   "explain": "true",
+   "from_release": 115,
+   "to_release": 56
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "showcase_replaced_back.json"
+ },
+ {
+  "name": "showcase_split_back",
+  "method": "GET",
+  "path": "/organisms/sus_scrofa/convert",
+  "query": {
+   "identifier": "ENSSSCG00000060783",
+   "explain": "true",
+   "from_release": 115,
+   "to_release": 56
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "showcase_split_back.json"
  }
 ]

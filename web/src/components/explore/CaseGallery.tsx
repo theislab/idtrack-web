@@ -7,7 +7,8 @@
 import { docsPage } from "../../lib/links";
 import { useEffect, useId, useState, type ReactNode } from "react";
 import type { Candidate, ConversionResult, GraphDescription, PathStep, ShowcaseResponse } from "../../api/types";
-import { bestSteps, isCaseKind, type CaseKind } from "../../lib/home/caseKinds";
+import { bestSteps, isCaseKind, isHandoff, type CaseKind } from "../../lib/home/caseKinds";
+import { conceptClauses, ensemblSteps, journeySteps, walksBack, type EnsemblStep } from "../../lib/path/steps";
 import { KIND_TEXT } from "../../lib/home/cases";
 import { isEnsembl } from "../../lib/home/journeyModel";
 import { caseHref, caseQueryOf } from "../../lib/home/links";
@@ -117,11 +118,67 @@ function candidateStep(result: ConversionResult, candidate: Candidate | undefine
   return [...candidate.path, ...candidate.final_path].map((i) => steps[i]).find((x) => x && reasons.includes(x.reason));
 }
 
-const stepOf = (result: ConversionResult, reasons: readonly string[]): PathStep | undefined =>
-  bestSteps(result).find((s) => reasons.includes(s.reason));
+/** The first step of the best path of the first of `reasons` it holds (the kind's own reason before a combined one),
+ *  in Ensembl's direction. */
+function stepOf(result: ConversionResult, reasons: readonly string[]): EnsemblStep | undefined {
+  const steps = ensemblSteps(result);
+  for (const reason of reasons) {
+    const found = steps.find((s) => s.step.reason === reason);
+    if (found) return found;
+  }
+  return undefined;
+}
 
-/** The facts of a case's answer, in one or two sentences, every value the api's. */
-function CaseStory({
+/** What Ensembl recorded at a history step, in its own direction (the earlier id, then the later), every count the
+ *  api's: a split names the other ids the earlier id passed to, a merge the other ids the later id received; then, for
+ *  a step the walk took from the later id to the earlier, that it followed the step back. */
+function EnsemblEvent({ s }: { s: EnsemblStep | undefined }) {
+  if (!s) return <>—</>;
+  const earlier = <Mono>{s.earlier ?? "—"}</Mono>;
+  const later = <Mono>{s.later}</Mono>;
+  const { splits, merges, reason } = s.step;
+  const what =
+    splits > 0 && merges > 0 ? (
+      <>
+        Ensembl split {earlier} into {later} and {plural(splits, "other id")}, and merged {plural(merges, "other id")}{" "}
+        into {later}
+      </>
+    ) : splits > 0 ? (
+      <>
+        Ensembl split {earlier} into {later} and {plural(splits, "other id")}
+      </>
+    ) : merges > 0 ? (
+      <>
+        Ensembl merged {earlier} and {plural(merges, "other id")} into {later}
+      </>
+    ) : reason === "replaced" ? (
+      <>
+        Ensembl replaced {earlier} by {later}
+      </>
+    ) : (
+      <>
+        Ensembl followed {earlier} by {later} ({spaced(reason)})
+      </>
+    );
+  return (
+    <>
+      at releases {s.old}→{s.new} {what}
+      {s.backward ? (
+        <>
+          ; the walk followed it back, from {later} to {earlier}
+        </>
+      ) : null}
+    </>
+  );
+}
+
+/** A step's score as the api sent it (none: "no score"). */
+const scoreOf = (step: PathStep | null | undefined) =>
+  step?.weight === null || step?.weight === undefined ? "no score" : pythonFloat(step.weight);
+
+/** The facts of a case's answer, in one or two sentences, every value the api's; every history step in Ensembl's
+ *  direction. */
+export function CaseStory({
   kind,
   result,
   graph,
@@ -142,6 +199,7 @@ function CaseStory({
   life?: SketchLife | null;
 }) {
   const targets = targetsOf(result);
+  const back = walksBack(result);
   const asm = (key: number | null) =>
     key === null ? "—" : (graph.assemblies.find((a) => a.assembly === key)?.name ?? String(key));
   const db =
@@ -170,7 +228,7 @@ function CaseStory({
         </>
       );
     case "new_version": {
-      const n = bestSteps(result).filter((s) => s.reason === "new_version").length;
+      const n = journeySteps(result).filter((s) => s.reason === "new_version").length;
       return (
         <>
           {read} is {answer}: {plural(n, "new version")}, the product of Ensembl&apos;s scores{" "}
@@ -182,9 +240,7 @@ function CaseStory({
       const s = stepOf(result, ["replaced"]);
       return (
         <>
-          {read} is {answer}: at releases {s?.old_release}→{s?.new_release} Ensembl replaced{" "}
-          <Mono>{s?.source ?? "—"}</Mono> by <Mono>{s?.target ?? "—"}</Mono>, with its score{" "}
-          <Mono>{s?.weight === null || s?.weight === undefined ? "—" : pythonFloat(s.weight)}</Mono>.
+          {read} is {answer}: <EnsemblEvent s={s} />, with its score <Mono>{s ? scoreOf(s.step) : "—"}</Mono>.
         </>
       );
     }
@@ -194,14 +250,21 @@ function CaseStory({
       const runner = runnerUp ? (candidateStep(result, runnerUp, ["split", "split_and_merge"]) ?? null) : null;
       const own = best ? (candidateStep(result, best, ["split", "split_and_merge"]) ?? null) : null;
       const place = (step: PathStep | null) => (step?.places ? ` (${spaced(step.places)})` : "");
-      const weight = (step: PathStep | null) =>
-        step?.weight === null || step?.weight === undefined ? "no score" : pythonFloat(step.weight);
       const same = own !== null && runner !== null && own.weight === runner.weight;
+      const genes = new Set(result.candidates.map((c) => c.gene)).size;
       return (
         <>
-          {read}: at releases {s?.old_release}→{s?.new_release} Ensembl&apos;s history records a{" "}
-          {spaced(s?.reason ?? "split")}; {plural(new Set(result.candidates.map((c) => c.gene)).size, "gene")} descend
-          from it at {result.to_release}. The best is {few(targets, 1, symbols)}
+          {read}: <EnsemblEvent s={s} />;{" "}
+          {back ? (
+            <>
+              walked back, it leads to its {plural(genes, "ancestor")} at {result.to_release}
+            </>
+          ) : (
+            <>
+              {plural(genes, "gene")} descend from it at {result.to_release}
+            </>
+          )}
+          . The best is {few(targets, 1, symbols)}
           {runnerUp ? (
             <>
               , the next <Gene id={runnerUp.target} symbols={symbols} />
@@ -211,7 +274,7 @@ function CaseStory({
           {own && runner ? (
             same ? (
               <>
-                The split itself scores both <Mono>{weight(own)}</Mono>
+                The split itself scores both <Mono>{scoreOf(own)}</Mono>
                 {place(own) || place(runner) ? (
                   <>
                     {" "}
@@ -223,8 +286,8 @@ function CaseStory({
               </>
             ) : (
               <>
-                The split itself scores <Mono>{weight(own)}</Mono>
-                {place(own)} and <Mono>{weight(runner)}</Mono>
+                The split itself scores <Mono>{scoreOf(own)}</Mono>
+                {place(own)} and <Mono>{scoreOf(runner)}</Mono>
                 {place(runner)}; the products of Ensembl&apos;s scores along each path,{" "}
                 <Mono>{best ? pythonFloat(best.score) : "—"}</Mono> and <Mono>{pythonFloat(runnerUp?.score ?? 0)}</Mono>
                 , rank them
@@ -243,24 +306,17 @@ function CaseStory({
       const s = stepOf(result, ["merge", "split_and_merge"]);
       return (
         <>
-          {read} is {answer}: at releases {s?.old_release}→{s?.new_release} Ensembl merged it with{" "}
-          {plural(s?.merges ?? 0, "other gene")} into <Mono>{s?.target ?? "—"}</Mono>
-          {s?.places ? ` (${spaced(s.places)})` : ""}.
+          {read} is {answer}: <EnsemblEvent s={s} />
+          {s?.step.places ? ` (${spaced(s.step.places)})` : ""}.
         </>
       );
     }
     case "handoff":
     case "lineage": {
-      const hand = bestSteps(result).filter(
-        (s) =>
-          (s.kind === "history" || s.kind === "self_loop") &&
-          s.old_assembly !== null &&
-          s.assembly !== null &&
-          s.old_assembly !== s.assembly,
-      );
+      const hand = journeySteps(result).filter(isHandoff);
       return (
         <>
-          {read} is {answer}, across{" "}
+          {read} is {answer}, {back ? "walked back " : ""}across{" "}
           {hand.map((s, i) => (
             <span key={i}>
               {i ? ", " : ""}
@@ -272,12 +328,15 @@ function CaseStory({
       );
     }
     case "bridge": {
-      const near = stepOf(result, ["bridge_near"]);
-      const far = stepOf(result, ["bridge_far"]);
+      const near = journeySteps(result).find((s) => s.reason === "bridge_near");
+      // The gene the bridge lands in: the first step out of it that enters an Ensembl gene (a bridge can pass through
+      // a translation and a transcript of that gene on its way).
+      const gene = new Set((result.path?.nodes ?? []).filter((n) => n.kind === "ensembl_gene").map((n) => n.id));
+      const far = journeySteps(result).find((s) => s.reason === "bridge_far" && gene.has(s.target));
       return (
         <>
-          {read} is {answer}: Ensembl&apos;s history of <Mono>{near?.source ?? "—"}</Mono> ends, and a bridge passes
-          through{" "}
+          {read} is {answer}: Ensembl&apos;s history of <Mono>{near?.source ?? "—"}</Mono> goes no{" "}
+          {back ? "further back" : "further"}, and a bridge passes through{" "}
           {near ? (
             <>
               <Mono>{near.target}</Mono> ({near.databases.map(databaseLabel).join(", ")})
@@ -327,12 +386,16 @@ function CaseStory({
     }
     case "refused": {
       const s = (result.path?.refused ?? []).find((x) => x.reason === "mitochondrial_genome");
-      const near = stepOf(result, ["bridge_near"]);
-      const far = stepOf(result, ["bridge_far"]);
+      // A refused history step, in Ensembl's direction: walking back, the walk would have gone from its target
+      // (the later id) to its source.
+      const [earlier, later] = back ? [s?.target, s?.source] : [s?.source, s?.target];
+      const near = journeySteps(result).find((x) => x.reason === "bridge_near");
+      const far = journeySteps(result).find((x) => x.reason === "bridge_far");
       return (
         <>
-          {read}: Ensembl&apos;s step <Mono>{s?.source ?? "—"}</Mono> → <Mono>{s?.target ?? "—"}</Mono> at releases{" "}
+          {read}: Ensembl&apos;s step <Mono>{earlier ?? "—"}</Mono> → <Mono>{later ?? "—"}</Mono> at releases{" "}
           {s?.old_release}→{s?.new_release} ({asm(s?.old_assembly ?? null)} → {asm(s?.assembly ?? null)}) is refused
+          {back ? " (walking back, from the later id to the earlier)" : ""}
           {targets.length ? <>; the answer is {answer}</> : "; no gene answers"}
           {near && far ? (
             <>
@@ -549,6 +612,9 @@ export function CaseGallery({
                 >
                   <p className="case__concept">
                     {text.concept}{" "}
+                    {conceptClauses(item.kind, item.result).map((clause) => (
+                      <span key={clause}>{clause} </span>
+                    ))}
                     <a href={docsPage(text.href)} className="case__docs">
                       IDTrack&apos;s documentation
                       <span className="visually-hidden"> on {text.title.toLowerCase()}</span>

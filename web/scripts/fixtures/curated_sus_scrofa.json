@@ -92,7 +92,10 @@
       "format": "json"
     },
     "body": {
-      "identifiers": ["INS", "XP_003123285"],
+      "identifiers": [
+        "INS",
+        "XP_003123285"
+      ],
       "explain": true,
       "to_release": 80
     }
@@ -116,7 +119,9 @@
       "format": "json"
     },
     "body": {
-      "identifiers": ["INS"],
+      "identifiers": [
+        "INS"
+      ],
       "to_release": "115"
     }
   },
@@ -138,7 +143,14 @@
       "format": "json"
     },
     "body": {
-      "identifiers": ["INS", "INS-1", "GCG", "GCG.2", "GCG.2_1", "PDX1"]
+      "identifiers": [
+        "INS",
+        "INS-1",
+        "GCG",
+        "GCG.2",
+        "GCG.2_1",
+        "PDX1"
+      ]
     }
   },
   {
@@ -164,6 +176,33 @@
     "identifier": "445466",
     "arguments": {
       "final_database": "HGNC Symbol"
+    }
+  },
+  {
+    "kind": "convert",
+    "name": "showcase_merge_back",
+    "identifier": "ENSSSCG00000052456",
+    "arguments": {
+      "from_release": 115,
+      "to_release": 56
+    }
+  },
+  {
+    "kind": "convert",
+    "name": "showcase_replaced_back",
+    "identifier": "ENSSSCG00000030921",
+    "arguments": {
+      "from_release": 115,
+      "to_release": 56
+    }
+  },
+  {
+    "kind": "convert",
+    "name": "showcase_split_back",
+    "identifier": "ENSSSCG00000060783",
+    "arguments": {
+      "from_release": 115,
+      "to_release": 56
     }
   }
 ]

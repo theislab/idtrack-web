@@ -41,7 +41,13 @@
       "format": "json"
     },
     "body": {
-      "identifiers": ["INS", "TP53", "NOT_A_GENE", "ENSG00000254647", "pdx1"]
+      "identifiers": [
+        "INS",
+        "TP53",
+        "NOT_A_GENE",
+        "ENSG00000254647",
+        "pdx1"
+      ]
     }
   },
   {
@@ -52,7 +58,13 @@
       "format": "tsv"
     },
     "body": {
-      "identifiers": ["INS", "TP53", "NOT_A_GENE", "ENSG00000254647", "pdx1"]
+      "identifiers": [
+        "INS",
+        "TP53",
+        "NOT_A_GENE",
+        "ENSG00000254647",
+        "pdx1"
+      ]
     }
   },
   {
@@ -86,7 +98,14 @@
       "format": "json"
     },
     "body": {
-      "identifiers": ["INS", "INS-1", "TP53", "TP53.2", "TP53.2_1", "PDX1"]
+      "identifiers": [
+        "INS",
+        "INS-1",
+        "TP53",
+        "TP53.2",
+        "TP53.2_1",
+        "PDX1"
+      ]
     }
   },
   {
@@ -189,6 +208,33 @@
     "identifier": "MAT1",
     "arguments": {
       "from_release": 60
+    }
+  },
+  {
+    "kind": "convert",
+    "name": "showcase_merge_back",
+    "identifier": "ENSG00000258574",
+    "arguments": {
+      "from_release": 64,
+      "to_release": 48
+    }
+  },
+  {
+    "kind": "convert",
+    "name": "showcase_replaced_back",
+    "identifier": "ENSG00000291237",
+    "arguments": {
+      "from_release": 115,
+      "to_release": 48
+    }
+  },
+  {
+    "kind": "convert",
+    "name": "showcase_split_back",
+    "identifier": "ENSG00000239975",
+    "arguments": {
+      "from_release": 115,
+      "to_release": 48
     }
   }
 ]
