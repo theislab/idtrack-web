@@ -93,6 +93,13 @@
   scroll-margin-top: calc(var(--masthead-height) + var(--space-4));
 }
 
+/* A section reached by the index takes the reading position (the focus, by script), not a control's ring. */
+#method-stages:focus,
+#accuracy:focus,
+#method-using:focus {
+  outline: none;
+}
+
 .method-steps {
   display: flex;
   justify-content: space-between;
