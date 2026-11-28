@@ -55,22 +55,73 @@
   place-items: center;
 }
 
-.journeys-story__figure .fig-legend {
-  margin: 0;
+/* With "Draw all", the figure grows with its rows instead of filling a room. */
+.journeys-story__figure--all {
+  height: auto;
+}
+
+.journeys-story__figure--all .journeys-story__frame {
+  position: static;
+}
+
+/* Under the caption: a quiet filter of the journeys drawn and "Draw all". */
+.journeys-story__tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-4);
+}
+
+.journeys-story__tools[hidden] {
+  display: none;
+}
+
+.journeys-story__filter {
+  max-width: 100%;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.journeys-story__filter .segmented__option {
+  white-space: nowrap;
+}
+
+.journeys-story__all {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ink-2);
+  font: inherit;
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+  text-decoration: underline;
+  text-decoration-color: var(--line-strong);
+  text-underline-offset: 3px;
+  cursor: pointer;
+  min-height: 24px;
+}
+
+@media (hover: hover) {
+  .journeys-story__all:hover {
+    color: var(--ink-1);
+    text-decoration-color: var(--ink-1);
+  }
+}
+
+/* The key of the journeys, a hover card at the end of the caption's claim: its marks, then the sets with the
+   databases each reads and answers in. */
+.journeys-story__key .fig-legend {
+  display: grid;
+  gap: var(--space-1);
+  margin: 0 0 var(--space-3);
   max-width: none;
 }
 
-/* The legend's room: a legend of every mark the journeys hold, measured unseen; the legend drawn takes its own
-   height. */
-.journeys-story__legend {
-  position: relative;
-}
-
-.journeys-story__legend-room {
-  position: absolute;
-  inset: 0 0 auto;
-  visibility: hidden;
-  pointer-events: none;
+.journeys-story__sets {
+  margin: 0;
+  padding-left: var(--space-4);
+  font-size: var(--text-xs);
+  color: var(--ink-2);
 }
 
 .journeys-story__caption {
@@ -126,24 +177,6 @@
 @media (max-width: 760px) {
   .journeys-story__figure {
     height: clamp(28rem, 72svh, 36rem);
-  }
-
-  /* The legend in two columns of short lines under the axis. */
-  .journeys-story__figure .fig-legend {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 2px var(--space-2);
-    font-size: var(--text-2xs);
-  }
-
-  .journeys-story__figure .fig-legend li {
-    gap: var(--space-1);
-  }
-
-  .journeys-story__figure .fig-legend .fig-swatch,
-  .journeys-story__figure .fig-legend .jr-legend-bold {
-    flex: none;
-    width: 22px;
   }
 
   .journeys-story__list:not(.visually-hidden) {

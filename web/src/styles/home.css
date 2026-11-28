@@ -674,27 +674,11 @@
   opacity: 0.7;
 }
 
-.jr-event__name {
-  fill: var(--ink-1);
-  font-weight: var(--weight-medium);
-}
-
-.jr-event__count {
-  fill: var(--ink-2);
-  font-weight: var(--weight-regular);
-}
-
 /* The events' words lead to the graph's page: they take pointer events though the labels' group does not. */
 .jr-event__link {
   pointer-events: auto;
   cursor: pointer;
   text-decoration: none;
-}
-
-@media (hover: hover) {
-  .jr-event__link:hover .jr-event__name {
-    text-decoration: underline;
-  }
 }
 
 /* The figure's accents: the rare events stand out, the routine new versions are quiet ticks. A split or merge is a
@@ -717,7 +701,29 @@
   stroke-width: 1.3;
 }
 
-/* Rows whose answers are the same gene: a bracket after their answers. */
+/* A journey's line, one segment per stable id: the tone alternates where the id changes. */
+.jr-line--b {
+  fill: var(--ink-3);
+}
+
+/* The stubs of a split or a merge: a short line in the event's hue for each other id. */
+.jr-fork {
+  stroke: var(--hue-event);
+  stroke-width: 1.1;
+  stroke-linecap: round;
+}
+
+/* The ids of the row in focus, on a halo of the paper above its line. */
+.jr-id--between {
+  fill: var(--ink-2);
+}
+
+/* A release-wide event's mark is a link; lit (its column pointed at or its mark in focus), it stands out. */
+.jr-event.is-lit .fig-glyph {
+  stroke-width: 1.6;
+}
+
+/* Rows whose answers are the same gene: a bracket after their lines. */
 .jr-same {
   fill: none;
   stroke: var(--ink-2);
@@ -743,14 +749,6 @@
   font-size: 14px;
   fill: var(--ink-1);
   stroke: none;
-}
-
-.jr-legend-bold {
-  display: inline-block;
-  width: 30px;
-  text-align: center;
-  font-weight: var(--weight-strong);
-  color: var(--ink-1);
 }
 
 .jr-event__link:focus-visible {
@@ -810,26 +808,21 @@
   pointer-events: none;
 }
 
-.jr-names .is-active .jr-id {
+.jr-names .jr-id--start {
   fill: var(--ink-1);
-  font-weight: var(--weight-strong);
+  font-weight: var(--weight-medium);
 }
 
 @media (forced-colors: active) {
   .jr-end,
   .jr-answer,
-  .jr-answer.jr-answer--same,
-  .jr-event__count {
+  .jr-answer.jr-answer--same {
     fill: CanvasText;
-  }
-
-  .jr-event__name {
-    fill: LinkText;
-    text-decoration: underline;
   }
 
   .jr-chevrons path,
   .jr-same,
+  .jr-fork,
   .jr-event__leader,
   .jr-event__guide,
   .case-sketch__branch,

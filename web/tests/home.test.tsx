@@ -26,24 +26,20 @@ import {
   releaseEvents,
   spans,
 } from "../src/lib/home/journeyModel";
-import {
-  bridgesOf,
-  journeyList,
-  journeySets,
-  readDatabases,
-  salience,
-  sameAnswerGroups,
-} from "../src/lib/home/journeys";
+import { bridgesOf, journeyList, journeySets, readDatabases, sameAnswerGroups } from "../src/lib/home/journeys";
 import { clearEnds } from "../src/lib/home/rowMarks";
 import { caseHref, caseQueryOf } from "../src/lib/home/links";
+import { convolution } from "../src/lib/path/steps";
 import {
   apportion,
   chooseJourneys,
+  filteredSets,
   headHeight,
   journeysGeometry,
-  NARROW_ROW,
   ROW,
+  rankedSets,
   ROW_MAX,
+  setDatabases,
   setHeight,
   setWords,
 } from "../src/lib/home/useJourneys";
@@ -155,13 +151,11 @@ describe("the journeys", () => {
         expect(prev && [prev.from, prev.to, prev.db]).not.toEqual([set.from, set.to, set.db]);
       }
     }
-    for (const narrow of [false, true]) {
+    {
       const g = journeysGeometry({
         sets: sets.map((x) => x.journeys.length),
         setLines: sets.map(() => 1),
-        events: 3,
-        narrow,
-        gutters: [120, 120],
+        events: 1,
         fit: 900,
       });
       for (let j = 1; j < list.length; j++) expect(g.rowTop(j)).toBeGreaterThan(g.rowTop(j - 1));
@@ -171,43 +165,56 @@ describe("the journeys", () => {
         if (s > 0) expect(g.setTop(s)).toBeGreaterThanOrEqual(g.blockBottom(s - 1));
       }
       expect(g.height).toBeGreaterThan(g.blockBottom(sets.length - 1));
-      expect(g.row).toBe(narrow ? NARROW_ROW : g.row);
     }
   });
 
-  it("draw fewer journeys where the room is short, never fewer names: the rows chosen by the one rule", () => {
-    const sets = journeySets(showcaseOf(withPath.slice(0, 40)));
+  it("draw fewer journeys where the room is short: the most convoluted, by the one rule", () => {
+    const sets = rankedSets(journeySets(showcaseOf(withPath.slice(0, 40))));
     const all = journeyList(sets);
+    const total = (j: (typeof all)[number] | undefined) => convolution(j?.result ?? null).total;
+    // Ranked: in each set the most convoluted journey first, the sets by their most convoluted journey.
+    for (const [s, set] of sets.entries()) {
+      for (const j of set.journeys) expect(j.set).toBe(s);
+      for (let k = 1; k < set.journeys.length; k++)
+        expect(total(set.journeys[k - 1])).toBeGreaterThanOrEqual(total(set.journeys[k]));
+      if (s > 0) expect(total(sets[s - 1]?.journeys[0])).toBeGreaterThanOrEqual(total(set.journeys[0]));
+    }
     const lines = sets.map(() => 1);
-    const cost = { head: headHeight(3), set: (s: number) => setHeight(lines[s] ?? 1), row: ROW };
+    const cost = { head: headHeight(1), set: (s: number) => setHeight(lines[s] ?? 1), row: ROW };
     for (const room of [180, 300, 420, 560, 700, 900, 1200, 2400]) {
       const chosen = chooseJourneys(sets, room, cost);
       const drawn = journeyList(chosen);
-      // A prefix of the sets, each with at least one row, each row one of its set's journeys, in the set's order.
+      // A prefix of the sets, each with at least one row: the first journeys of its set, the most convoluted.
       expect(chosen.length).toBeGreaterThan(0);
       for (const [s, set] of chosen.entries()) {
         expect(set.journeys.length).toBeGreaterThan(0);
-        const order = set.journeys.map((j) => sets[s]?.journeys.indexOf(j) ?? -1);
-        expect(order.every((k, i) => k >= 0 && (i === 0 || k > (order[i - 1] ?? -1)))).toBe(true);
-        // The ones left out of a set are no more telling than the ones drawn.
-        const left = (sets[s]?.journeys ?? []).filter((j) => !set.journeys.includes(j));
-        const worstDrawn = Math.max(...set.journeys.map(salience));
-        for (const j of left) expect(salience(j)).toBeGreaterThanOrEqual(worstDrawn);
+        expect(set.journeys).toEqual(sets[s]?.journeys.slice(0, set.journeys.length));
       }
-      // They fit the room at the least named pitch, where at least one row of one set does.
+      // They fit the room at the least pitch, where at least one row of one set does.
       const g = journeysGeometry({
         sets: chosen.map((x) => x.journeys.length),
         setLines: chosen.map(() => 1),
-        events: 3,
-        narrow: false,
-        gutters: [120, 120],
+        events: 1,
         fit: room,
       });
       if (drawn.length > 1) expect(g.height).toBeLessThanOrEqual(room);
       expect(g.row).toBeGreaterThanOrEqual(ROW);
       expect(g.row).toBeLessThanOrEqual(ROW_MAX);
       if (room >= 2400) expect(drawn.length).toBe(all.length);
+      // A phone draws three rows at most.
+      expect(journeyList(chooseJourneys(sets, room, cost, 3)).length).toBeLessThanOrEqual(3);
     }
+  });
+
+  it("keep, by the filter, only the journeys of its kind, read from their answers", () => {
+    const sets = rankedSets(journeySets(showcaseOf(withPath)));
+    const events = journeyList(filteredSets(sets, "events"));
+    expect(events.length).toBeGreaterThan(0);
+    for (const j of events) expect(convolution(j.result).splits + convolution(j.result).merges).toBeGreaterThan(0);
+    for (const j of journeyList(filteredSets(sets, "bridges")))
+      expect(convolution(j.result).bridges).toBeGreaterThan(0);
+    for (const j of journeyList(filteredSets(sets, "back"))) expect(j.model?.backward).toBe(true);
+    expect(journeyList(filteredSets(sets, "all"))).toHaveLength(journeyList(sets).length);
   });
 
   it("share the rows among the sets in proportion to their sizes, two at least (all of a smaller set)", () => {
@@ -311,14 +318,21 @@ describe("the journeys", () => {
     }
   });
 
-  it("name each set by the parameters its request sends, the defaults by the api's rule", () => {
+  it("name each set by the parameters its request sends, in words first, the defaults by the api's rule", () => {
     expect(setWords({ from: 48, to: null, db: "HGNC Symbol" }, 115, ["HGNC Symbol"])).toBe(
-      "HGNC Symbol at 48 → HGNC Symbol at 115",
+      "Ids of another database at 48 → the same database at 115",
+    );
+    expect(setWords({ from: 50, to: null, db: "HGNC Symbol" }, 115, ["HGNC Symbol", "NCBI gene"])).toBe(
+      "Ids of 2 other databases at 50 → one of those databases at 115",
     );
     expect(setWords({ from: null, to: 48, db: null }, 115, [], true)).toBe(
-      "Ensembl ids at the release IDTrack infers → back to Ensembl gene at 48",
+      "Ensembl ids at the release IDTrack infers → back to an Ensembl gene at 48",
     );
-    expect(setWords({ from: 101, to: 48, db: null }, 115)).toBe("Ensembl ids at 101 → back to Ensembl gene at 48");
+    expect(setWords({ from: 101, to: 48, db: null }, 115)).toBe("Ensembl ids at 101 → back to an Ensembl gene at 48");
+    // The databases themselves, in the figure's key.
+    expect(setDatabases({ from: 50, to: null, db: "HGNC Symbol" }, 115, ["HGNC Symbol", "NCBI gene"])).toBe(
+      "HGNC Symbol and NCBI gene at 50 → HGNC Symbol at 115",
+    );
   });
 });
 

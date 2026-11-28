@@ -1,9 +1,13 @@
 // The first figure of Explore's stories: the journeys of the graph in view, real identifiers each drawn as its journey
 // through the releases over the assembly bands, as this server answered them when it started
-// (`GET /organisms/{organism}/showcase`: the page converts nothing itself). The figure fills a room of its own (the
-// window less the page's head, within bounds), its legend under it and its caption's claim under that; how to read it,
-// and every journey in words, one press away.
+// (`GET /organisms/{organism}/showcase`: the page converts nothing itself), the most convoluted first. The figure fills
+// a room of its own (the window less the page's head, within bounds), its caption's claim under it with its key one
+// press away (a hover card), then a quiet filter and "Draw all"; how to read it, and every journey in words, one press
+// away.
 import { useCallback, useId, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { StepGlyph } from "../figure/glyphs";
+import { HoverCard } from "../v2/HoverCard";
+import { Segmented } from "../v2/Segmented";
 import type { GraphDescription } from "../../api/types";
 import { databaseLabel } from "../../lib/databases";
 import { isEnsembl } from "../../lib/home/journeyModel";
@@ -12,10 +16,12 @@ import {
   journeyList,
   journeySets,
   legendMarks,
+  readDatabases,
   type Journey,
   type LegendMark,
 } from "../../lib/home/journeys";
-import { plural } from "../../lib/home/stepWords";
+import { filteredSets, rankedSets, setDatabases, type JourneyFilter } from "../../lib/home/useJourneys";
+import { CONVOLUTION_WORDS, journeyStepsText } from "../../lib/path/steps";
 import { lazyPart } from "../../lib/lazyPart";
 import { organismName } from "../../lib/organismNames";
 import { useShowcase } from "../../lib/showcase";
@@ -31,7 +37,7 @@ import type { JourneysDrawn } from "./JourneysFigure";
 const JourneysFigure = lazyPart(() => import("./JourneysFigure").then((m) => ({ default: m.JourneysFigure })));
 void JourneysFigure.preload();
 
-/** The legend of the journeys: the line of a journey, then each kind of mark the journeys hold (only those). */
+/** The key of the journeys: the line of a journey, then each kind of mark the journeys drawn hold (only those). */
 function legendEntries(marks: readonly LegendMark[]): LegendEntry[] {
   const swatch = (content: ReactNode) => (
     <svg className="fig-swatch" width={30} height={16} viewBox="0 0 30 16" aria-hidden="true">
@@ -39,12 +45,39 @@ function legendEntries(marks: readonly LegendMark[]): LegendEntry[] {
     </svg>
   );
   const of: Record<LegendMark, LegendEntry> = {
+    idchange: {
+      key: "idchange",
+      swatch: swatch(
+        <>
+          <line x1={2} x2={15} y1={8} y2={8} className="jr-line" />
+          <line x1={15} x2={28} y1={8} y2={8} className="jr-line jr-line--b" />
+        </>,
+      ),
+      text: "a change of stable id (the line's tone changes)",
+    },
     version: { key: "version", glyph: "version", text: "new version or replacement" },
     event: { key: "event", glyph: "event", text: "split or merge" },
+    fork: {
+      key: "fork",
+      swatch: swatch(
+        <>
+          <line x1={4} x2={26} y1={8} y2={8} className="jr-line" />
+          <line x1={17} y1={6.5} x2={22} y2={4} className="jr-fork" />
+          <line x1={17} y1={6.5} x2={22} y2={1.8} className="jr-fork" />
+          <line x1={8} y1={12} x2={13} y2={9.5} className="jr-fork" />
+        </>,
+      ),
+      text: "a stub for each other id a split passed to (above) or a merge received (below), four at most",
+    },
     loop: { key: "loop", glyph: "loop", text: "re-mapped to itself" },
     handoff: { key: "handoff", glyph: "handoff", text: "step at an assembly change" },
+    handoffEvent: {
+      key: "handoffEvent",
+      swatch: swatch(<StepGlyph glyph="handoff" x={15} y={8} size="thin" event />),
+      text: "a step at an assembly change that is also a split or merge",
+    },
     cross: { key: "cross", glyph: "cross", text: "another database" },
-    bridge: { key: "bridge", glyph: "bridge", text: "bridge (inferred)" },
+    bridge: { key: "bridge", glyph: "bridge", text: "bridge (IDTrack's inference)" },
     back: {
       key: "back",
       swatch: swatch(
@@ -54,11 +87,19 @@ function legendEntries(marks: readonly LegendMark[]): LegendEntry[] {
       ),
       text: "back in time",
     },
-    changed: { key: "changed", swatch: <b className="jr-legend-bold mono">Ab</b>, text: "answer other than the id" },
     same: { key: "same", swatch: swatch(<path d="M13,2h4V14h-4" className="jr-same" />), text: "same answer" },
   };
   return [{ key: "gene", glyph: "gene-thin", text: "read (○) to answer (■)" }, ...marks.map((m) => of[m])];
 }
+
+/** The filter's choices: every journey, or those of one kind (read from each answer's own fields). */
+const FILTERS: { value: JourneyFilter; label: string }[] = [
+  { value: "all", label: "All" },
+  { value: "events", label: "Splits and merges" },
+  { value: "bridges", label: "Bridges" },
+  { value: "back", label: "Back in time" },
+  { value: "databases", label: "Other databases" },
+];
 
 /** The height of an element's box, measured before paint and kept current. */
 function useHeight<T extends HTMLElement>() {
@@ -96,9 +137,7 @@ function journeyWords(j: Journey): string {
   const bridges = bridgesOf(j);
   return `${r.query_id}, read at release ${r.from_release}${read.length ? ` in ${read.map(databaseLabel).join(", ")}` : ""}: ${[
     ...new Set(m.best.map((c) => c.target)),
-  ].join(
-    ", ",
-  )} at release ${r.to_release}${m.backward ? ", walked back in time" : ""}, ${plural(m.marks.length, "step")}${
+  ].join(", ")} at release ${r.to_release}${m.backward ? ", walked back in time" : ""}, ${journeyStepsText(r)}${
     bridges.length
       ? `; through ${bridges.length === 1 ? "a bridge" : `${bridges.length} bridges`} (${bridges.map((b) => b.id).join(", ")}), IDTrack's inference`
       : ""
@@ -120,10 +159,12 @@ function JourneysOf({ graph }: { graph: GraphDescription }) {
   const id = useId();
   const answer = useShowcase(graph.organism);
   const [roomRef, roomHeight] = useHeight<HTMLDivElement>();
-  const [legendRef, legendHeight] = useHeight<HTMLDivElement>();
+  const [toolsRef, toolsHeight] = useHeight<HTMLDivElement>();
   const [captionRef, captionHeight] = useHeight<HTMLElement>();
   const [drawn, setDrawn] = useState<JourneysDrawn | null>(null);
   const [listed, setListed] = useState(false);
+  const [filter, setFilter] = useState<JourneyFilter>("all");
+  const [drawAll, setDrawAll] = useState(false);
   // How a reader reaches a journey: by touch where the primary pointer cannot hover (the caption says so).
   const [touch] = useState(() => typeof window.matchMedia === "function" && window.matchMedia("(hover: none)").matches);
   const onDrawn = useCallback((d: JourneysDrawn) => {
@@ -132,22 +173,30 @@ function JourneysOf({ graph }: { graph: GraphDescription }) {
     );
   }, []);
   const showcase = answer.state === "done" ? answer.answer.data : null;
-  const sets = showcase ? journeySets(showcase) : null;
-  const all = sets ? journeyList(sets) : [];
+  // The sets ranked (the most convoluted journey of each first, the most branched set first), then filtered.
+  const ranked = showcase ? rankedSets(journeySets(showcase)) : null;
+  const sets = ranked ? filteredSets(ranked, filter) : null;
+  const all = ranked ? journeyList(ranked) : [];
+  const kept = sets ? journeyList(sets) : [];
   const name = organismName(graph.organism);
   const endpoint = `GET /api/v1/organisms/${graph.organism}/showcase`;
   const first = graph.releases[0];
   const last = graph.snapshot_release;
-  // The figure fills the room less its legend, its caption and the air between them.
+  // The figure fills the room less its caption, its tools and the air between them.
   const fit =
-    roomHeight !== null && legendHeight !== null && captionHeight !== null
-      ? Math.max(160, roomHeight - legendHeight - captionHeight - 2 * 12 - 2)
+    roomHeight !== null && toolsHeight !== null && captionHeight !== null
+      ? Math.max(160, roomHeight - toolsHeight - captionHeight - 2 * 12 - 2)
       : null;
   const listId = `${id}-list`;
   const some = drawn !== null && drawn.drawn < drawn.of;
+  const filtered = filter !== "all";
+  const keyEntries = legendEntries(drawn?.marks ?? legendMarks(kept));
   return (
     <>
-      <figure className="journeys-story__figure" aria-describedby={`${id}-caption`}>
+      <figure
+        className={`journeys-story__figure${drawAll ? " journeys-story__figure--all" : ""}`}
+        aria-describedby={`${id}-caption`}
+      >
         <div className="journeys-story__frame" ref={roomRef}>
           <div className="journeys-story__plot">
             {answer.state === "failed" ? (
@@ -159,48 +208,64 @@ function JourneysOf({ graph }: { graph: GraphDescription }) {
                   level={2}
                 />
               </div>
-            ) : fit !== null && (sets === null || all.length) ? (
-              <JourneysFigure graph={graph} sets={sets} fit={fit} onDrawn={onDrawn} />
+            ) : fit !== null && (sets === null || kept.length) ? (
+              <JourneysFigure graph={graph} sets={sets} fit={fit} all={drawAll} onDrawn={onDrawn} />
             ) : null}
-          </div>
-          {/* The legend names the marks drawn; its room is that of a legend of every mark the journeys hold (measured
-            unseen), so the room the figure fills does not change with the rows it draws. */}
-          <div
-            className="journeys-story__legend"
-            hidden={answer.state === "failed" || (showcase !== null && !all.length)}
-          >
-            <div className="journeys-story__legend-room" ref={legendRef} aria-hidden="true">
-              <FigureLegend entries={legendEntries(legendMarks(all))} />
-            </div>
-            <FigureLegend entries={legendEntries(drawn?.marks ?? legendMarks(all))} />
           </div>
           <figcaption id={`${id}-caption`} className="fig-caption journeys-story__caption" ref={captionRef}>
             {showcase && all.length ? (
-              <CaptionMore
-                lead={
-                  <>
-                    {drawn && some ? `${drawn.drawn} of the ${all.length}` : `The ${all.length}`} journeys of the{" "}
-                    <em>{name}</em> graph{some ? " (each set's most telling)" : ""}, each drawn along its best
-                    answer&apos;s path through releases {first}–{last}.
-                  </>
-                }
-              >
-                Answered by this server when it started (<Mono>{endpoint}</Mono>).{" "}
-                {touch
-                  ? "Tap a journey for its steps, again to open it. "
-                  : "Point at a journey for its steps; Enter or a click opens it. "}
-                <button
-                  type="button"
-                  className="journeys-story__list-toggle"
-                  aria-expanded={listed}
-                  aria-controls={listId}
-                  onClick={() => {
-                    setListed((o) => !o);
-                  }}
+              <>
+                <CaptionMore
+                  lead={
+                    <>
+                      {drawn && some
+                        ? `${drawn.drawn} of the ${filtered ? `${kept.length} kept` : all.length}`
+                        : `The ${filtered ? `${kept.length} kept of the ${all.length}` : all.length}`}{" "}
+                      journeys of the <em>{name}</em> graph{some ? ", the most convoluted" : ""}, each along its best
+                      answer&apos;s path through releases {first}–{last}.
+                    </>
+                  }
                 >
-                  {listed ? "Hide the list" : `Every one of the ${all.length} in words`}
-                </button>
-              </CaptionMore>
+                  Answered by this server when it started (<Mono>{endpoint}</Mono>). The journeys of a set share their
+                  request&apos;s parameters; {CONVOLUTION_WORDS}, and the sets by their most convoluted journey. A
+                  journey&apos;s steps are those of its best answer&apos;s path, as the answer&apos;s &quot;In
+                  words&quot; lists them. At rest the rows are drawn without their ids:{" "}
+                  {touch
+                    ? "tap a journey for its ids and steps, again to open it. "
+                    : "point at a journey for its ids and steps; Enter or a click opens it. "}
+                  <button
+                    type="button"
+                    className="journeys-story__list-toggle"
+                    aria-expanded={listed}
+                    aria-controls={listId}
+                    onClick={() => {
+                      setListed((o) => !o);
+                    }}
+                  >
+                    {listed ? "Hide the list" : `Every one of the ${all.length} in words`}
+                  </button>
+                </CaptionMore>{" "}
+                <HoverCard
+                  className="cases-key journeys-story__key"
+                  triggerClassName="cases-key__button"
+                  label="Key: reading the journeys"
+                  trigger={<>Key</>}
+                >
+                  <FigureLegend entries={keyEntries} label="The marks of the journeys" />
+                  {ranked?.length ? (
+                    <>
+                      <p className="cases-key__lead">The sets, with the databases each reads and answers in:</p>
+                      <ul className="journeys-story__sets">
+                        {ranked.map((set, s) => (
+                          <li key={s}>
+                            {setDatabases(set, graph.snapshot_release, readDatabases(set).map(databaseLabel))}
+                          </li>
+                        ))}
+                      </ul>
+                    </>
+                  ) : null}
+                </HoverCard>
+              </>
             ) : answer.state === "failed" ? (
               <>
                 The journeys of the <em>{name}</em> graph, from <Mono>{endpoint}</Mono>: not drawn, since the server did
@@ -218,6 +283,29 @@ function JourneysOf({ graph }: { graph: GraphDescription }) {
               </>
             )}
           </figcaption>
+          <div
+            className="journeys-story__tools"
+            ref={toolsRef}
+            hidden={answer.state === "failed" || (showcase !== null && !all.length)}
+          >
+            <Segmented
+              className="journeys-story__filter"
+              label="Journeys drawn"
+              value={filter}
+              onChange={setFilter}
+              options={FILTERS.map((f) => ({ value: f.value, label: f.label }))}
+            />
+            <button
+              type="button"
+              className="journeys-story__all"
+              aria-pressed={drawAll}
+              onClick={() => {
+                setDrawAll((d) => !d);
+              }}
+            >
+              {drawAll ? "Fit to the screen" : `Draw all ${kept.length}`}
+            </button>
+          </div>
         </div>
       </figure>
       {showcase ? (

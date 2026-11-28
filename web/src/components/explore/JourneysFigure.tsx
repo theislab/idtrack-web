@@ -1,19 +1,21 @@
 // The first figure of Explore's stories: real conversions of one graph, answered by this server once when it started (its
 // showcase), drawn together on one release axis over the assembly bands, in the figure grammar (components/figure/).
-// Each row is one identifier's journey: its best answer's path as a thin gene bar with Ensembl's history steps marked by
-// their glyphs (a journey back in time carries chevrons pointing back). Every mark is local to its row: where the
-// identifier is read through an external database its start is an open square, an answer in an external database is a
-// filled square, a bridge is the square with a dot on the row itself, dashed to where it lands; no line leaves a row.
+// Each row is one identifier's journey: its best answer's path as a thin line, one segment for each stable gene id it
+// passes through (the tone alternates where the id changes), with Ensembl's history steps marked by their glyphs and,
+// at a split or a merge, a stub for each other id the event's earlier id passed to (above, toward later releases) or
+// its later id received (below, from earlier ones); a journey back in time carries chevrons pointing back. Every mark
+// is local to its row: where the identifier is read through an external database its start is an open square, an
+// answer in an external database is a filled square, a bridge is the square with a dot on the row itself, dashed to
+// where it lands; no line leaves a row.
 //
-// The figure fills the room it is given and always names its rows: where the room cannot hold every journey at a
-// named pitch, it draws fewer, chosen by one rule (lib/home/useJourneys.ts `chooseJourneys`), and says how many. The
-// assembly bands run from their names to the axis; each set of journeys stands in them under its words. The rare
-// events are the figure's accents (a split or merge, a step across an assembly change, a crossing into another
-// database, a renamed answer in bold); the routine new versions are quiet ticks. Where many journeys take a step of one
-// kind at one release, a note under the bands' names says what happened there, on a leader down to the rows, counted
-// from the journeys drawn, never shortened and never cut. A row in focus (or under the pointer, or tapped once) is
-// isolated and named; pointing at a step shows that step; the arrow keys move between rows and along a row's steps
-// with each step's exact values; Enter, Space, a click or a second tap opens the full answer.
+// At rest the figure draws its lines and marks only: a row's ids (the identifier, each id it passes through, the
+// answer) are written on the row in focus, under the pointer or tapped once, and in its note; the figure's text
+// alternative and the list in words name every one. The rows are the most convoluted journeys of their sets, the sets
+// in the order of their most convoluted journey (lib/home/useJourneys.ts `rankedSets`, `chooseJourneys`): where the
+// room cannot hold every journey, fewer are drawn, three at most on a phone, and the caption says how many. Where many
+// journeys take a step of one kind at one release, a mark over the rows says so on pointing or focus, counted from the
+// journeys drawn, and leads to that release of the graph's history. The arrow keys move between rows and along a row's
+// steps with each step's exact values; Enter, Space, a click or a second tap opens the full answer.
 import {
   useEffect,
   useId,
@@ -34,6 +36,7 @@ import {
   isEnsembl,
   releaseEvents,
   type JourneyMark,
+  type JourneyModel,
   type ReleaseEvent,
 } from "../../lib/home/journeyModel";
 import {
@@ -42,28 +45,19 @@ import {
   isRenamed,
   journeyList,
   legendMarks,
-  readDatabases,
   sameAnswerGroups,
   type Journey,
   type LegendMark,
+  readDatabases,
   type JourneySet,
 } from "../../lib/home/journeys";
 import { caseHref } from "../../lib/home/links";
 import { clearEnds } from "../../lib/home/rowMarks";
 import { plural, stepsInWords } from "../../lib/home/stepWords";
-import {
-  chooseJourneys,
-  headHeight,
-  journeysGeometry,
-  LEAST_PLOT,
-  LINE,
-  NARROW_ROW,
-  ROW,
-  setHeight,
-  setWords,
-} from "../../lib/home/useJourneys";
+import { chooseJourneys, headHeight, journeysGeometry, ROW, setHeight, setWords } from "../../lib/home/useJourneys";
 import { pythonFloat } from "../../lib/numbers";
 import { organismName } from "../../lib/organismNames";
+import { stableId } from "../../lib/path/steps";
 import { href, navigate } from "../../lib/router";
 import { prose } from "../../lib/values";
 import { spaced } from "../../lib/vocabulary";
@@ -72,7 +66,7 @@ import { Bands, ReleaseTicks } from "../figure/axis";
 import { FigureNote } from "../figure/FigureNote";
 import { GeneBar, StepGlyph } from "../figure/glyphs";
 import { isEvent, type Glyph } from "../figure/glyph";
-import { FIG_TEXT, middleCut, placeLabels, textWidth, wrapWords } from "../figure/labels";
+import { FIG_TEXT, middleCut, placeLabels, wrapWords } from "../figure/labels";
 import { assemblyBands, releaseScale } from "../figure/releases";
 import { useDismiss, useHover } from "../figure/roving";
 import { useWidth } from "../figure/useWidth";
@@ -91,76 +85,60 @@ const ROW_GLYPH: Partial<Record<JourneyMark["kind"], Glyph>> = {
 
 /** How far apart (px) two marks of a row stand at least: the start and end marks move outward to keep it. */
 const CLEAR = 9.5;
-/** The lines the release-wide events may take: three on a wide figure (one event a line, or two lines for one whose
- *  words are longer than the room), two on a narrow one (its one event, wrapped). */
-const EVENT_LINES = { wide: 3, narrow: 2 } as const;
-/** The air (px) between two notes on a line, and around an event's mark and leader. */
-const NOTE_GAP = 14;
-/** The measured width of a sans text is reckoned a little wider (its halo, rounding of the face's hinting). */
-const MEASURE_SLACK = 1.03;
+/** The figure's side margins: room for a start or end mark moved outward, and the bracket of rows of one answer. */
+const SIDE = 14;
+/** Below this width the figure draws three journeys at most (a phone). */
+const PHONE = 640;
+/** The rows a phone draws. */
+const PHONE_ROWS = 3;
+/** The stubs of a split or merge drawn at most; the note gives the count. */
+const STUBS = 4;
 
 /** What the figure drew, for its legend and its caption. */
 export interface JourneysDrawn {
-  /** The journeys drawn, of all the showcase holds. */
+  /** The journeys drawn, of all the showcase holds (after the filter). */
   drawn: number;
   of: number;
-  /** Whether each row's names stand above its track (a narrow figure). */
+  /** Whether the figure draws as on a phone (three rows at most). */
   narrow: boolean;
-  /** The kinds of mark the rows drawn hold (the legend names these). */
+  /** The kinds of mark the rows drawn hold (the key names these). */
   marks: LegendMark[];
 }
 
-interface PlacedEvent {
-  e: ReleaseEvent;
-  line: number;
-  lines: string[];
-  x: number;
-  anchor: "start" | "end";
+/** One stretch of a row: the releases it runs over (in px) and the stable id the path holds there. */
+interface Segment {
+  x0: number;
+  x1: number;
+  id: string;
 }
 
-/** The release-wide events' notes on `lines` lines: each in turn (the order given) on the first line where its full
- *  words fit after its mark, else before it, else on two lines (its releases and what happened, then its count), within
- *  the figure and touching no note, mark or leader there. A note's leader runs down from its mark through the lines
- *  under it, which then keep it clear. */
-function placeEvents(
-  events: readonly ReleaseEvent[],
-  words: (e: ReleaseEvent) => { line: string; lines: [string, string] },
-  xOf: (e: ReleaseEvent) => number,
-  lines: number,
-  width: number,
-): PlacedEvent[] {
-  const taken: [number, number][][] = Array.from({ length: lines }, () => []);
-  const free = (line: number, a: number, b: number) =>
-    (taken[line] ?? []).every(([p, q]) => b + NOTE_GAP < p || q + NOTE_GAP < a);
-  const measure = (text: string) => textWidth(text, FIG_TEXT, "sans") * MEASURE_SLACK + 2;
-  const placed: PlacedEvent[] = [];
-  for (const e of events) {
-    const x = xOf(e);
-    const full = words(e);
-    const forms: string[][] = [[full.line], [...full.lines]];
-    let done = false;
-    for (const form of forms) {
-      if (done) break;
-      const w = Math.max(...form.map(measure));
-      for (let line = 0; line + form.length <= lines && !done; line++) {
-        for (const anchor of ["start", "end"] as const) {
-          const [a, b] = anchor === "start" ? [x + 9, x + 9 + w] : [x - 9 - w, x - 9];
-          if (a < 2 || b > width - 2) continue;
-          const own = form.map((_, k) => line + k);
-          // Its text and its mark on its own lines; its leader through every line under them.
-          if (!own.every((l) => free(l, a, b) && free(l, x - 5, x + 5))) continue;
-          const below = Array.from({ length: lines - line - form.length }, (_, k) => line + form.length + k);
-          if (!below.every((l) => free(l, x - 2, x + 2))) continue;
-          for (const l of own) taken[l]?.push([a, b], [x - 5, x + 5]);
-          for (const l of below) taken[l]?.push([x - 2, x + 2]);
-          placed.push({ e, line, lines: form, x: anchor === "start" ? a : b, anchor });
-          done = true;
-          break;
-        }
-      }
+/** A row's segments, one per stable gene id in the walk's order: the line from its start to its end, cut where a step
+ *  enters a gene of another stable id (a history step between two ids, the far side of a bridge). */
+function segmentsOf(m: JourneyModel, start: number, end: number, xOf: (release: number) => number): Segment[] {
+  const genes = new Set((m.result.path?.nodes ?? []).filter((n) => n.kind === "ensembl_gene").map((n) => n.id));
+  const cuts: { x: number; id: string }[] = [];
+  let current: string | null = null;
+  for (const mk of m.marks) {
+    const target = mk.step.target;
+    if (!genes.has(target)) continue;
+    const id = stableId(target);
+    if (current === null) current = id;
+    else if (id !== current) {
+      cuts.push({ x: xOf(mk.at), id });
+      current = id;
     }
   }
-  return placed;
+  const first = m.marks.map((mk) => mk.step.target).find((t) => genes.has(t)) ?? m.best[0]?.gene ?? m.result.query_id;
+  const out: Segment[] = [];
+  let from = start;
+  let id = stableId(first);
+  for (const c of cuts) {
+    out.push({ x0: Math.min(from, c.x), x1: Math.max(from, c.x), id });
+    from = c.x;
+    id = c.id;
+  }
+  out.push({ x0: Math.min(from, end), x1: Math.max(from, end), id });
+  return out;
 }
 
 /** Whether a journey's answer is an Ensembl gene. */
@@ -174,15 +152,18 @@ export function JourneysFigure({
   graph,
   sets: given,
   fit,
+  all: drawAll = false,
   onDrawn,
 }: {
   graph: GraphDescription;
-  /** Every set of the showcase's journeys; the figure draws those its room holds (null: not yet arrived, and the
-   *  figure draws its frame, the bands and the axis, and after a moment says what it waits for). */
+  /** Every set of the showcase's journeys, ranked (`rankedSets`); the figure draws those its room holds (null: not yet
+   *  arrived, and the figure draws its frame, the bands and the axis, and after a moment says what it waits for). */
   sets: JourneySet[] | null;
-  /** The height to fill: a wide figure's rows take the pitch that fills it; fewer journeys are drawn where it cannot
-   *  hold them all at a named pitch. */
+  /** The height to fill: the rows take the pitch that fills it; fewer journeys are drawn where it cannot hold them
+   *  all at a named pitch. */
   fit: number;
+  /** Draw every journey given, whatever the room (the figure then grows). */
+  all?: boolean;
   /** Told what the figure drew (its caption says it). */
   onDrawn?: (drawn: JourneysDrawn) => void;
 }) {
@@ -190,33 +171,9 @@ export function JourneysFigure({
   const { ref, width } = useWidth<HTMLDivElement>(800);
   const waiting = given === null;
   const allSets = given ?? [];
-  const all = journeyList(allSets);
+  const every = journeyList(allSets);
   const idOf = (j: Journey) => (j.model ? j.model.result.query_id : j.identifier);
-  // Each row's two names: the identifier where its line starts, the answer where it ends (a journey back in time
-  // starts on the right and ends on the left).
-  const namesOf = (j: Journey) => {
-    const id = idOf(j);
-    const answer = j.model ? answerText(j.model) : null;
-    const back = j.model?.backward ?? false;
-    return {
-      left: back && answer ? `← ${answer}` : id,
-      right: back ? id : answer,
-      leftIsAnswer: back && answer !== null,
-    };
-  };
-  // The gutters hold the longest names of every journey (so the choice of rows never changes them) and their air.
-  const gutter = (w: number) => Math.min(300, Math.max(72, Math.ceil(w + 16)));
-  const [leftText, rightText] = all.reduce<[number, number]>(
-    ([l, r], j) => {
-      const n = namesOf(j);
-      const lw = textWidth(n.left, FIG_TEXT, "mono", n.leftIsAnswer ? 600 : 400);
-      const rw = n.right === null ? 0 : textWidth(n.right, FIG_TEXT, "mono", n.leftIsAnswer ? 400 : 600);
-      return [Math.max(l, lw), Math.max(r, rw)];
-    },
-    [0, 0],
-  );
-  const gutters: [number, number] = [gutter(leftText), gutter(rightText) + (sameAnswerGroups(all).length ? 10 : 0)];
-  const narrow = width - gutters[0] - gutters[1] < LEAST_PLOT;
+  const narrow = width < PHONE;
 
   // The words of each set, wrapped to the figure's width where they do not fit one line.
   const setText = (set: JourneySet) =>
@@ -229,36 +186,30 @@ export function JourneysFigure({
   const allLines = allSets.map((set) => wrapWords(setText(set), width - 8, FIG_TEXT, "sans"));
 
   // The journeys the room holds, chosen by the one rule; then the events among them.
-  const eventLines = narrow ? EVENT_LINES.narrow : EVENT_LINES.wide;
-  const sets = chooseJourneys(allSets, fit, {
-    head: headHeight(eventLines),
-    set: (s) => setHeight(allLines[s]?.length ?? 1),
-    row: narrow ? NARROW_ROW : ROW,
-  });
+  const sets = chooseJourneys(
+    allSets,
+    drawAll ? Number.MAX_SAFE_INTEGER : fit,
+    { head: headHeight(1), set: (s) => setHeight(allLines[s]?.length ?? 1), row: ROW },
+    narrow && !drawAll ? PHONE_ROWS : Infinity,
+  );
   const list = journeyList(sets);
   const setLines = sets.map((_, s) => allLines[s] ?? [""]);
   const models = list.flatMap((j) => (j.model ? [j.model] : []));
-  const events = drawnEvents(releaseEvents(models, 0.5), narrow ? 1 : EVENT_LINES.wide);
+  const events = drawnEvents(releaseEvents(models, 0.5), narrow ? 1 : 3);
 
-  // Rows of one set next to each other whose answers are the same gene: joined by a bracket after their answers.
+  // Rows of one set next to each other whose answers are the same gene: joined by a bracket after their lines.
   const groups = sameAnswerGroups(list);
-  const left = narrow ? 12 : gutters[0];
-  const right = narrow ? 12 : gutters[1];
   const releases = graph.releases;
   const first = releases[0] ?? 0;
   const last = releases[releases.length - 1] ?? 0;
-  const scale = releaseScale(releases, left, width - right);
+  const scale = releaseScale(releases, SIDE, width - SIDE - (groups.length ? 8 : 0));
   const assemblyName = (key: number) => graph.assemblies.find((a) => a.assembly === key)?.name ?? String(key);
   const eventX = (e: ReleaseEvent) => scale.x((e.old + e.new) / 2);
-  const notes = placeEvents(events, (e) => eventWords(e, assemblyName), eventX, eventLines, width);
-  const usedLines = notes.length ? Math.max(...notes.map((n) => n.line + n.lines.length)) : 0;
   const g = journeysGeometry({
     sets: sets.map((s) => s.journeys.length),
     setLines: setLines.map((l) => l.length),
-    events: usedLines,
-    narrow,
-    gutters,
-    fit,
+    events: events.length ? 1 : 0,
+    fit: drawAll ? 0 : fit,
   });
 
   // Until the journeys arrive, the frame fills the room: the bands from their names to the axis.
@@ -266,17 +217,17 @@ export function JourneysFigure({
   const height = waiting ? bottom + 34 : g.height;
   const axisY = bottom + 4;
 
-  const marks = legendMarks(list).filter((m) => m !== "same" || !narrow);
+  const marks = legendMarks(list);
   const marksKey = marks.join(" ");
   useEffect(() => {
     if (!waiting)
       onDrawn?.({
         drawn: list.length,
-        of: all.length,
+        of: every.length,
         narrow,
         marks: marksKey ? (marksKey.split(" ") as LegendMark[]) : [],
       });
-  }, [onDrawn, waiting, list.length, all.length, narrow, marksKey]);
+  }, [onDrawn, waiting, list.length, every.length, narrow, marksKey]);
 
   const id = useId();
   // The figure is laid out again once the faces have loaded, so every word is measured in the face that draws it.
@@ -324,12 +275,16 @@ export function JourneysFigure({
   const [pointed, setPointed] = useState<{ j: number; k: number } | null>(null);
   const [current, setCurrent] = useState(0);
   const [touch, setTouch] = useState(false);
+  // The release-wide event lit: under the pointer (its column) or in focus (its mark, a link).
+  const [litEvent, setLitEvent] = useState<number | null>(null);
+  const [focusedEvent, setFocusedEvent] = useState<number | null>(null);
   const svgRef = useRef<SVGSVGElement>(null);
   const visible = hover ?? focus?.j ?? null;
   const dismiss = useDismiss(visible !== null);
   const active = visible;
   const shownNote = dismiss.dismissed ? null : visible;
   const step = hover !== null ? (pointed?.j === hover ? pointed : null) : focus && focus.k >= 0 ? focus : null;
+  const eventShown = focusedEvent ?? litEvent;
 
   // Each row's marks on the axis: the steps where their releases put them, the start and end moved off them. A journey
   // read and answered at one release is the crossing it is: its read mark stands a step before its answer.
@@ -346,6 +301,7 @@ export function JourneysFigure({
       crossing: ends !== null,
       lo: Math.min(placed.start, placed.end, scale.x(m.lo)),
       hi: Math.max(placed.start, placed.end, scale.x(m.hi)),
+      segments: ends !== null ? [] : segmentsOf(m, placed.start, placed.end, (r) => scale.x(r)),
     };
   });
 
@@ -366,7 +322,7 @@ export function JourneysFigure({
   };
 
   const onKeyDown = (j: number) => (event: KeyboardEvent<SVGGElement>) => {
-    const marks = list[j]?.model?.marks.length ?? 0;
+    const count = list[j]?.model?.marks.length ?? 0;
     const k = focus?.j === j ? focus.k : -1;
     const moveRow = (to: number) => {
       const next = Math.max(0, Math.min(list.length - 1, to));
@@ -381,7 +337,7 @@ export function JourneysFigure({
         moveRow(j - 1);
       },
       ArrowRight: () => {
-        setFocus({ j, k: Math.min(marks - 1, k + 1) });
+        setFocus({ j, k: Math.min(count - 1, k + 1) });
       },
       ArrowLeft: () => {
         setFocus({ j, k: Math.max(-1, k - 1) });
@@ -471,6 +427,13 @@ export function JourneysFigure({
               </>
             ) : null}
           </p>
+          {s.splits || s.merges ? (
+            <p className="fig-note__quiet">
+              {s.splits ? `${plural(s.splits, "other id")} the earlier id passed to` : ""}
+              {s.splits && s.merges ? "; " : ""}
+              {s.merges ? `${plural(s.merges, "other id")} the later id received` : ""}
+            </p>
+          ) : null}
           {mark.kind === "handoff" ? (
             <p>
               Assembly <span className="mono">{asm(s.old_assembly)}</span> →{" "}
@@ -488,6 +451,7 @@ export function JourneysFigure({
     const targets = [...new Set(m.best.map((c) => c.target))];
     const bridges = bridgesOf(journey);
     const read = readThrough(journey);
+    const ids = rowMarks[j]?.segments.map((sg) => sg.id) ?? [];
     return (
       <>
         <p className="fig-note__title">
@@ -501,6 +465,11 @@ export function JourneysFigure({
           {r.status === "tie" ? ` (a tie of ${targets.length})` : ""}
           {m.backward ? "; walked back in time" : ""}
         </p>
+        {ids.length > 1 ? (
+          <p className="fig-note__quiet">
+            Through {plural(ids.length, "stable id")}: <span className="mono">{ids.join(" → ")}</span>
+          </p>
+        ) : null}
         <p className="fig-note__quiet">
           {stepsInWords(m.marks.map((mk) => mk.step))}
           {handoffs ? `; ${plural(handoffs, "step")} across an assembly change` : ""}
@@ -524,45 +493,53 @@ export function JourneysFigure({
     return m ? scale.x((m.lo + m.hi) / 2) : width / 2;
   })();
 
-  // The names of the rows on a narrow figure: on a line of paper above each track, the left name at the start of the
-  // axis, the right name at its end; the answer cut in its middle (an identifier) where the two would touch.
-  const narrowNames = narrow
-    ? placeLabels(
-        list.flatMap((j, k) => {
-          const n = namesOf(j);
-          const cuts = (text: string) =>
-            [text, ...[16, 13, 10, 8].map((c) => middleCut(text, c) ?? "")].filter(Boolean);
-          return [
-            {
-              key: `l${k}`,
-              anchor: scale.x0,
-              forms: n.leftIsAnswer ? cuts(n.left) : [n.left],
-              align: "start" as const,
-              rows: [`r${k}`],
-              weight: n.leftIsAnswer ? 600 : 400,
-            },
-            ...(n.right
-              ? [
-                  {
-                    key: `r${k}`,
-                    anchor: scale.x1,
-                    forms: cuts(n.right),
-                    align: "end" as const,
-                    rows: [`r${k}`],
-                    weight: n.leftIsAnswer ? 400 : 600,
-                  },
-                ]
-              : []),
-          ];
-        }),
-        { bounds: [0, width], gap: 10 },
-      )
-    : null;
-
-  const labelWidth = (j: Journey) => {
-    const n = namesOf(j);
-    return n.right === null ? 0 : textWidth(n.right, FIG_TEXT, "mono", n.leftIsAnswer ? 400 : 600);
-  };
+  // The ids of the row in focus (or pointed at): the identifier at its start, each id it passes through over its
+  // segment, the answer at its end, on a line of paper above the row (and a second where they would touch), cut in
+  // their middle where they have no room.
+  const activeLabels = (() => {
+    if (active === null) return null;
+    const entry = list[active];
+    const m = entry?.model;
+    const ends = rowMarks[active];
+    if (!entry || !m || !ends) return null;
+    const cuts = (text: string) => [text, ...[16, 13, 10, 8].map((c) => middleCut(text, c) ?? "")].filter(Boolean);
+    const answer = answerText(m);
+    const segments = ends.segments;
+    // Each id the row passes through, but the identifier's own and the answer's, which its ends name.
+    const between = segments.filter(
+      (sg, i) =>
+        !(i === 0 && sg.id === stableId(idOf(entry))) &&
+        !(i === segments.length - 1 && [...new Set(m.best.map((c) => stableId(c.target)))].includes(sg.id)),
+    );
+    const requests = [
+      {
+        key: "start",
+        anchor: ends.start,
+        forms: [idOf(entry)],
+        align: m.backward ? ("end" as const) : ("start" as const),
+        rows: ["a", "b"],
+        weight: 500,
+      },
+      {
+        key: "end",
+        anchor: ends.end,
+        forms: cuts(answer),
+        align: m.backward ? ("start" as const) : ("end" as const),
+        rows: ["a", "b"],
+        weight: 600,
+      },
+      ...between.map((sg, i) => ({
+        key: `s${i}`,
+        anchor: (sg.x0 + sg.x1) / 2,
+        forms: cuts(sg.id),
+        align: "center" as const,
+        rows: ["a", "b"],
+        weight: 400,
+      })),
+    ];
+    const placed = placeLabels(requests, { bounds: [2, width - 2], gap: 8 });
+    return { placed, y: g.lineY(active), renamed: isRenamed(entry), changed: answerChanged(entry) };
+  })();
 
   const takes = (e: ReleaseEvent) => (j: Journey) =>
     j.model?.marks.some(
@@ -572,11 +549,24 @@ export function JourneysFigure({
         Math.max(mk.step.old_release ?? 0, mk.step.new_release ?? 0) === e.new &&
         (e.reason === null || mk.step.reason === e.reason),
     ) ?? false;
+  const eventLineY = g.eventY(0) - 4;
+  const shownEvent = eventShown === null ? null : (events[eventShown] ?? null);
   return (
     <div
-      className={`journeys__plot fig${motion === "travel" ? " jr-travel" : motion === "held" ? " jr-held" : ""}${narrow ? " journeys__plot--narrow" : ""}`}
+      className={`journeys__plot fig${motion === "travel" ? " jr-travel" : motion === "held" ? " jr-held" : ""}`}
       ref={ref}
       style={{ height }}
+      onPointerMove={(event) => {
+        if (event.pointerType !== "mouse" || !events.length) return;
+        const box = ref.current?.getBoundingClientRect();
+        if (!box) return;
+        const x = event.clientX - box.left;
+        const near = events.findIndex((e) => Math.abs(eventX(e) - x) <= 6);
+        setLitEvent((l) => (near < 0 ? (l === null ? l : null) : near));
+      }}
+      onPointerLeave={() => {
+        setLitEvent(null);
+      }}
     >
       {waiting ? <Waiting /> : null}
       <svg
@@ -588,7 +578,7 @@ export function JourneysFigure({
         aria-label={
           waiting
             ? `The releases ${first} to ${last} of the ${organismName(graph.organism)} graph over its assemblies; the journeys are on their way.`
-            : `${list.length} of the ${all.length} journeys of the ${organismName(graph.organism)} graph through the releases ${first} to ${last}. Arrow keys move between journeys and along their steps; Enter opens a journey's full answer.`
+            : `${list.length} of the ${every.length} journeys of the ${organismName(graph.organism)} graph through the releases ${first} to ${last}. Arrow keys move between journeys and along their steps; Enter opens a journey's full answer.`
         }
         onPointerLeave={() => {
           pointer.leave();
@@ -598,29 +588,58 @@ export function JourneysFigure({
         {/* The assembly bands, one column each from their names down to the axis */}
         <Bands bands={bands} scale={scale} top={0} bottom={bottom} labelY={13} outerY={27} />
         <ReleaseTicks scale={scale} y={axisY} releases={releases} bounds={[0, width]} />
-        {/* Release-wide events: the mark beside its words, a leader down to the rows, a faint guide inside each set whose
-            journeys take it */}
-        <g className="jr-events" aria-hidden="true">
-          {notes.map(({ e, line }) => {
+        {/* Release-wide events: a mark over the rows, each a link to that release of the graph's history; on pointing
+            at its column or focusing it, its leader and its guides through the sets whose journeys take it, and its
+            words in a note. */}
+        <g className="jr-events">
+          {events.map((e, n) => {
             const x = eventX(e);
-            const y = g.eventY(line) - 4;
+            const lit = eventShown === n;
             const takenBy = sets.map((set) => set.journeys.some(takes(e)));
+            const words = eventWords(e, assemblyName).line;
+            // Each release-wide event leads to the graph's own page, its History tab, opened on the release the event
+            // leads into (its exact counts).
+            const at = href(`/organisms/${graph.organism}`, { tab: "history", release: e.new });
             return (
-              <g key={`${e.kind}-${e.old}-${e.reason ?? ""}`} className={`jr-event jr-event--${e.kind}`}>
-                <line x1={x} x2={x} y1={y + 6} y2={g.head + 4} className="jr-event__leader" />
-                {sets.map((_, s) =>
-                  takenBy[s] ? (
-                    <line
-                      key={s}
-                      x1={x}
-                      x2={x}
-                      y1={g.blockTop(s) + 1}
-                      y2={g.blockBottom(s) - 1}
-                      className="jr-event__guide"
-                    />
-                  ) : null,
-                )}
-                <StepGlyph glyph={e.kind} x={x} y={y + (e.kind === "loop" ? 4 : 0)} size="thin" />
+              <g
+                key={`${e.kind}-${e.old}-${e.reason ?? ""}`}
+                className={`jr-event jr-event--${e.kind}${lit ? " is-lit" : ""}`}
+              >
+                {lit ? (
+                  <g aria-hidden="true">
+                    <line x1={x} x2={x} y1={eventLineY + 6} y2={g.head + 4} className="jr-event__leader" />
+                    {sets.map((_, s) =>
+                      takenBy[s] ? (
+                        <line
+                          key={s}
+                          x1={x}
+                          x2={x}
+                          y1={g.blockTop(s) + 1}
+                          y2={g.blockBottom(s) - 1}
+                          className="jr-event__guide"
+                        />
+                      ) : null,
+                    )}
+                  </g>
+                ) : null}
+                <a
+                  href={`${at}#history`}
+                  className="jr-event__link"
+                  aria-label={`${words}: Ensembl's id history of the ${organismName(graph.organism)} graph, release by release`}
+                  onFocus={() => {
+                    setFocusedEvent(n);
+                  }}
+                  onBlur={() => {
+                    setFocusedEvent((f) => (f === n ? null : f));
+                  }}
+                  onClick={(event) => {
+                    event.preventDefault();
+                    navigate(`${at}#history`);
+                  }}
+                >
+                  <rect x={x - 10} y={eventLineY - 10} width={20} height={20} className="fig-hit" />
+                  <StepGlyph glyph={e.kind} x={x} y={eventLineY + (e.kind === "loop" ? 4 : 0)} size="thin" />
+                </a>
               </g>
             );
           })}
@@ -637,6 +656,7 @@ export function JourneysFigure({
             m !== null && asked !== null && !isEnsembl(asked) && m.marks.some((mk) => mk.kind === "final");
           const bridgeMarks = m?.marks.filter((mk) => mk.kind === "bridge") ?? [];
           const bridges = bridgesOf(entry);
+          const ids = ends?.segments.map((sg) => sg.id) ?? [];
           return (
             <g
               key={`${entry.set}-${entry.identifier}`}
@@ -647,6 +667,8 @@ export function JourneysFigure({
               aria-label={
                 m
                   ? `${m.result.query_id}, read at release ${m.result.from_release}, to ${answerText(m)} at release ${m.result.to_release}: ${plural(m.marks.length, "step")}${
+                      ids.length > 1 ? `, through ${plural(ids.length, "stable id")} (${ids.join(", ")})` : ""
+                    }${
                       bridges.length
                         ? `; through ${bridges.length === 1 ? "a bridge" : `${bridges.length} bridges`} (${bridges.map((b) => b.id).join(", ")}), IDTrack's inference`
                         : ""
@@ -698,7 +720,16 @@ export function JourneysFigure({
                   {ends.crossing ? (
                     <line x1={ends.lo} x2={ends.hi} y1={y} y2={y} className="fig-cross jr-crossing" />
                   ) : (
-                    <GeneBar x0={ends.lo} x1={ends.hi} y={y} size="thin" className="jr-line" />
+                    ends.segments.map((sg, k) => (
+                      <GeneBar
+                        key={k}
+                        x0={sg.x0}
+                        x1={sg.x1}
+                        y={y}
+                        size="thin"
+                        className={`jr-line${k % 2 ? " jr-line--b" : ""}`}
+                      />
+                    ))
                   )}
                   {m.backward ? <Chevrons x0={ends.lo} x1={ends.hi} y={y} /> : null}
                   {bridgeMarks.length >= 2 ? (
@@ -710,6 +741,7 @@ export function JourneysFigure({
                       className="fig-cross jr-bridge"
                     />
                   ) : null}
+                  <Forks marks={m.marks} x={(r) => scale.x(r)} y={y} />
                   <StepGlyph glyph={readExternal ? "read" : "form"} x={ends.start} y={y} size="thin" />
                   {m.marks.map((mk, k) => {
                     const glyph = ROW_GLYPH[mk.kind];
@@ -744,118 +776,60 @@ export function JourneysFigure({
             </g>
           );
         })}
-        {/* Every text of the figure stands on a halo of the paper: no band edge, guide or line crosses a set's words, an
-            event's words or a row's names. The rows' names stand apart from the rows, whose accessible names say them. */}
-        <g className="jr-labels">
+        {/* Every text of the figure stands on a halo of the paper: no band edge, guide or line crosses a set's words or a
+            row's ids. The rows' ids stand apart from the rows, whose accessible names say them. */}
+        <g className="jr-labels" aria-hidden="true">
           {sets.map((_, s) => (
-            <text
-              key={s}
-              x={2}
-              y={g.setBaseline(s)}
-              className="fig-text fig-text--sans jr-sets__name"
-              aria-hidden="true"
-            >
+            <text key={s} x={2} y={g.setBaseline(s)} className="fig-text fig-text--sans jr-sets__name">
               {(setLines[s] ?? []).map((line, k) => (
-                <tspan key={k} x={2} dy={k ? LINE : 0}>
+                <tspan key={k} x={2} dy={k ? 15 : 0}>
                   {line}
                 </tspan>
               ))}
             </text>
           ))}
-          {notes.map((n) => {
-            const words = n.lines.join(" ");
-            // Each release-wide event leads to the graph's own page, its History tab, where Ensembl's id history of
-            // every gene is drawn release by release, opened on the release the event leads into (its exact counts).
-            const at = href(`/organisms/${graph.organism}`, { tab: "history", release: n.e.new });
-            return (
-              <a
-                key={`${n.e.kind}-${n.e.old}-${n.e.reason ?? ""}`}
-                href={`${at}#history`}
-                className="jr-event__link"
-                aria-label={`${words}: Ensembl's id history of the ${organismName(graph.organism)} graph, release by release`}
-                onClick={(event) => {
-                  event.preventDefault();
-                  navigate(`${at}#history`);
-                }}
-              >
-                <text
-                  x={n.x}
-                  y={g.eventY(n.line)}
-                  textAnchor={n.anchor}
-                  className="fig-text fig-text--sans jr-event__name"
-                >
-                  {n.lines.map((line, k) => (
-                    <tspan key={k} x={n.x} dy={k ? 16 : 0} className={k ? "jr-event__count" : undefined}>
-                      {k < n.lines.length - 1 ? `${line} ` : line}
-                    </tspan>
-                  ))}
-                </text>
-              </a>
-            );
-          })}
         </g>
         <g className="jr-names" aria-hidden="true">
-          {list.map((entry, j) => {
-            const y = g.lineY(j);
-            const n = namesOf(entry);
-            const answerCls = `jr-answer ${answerClass(entry)}`;
-            if (narrow) {
-              const l = narrowNames?.get(`l${j}`);
-              const r = narrowNames?.get(`r${j}`);
-              const yy = g.nameY(j);
-              return (
-                <g key={`${entry.set}-${entry.identifier}`} className={active === j ? "is-active" : ""}>
-                  {l ? (
-                    <text x={l.x} y={yy} className={`fig-text ${n.leftIsAnswer ? answerCls : "jr-id"}`}>
-                      {l.text}
-                    </text>
-                  ) : null}
-                  {r ? (
-                    <text
-                      x={r.x}
-                      y={yy}
-                      textAnchor="end"
-                      className={`fig-text ${n.leftIsAnswer ? "jr-id" : answerCls}`}
-                    >
-                      {r.text}
-                    </text>
-                  ) : null}
-                </g>
-              );
-            }
+          {groups.map(([a, b]) => {
+            const x = scale.x1 + 10;
             return (
-              <g key={`${entry.set}-${entry.identifier}`} className={active === j ? "is-active" : ""}>
-                <text
-                  x={scale.x0 - 10}
-                  y={y + 3.8}
-                  textAnchor="end"
-                  className={`fig-text ${n.leftIsAnswer ? answerCls : "jr-id"}`}
-                >
-                  {n.left}
-                </text>
-                {n.right === null ? null : (
-                  <text x={scale.x1 + 12} y={y + 3.8} className={`fig-text ${n.leftIsAnswer ? "jr-id" : answerCls}`}>
-                    {n.right}
-                  </text>
-                )}
-              </g>
+              <path
+                key={`${a}-${b}`}
+                d={`M${x},${g.lineY(a)}h3V${g.lineY(b)}h-3`}
+                className="jr-same"
+                data-rows={`${a}-${b}`}
+              />
             );
           })}
-          {narrow
-            ? null
-            : groups.map(([a, b]) => {
-                const x = scale.x1 + 12 + Math.max(...list.slice(a, b + 1).map(labelWidth)) + 6;
-                const y0 = g.lineY(a);
-                const y1 = g.lineY(b);
-                return (
-                  <path key={`${a}-${b}`} d={`M${x},${y0}h3V${y1}h-3`} className="jr-same" data-rows={`${a}-${b}`} />
-                );
-              })}
+          {activeLabels
+            ? [...activeLabels.placed.values()].map((l) => (
+                <text
+                  key={l.key}
+                  x={l.x}
+                  y={activeLabels.y - (l.row === "a" ? 8 : 20)}
+                  textAnchor={l.anchor}
+                  className={`fig-text jr-id${
+                    l.key === "end"
+                      ? ` jr-answer ${activeLabels.renamed ? "fig-text--strong jr-answer--renamed" : activeLabels.changed ? "fig-text--strong" : "jr-answer--same"}`
+                      : l.key === "start"
+                        ? " jr-id--start"
+                        : " jr-id--between"
+                  }`}
+                >
+                  {l.text}
+                </text>
+              ))
+            : null}
         </g>
       </svg>
       {shownNote !== null ? (
         <FigureNote x={noteX} y={g.lineY(shownNote) + 14} width={width} pointer={pointer.note}>
           {noteFor(shownNote)}
+        </FigureNote>
+      ) : shownEvent ? (
+        <FigureNote x={eventX(shownEvent)} y={eventLineY + 14} width={width}>
+          <p className="fig-note__title">{eventWords(shownEvent, assemblyName).line}</p>
+          <p className="fig-note__quiet">A press opens this release in the graph&apos;s history.</p>
         </FigureNote>
       ) : null}
       <p className="visually-hidden" aria-live="polite" id={id}>
@@ -898,12 +872,26 @@ function Waiting() {
   );
 }
 
-/** A journey's answer: strong where it names the gene otherwise than the identifier read (a renamed gene, another
- *  id), quiet where it is the identifier itself (a gene whose symbol did not change). */
-function answerClass(j: Journey): string {
-  if (!j.model || !j.result) return "";
-  if (isRenamed(j)) return "fig-text--strong jr-answer--renamed";
-  return answerChanged(j) ? "fig-text--strong" : "jr-answer--same";
+/** The stubs of a row's splits and merges: at a step whose earlier id passed to other ids too, a stub for each (at
+ *  most `STUBS`) leaving the step above the line toward later releases; at a step whose later id received other ids
+ *  too, a stub for each entering it below the line from earlier releases, in the event's hue. */
+export function Forks({ marks, x, y }: { marks: readonly JourneyMark[]; x: (release: number) => number; y: number }) {
+  return (
+    <g className="jr-forks" aria-hidden="true">
+      {marks.flatMap((mk, k) => {
+        const s = mk.step;
+        if (s.kind !== "history" || (!s.splits && !s.merges)) return [];
+        const at = x(mk.at);
+        const out = Array.from({ length: Math.min(STUBS, s.splits) }, (_, i) => (
+          <line key={`s${k}-${i}`} x1={at + 2} y1={y - 1.5} x2={at + 7} y2={y - 4 - 2.2 * i} className="jr-fork" />
+        ));
+        const into = Array.from({ length: Math.min(STUBS, s.merges) }, (_, i) => (
+          <line key={`m${k}-${i}`} x1={at - 7} y1={y + 4 + 2.2 * i} x2={at - 2} y2={y + 1.5} className="jr-fork" />
+        ));
+        return [...out, ...into];
+      })}
+    </g>
+  );
 }
 
 /** Chevrons along a journey that travels back in time, pointing the way it goes. */
