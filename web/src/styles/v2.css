@@ -61,6 +61,18 @@
     width var(--dur-3) var(--ease-in-out);
 }
 
+/* Tabs never widen what holds them: a wide panel (a table) scrolls in its own frame, the tab list sideways. */
+.tabs,
+.tabs__panel {
+  min-width: 0;
+}
+
+@media (max-width: 640px) {
+  .tabs__tab {
+    padding: 0 var(--space-3);
+  }
+}
+
 .tabs__panel {
   padding-top: var(--space-6);
   outline: none;
