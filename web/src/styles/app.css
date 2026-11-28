@@ -141,7 +141,6 @@ h1 {
 
 /* A section of the page. */
 h2,
-.section-title h2,
 .api-section__head h2,
 .figure-panel__title,
 .home-section-head h3,
@@ -247,7 +246,6 @@ code {
 .empty,
 .notice,
 .page-head,
-.section-title,
 .fig-caption,
 .fig-note,
 .field__error {
@@ -333,28 +331,6 @@ code {
   border: 1px solid var(--line);
   border-radius: var(--radius-lg);
   padding: var(--space-5);
-}
-
-/* A section's head, as the api page sets it: the serif title, its subtitle beside it, a rule under both. */
-.section-title {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: var(--space-1) var(--space-4);
-  margin: var(--space-7) 0 var(--space-4);
-  padding-bottom: var(--space-3);
-  border-bottom: 1px solid var(--line-strong);
-}
-
-.panel .section-title {
-  margin-top: 0;
-}
-
-.section-title__aside {
-  margin-left: auto;
-  min-width: 0;
-  color: var(--ink-3);
-  font-size: var(--text-sm);
 }
 
 /* A figure panel's letter, as in a paper's figure: a, b, c. */

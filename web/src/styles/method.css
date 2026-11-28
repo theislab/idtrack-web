@@ -1007,3 +1007,10 @@
     grid-row: 1;
   }
 }
+
+/* The tabs of the page never widen it: a tab list wider than the window scrolls inside itself. */
+.method-stepper,
+.accuracy__tabs,
+.method-using__tabs {
+  min-width: 0;
+}

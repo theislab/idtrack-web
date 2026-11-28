@@ -96,7 +96,7 @@ export function ConvertPage() {
   const idle = !parameters.identifier;
   return (
     <div className={`page page--convert${idle ? " page--hero" : " page--answer"}`}>
-      {idle && !current ? <ConvertEmpty description={null} form={null} /> : null}
+      {idle && !current ? <ConvertEmpty form={null} /> : null}
       {!idle && !current ? <ConvertTitle /> : null}
       {current ? (
         <ConvertForOrganism
@@ -218,7 +218,6 @@ function ConvertForOrganism({
   if (result.state === "idle" && !notRelease && !isCancelled)
     return (
       <ConvertEmpty
-        description={description}
         form={<ConvertForm description={description} parameters={parameters} onSubmit={go} variant="hero" />}
       />
     );

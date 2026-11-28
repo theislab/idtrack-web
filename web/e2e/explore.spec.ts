@@ -52,6 +52,7 @@ test("Method: every stage is drawn on the real answer its case claims, linked to
     expect(holdsStage(c.stage, result), `${c.stage}: ${c.query.identifier}`).toBe(true);
   }
   // One stage at a time: each stage's tab shows its figure.
+  await page.goto("/method");
   for (const c of shown) {
     await page.goto(`/method?stage=${c.stage}`);
     await scrollThrough(page);
@@ -156,6 +157,7 @@ test("Explore: Ensembl's id history from the server's counts, and the assembly c
   // The assemblies: every change of the serving assembly, with whether Ensembl maps it, in IDTrack's words, in the
   // assembly's row opened.
   const assemblies = page.getByRole("region", { name: "Assemblies", exact: true });
+  await expect(assemblies.locator(".expandable__summary").first()).toBeVisible();
   for (const row of await assemblies.locator(".expandable__summary").all()) await row.click();
   for (const h of handoffsOf(graph)) await expect(assemblies).toContainText(MAPPING_WORDS[h.mapping]);
   if (response.status() === 200) {
@@ -292,10 +294,11 @@ test("Organism: an address that names a release of the history shows that releas
 });
 
 test("Explore: the page's title says what it holds; the stories, then the graphs side by side", async ({ page }) => {
+  const graphsHeld = (await organisms(page)).length;
   await page.goto("/organisms");
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Stories from Ensembl's history");
   // Two tabs: the stories first (the organism's chips above them), the graphs side by side.
-  await expect(page.getByRole("radiogroup", { name: "Stories of the graph" })).toBeVisible();
+  if (graphsHeld > 1) await expect(page.getByRole("radiogroup", { name: "Stories of the graph" })).toBeVisible();
   await page.getByRole("tab", { name: /^The graphs/ }).click();
   await expect(page).toHaveURL(/tab=graphs/);
   await expect(page.getByRole("heading", { level: 2, name: "The graphs this server holds" })).toBeVisible();
@@ -314,6 +317,7 @@ test("Method: the terms of each stage folded behind one line", async ({ page }) 
   let folded = 0;
   for (const stage of ["read", "walk", "bridge", "rank", "answer"]) {
     await page.goto(`/method?stage=${stage}`);
+    await expect(page.locator(".method-panel").first()).toBeVisible();
     const glossary = page.locator(".method-glossary > .expandable__summary");
     folded += await glossary.count();
     for (const g of await glossary.all()) {

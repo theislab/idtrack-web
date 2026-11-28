@@ -330,7 +330,12 @@ test("the api page lists every endpoint of the server's OpenAPI document", async
   await expect(agents.getByRole("link", { name: "openapi.json" })).toHaveAttribute("href", "/api/v1/openapi.json");
   // Each endpoint is its summary and four tabs.
   for (const article of await articles.all())
-    await expect(article.getByRole("tab")).toHaveText(["Try it", /^Parameters/, "Response", "Examples"]);
+    await expect(article.getByRole("tablist", { name: /, in detail$/ }).getByRole("tab")).toHaveText([
+      "Try it",
+      /^Parameters/,
+      "Response",
+      "Examples",
+    ]);
   // The error codes are the api's own table, folded to one line.
   await page.getByRole("button", { name: /^Error codes/ }).click();
   const vocabulary = (await (await page.request.get("/api/v1/vocabulary")).json()) as { errors: { code: string }[] };

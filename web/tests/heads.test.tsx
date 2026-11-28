@@ -14,20 +14,20 @@ import { ExploreHead } from "../src/pages/OrganismPage";
 const LEDE_MOST = 200;
 
 describe("the heads of the pages", () => {
+  // A calm head (the art direction's): the title and one sentence, nothing beside them.
   for (const [name, Head] of [
-    ["Batch", BatchHead],
-    ["Names", NamesHead],
     ["Explore", ExploreHead],
     ["Method", MethodHead],
     ["API", ApiHead],
   ] as const) {
-    it(`${name}: at most one label, one title and a lede of at most ${String(LEDE_MOST)} characters`, () => {
+    it(`${name}: one title and a lede of one sentence, at most ${String(LEDE_MOST)} characters, no label`, () => {
       const { container } = render(<Head />);
-      expect(container.querySelectorAll(".page-head > .eyebrow").length).toBeLessThanOrEqual(1);
+      expect(container.querySelectorAll(".eyebrow")).toHaveLength(0);
       expect(container.querySelectorAll("h1")).toHaveLength(1);
       const lede = container.querySelector(".page-head > .lede")?.textContent ?? "";
       expect(lede.length, lede).toBeGreaterThan(40);
       expect(lede.length, lede).toBeLessThanOrEqual(LEDE_MOST);
+      expect(lede, lede).toMatch(/^[A-Z][^.;:!?]*\.$/);
     });
   }
 

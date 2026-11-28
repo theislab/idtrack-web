@@ -87,7 +87,7 @@ function useHeight<T extends HTMLElement>() {
 
 /** A journey in words: its identifier, where it is read, its answer, its steps and its bridges (the figure's text
  *  alternative, and the list a reader can open). */
-export function journeyWords(j: Journey): string {
+function journeyWords(j: Journey): string {
   const m = j.model;
   if (!m)
     return `${j.identifier}: ${j.error ? `not answered when the server started (${j.error.message})` : "no best answer to draw"}`;

@@ -11,12 +11,13 @@ import { api } from "../../api/client";
 import type { GraphDescription } from "../../api/types";
 import { convertHref, plainConversion } from "../../lib/convertParameters";
 import { idAt, layoutLineages, runsOf, type LineageLayout } from "../../lib/hero/lineageLayout";
+import { LEAST_SPAN, lineWords, moveView, releaseFor, viewFrame } from "../../lib/explore/lineageView";
 import { groupedInteger } from "../../lib/numbers";
 import { organismName } from "../../lib/organismNames";
 import { navigate } from "../../lib/router";
 import { usePhone } from "../../lib/usePhone";
 import { useRequest } from "../../lib/useRequest";
-import { createField, fieldAt, placeOf, type Field, type FieldColours, type FieldFrame } from "../hero/field";
+import { createField, fieldAt, placeOf, type Field, type FieldColours } from "../hero/field";
 import { assemblyBands } from "../figure/releases";
 import { ErrorPanel } from "../ErrorPanel";
 import { CaptionMore } from "../home/CaptionMore";
@@ -25,10 +26,6 @@ import { Button, Link, Mono, Skeleton } from "../ui";
 /** The ids a wide screen and a phone ask for (whole families; the same sample as the home's picture). */
 const WIDE_LIMIT = 4_000;
 const NARROW_LIMIT = 1_500;
-/** The room under the field for its release axis (px). */
-const AXIS_ROOM = 40;
-/** The narrowest view: this share of the axis (about seven releases of a graph of sixty-eight). */
-const LEAST_SPAN = 0.1;
 
 /** The theme's inks, read from the element's computed style. */
 function inks(element: Element): FieldColours {
@@ -54,46 +51,6 @@ function inks(element: Element): FieldColours {
 
 const reducedMotion = () =>
   typeof window.matchMedia === "function" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-
-/** The field's frame for a box and a view of the axis (`[from, to]`, fractions): the view fills the box's width. */
-export function viewFrame(width: number, height: number, view: readonly [number, number]): FieldFrame {
-  const pad = width < 720 ? 8 : 16;
-  const inner = Math.max(1, width - 2 * pad);
-  const span = Math.max(1e-6, view[1] - view[0]);
-  const left = pad - (view[0] / span) * inner;
-  const usable = Math.max(1, height - AXIS_ROOM);
-  return { left, right: left + inner / span, centre: usable / 2, half: usable * 0.47 };
-}
-
-/** A view moved by `delta` (fractions of the axis) and scaled by `factor` about `at`, kept within the axis. */
-export function moveView(
-  view: readonly [number, number],
-  { delta = 0, factor = 1, at = (view[0] + view[1]) / 2 }: { delta?: number; factor?: number; at?: number | undefined },
-): [number, number] {
-  const span = Math.min(1, Math.max(LEAST_SPAN, (view[1] - view[0]) * factor));
-  let from = at - (at - view[0]) * (span / (view[1] - view[0])) + delta;
-  from = Math.min(1 - span, Math.max(0, from));
-  return [from, from + span];
-}
-
-/** An id's words: its runs of active releases, its new versions, its family. */
-export function lineWords(layout: LineageLayout, id: number): string {
-  const runs = runsOf(layout, id);
-  const family = (layout.familyOf[2 * id + 1] ?? 0) - (layout.familyOf[2 * id] ?? 0) + 1;
-  const versions = layout.versionCounts[id] ?? 0;
-  const releases = runs.map(([a, b]) => (a === b ? `${a}` : `${a}–${b}`)).join(", ");
-  return `active at ${releases}${versions ? ` · ${versions} new version${versions === 1 ? "" : "s"}` : ""}${
-    family > 1 ? ` · a family of ${family} ids` : ""
-  }${id < layout.focusIds ? " · on a journey of the showcase" : ""}`;
-}
-
-/** The release an id is opened at: the release `k` points at where the id is active there, else its last. */
-export function releaseFor(layout: LineageLayout, id: number, k: number): number {
-  const n = layout.releases.length;
-  if (!Number.isNaN(layout.y[id * n + k] ?? NaN)) return layout.releases[k] ?? 0;
-  const runs = runsOf(layout, id);
-  return runs[runs.length - 1]?.[1] ?? layout.releases[n - 1] ?? 0;
-}
 
 interface Picked {
   id: number;
@@ -141,6 +98,7 @@ function FieldView({
   const [focused, setFocused] = useState(false);
   const [mode, setMode] = useState<string | null>(null);
   const drag = useRef<{ x: number; view: [number, number]; moved: boolean } | null>(null);
+  const [dragging, setDragging] = useState(false);
   const n = layout.releases.length;
   const frame = size ? viewFrame(size.width, size.height, view) : null;
   const organism = description.organism;
@@ -161,7 +119,7 @@ function FieldView({
     f.setColours(inks(element));
     const measure = () => {
       const { width, height } = element.getBoundingClientRect();
-      setSize((s) => (s && s.width === width && s.height === height ? s : { width, height }));
+      setSize((s) => (s?.width === width && s.height === height ? s : { width, height }));
     };
     measure();
     const resize = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(measure);
@@ -250,7 +208,10 @@ function FieldView({
     const d = drag.current;
     if (d && size) {
       const dx = event.clientX - d.x;
-      if (Math.abs(dx) > 4) d.moved = true;
+      if (Math.abs(dx) > 4 && !d.moved) {
+        d.moved = true;
+        setDragging(true);
+      }
       if (d.moved) {
         const span = d.view[1] - d.view[0];
         setView(moveView(d.view, { delta: (-dx / Math.max(1, size.width - 32)) * span }));
@@ -264,6 +225,7 @@ function FieldView({
   const onPointerUp = (event: PointerEvent<HTMLDivElement>) => {
     const d = drag.current;
     drag.current = null;
+    setDragging(false);
     if (!d || d.moved) return;
     const p = local(event);
     const hit = pick(p.x, p.y);
@@ -408,7 +370,7 @@ function FieldView({
         </div>
       </div>
       <div
-        className={`lineage-field__box${drag.current?.moved ? " is-dragging" : ""}`}
+        className={`lineage-field__box${dragging ? " is-dragging" : ""}`}
         ref={box}
         data-mode={mode ?? undefined}
         onPointerDown={onPointerDown}

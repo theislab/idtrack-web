@@ -3,13 +3,16 @@
 // release; the stage cases read from an answer's own fields; the parsing rules of the generator of idtrack's documentation
 // (scripts/idtrack-docs.ts). The benchmarks' are in benchmarks.test.ts.
 import { describe, expect, it } from "vitest";
-import type { HistoryResponse } from "../src/api/types";
+import type { HistoryResponse, LineagesResponse } from "../src/api/types";
 import docs from "../src/generated/idtrack_docs.json";
 import { shortNames } from "../src/components/figure/releases";
 import { databaseMeaning } from "../src/lib/databaseMeanings";
 import { handoffsOf, mappingOf } from "../src/lib/explore/handoffs";
 import { changed, historyColumns, niceMax } from "../src/lib/explore/history";
 import { holdsStage } from "../src/lib/method/cases";
+import { layoutLineages } from "../src/lib/hero/lineageLayout";
+import { chipName } from "../src/lib/explore/chips";
+import { LEAST_SPAN, lineWords, moveView, releaseFor, viewFrame } from "../src/lib/explore/lineageView";
 import { conversions, description } from "./fixtures";
 import { changesOf, codeWords, forReaders, learnRefTitles, plain } from "../scripts/idtrack-docs.ts";
 
@@ -143,5 +146,61 @@ describe("the assemblies' short names", () => {
     // Names that share no prefix of three characters keep their own names.
     expect([...shortNames(["NCBI36", "GRCh37", "GRCh38"]).values()]).toEqual(["NCBI36", "GRCh37", "GRCh38"]);
     for (const short of [...pig.values(), ...macaque.values()]) expect(short).not.toMatch(/^[\d.]+$/);
+  });
+});
+
+describe("an organism's lineage field", () => {
+  const lineages: LineagesResponse = {
+    organism: "sus_scrofa",
+    content_digest: null,
+    releases: [10, 11, 12, 13],
+    genes: 5,
+    families: 3,
+    focus_families: 1,
+    limit: 4,
+    ids: ["A", "B", "C", "D"],
+    family_starts: [0, 2, 3],
+    active: [[[10, 11]], [[12, 13]], [[10, 13]], [[11, 13]]],
+    versions: [[11], [], [12, 13], []],
+    edges: [[0, 1, 11, 12, 0.9]],
+    compute_seconds: 0,
+  };
+  const layout = layoutLineages(lineages);
+
+  it("fills the box's width with the view, and leaves the axis its room", () => {
+    const whole = viewFrame(1000, 540, [0, 1]);
+    expect(whole.left).toBe(16);
+    expect(whole.right).toBe(984);
+    expect(whole.centre * 2 + 40).toBe(540);
+    // A view of the axis's second half: its start at the left edge, the first half outside the box.
+    const half = viewFrame(1000, 540, [0.5, 1]);
+    expect(half.left + (half.right - half.left) * 0.5).toBeCloseTo(16);
+    expect(half.right).toBeCloseTo(984);
+  });
+
+  it("zooms about a point, pans, and stays within the axis and above the narrowest view", () => {
+    expect(moveView([0, 1], { factor: 0.5, at: 0.5 })).toEqual([0.25, 0.75]);
+    expect(moveView([0.25, 0.75], { delta: 0.5 })).toEqual([0.5, 1]);
+    expect(moveView([0.25, 0.75], { delta: -1 })).toEqual([0, 0.5]);
+    const narrow = moveView([0.4, 0.6], { factor: 0.01 });
+    expect(narrow[1] - narrow[0]).toBeCloseTo(LEAST_SPAN);
+    expect(moveView([0.2, 0.4], { factor: 100 })).toEqual([0, 1]);
+  });
+
+  it("says an id's runs, new versions and family, and opens it where it is active", () => {
+    const a = layout.ids.indexOf("A");
+    const c = layout.ids.indexOf("C");
+    expect(lineWords(layout, a)).toBe(
+      "active at 10–11 · 1 new version · a family of 2 ids · on a journey of the showcase",
+    );
+    expect(lineWords(layout, c)).toBe("active at 10–13 · 2 new versions");
+    // At a release it is active at, that release; elsewhere its last.
+    expect(releaseFor(layout, a, 1)).toBe(11);
+    expect(releaseFor(layout, a, 3)).toBe(11);
+  });
+
+  it("names an organism's chip by its common name", () => {
+    expect(chipName("sus_scrofa")).toBe("Pig");
+    expect(chipName("homo_sapiens")).toBe("Human");
   });
 });

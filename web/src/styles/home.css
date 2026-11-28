@@ -205,6 +205,12 @@
   z-index: 2;
 }
 
+/* An open card stands above every other card's (i). */
+.case__about:has(.hovercard__card),
+.cases-key:has(.hovercard__card) {
+  z-index: 41;
+}
+
 .case__about-button,
 .cases-key__button {
   display: inline-flex;

@@ -148,16 +148,15 @@ function TocGroup({
   holds: boolean;
   children: ReactNode;
 }) {
-  const [open, setOpen] = useState(false);
-  useEffect(() => {
-    if (holds) setOpen(true);
-  }, [holds]);
+  // Open while one of its entries is read, until the reader folds or opens it by hand.
+  const [chosen, setChosen] = useState<boolean | null>(null);
+  const open = chosen ?? holds;
   return (
     <details
       className="api-toc__group"
       open={open}
       onToggle={(event) => {
-        setOpen(event.currentTarget.open);
+        if (event.currentTarget.open !== open) setChosen(event.currentTarget.open);
       }}
     >
       <summary className="api-toc__group-name">
@@ -695,6 +694,12 @@ export function ApiPage() {
     };
   }, [doc, list.length]);
   const complete = doc !== null && drawn >= list.length;
+  // The facts' line: the document's OpenAPI version and its endpoints (their own words while the document comes).
+  const factsLine = doc
+    ? `OpenAPI ${doc.openapi ?? "?"} · ${String(list.length)} endpoints`
+    : docState === "failed"
+      ? "The document: not read"
+      : "The document…";
   useEffect(() => {
     if (!complete || !window.location.hash) return;
     const target = window.document.getElementById(decodeURIComponent(window.location.hash.slice(1)));
@@ -719,20 +724,8 @@ export function ApiPage() {
           <HoverCard
             className="api-facts__more"
             triggerClassName="api-facts__more-button"
-            label="The server's api: its document, endpoints, rate and IDTrack's version"
-            trigger={
-              <>
-                {doc ? (
-                  <>
-                    OpenAPI <Mono>{doc.openapi ?? "?"}</Mono> · <Mono>{list.length}</Mono> endpoints
-                  </>
-                ) : docState === "failed" ? (
-                  "The document: not read"
-                ) : (
-                  "The document…"
-                )}
-              </>
-            }
+            label={`${factsLine}: the document, the endpoints, the rate and IDTrack's version`}
+            trigger={<>{factsLine}</>}
           >
             <dl className="api-facts__list">
               <Fact label="Document" state={docState} failed="The request of /api/v1/openapi.json failed.">

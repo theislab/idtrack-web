@@ -11,7 +11,8 @@ import type { AssemblyDescription, GraphDescription, GraphVersion, HistoryRespon
 import { AssemblyRows } from "../components/explore/AssemblyRows";
 import { IdHistory } from "../components/explore/IdHistory";
 import { BenchmarkProvenance } from "../components/method/BenchmarkProvenance";
-import { chipName, ExploreStories, StoriesOrganism } from "../components/explore/Stories";
+import { ExploreStories, StoriesOrganism } from "../components/explore/Stories";
+import { chipName } from "../lib/explore/chips";
 import { CaptionMore } from "../components/home/CaptionMore";
 import { Segmented } from "../components/v2/Segmented";
 import { Tabs } from "../components/v2/Tabs";

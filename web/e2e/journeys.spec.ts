@@ -192,7 +192,7 @@ test("at every common window the figure names the journeys it draws and keeps in
     await page.evaluate(async () => {
       await document.fonts.ready;
     });
-    expect(await figureAt(page), `${width}x${height}`).toEqual([]);
+    await expect.poll(() => figureAt(page), { message: `${width}x${height}` }).toEqual([]);
     expect(await textsWholeAndClear(page), `${width}x${height}`).toEqual([]);
   }
 });

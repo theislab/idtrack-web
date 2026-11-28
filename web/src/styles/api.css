@@ -1777,3 +1777,9 @@
     min-height: 44px;
   }
 }
+
+/* The tabs of an endpoint and of the recipes never widen the page. */
+.endpoint__tabs,
+.api-recipes {
+  min-width: 0;
+}

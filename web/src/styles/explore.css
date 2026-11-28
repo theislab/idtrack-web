@@ -1379,3 +1379,9 @@ a.organism-switch__item:hover {
     height: clamp(20rem, 60svh, 28rem);
   }
 }
+
+/* The tabs of the page never widen it: a tab list wider than the window scrolls inside itself. */
+.explore-tabs,
+.organism-tabs {
+  min-width: 0;
+}

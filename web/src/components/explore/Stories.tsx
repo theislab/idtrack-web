@@ -8,7 +8,8 @@ import { Suspense } from "react";
 import type { GraphDescription } from "../../api/types";
 import { caseQueryOf } from "../../lib/home/links";
 import { lazyPart } from "../../lib/lazyPart";
-import { commonName, organismName } from "../../lib/organismNames";
+import { chipName } from "../../lib/explore/chips";
+import { organismName } from "../../lib/organismNames";
 import { useOrganisms } from "../../lib/organisms";
 import { useShowcase } from "../../lib/showcase";
 import { ErrorBoundary } from "../ErrorBoundary";
@@ -21,12 +22,6 @@ import "../../styles/home.css";
 // showcase: neither waits for the other.
 const CaseGallery = lazyPart(() => import("./CaseGallery").then((m) => ({ default: m.CaseGallery })));
 void CaseGallery.preload();
-
-/** An organism's short name for a chip: its common name, capitalised, else its binomial. */
-export function chipName(organism: string): string {
-  const common = commonName(organism);
-  return common ? common.charAt(0).toUpperCase() + common.slice(1) : organismName(organism);
-}
 
 /** The organism whose stories are told: one chip per graph, one chosen (a radio group; the arrow keys move). */
 export function StoriesOrganism() {

@@ -359,15 +359,6 @@ export function TableFrame({
   );
 }
 
-export function SectionTitle({ children, id, aside }: { children: ReactNode; id?: string; aside?: ReactNode }) {
-  return (
-    <div className="section-title">
-      <h2 id={id}>{children}</h2>
-      {aside ? <div className="section-title__aside">{aside}</div> : null}
-    </div>
-  );
-}
-
 /** A label above a value, as on an instrument's panel. */
 export function Readout({ label, children, wide }: { label: string; children: ReactNode; wide?: boolean }) {
   return (

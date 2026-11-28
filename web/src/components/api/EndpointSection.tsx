@@ -447,16 +447,16 @@ function TryIt({
       <div className="tryit__answer" aria-busy={state.state === "loading"}>
         {state.state === "done" ? (
           <>
-            <h5 className="tryit__answer-title" ref={answerHeading} tabIndex={-1}>
+            <h4 className="tryit__answer-title" ref={answerHeading} tabIndex={-1}>
               The answer: <span className="mono">{state.exchange.status}</span> {state.exchange.statusText}
-            </h5>
+            </h4>
             <ExchangeView exchange={state.exchange} what={`The answer of ${state.method} ${endpoint.path}`} />
           </>
         ) : state.state === "failed" ? (
           <div className="notice notice--danger">
-            <h5 className="notice__title" ref={answerHeading} tabIndex={-1}>
+            <h4 className="notice__title" ref={answerHeading} tabIndex={-1}>
               No answer
-            </h5>
+            </h4>
             <p>{state.message}</p>
           </div>
         ) : null}
