@@ -342,10 +342,10 @@ test("the conversion's address holds every option and reloads", async ({ page })
   await expect(page.getByText("The path was not asked for", { exact: false })).toBeVisible();
   // The verdict's query says the options away from their defaults; Edit unfolds the form, whose one line says every
   // setting and opens on a press to all their fields.
-  await expect(page.locator(".answer__asked")).toContainText("bridges not allowed · no path asked");
+  await expect(page.locator(".answer__asked")).toContainText("no bridges · no path asked");
   await page.getByRole("button", { name: "Edit the conversion" }).click();
   const fold = page.getByRole("button", { name: /^Settings/ });
-  await expect(fold).toContainText("bridges not allowed · no path");
+  await expect(fold).toContainText("no bridges · no path");
   await fold.click();
   await expect(page.getByRole("switch", { name: "Allow bridges" })).not.toBeChecked();
   await expect(page.getByRole("switch", { name: "Show the path" })).not.toBeChecked();

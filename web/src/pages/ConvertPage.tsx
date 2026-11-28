@@ -392,8 +392,8 @@ function AskedLine({
         {databaseLabel(parameters.finalDatabase ?? "ensembl_gene")};{" "}
       </span>
       <span className="answer__asked-words">
-        from {parameters.fromDatabase === null ? "any database" : databaseLabel(parameters.fromDatabase)} · bridges{" "}
-        {parameters.allowBridges ? "allowed" : "not allowed"}
+        read in {parameters.fromDatabase === null ? "any database" : databaseLabel(parameters.fromDatabase)} ·{" "}
+        {parameters.allowBridges ? "bridges allowed" : "no bridges"}
         {parameters.explain ? "" : " · no path asked"}
       </span>{" "}
       <button
@@ -785,11 +785,18 @@ function ConvertForm({
                 <em>{organismName(organism)}</em> ·{" "}
               </>
             ) : null}
-            read at <span className="mono">{fromRelease.trim() || "inferred"}</span> · to{" "}
-            <span className="mono">{toRelease.trim() || description.snapshot_release}</span> · in{" "}
-            {finalDatabase ? databaseLabel(finalDatabase) : "Ensembl gene"} · from{" "}
-            {fromDatabase ? databaseLabel(fromDatabase) : "any database"} · bridges{" "}
-            {allowBridges ? "allowed" : "not allowed"}
+            {/* In A list's words (BatchPage `settingWords`), every setting said, the defaults too. */}
+            {fromRelease.trim() ? (
+              <>
+                from <span className="mono">{fromRelease.trim()}</span>
+              </>
+            ) : (
+              "from its own release"
+            )}{" "}
+            to <span className="mono">{toRelease.trim() || description.snapshot_release}</span> ·{" "}
+            {finalDatabase ? databaseLabel(finalDatabase) : "Ensembl gene"} · read in{" "}
+            {fromDatabase ? databaseLabel(fromDatabase) : "any database"} ·{" "}
+            {allowBridges ? "bridges allowed" : "no bridges"}
             {explain ? "" : " · no path"}
           </span>
         </button>
