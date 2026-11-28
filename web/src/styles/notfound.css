@@ -1,26 +1,55 @@
-/* The page of an address that is not a page of idtrack (components/NotFound.tsx). */
+/* The page of an address that is not a page of IDTrack, and the figure of every "no such" state
+   (components/NotFound.tsx). Calm: the title, one sentence, the figure, the way back. */
 
-/* The head is every page's (app.css, .page-head); the figure follows close under it. */
 .notfound__head {
-  margin-bottom: 0;
+  display: grid;
+  gap: var(--space-3);
+  max-width: var(--measure);
 }
 
 .notfound__figure {
   display: block;
-  width: min(100%, 320px);
+  width: min(100%, 480px);
   height: auto;
-  margin: var(--space-6) 0;
+  margin: var(--space-7) 0;
 }
 
 .notfound__cap {
   stroke: var(--ink-1);
-  stroke-width: 1.5;
+  stroke-width: 2;
+  stroke-linecap: round;
 }
 
 .notfound__after {
   stroke: var(--line-strong);
-  stroke-width: 1;
-  stroke-dasharray: 1 4;
+  stroke-width: 1.5;
+  stroke-dasharray: 1 6;
+  stroke-linecap: round;
+}
+
+/* The figure is still: under reduced motion nothing changes; otherwise the strong id draws itself once to its end. */
+@media (prefers-reduced-motion: no-preference) {
+  .notfound__figure .fig-gene--thick {
+    transform-box: fill-box;
+    transform-origin: left center;
+    animation: notfound-run 900ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+
+  .notfound__after {
+    animation: notfound-fade 600ms 700ms ease-out both;
+  }
+}
+
+@keyframes notfound-run {
+  from {
+    transform: scaleX(0);
+  }
+}
+
+@keyframes notfound-fade {
+  from {
+    opacity: 0;
+  }
 }
 
 .notfound__sections {
@@ -29,21 +58,28 @@
   padding: 0;
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr));
-  border-top: 1px solid var(--ink-1);
+  column-gap: var(--space-6);
 }
 
 .notfound__sections li {
   display: grid;
   gap: var(--space-1);
   align-content: start;
-  padding: var(--space-4) var(--space-4) var(--space-5) 0;
-  border-bottom: 1px solid var(--line);
+  padding: var(--space-4) 0 var(--space-5);
+  border-top: 1px solid var(--line);
 }
 
 .notfound__link {
   font-weight: var(--weight-strong);
   font-size: var(--text-lg);
   width: fit-content;
+  text-decoration: none;
+}
+
+@media (hover: hover) {
+  .notfound__link:hover {
+    text-decoration: underline;
+  }
 }
 
 .notfound__sections p {

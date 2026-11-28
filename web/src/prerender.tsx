@@ -7,7 +7,9 @@
 import type { ReactNode } from "react";
 import { renderToString } from "react-dom/server";
 import { ConvertSections, Masthead } from "./components/shell/Masthead";
+import { metaHead, PAGE_META } from "./lib/pageMeta";
 import { OrganismsProvider } from "./lib/organisms";
+import { routeOf } from "./lib/routes";
 import { ApiHead } from "./pages/ApiPage";
 import { BatchHead } from "./pages/BatchPage";
 import { ConvertPage } from "./pages/ConvertPage";
@@ -15,6 +17,10 @@ import { HomePage } from "./pages/HomePage";
 import { MethodHead } from "./pages/MethodPage";
 import { NamesHead } from "./pages/NamesPage";
 import { ExploreHead } from "./pages/OrganismPage";
+import { AccessibilityPage } from "./pages/site/AccessibilityPage";
+import { LegalPage } from "./pages/site/LegalPage";
+import { LicencesPage } from "./pages/site/LicencesPage";
+import { PrivacyPage } from "./pages/site/PrivacyPage";
 
 export interface Frame {
   /** The address the frame is drawn at (its path decides the masthead's current link). */
@@ -23,16 +29,24 @@ export interface Frame {
    *  home and the Convert page, whose code is the entry's. */
   module: string | null;
   body: () => ReactNode;
+  /** The page's own entry of lib/pageMeta.ts (its path, or a frame's name for an organism, an answer and no page). */
+  meta: string;
 }
 
 /** The frames by name; the server picks one by the address it answers (api/idtrack_web_api/frontend.py). */
 export const FRAMES: Record<string, Frame> = {
-  home: { address: "/", module: null, body: () => <HomePage /> },
-  convert: { address: "/convert", module: null, body: () => <ConvertPage /> },
-  answer: { address: "/convert?id=_", module: "src/components/ResultView.tsx", body: () => <ConvertPage /> },
+  home: { address: "/", module: null, body: () => <HomePage />, meta: "/" },
+  convert: { address: "/convert", module: null, body: () => <ConvertPage />, meta: "/convert" },
+  answer: {
+    address: "/convert?id=_",
+    module: "src/components/ResultView.tsx",
+    body: () => <ConvertPage />,
+    meta: "answer",
+  },
   batch: {
     address: "/batch",
     module: "src/pages/BatchPage.tsx",
+    meta: "/batch",
     body: () => (
       <div className="page page--batch">
         <BatchHead />
@@ -42,6 +56,7 @@ export const FRAMES: Record<string, Frame> = {
   names: {
     address: "/names",
     module: "src/pages/NamesPage.tsx",
+    meta: "/names",
     body: () => (
       <div className="page page--names">
         <NamesHead />
@@ -51,6 +66,7 @@ export const FRAMES: Record<string, Frame> = {
   organisms: {
     address: "/organisms",
     module: "src/pages/OrganismPage.tsx",
+    meta: "/organisms",
     body: () => (
       <div className="page page--explore">
         <ExploreHead />
@@ -60,11 +76,13 @@ export const FRAMES: Record<string, Frame> = {
   organism: {
     address: "/organisms/_",
     module: "src/pages/OrganismPage.tsx",
+    meta: "organism",
     body: () => <div className="page page--organism" />,
   },
   developers: {
     address: "/developers",
     module: "src/pages/ApiPage.tsx",
+    meta: "/developers",
     body: () => (
       <div className="page api-page">
         <ApiHead />
@@ -74,14 +92,57 @@ export const FRAMES: Record<string, Frame> = {
   method: {
     address: "/method",
     module: "src/pages/MethodPage.tsx",
+    meta: "/method",
     body: () => (
       <div className="page page--about page--method">
         <MethodHead />
       </div>
     ),
   },
-  none: { address: "/_", module: null, body: () => <div className="page" /> },
+  // The site's own pages are drawn whole: they are text, readable before any code has run.
+  legal: { address: "/legal", module: "src/pages/site/LegalPage.tsx", body: () => <LegalPage />, meta: "/legal" },
+  "legal-de": {
+    address: "/legal/de",
+    module: "src/pages/site/LegalPage.tsx",
+    body: () => <LegalPage lang="de" />,
+    meta: "/legal/de",
+  },
+  privacy: {
+    address: "/privacy",
+    module: "src/pages/site/PrivacyPage.tsx",
+    body: () => <PrivacyPage />,
+    meta: "/privacy",
+  },
+  "privacy-de": {
+    address: "/privacy/de",
+    module: "src/pages/site/PrivacyPage.tsx",
+    body: () => <PrivacyPage lang="de" />,
+    meta: "/privacy/de",
+  },
+  licences: {
+    address: "/licences",
+    module: "src/pages/site/LicencesPage.tsx",
+    body: () => <LicencesPage />,
+    meta: "/licences",
+  },
+  accessibility: {
+    address: "/accessibility",
+    module: "src/pages/site/AccessibilityPage.tsx",
+    body: () => <AccessibilityPage />,
+    meta: "/accessibility",
+  },
+  none: { address: "/_", module: null, body: () => <div className="page" />, meta: "none" },
 };
+
+/** The tags of a frame's head: the title the app gives its address, the page's description, canonical address and
+ *  link cards (lib/pageMeta.ts); a page that does not exist has no canonical address. */
+export function frameMeta(frame: Frame): string {
+  const meta = PAGE_META[frame.meta];
+  if (!meta) throw new Error(`No description of the page ${frame.meta} (lib/pageMeta.ts).`);
+  const route = routeOf(new URL(frame.address, "http://localhost").pathname);
+  const title = route.page === "organism" ? "Explore" : route.title;
+  return metaHead(title, meta, frame.meta !== "none");
+}
 
 /** The frame's markup, drawn at the address the global `window` is at (the build sets it to `frame.address`). */
 export function frameHtml(frame: Frame): string {

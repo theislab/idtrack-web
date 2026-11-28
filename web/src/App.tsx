@@ -19,7 +19,18 @@ import { navigate, useLocation } from "./lib/router";
 import { setPageTitle } from "./lib/title";
 import { ConvertPage } from "./pages/ConvertPage";
 import { HomePage } from "./pages/HomePage";
-import { ApiPage, BatchPage, MethodPage, NamesPage, OrganismPage, OrganismsIndex } from "./lib/pageParts";
+import {
+  AccessibilityPage,
+  ApiPage,
+  BatchPage,
+  LegalPage,
+  LicencesPage,
+  MethodPage,
+  NamesPage,
+  OrganismPage,
+  OrganismsIndex,
+  PrivacyPage,
+} from "./lib/pageParts";
 
 /** While a page's code loads: the page's frame, as tall as a screen, so the footer does not jump. */
 function PageLoading() {
@@ -94,6 +105,31 @@ function Page() {
       </ErrorBoundary>
     );
   }
+  // The site's own pages need no organism.
+  if (route.page === "legal" || route.page === "legal-de")
+    return (
+      <Part path={path}>
+        <LegalPage lang={route.page === "legal" ? "en" : "de"} />
+      </Part>
+    );
+  if (route.page === "privacy" || route.page === "privacy-de")
+    return (
+      <Part path={path}>
+        <PrivacyPage lang={route.page === "privacy" ? "en" : "de"} />
+      </Part>
+    );
+  if (route.page === "licences")
+    return (
+      <Part path={path}>
+        <LicencesPage />
+      </Part>
+    );
+  if (route.page === "accessibility")
+    return (
+      <Part path={path}>
+        <AccessibilityPage />
+      </Part>
+    );
   if (status === "failed" && error) {
     return (
       <div className="page">

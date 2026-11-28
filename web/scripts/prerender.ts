@@ -1,8 +1,9 @@
 // The frames of the pages (src/prerender.tsx), written after the build into dist/frames.json: for each, its markup (the
-// masthead and the page's head, drawn before the page's code arrives) and the links the page sent with it carries in
+// masthead and the page's head, drawn before the page's code arrives), the links the page sent with it carries in
 // its head, so that the page's own code is fetched beside the entry instead of after it (`modulepreload` of the page's
-// module and every module it imports that the entry does not, and a preload of its stylesheets). The server writes a
-// frame into the root of index.html and its links into its head, by the address it answers
+// module and every module it imports that the entry does not, and a preload of its stylesheets), and its own title,
+// description, canonical address and link cards (lib/pageMeta.ts); and the paths of the pages, for the sitemap. The
+// server writes a frame into the root of index.html and its links and tags into its head, by the address it answers
 // (api/idtrack_web_api/frontend.py); index.html itself stays the page without a frame.
 //
 //   node scripts/prerender.ts            after `vite build` (npm run build runs it)
@@ -23,6 +24,7 @@ interface Chunk {
 interface FramesModule {
   FRAMES: Record<string, { address: string; module: string | null }>;
   frameHtml: (frame: unknown) => string;
+  frameMeta: (frame: unknown) => string;
 }
 
 const root = fileURLToPath(new URL("..", import.meta.url));
@@ -80,7 +82,8 @@ const vite = await createServer({
 });
 try {
   const frames = (await vite.ssrLoadModule("/src/prerender.tsx")) as FramesModule;
-  const out: Record<string, { html: string; head: string }> = {};
+  const { PAGE_PATHS } = (await vite.ssrLoadModule("/src/lib/routes.ts")) as { PAGE_PATHS: readonly string[] };
+  const out: Record<string, { html: string; head: string; meta: string }> = {};
   for (const [name, frame] of Object.entries(frames.FRAMES)) {
     at(frame.address);
     // The masthead's tools (the organism, the load, the search, the picture, the theme) answer only once the app has
@@ -96,9 +99,9 @@ try {
     // The page's security policy allows no inline style or script: a frame that held one would be refused by the
     // browser (and said so in its console).
     if (/\sstyle="|<script/i.test(html)) throw new Error(`The frame ${name} holds an inline style or script.`);
-    out[name] = { html: frameHtml, head: links(frame.module) };
+    out[name] = { html: frameHtml, head: links(frame.module), meta: frames.frameMeta(frame) };
   }
-  writeFileSync(`${dist}/frames.json`, `${JSON.stringify({ frames: out }, null, 1)}\n`);
+  writeFileSync(`${dist}/frames.json`, `${JSON.stringify({ frames: out, pages: PAGE_PATHS }, null, 1)}\n`);
   console.log(
     `wrote dist/frames.json: ${Object.entries(out)
       .map(([name, f]) => `${name} ${(f.html.length / 1024).toFixed(1)} KB`)

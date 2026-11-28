@@ -62,6 +62,7 @@ import { organismNamed } from "../lib/explore/organismAddress";
 import { useRequest } from "../lib/useRequest";
 import { setTitleDetail } from "../lib/title";
 import "../styles/explore.css";
+import { NoSuchFigure } from "../components/NotFound";
 
 /** Assemblies in the order they serve releases (the earliest first). */
 function chronological(assemblies: readonly AssemblyDescription[]): AssemblyDescription[] {
@@ -590,6 +591,7 @@ function UnknownOrganism({ asked, organisms }: { asked: string; organisms: Graph
           . A conversion stays within one graph, one organism.
         </p>
       </header>
+      <NoSuchFigure />
     </div>
   );
 }

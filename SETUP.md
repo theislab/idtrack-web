@@ -141,7 +141,7 @@ Environment variables only, all read and checked at start; a misspelt `IDTRACK_W
 | `IDTRACK_WEB_WORKERS` | `2` | 1 to 64 | Worker processes |
 | `IDTRACK_WEB_HOST`, `IDTRACK_WEB_PORT` | `0.0.0.0`, `8000` | port 1 to 65535 | Where the server listens |
 | `IDTRACK_WEB_FORWARDED_ALLOW_IPS` | `127.0.0.1` | addresses, networks or `*` | Proxies whose `X-Forwarded-For` names the client (for the allowances) and whose `X-Forwarded-Proto` the scheme |
-| `IDTRACK_WEB_PUBLIC_URL` | the address of each request (its `Host`, where it is a plain name or address; else links relative to the site) | an origin, `https://<domain>` | The site's address, for the absolute links of `/llms.txt` and `/llms-full.txt`; set it wherever the server is reached by its name |
+| `IDTRACK_WEB_PUBLIC_URL` | the address of each request (its `Host`, where it is a plain name or address; else links relative to the site) | an origin, `https://<domain>` | The site's address, for the absolute links of `/llms.txt` and `/llms-full.txt`, of `/robots.txt` and `/sitemap.xml`, and of each page's canonical address and link cards; set it wherever the server is reached by its name |
 | `IDTRACK_WEB_DOCS_URL` | `https://idtrack.readthedocs.io/en/stable/` | an address, `https://<domain>[/<path>]/` | Where idtrack's documentation is published: every link of the page to it (the masthead's "Docs", the footer, the pages' references) and of `/llms.txt` goes there, and `/version` reports it as `docs_url`; set it when the documentation moves to a name of its own (a page reloaded reads the new address; nothing is rebuilt) |
 | `IDTRACK_WEB_ANALYTICS_ID` | none | a Google Analytics measurement id, `G-` and 4 to 20 capitals or digits | The id the site counts visits with (`deploy/idtrack-web.env.example` sets IDTrack's, `G-FYKLWNJBVK`, the property of its documentation): `/version` reports it as `analytics_id`, the page's policy then allows Google's tag its hosts, and the page loads the tag only after a visitor accepts (a notice at the first visit; "Cookie settings" in the footer changes the choice); only the page's path is sent, never its query (an identifier converted), with Google signals and ad personalisation off. Unset (development, the tests, Lighthouse runs): nothing is counted |
 | `IDTRACK_WEB_REQUEST_SECONDS` | `20` | more than 0, at most 600 | Time budget of a request's search, from when it begins to its last conversion (a batch out of it: `503 request_budget_exceeded`) |
@@ -401,7 +401,7 @@ Where the domain has an `AAAA` record, check that a visitor who comes over IPv6 
 
 ```console
 $ curl -6 -s https://<domain>/api/v1/health                                  # on the visitor's machine
-$ sudo docker compose logs api | tail -n 1                                    # on the server: the visitor's IPv6 address first
+$ sudo docker compose exec caddy tail -n 1 /data/logs/access.log             # on the server: the visitor's IPv6 address as remote_ip
 ```
 
 If the line names `172.30.80.1` (the network's gateway) instead, IPv6 reaches Caddy through Docker's proxy, and every IPv6 visitor shares one client's allowances: remove the `AAAA` record until it does (Docker Engine 27 or later with its default `ip6tables`, 10.2). Not rehearsed here (10.12): the machine of the rehearsal had no IPv6 route.
@@ -454,14 +454,15 @@ The 50 GB disk is far from full, and every part that grows is bounded. Measured 
 | The graph store, `/srv/idtrack-web/store` | 337 MB for the five graphs | A release of graphs adds 0.34 GB (nothing is ever replaced); `sudo python3 deploy/prune_store.py /srv/idtrack-web/store` lists the graph files and manifests of all but the two newest releases, `--delete` removes them |
 | The image | 533 MB | Each new version adds one: `sudo docker image prune -f` after an update removes the image no container uses (10.11) |
 | Docker's build cache | 1.98 GB after the first build, 3.16 GB after two, 0.53 GB after `sudo docker builder prune -f` | Grows by about 1.2 to 2 GB per build: prune after each update (10.11) |
-| The containers' logs | 200 bytes per request in the api's log, 2.1 KB in Caddy's (one line per request, its headers included) | Five files of 20 MB per container (`deploy/compose.yaml`, `logging`; and for every container, `deploy/vm/docker-daemon.json`): 200 MB in all, about 47,000 requests of Caddy's log and 500,000 of the api's |
+| Caddy's access and error logs | 2.1 KB per request (one line per request, its headers included) | A file a day in Caddy's volume (`/data/logs`), six earlier days kept and a file rolled at 100 MB (the Caddyfile's `log`): a line is deleted at most seven days after it was written, as the site's privacy page says; at 100,000 requests a day, 210 MB for the day's file, the earlier days compressed with gzip (Caddy's default) |
+| The containers' logs | 200 bytes per request in the api's log (without the client's address); Caddy's own messages | Five files of 20 MB per container (`deploy/compose.yaml`, `logging`; and for every container, `deploy/vm/docker-daemon.json`): 200 MB in all, about 500,000 requests of the api's log |
 | The system journal | 27 MB | 1 GB, at least 5 GB left free, 3 months (`deploy/vm/journald.conf`: `sudo install -D -m 644 deploy/vm/journald.conf /etc/systemd/journald.conf.d/idtrack-web.conf && sudo systemctl restart systemd-journald`); 4 GB without it |
 | Caddy's certificates and state | 72 KB | |
 | Ubuntu's packages | 198 MB in `/var/cache/apt` | Cleaned weekly (`AutocleanInterval`); old kernels removed (`Remove-Unused-Kernel-Packages`) |
 
 ### 10.10 The weekly check
 
-`deploy/vm/check.sh` reads the state of the service, the memory, the disk, the updates and the certificate, and ends with `check: ok`, or with each problem found and exit status 1 (the api not healthy, the disk 80 % full, the reboot timer or Docker not enabled at boot, a certificate within 14 days of its end):
+`deploy/vm/check.sh` reads the state of the service, the memory, the disk, the updates, the certificate, Caddy's logs and the site's `security.txt`, and ends with `check: ok`, or with each problem found and exit status 1 (the api not healthy, the disk 80 % full, the reboot timer or Docker not enabled at boot, a certificate within 14 days of its end, a log file of Caddy older than seven days, a `security.txt` that is not served or expires within 30 days: each build writes one that expires a year later, so a site not rebuilt for eleven months needs a new build, 10.11):
 
 ```console
 $ sudo /opt/idtrack-web/deploy/vm/check.sh
@@ -481,12 +482,15 @@ api restarts by its restart policy since it was created: 0
 Thu 2026-12-03 02:10:08 UTC 5 days - - reboot-if-required.timer reboot-if-required.service
 == certificate
 <domain>: valid until ... (... days)
+== logs and the site's own files
+...
+security.txt: expires ... (... days)
 check: ok
 ```
 
 ### 10.11 Updating
 
-- **A new version of idtrack-web** (a release tag): `cd /opt/idtrack-web && sudo git fetch --tags && sudo git checkout v<version> && sudo deploy/build_image.sh <version> docker`; set `IDTRACK_WEB_IMAGE=idtrack-web:<version>` in `deploy/.env`; compare `deploy/idtrack-web.env.example` and `deploy/compose.env.example` with the files on the machine for new settings (the release's changes name them); `cd deploy && sudo docker compose up -d` (the api restarts: about 2.5 minutes, Caddy answering `503` meanwhile); then `sudo docker image prune -f && sudo docker builder prune -f`.
+- **A new version of idtrack-web** (a release tag): `cd /opt/idtrack-web && sudo git fetch --tags && sudo git checkout v<version> && sudo deploy/build_image.sh <version> docker`; set `IDTRACK_WEB_IMAGE=idtrack-web:<version>` in `deploy/.env`; compare `deploy/idtrack-web.env.example` and `deploy/compose.env.example` with the files on the machine for new settings (the release's changes name them); `cd deploy && sudo docker compose up -d` (the api restarts: about 2.5 minutes, Caddy answering `503` with its maintenance page meanwhile, `deploy/maintenance.html`, and a program with the api's own `503 server_busy`); then `sudo docker image prune -f && sudo docker builder prune -f`.
 - **A new release of graphs**: publish it into the store (10.4), then `sudo docker compose restart api`; once the server runs it, `deploy/prune_store.py` (10.9) frees the files of the releases before the previous one (rehearsed with three releases: it kept the two newest and the files they name, and removed the rest).
 - **A setting**: edit `idtrack-web.env` or `.env`, then `sudo docker compose up -d` (it recreates what changed).
 
@@ -498,7 +502,8 @@ check: ok
 | `required variable IDTRACK_WEB_DOMAIN is missing a value` | `deploy/.env` is missing, or compose ran outside `deploy/`: `cd /opt/idtrack-web/deploy`, then `sudo docker compose ...` |
 | `... is not a graph this idtrack reads: ... PermissionError` when publishing | The publication ran as the image's user: `--user 0:0` (10.4) |
 | Caddy answers `502`, its log says `cannot assign requested address` | Caddy ran out of local ports for its connections to the api (one per request, each held 60 s by TCP afterwards; measured at 560 requests a second without the remedy): `deploy/compose.yaml` sets `net.ipv4.tcp_tw_reuse` and a wider port range in Caddy's container, and `deploy/systemd/60-idtrack-web.conf` on a machine without containers (section 12) |
-| Caddy answers `503` for about 2.5 minutes after a start, an update or a reboot | The api is loading the graphs (10.7); `sudo docker compose ps` shows `health: starting` |
+| Caddy answers `503` (its maintenance page) for about 2.5 minutes after a start, an update or a reboot | The api is loading the graphs (10.7); `sudo docker compose ps` shows `health: starting` |
+| What a visitor did, from their address and time | Caddy's access log, seven days kept: `sudo docker compose exec caddy sh -c 'cat /data/logs/access.log; zcat /data/logs/access-*.gz'`; the api's line of the same request has its id (`X-Request-ID` in the access line's answer headers) |
 | Let's Encrypt fails (`sudo docker compose logs caddy`: `challenge failed`, a timeout) | The domain does not point at the machine, or 80 and 443 are closed from outside (10.1) |
 | `Forbidden: this server answers the institute's proxy only.` (`403`) | Way (c): the request did not come from an address of `IDTRACK_WEB_TRUSTED_PROXIES` |
 | Every client limited as one (`429 rate_limited`) behind the institute's proxy | The proxy's address is missing from `IDTRACK_WEB_TRUSTED_PROXIES`, or the proxy sends no `X-Forwarded-For` |
@@ -577,14 +582,14 @@ $ sudo apt-get update && sudo apt-get install -y caddy && caddy version
 v2.11.9 h1:bhZtcRKQOq0fuLvEgCdPYvUxXyGn9kzjG4lh2332DTE=
 $ sudo install -D -m 644 /opt/idtrack-web/src/deploy/systemd/caddy-idtrack-web.conf /etc/systemd/system/caddy.service.d/idtrack-web.conf
 $ sudo sed -i 's/<domain>/<the domain>/' /etc/systemd/system/caddy.service.d/idtrack-web.conf
-$ sudo install -m 644 /opt/idtrack-web/src/deploy/Caddyfile /etc/caddy/Caddyfile
+$ sudo install -m 644 /opt/idtrack-web/src/deploy/Caddyfile /opt/idtrack-web/src/deploy/maintenance.html /etc/caddy/
 $ sudo install -m 644 /opt/idtrack-web/src/deploy/systemd/60-idtrack-web.conf /etc/sysctl.d/ && sudo sysctl --system
 $ sudo systemctl daemon-reload && sudo systemctl restart caddy
 $ curl -s https://<domain>/api/v1/health
 {"status":"ok","organisms":["homo_sapiens","macaca_fascicularis","macaca_mulatta","mus_musculus","sus_scrofa"]}
 ```
 
-Caddy comes from Caddy's own repository: Ubuntu 26.04's package (Caddy 2.6.2) refuses `deploy/Caddyfile` (`unrecognized subdirective request_buffers`). The kernel settings of `60-idtrack-web.conf` are those the compose file gives Caddy's container (local ports reused after a closed connection, a wider range of them): without them Caddy answers `502` past about 470 requests a second, since the api closes every connection. The drop-in `caddy-idtrack-web.conf` gives Caddy the domain and the api's address on this machine (`IDTRACK_WEB_UPSTREAM=127.0.0.1:8000`, in place of the compose service `api`); the Caddy files of section 10.5 serve the same way (for (b), with the certificate's paths in their `tls` line). The unit runs the server as `idtrack-web` with a read-only system and a writable cache folder only, the built frontend from `/opt/idtrack-web/web` (`IDTRACK_WEB_STATIC_DIR`), and restarts it after any exit (`Restart=always`); both services are enabled at boot. Measured there: the service answered 130 s after `enable --now` (two workers, five graphs) and the site 167 s after a reboot; a worker stopped with `SIGKILL` (as the kernel stops one for want of memory) was replaced by the server while the service stayed up (`OOMPolicy=continue`), and the server itself stopped so was started again by systemd, answering 154 s later. Bound its memory as section 10.7 does the container's: `sudo systemctl set-property idtrack-web MemoryMax=12G` (12 GiB; applied at once, kept across reboots). Updates, the reboot window, the journal's bounds and the weekly check of section 10 apply unchanged (`check.sh` reads the containers; read `systemctl status idtrack-web caddy` instead).
+Caddy comes from Caddy's own repository: Ubuntu 26.04's package (Caddy 2.6.2) refuses `deploy/Caddyfile` (`unrecognized subdirective request_buffers`). The kernel settings of `60-idtrack-web.conf` are those the compose file gives Caddy's container (local ports reused after a closed connection, a wider range of them): without them Caddy answers `502` past about 470 requests a second, since the api closes every connection. The drop-in `caddy-idtrack-web.conf` gives Caddy the domain, the api's address on this machine (`IDTRACK_WEB_UPSTREAM=127.0.0.1:8000`, in place of the compose service `api`) and the folder of its access and error logs (`IDTRACK_WEB_LOG_DIR=/var/log/caddy`, which Caddy's package makes; seven days kept, as in a container); the Caddy files of section 10.5 serve the same way (for (b), with the certificate's paths in their `tls` line). The unit runs the server as `idtrack-web` with a read-only system and a writable cache folder only, the built frontend from `/opt/idtrack-web/web` (`IDTRACK_WEB_STATIC_DIR`), and restarts it after any exit (`Restart=always`); both services are enabled at boot. Measured there: the service answered 130 s after `enable --now` (two workers, five graphs) and the site 167 s after a reboot; a worker stopped with `SIGKILL` (as the kernel stops one for want of memory) was replaced by the server while the service stayed up (`OOMPolicy=continue`), and the server itself stopped so was started again by systemd, answering 154 s later. Bound its memory as section 10.7 does the container's: `sudo systemctl set-property idtrack-web MemoryMax=12G` (12 GiB; applied at once, kept across reboots). Updates, the reboot window, the journal's bounds and the weekly check of section 10 apply unchanged (`check.sh` reads the containers; read `systemctl status idtrack-web caddy` instead).
 
 ## 13. Troubleshooting
 
@@ -692,6 +697,8 @@ types         pass    current                ...
 limitations   pass    current                ...
 idtrack-docs  pass    current                ...
 benchmarks    pass    current                ...
+licences      pass    current                ...
+icons         pass    current                ...
 prettier      pass    0 files                ...
 eslint        pass    0 errors, ... warnings ...
 stylelint     pass    0 problems             ...
@@ -707,6 +714,8 @@ Every check passed.
 | Check | What it holds the code to |
 | --- | --- |
 | `types`, `limitations`, `idtrack-docs`, `benchmarks` | The generated files (`src/api/schema.ts`, `src/api/shapes.ts`, `src/generated/*.json`) are what their sources give (section 14.3); the last three read idtrack's documentation and the benchmarks' results from GitHub. |
+| `licences` | `src/generated/licences.json` and `public/licences/` are the packages of the production bundle and their licence texts: `scripts/licences.ts` builds the site in memory with Vite and lists every package of `node_modules` whose code or fonts the bundle holds, with its version, its licence as it declares it and its licence text as it ships it (the licences page shows them; `npm run licences` writes them after a change of the dependencies). |
+| `icons` | The icons and the card in `public/` (`apple-touch-icon.png`, `icon-192.png`, `icon-512.png`, `social-card.png`) are what `scripts/icons.ts` renders from the logo (`src/components/logoPaths.ts`) and Source Serif 4: `scripts/icons.lock.json` records the digest of those sources and of each file, so the check needs no browser; `npm run icons` renders them again with Playwright's Chromium after a change of the logo. |
 | `prettier` | One format for every file (`.prettierrc.json`). |
 | `eslint` (`eslint.config.js`) | typescript-eslint's `strictTypeChecked` and `stylisticTypeChecked` with the type checker; a `switch` over a union names every member (`switch-exhaustiveness-check`); React's rules of hooks and of a pure render (`eslint-plugin-react-hooks`, with the React Compiler's checks) and of JSX (`@eslint-react`'s strict set: keys, props declared and not read, context values made anew each render, default props made anew each render, leaked conditional rendering); accessibility (`jsx-a11y`, strict); imports (`import-x`: no cycle, no module importing itself, no module imported twice); no text set as HTML (`innerHTML`, `insertAdjacentHTML`, `document.write`); a directive that turns a rule off names the rule and says why on its line (`-- reason`), and one that turns off nothing is an error. Every rule is an error, but two guards of size, which are warnings shown in the table without failing it: a function of cyclomatic complexity over 30, or of more than 300 lines. Each rule turned off says why in the config. |
 | `stylelint` (`stylelint.config.js`) | `stylelint-config-standard` (unknown properties and invalid values, duplicate selectors and properties, empty blocks, deprecated properties, shorthands), with BEM-like class names and the code's own conventions; each rule changed says why in the config. |
@@ -751,7 +760,7 @@ With the api running (section 8) on `127.0.0.1:8000`, either:
 
   Every path that is not a file and not under `/api` answers the page (`/batch`, `/organisms/sus_scrofa`, ...), so each view's address can be linked to and reloaded.
 
-  `npm run build` also writes the frame of every page (`dist/frames.json`, `scripts/prerender.ts`: the masthead and the page's head as HTML, and the links that fetch the page's own code beside the entry), which the server writes into the page it sends for each address, so a page's head is drawn before its code runs; and the Brotli form of every text file beside it (`<file>.br`, `scripts/compress.ts`). The server compresses the page's text files with gzip once at start and sends a browser that accepts Brotli the build's Brotli form, else gzip; the files of `assets/`, named by their content's hash, are cached for a year as immutable, and every other file (the page itself) is revalidated (`no-cache`, with an `ETag`, answered `304` while unchanged). A file rebuilt while the server runs is sent from disk, uncompressed, until the server restarts. README.md, "How it runs", says more.
+  `npm run build` also writes the frame of every page (`dist/frames.json`, `scripts/prerender.ts`: the masthead and the page's head as HTML, the site's own pages whole, the links that fetch the page's own code beside the entry, and the page's title, description, canonical address and link cards; and the list of the pages, for `/sitemap.xml`), which the server writes into the page it sends for each address, so a page's head is drawn before its code runs; `dist/.well-known/security.txt` (`scripts/site-files.ts`, expiring 364 days after the build); and the Brotli form of every text file beside it (`<file>.br`, `scripts/compress.ts`). The server compresses the page's text files with gzip once at start and sends a browser that accepts Brotli the build's Brotli form, else gzip; the files of `assets/`, named by their content's hash, are cached for a year as immutable, and every other file (the page itself) is revalidated (`no-cache`, with an `ETag`, answered `304` while unchanged). A file rebuilt while the server runs is sent from disk, uncompressed, until the server restarts. README.md, "How it runs", says more.
 
   ```console
   $ curl -s -o /dev/null -D - -H 'Accept-Encoding: gzip, br' http://127.0.0.1:8000/assets/<script>.js | grep -iE 'content-(encoding|length)|cache-control|vary'

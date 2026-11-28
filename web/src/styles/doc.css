@@ -1,0 +1,284 @@
+/* The site's own pages as documents (components/site/Doc.tsx): one column of good measure, the list of sections
+   beside it on a wide screen, facts as quiet two-column lists; and how they print. */
+
+.doc__head {
+  display: grid;
+  gap: var(--space-3);
+  max-width: 44rem;
+  padding-bottom: var(--space-6);
+  margin-bottom: var(--space-7);
+  border-bottom: 1px solid var(--line);
+}
+
+.doc__lede {
+  color: var(--ink-2);
+  font-size: var(--text-lg);
+  line-height: var(--leading-text);
+}
+
+.doc__meta {
+  color: var(--ink-3);
+  font-size: var(--text-sm);
+}
+
+.doc__body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-6);
+}
+
+/* The sections' list: above the text on a narrow screen, a quiet column beside it (and staying in view) on a wide
+   one. */
+.doc__contents {
+  font-size: var(--text-sm);
+}
+
+.doc__contents-title {
+  color: var(--ink-3);
+  margin-bottom: var(--space-2);
+}
+
+.doc__contents ol {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-4);
+}
+
+.doc__contents a {
+  display: inline-block;
+  padding: var(--space-1) 0;
+  color: var(--ink-2);
+  text-decoration: none;
+}
+
+@media (hover: hover) {
+  .doc__contents a:hover {
+    color: var(--ink-1);
+    text-decoration: underline;
+  }
+}
+
+@media (min-width: 1180px) {
+  .doc__body {
+    grid-template-columns: minmax(0, 44rem) 15rem;
+    justify-content: space-between;
+    column-gap: var(--space-8);
+  }
+
+  .doc__contents {
+    grid-column: 2;
+    grid-row: 1;
+    position: sticky;
+    top: calc(var(--masthead-height) + var(--space-5));
+    align-self: start;
+    border-left: 1px solid var(--line);
+    padding-left: var(--space-4);
+  }
+
+  .doc__contents ol {
+    display: grid;
+    gap: 0;
+  }
+
+  .doc__text {
+    grid-column: 1;
+    grid-row: 1;
+  }
+}
+
+.doc__text {
+  max-width: 44rem;
+  display: grid;
+  gap: var(--space-7);
+}
+
+.doc__section {
+  display: grid;
+  gap: var(--space-3);
+  scroll-margin-top: calc(var(--masthead-height) + var(--space-4));
+}
+
+.doc__section > h2 {
+  margin-bottom: var(--space-1);
+}
+
+.doc__section h3 {
+  margin-top: var(--space-3);
+}
+
+.doc__section p,
+.doc__section li {
+  line-height: var(--leading-text);
+}
+
+.doc__section ul,
+.doc__section ol {
+  margin: 0;
+  padding-left: var(--space-5);
+  display: grid;
+  gap: var(--space-2);
+}
+
+/* A short summary at the top of a long document: what matters most, in a few lines. */
+.doc__summary {
+  border-left: 3px solid var(--hue-history);
+  padding: var(--space-1) 0 var(--space-1) var(--space-4);
+  display: grid;
+  gap: var(--space-2);
+}
+
+.doc__facts {
+  margin: 0;
+  display: grid;
+  gap: var(--space-2);
+}
+
+.doc__facts > div {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0;
+  padding: var(--space-2) 0;
+  border-top: 1px solid var(--line);
+}
+
+.doc__facts > div:last-child {
+  border-bottom: 1px solid var(--line);
+}
+
+@media (min-width: 640px) {
+  .doc__facts > div {
+    grid-template-columns: 13rem minmax(0, 1fr);
+    column-gap: var(--space-5);
+  }
+}
+
+.doc__facts dt {
+  color: var(--ink-3);
+  font-size: var(--text-sm);
+  padding-top: 2px;
+}
+
+.doc__facts dd {
+  margin: 0;
+}
+
+.doc__address {
+  font-style: normal;
+  display: grid;
+}
+
+/* A table of the document (the browser's storage, the data's terms, the software received). */
+.doc__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+}
+
+.doc__table caption {
+  text-align: left;
+  color: var(--ink-3);
+  padding-bottom: var(--space-2);
+}
+
+.doc__table th,
+.doc__table td {
+  text-align: left;
+  vertical-align: top;
+  padding: var(--space-2) var(--space-3) var(--space-2) 0;
+  border-top: 1px solid var(--line);
+  line-height: var(--leading-caption);
+}
+
+.doc__table thead th {
+  color: var(--ink-3);
+  font-weight: var(--weight-medium);
+  border-top: 0;
+}
+
+.doc__table tbody tr:last-child > * {
+  border-bottom: 1px solid var(--line);
+}
+
+.doc__scroll {
+  overflow-x: auto;
+}
+
+.doc__quote {
+  margin: 0;
+  padding-left: var(--space-3);
+  border-left: 1px solid var(--line-strong);
+  color: var(--ink-2);
+}
+
+.doc__code {
+  margin: 0;
+  padding: var(--space-4);
+  overflow-x: auto;
+  background: var(--surface-sunk);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  line-height: var(--leading-caption);
+  white-space: pre;
+}
+
+/* ---- Print: the document alone, black on white, each link's address written after it ------------------------ */
+
+@media print {
+  :root:has(.doc) .masthead,
+  :root:has(.doc) .footer,
+  :root:has(.doc) .foot,
+  :root:has(.doc) .consent,
+  :root:has(.doc) .skip,
+  :root:has(.doc) .doc__contents {
+    display: none;
+  }
+
+  :root:has(.doc),
+  :root:has(.doc) body {
+    background: #ffffff;
+    color: #000000;
+  }
+
+  .doc {
+    padding: 0;
+    max-width: none;
+  }
+
+  .doc__body,
+  .doc__text {
+    display: block;
+    max-width: none;
+  }
+
+  .doc__section {
+    display: block;
+    margin-bottom: 1.5em;
+    break-inside: auto;
+  }
+
+  .doc__section > h2,
+  .doc__section h3 {
+    break-after: avoid;
+  }
+
+  .doc__facts > div,
+  .doc__table tr {
+    break-inside: avoid;
+  }
+
+  .doc a {
+    color: #000000;
+    text-decoration: none;
+  }
+
+  .doc__text a[href^="http"]::after {
+    content: " (" attr(href) ")";
+    font-size: 0.85em;
+    word-break: break-all;
+  }
+}

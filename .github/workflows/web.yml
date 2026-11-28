@@ -42,6 +42,10 @@ jobs:
       # repository's published results give at the commit the file names.
       - run: npm run idtrack-docs:check
       - run: npm run benchmarks:check
+      # src/generated/licences.json and public/licences/ must be the packages of the production bundle and their
+      # licence texts; the icons and the card in public/ what scripts/icons.ts makes from the current logo.
+      - run: npm run licences:check
+      - run: npm run icons:check
       # The checks of `npm run check` (SETUP.md, "Checks and tests"), each a step of its own so that a failure is named.
       - name: prettier
         run: npx prettier --check .

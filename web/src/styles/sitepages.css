@@ -1,0 +1,23 @@
+/* The links to the site's own pages in the footer's row about the site (components/SitePages.tsx), in the voice of
+   the row's other control (the cookie settings). */
+
+.site-pages__link {
+  color: var(--ink-2);
+  text-decoration: none;
+}
+
+@media (hover: hover) {
+  .site-pages__link:hover {
+    color: var(--ink-1);
+    text-decoration: underline;
+  }
+}
+
+/* On a touch screen each link is a finger's height. */
+@media (pointer: coarse) {
+  .site-pages__link {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+  }
+}

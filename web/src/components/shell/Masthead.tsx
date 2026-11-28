@@ -30,7 +30,17 @@ const SECTIONS: { path: string; label: string; holds: string[] }[] = [
 ];
 
 /** Pages whose address carries no organism (the organism is chosen on the page or does not apply). */
-const WITHOUT_ORGANISM = new Set(["/organisms", "/developers", "/method"]);
+const WITHOUT_ORGANISM = new Set([
+  "/organisms",
+  "/developers",
+  "/method",
+  "/legal",
+  "/legal/de",
+  "/privacy",
+  "/privacy/de",
+  "/licences",
+  "/accessibility",
+]);
 
 const inSection = (holds: string[], path: string) =>
   routeOf(path).page !== "none" && holds.some((h) => path === h || path.startsWith(`${h}/`));

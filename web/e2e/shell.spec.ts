@@ -143,7 +143,7 @@ test.describe("focus and one sentence per outcome", () => {
     await expect(page.getByRole("status").filter({ hasText: data.symbol.identifier }).first()).toContainText(
       `: ${data.symbol.identifier}`,
     );
-    await expect(page).toHaveTitle(new RegExp(`^${data.symbol.identifier}.* · Convert · idtrack$`));
+    await expect(page).toHaveTitle(new RegExp(`^${data.symbol.identifier}.* · Convert · IDTrack$`));
   });
 
   test("a route change moves the focus to the new page's heading", async ({ page }) => {
@@ -153,7 +153,7 @@ test.describe("focus and one sentence per outcome", () => {
     await batch.focus();
     await page.keyboard.press("Enter");
     await expect.poll(async () => (await focused(page)).tag).toBe("H1");
-    await expect(page).toHaveTitle("Batch · idtrack");
+    await expect(page).toHaveTitle("Batch · IDTrack");
   });
 
   test("a pressed Convert while its conversion is on its way asks nothing more", async ({ page }) => {
@@ -266,7 +266,7 @@ test.describe("addresses", () => {
     });
     await page.goto("/organisms/sus_scrofa/extra");
     await expect(page.getByRole("heading", { level: 1, name: "No such page" })).toBeVisible({ timeout: 2000 });
-    await expect(page).toHaveTitle("Not found · idtrack");
+    await expect(page).toHaveTitle("Not found · IDTrack");
     await expect(page.getByRole("navigation", { name: "Main" }).locator('[aria-current="page"]')).toHaveCount(0);
     await expectAccessible(page);
     await shot(page, info, "s6-no-such-page");

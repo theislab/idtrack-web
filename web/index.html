@@ -5,11 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta
       name="description"
-      content="Convert gene identifiers through Ensembl releases, genome assemblies and external databases with idtrack, in the browser."
+      content="Convert gene identifiers through Ensembl releases, genome assemblies and external databases with IDTrack, in the browser."
     />
     <meta name="color-scheme" content="light dark" />
     <meta name="theme-color" content="#fafaf8" />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/site.webmanifest" />
     <!-- The three faces of the first screen, asked for at once (not after the stylesheet that names them). -->
     <link
       rel="preload"
@@ -34,7 +36,7 @@
     />
     <link rel="service-desc" href="/api/v1/openapi.json" type="application/json" />
     <link rel="alternate" href="/llms.txt" type="text/markdown" title="The api, for language models" />
-    <title>idtrack</title>
+    <title>IDTrack</title>
     <script>
       // The theme chosen earlier (light unless dark or the system's was chosen), before the first paint.
       var theme = "light";
@@ -48,7 +50,7 @@
   <body>
     <div id="root"></div>
     <noscript
-      >idtrack's web page needs JavaScript. The api works without it: /llms.txt and /llms-full.txt say how.</noscript
+      >IDTrack's web page needs JavaScript. The api works without it: /llms.txt and /llms-full.txt say how.</noscript
     >
     <script type="module" src="/src/main.tsx"></script>
   </body>

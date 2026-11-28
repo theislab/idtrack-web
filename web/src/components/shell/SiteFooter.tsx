@@ -6,6 +6,7 @@ import { BENCHMARKS_SOURCE, docsPage, IDTRACK_PACKAGE, IDTRACK_SOURCE, SITE_SOUR
 import { useOrganisms } from "../../lib/organisms";
 import { LogoMark } from "../Logo";
 import { Link, Mono } from "../ui";
+import { SitePageLinks } from "../SitePages";
 import { ConsentSettings } from "./Consent";
 
 export function SiteFooter() {
@@ -47,9 +48,10 @@ export function SiteFooter() {
           Developed at the Theis Lab, Institute of Computational Biology, Helmholtz Center Munich (
           <a href={docsPage("authors.html#institutional-support")}>credits</a>).
         </p>
-        {/* The site's own pages (legal notice, privacy, licences, accessibility) stand in this row, with the cookie
-            settings where the site counts visits. */}
+        {/* The site's own pages (legal notice, privacy, licences, accessibility), with the cookie settings where the
+            site counts visits. */}
         <nav className="foot__legal" aria-label="About this site">
+          <SitePageLinks />
           <ConsentSettings />
         </nav>
       </div>

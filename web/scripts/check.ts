@@ -38,6 +38,8 @@ const CHECKS: Check[] = [
   generated("limitations", "scripts/limitations.ts"),
   generated("idtrack-docs", "scripts/idtrack-docs.ts"),
   generated("benchmarks", "scripts/benchmarks.ts"),
+  generated("licences", "scripts/licences.ts"),
+  generated("icons", "scripts/icons.ts"),
   {
     name: "prettier",
     command: [bin("prettier"), "--check", "."],
