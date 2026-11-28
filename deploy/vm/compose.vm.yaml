@@ -11,6 +11,6 @@ services:
     memswap_limit: 12g
   caddy:
     # Caddy's container at most 1 GiB, past which the kernel stops Caddy (Docker starts it again), never the api or
-    # the system: under the load of SETUP.md, section 10.7, it used at most 42 MiB.
+    # the system: under the load of SETUP.md, section 10.7, it used at most 79 MiB.
     mem_limit: 1g
     memswap_limit: 1g
