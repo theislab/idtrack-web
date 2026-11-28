@@ -362,13 +362,22 @@ test("the first visit of each page whose code comes on demand moves the focus to
     ["masthead", "API", /^\/developers/],
     ["Convert", "A list", /^\/batch/],
     ["Convert", "Names", /^\/names/],
+    ["footer", "Legal notice", /^\/legal$/],
+    ["footer", "Privacy", /^\/privacy$/],
+    ["footer", "Licences", /^\/licences$/],
+    ["footer", "Accessibility", /^\/accessibility$/],
   ];
   for (const [where, name, path] of targets) {
     const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
     const page = await context.newPage();
     await page.goto(`/convert?organism=${data.organism}`);
     await expect(page.locator("footer.foot")).toBeVisible();
-    const nav = where === "masthead" ? page.locator("header.mast") : page.getByRole("navigation", { name: "Convert" });
+    const nav =
+      where === "masthead"
+        ? page.locator("header.mast")
+        : where === "footer"
+          ? page.getByRole("navigation", { name: "About this site" })
+          : page.getByRole("navigation", { name: "Convert" });
     await nav.getByRole("link", { name, exact: true }).focus();
     await page.keyboard.press("Enter");
     await expect(page).toHaveURL((url) => path.test(url.pathname));
