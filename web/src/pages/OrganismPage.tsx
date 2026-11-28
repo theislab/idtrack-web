@@ -40,7 +40,7 @@ import { CountsFigure } from "../components/explore/CountsFigure";
 import { DatabaseMatrix } from "../components/explore/DatabaseMatrix";
 import { Absent, Button, CopyButton, Link, Mono, Prose, Readout, Skeleton, TableFrame } from "../components/ui";
 import docs from "../generated/idtrack_docs.json";
-import { BENCHMARKS_META } from "../lib/benchmarksMeta";
+import { BENCHMARKS_META, measuredGraph } from "../lib/benchmarksMeta";
 import {
   DATA_SOURCES_SOURCE,
   DATABASE_FILING_SOURCE,
@@ -1159,6 +1159,15 @@ function BuildPanel({ description: d, file }: { description: GraphDescription; f
         <Readout label="Measured by the benchmarks" wide>
           <BenchmarkProvenance organism={d.organism} digest={d.content_digest} />
         </Readout>
+        {measuredGraph(d.organism, d.content_digest) ? (
+          <Readout label="Rebuilt from public code" wide>
+            The benchmarks rebuilt a graph of this content digest with IDTrack&apos;s own builder at its{" "}
+            {BENCHMARKS_META.tree.name} <Mono>{BENCHMARKS_META.tree.commit}</Mono>, whose answers are those of its
+            release {BENCHMARKS_META.tree.answers.release} (<Mono>{BENCHMARKS_META.tree.answers.commit}</Mono>); their
+            record is published by{" "}
+            <a href={`${BENCHMARKS_META.repository}/tree/${BENCHMARKS_META.commit}`}>idtrack-reproducibility</a>.
+          </Readout>
+        ) : null}
         <Readout label="Check a graph file of yours" wide>
           <span className="cli">
             <code>idtrack verify &lt;graph file&gt;</code>

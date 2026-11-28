@@ -769,13 +769,6 @@
   fill: var(--ink-1);
 }
 
-/* The symbol of an Ensembl answer, quieter than its id. */
-.jr-symbol {
-  fill: var(--ink-3);
-  color: var(--ink-3);
-  font-weight: var(--weight-regular);
-}
-
 /* A bridge: dashed on its row, from the id two genes carry to where it lands. */
 .jr-bridge {
   stroke-width: 1.4;
@@ -843,7 +836,6 @@
     opacity: 0.4;
   }
 
-  .jr-symbol,
   .jr-sets__name,
   .journeys__svg.is-isolating .jr-names > g:not(.is-active) text {
     fill: CanvasText;
@@ -926,15 +918,12 @@
   fill: none;
   stroke: var(--ink-1);
   stroke-width: 1.5;
+  transition: cy 300ms var(--ease-in-out);
 }
 
 /* The cursor, its ring and the veil move as one group; the ring also glides between lanes. */
 .replay__marks {
   transition: transform 300ms var(--ease-in-out);
-}
-
-.replay__ring {
-  transition: cy 300ms var(--ease-in-out);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -982,237 +971,6 @@
   grid-template-rows: 1fr auto;
   min-height: calc(100svh - var(--masthead-height));
   padding: var(--hero-pad) 0;
-}
-
-/* Every part of the words holds its room before the fonts, the organisms, the examples and the form arrive, so the
-   centred column does not move when they come. */
-.hero__text {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: var(--space-4);
-  min-width: 0;
-}
-
-.hero__eyebrow {
-  font-family: var(--font-mono);
-  font-size: var(--text-2xs);
-  font-weight: var(--weight-medium);
-  letter-spacing: var(--track-eyebrow);
-  text-transform: uppercase;
-  color: var(--ink-3);
-  min-height: 1.5em;
-}
-
-.hero__eyebrow .mono {
-  color: var(--ink-2);
-}
-
-/* The front page's display line: larger than every page's title, set in two deliberate parts ("Follow a gene id" kept
-   whole), with the serif's optical size for display. */
-.hero__title {
-  font-family: var(--font-display);
-  font-size: var(--text-4xl);
-  font-optical-sizing: auto;
-  font-weight: var(--weight-strong);
-  line-height: 1.04;
-  letter-spacing: -0.02em;
-  color: var(--ink-1);
-  min-height: calc(3 * 1.04em);
-}
-
-.hero__line {
-  display: inline-block;
-  white-space: nowrap;
-}
-
-.hero__lede {
-  font-size: var(--text-md);
-  line-height: 1.6;
-  color: var(--ink-2);
-  max-width: 34em;
-  min-height: calc(4 * 1.6em);
-}
-
-/* The one measured line, under the sentence: its room is held before it arrives. */
-.hero__measure-room {
-  min-height: calc(2 * 1.5 * var(--text-xs));
-  margin-top: calc(-1 * var(--space-2));
-}
-
-.hero__measure {
-  margin: 0;
-  font-size: var(--text-xs);
-  line-height: 1.5;
-  color: var(--ink-3);
-  max-width: 40em;
-}
-
-.hero__measure .mono {
-  color: var(--ink-1);
-}
-
-.hero__measure a {
-  color: var(--ink-1);
-  font-weight: var(--weight-medium);
-  text-decoration-color: var(--line-strong);
-  text-underline-offset: 3px;
-  white-space: nowrap;
-}
-
-.hero__measure a::after {
-  content: " →";
-}
-
-.hero__form {
-  min-height: 14.5rem;
-  margin-top: var(--space-1);
-}
-
-.hero__ways {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-2) var(--space-5);
-  font-size: var(--text-sm);
-}
-
-.hero__way {
-  font-weight: var(--weight-medium);
-  text-decoration: none;
-  color: var(--ink-1);
-  min-height: 24px;
-  display: inline-flex;
-  align-items: center;
-}
-
-.hero__way::after {
-  content: "→";
-  margin-left: 0.4em;
-  color: var(--ink-3);
-  transition: transform 150ms var(--ease);
-}
-
-.hero__way--first {
-  padding: var(--space-2) var(--space-4);
-  border: 1px solid var(--ink-1);
-  border-radius: var(--radius);
-}
-
-@media (hover: hover) {
-  .hero__way:hover::after {
-    transform: translateX(3px);
-  }
-
-  .hero__way:hover {
-    text-decoration: underline;
-    text-underline-offset: 3px;
-  }
-
-  .hero__way--first:hover {
-    background: var(--surface-sunk);
-    text-decoration: none;
-  }
-}
-
-/* The figure's room is the window's height under the masthead (it never grows with the figure, nor with the words
-   when the form's settings open): the frame within it holds the drawing, the legend right under it and the caption,
-   centred, so no band of empty paper opens between them. */
-.hero__figure {
-  position: relative;
-  align-self: center;
-  min-width: 0;
-  height: calc(100svh - var(--masthead-height) - 2 * var(--hero-pad));
-  min-height: 22rem;
-  margin: 0;
-}
-
-.hero__frame {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: 12px;
-}
-
-.hero__plot {
-  position: relative;
-  flex: none;
-}
-
-.hero__failed {
-  display: grid;
-  place-items: center;
-}
-
-.hero__figure .fig-legend {
-  margin: 0;
-  max-width: none;
-}
-
-/* The legend's room: a legend of every mark the journeys hold, measured unseen; the legend drawn takes its own
-   height, and the block (centred) shares what is left above and below it. */
-.hero__legend {
-  position: relative;
-}
-
-.hero__legend-room {
-  position: absolute;
-  inset: 0 0 auto;
-  visibility: hidden;
-  pointer-events: none;
-}
-
-.hero__caption {
-  margin: 0;
-  max-width: 72ch;
-  font-size: var(--text-xs);
-  line-height: 1.5;
-  color: var(--ink-3);
-}
-
-.hero__caption em,
-.hero__caption .mono {
-  color: var(--ink-2);
-}
-
-.hero__list-toggle {
-  padding: 0;
-  border: 0;
-  background: none;
-  color: var(--ink-1);
-  font: inherit;
-  font-weight: var(--weight-medium);
-  text-decoration: underline;
-  text-decoration-color: var(--line-strong);
-  text-underline-offset: 3px;
-  cursor: pointer;
-  min-height: 24px;
-}
-
-@media (hover: hover) {
-  .hero__list-toggle:hover {
-    text-decoration-color: var(--ink-1);
-  }
-}
-
-/* Every journey in words, opened from the caption: under the hero, across its width. */
-.hero__list:not(.visually-hidden) {
-  grid-column: 1 / -1;
-  margin: var(--space-4) 0 0;
-  padding: var(--space-4) 0 0 var(--space-5);
-  border-top: 1px solid var(--line);
-  columns: 2 30rem;
-  column-gap: var(--space-7);
-  font-size: var(--text-xs);
-  line-height: 1.5;
-  color: var(--ink-2);
-}
-
-.hero__list li {
-  break-inside: avoid;
-  margin-bottom: var(--space-1);
 }
 
 /* The journeys travel once as the hero appears, when the page is idle: each row's line drawn in the direction it
@@ -1305,34 +1063,12 @@
     grid-template-columns: minmax(0, 23rem) minmax(0, 1fr);
     column-gap: var(--space-6);
   }
-
-  .hero__title {
-    font-size: var(--text-3xl);
-  }
-
-  .hero__lede {
-    font-size: var(--text-sm);
-    line-height: 1.55;
-    min-height: calc(4 * 1.55em);
-  }
-
-  .hero__ways {
-    column-gap: var(--space-4);
-  }
 }
 
 /* A short window (a laptop's): the words' column a little tighter, so the hero stays one screen. */
 @media (min-width: 901px) and (max-height: 820px) {
   .hero {
     --hero-pad: var(--space-4);
-  }
-
-  .hero__text {
-    gap: var(--space-3);
-  }
-
-  .hero__eyebrow {
-    display: none;
   }
 }
 
@@ -1343,28 +1079,6 @@
     grid-template-rows: auto auto auto;
     row-gap: var(--space-5);
     padding: var(--space-5) 0 var(--space-4);
-  }
-
-  .hero__figure {
-    height: clamp(26rem, 50svh, 38rem);
-  }
-
-  .hero__text {
-    justify-content: flex-start;
-    gap: var(--space-3);
-  }
-
-  .hero__title {
-    min-height: 0;
-  }
-
-  .hero__lede {
-    min-height: 0;
-    max-width: 44em;
-  }
-
-  .hero__form {
-    max-width: 36rem;
   }
 }
 
@@ -1378,77 +1092,5 @@
   .hero {
     grid-template-rows: none;
     row-gap: var(--space-3);
-  }
-
-  .hero__text {
-    display: contents;
-  }
-
-  .hero__eyebrow,
-  .hero__title,
-  .hero__lede,
-  .hero__measure-room {
-    order: 1;
-  }
-
-  .hero__form {
-    order: 2;
-    min-height: 0;
-    margin-top: 0;
-  }
-
-  .hero__figure {
-    order: 3;
-    height: clamp(28rem, 72svh, 36rem);
-    margin-top: var(--space-2);
-  }
-
-  /* Under the form, the figure starts at once: what its rows leave of its room stands under it. */
-  .hero__frame {
-    justify-content: flex-start;
-  }
-
-  /* The legend in two columns of short lines under the axis. */
-  .hero__figure .fig-legend {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 2px var(--space-2);
-    font-size: var(--text-2xs);
-  }
-
-  .hero__figure .fig-legend li {
-    gap: var(--space-1);
-  }
-
-  .hero__figure .fig-legend .fig-swatch,
-  .hero__figure .fig-legend .jr-legend-bold {
-    flex: none;
-    width: 22px;
-  }
-
-  .hero__list {
-    order: 4;
-  }
-
-  .hero__ways {
-    order: 5;
-    padding-top: var(--space-2);
-  }
-
-  .hero__title {
-    font-size: var(--text-2xl);
-  }
-
-  .hero__eyebrow {
-    display: none;
-  }
-
-  .hero__lede {
-    font-size: var(--text-sm);
-  }
-
-  .hero__list:not(.visually-hidden) {
-    padding-left: var(--space-4);
-    columns: 1;
   }
 }
