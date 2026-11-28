@@ -581,6 +581,16 @@ code {
   border-color: var(--ink-1);
 }
 
+/* Forced colours: the primary action keeps its weight, in the system's button colours turned round. */
+@media (forced-colors: active) {
+  .button--primary {
+    forced-color-adjust: none;
+    background: ButtonText;
+    color: ButtonFace;
+    border-color: ButtonText;
+  }
+}
+
 .button--quiet {
   border-color: transparent;
   background: transparent;
@@ -1333,8 +1343,8 @@ code {
   }
 
   body {
-    background: #fff;
-    color: #000;
+    background: #ffffff;
+    color: #000000;
   }
 
   .mast,

@@ -229,6 +229,14 @@
   font-size: var(--text-sm);
 }
 
+/* Forced colours: the organism in view keeps its mark. */
+@media (forced-colors: active) {
+  .org-chip__option[aria-current="true"] {
+    outline: 2px solid Highlight;
+    outline-offset: -2px;
+  }
+}
+
 /* The sheet of a phone: a finger's row for each organism. */
 .drawer--organisms .org-chip__option {
   min-height: 56px;
@@ -308,6 +316,20 @@
   font-size: var(--text-lg);
 }
 
+/* Below 1280 px the palette's button is its glass alone (its shortcut in its name and title), so that the row keeps
+   room for the state's word beside the server's dot. */
+@media (max-width: 1279px) {
+  .mast__kbd {
+    display: none;
+  }
+
+  .mast__palette {
+    width: 40px;
+    padding: 0;
+    justify-content: center;
+  }
+}
+
 @media (max-width: 860px) {
   .mast__inner {
     padding: 0 var(--space-4);
@@ -320,16 +342,6 @@
 
   .mast__menu {
     display: grid;
-  }
-
-  .mast__kbd {
-    display: none;
-  }
-
-  .mast__palette {
-    width: 40px;
-    padding: 0;
-    justify-content: center;
   }
 }
 
@@ -528,8 +540,7 @@
   .foot__links {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    column-gap: var(--space-5);
-    row-gap: 0;
+    gap: 0 var(--space-5);
   }
 
   .foot__links a,

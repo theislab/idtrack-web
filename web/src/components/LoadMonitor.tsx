@@ -169,20 +169,22 @@ export function LoadMonitor() {
   const pssText = pss === null ? "–" : gib(pss).text;
   const stale = STALE.has(state);
   const hasReading = latest !== null && state !== "unreachable";
-  const word =
+  // The state in words: whole in the button's name; short in the masthead, where room is held for the longest.
+  const said =
     state === "late" ? `late ${lateSeconds} s` : state === "waiting" ? "reading" : STATE_WORDS[state].toLowerCase();
+  const word = state === "memory" ? "memory high" : said;
   // The button's name: the state and both readings at every width (the visible text, whatever of it a width shows,
   // is part of it), and how old a reading that is not current is.
   const readings = `CPU ${cpuText} of the workers' capacity, memory ${pssText}${limit !== null && pss !== null ? ` of ${gib(limit).text}` : ""}`;
   const name =
     state === "unreachable" || state === "waiting" || !latest
-      ? `Server load: ${word}.`
+      ? `Server load: ${said}.`
       : stale
-        ? `Server load: ${state === "late" ? `late, no answer from /status for ${lateSeconds} s` : word}; the last reading, at ${clock(latest.receivedAt)}: ${readings}.`
-        : `Server load: ${word}. ${readings}.`;
+        ? `Server load: ${state === "late" ? `late, no answer from /status for ${lateSeconds} s` : said}; the last reading, at ${clock(latest.receivedAt)}: ${readings}.`
+        : `Server load: ${said}. ${readings}.`;
   const title =
     state === "unreachable" || state === "unreadable" || state === "refused"
-      ? `Server load: ${failure?.message ?? word}`
+      ? `Server load: ${failure?.message ?? said}`
       : state === "late"
         ? `Server load: /status has not answered for ${lateSeconds} s; the values are the last answer, received at ${latest ? clock(latest.receivedAt) : ""}.`
         : "Server load, as measured by the server (GET /api/v1/status). Open for every process and how it is measured.";

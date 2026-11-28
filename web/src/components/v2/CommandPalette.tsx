@@ -5,7 +5,7 @@
 // and its history; the API's endpoints; the theme; the citation); the showcase's cases of the organism in view (from
 // `GET /organisms/{organism}/showcase/queries`). Found by the starts of words, ordered by lib/palette.ts. A combobox
 // over a listbox: the arrow keys move, Enter goes, Escape closes (with a short fade) and focus returns.
-import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent } from "react";
+import { useEffect, useEffectEvent, useId, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import { api } from "../../api/client";
 import { convertHref, plainConversion } from "../../lib/convertParameters";
 import { isCaseKind } from "../../lib/home/caseKinds";
@@ -332,26 +332,12 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
     if (element && typeof element.showModal === "function" && !element.open) element.showModal();
     field.current?.focus();
     return () => {
-      if (opener.current instanceof HTMLElement) opener.current.focus();
-    };
-  }, []);
-
-  // A press on the dimmed page (the dialog's own box, outside its sheet) closes it.
-  useEffect(() => {
-    const element = dialog.current;
-    if (!element) return;
-    const onClick = (event: MouseEvent) => {
-      if (event.target === element) leaveRef.current();
-    };
-    // A dialog the browser closed by itself (a close request it does not let the page hold) is gone for the page too.
-    const onClosed = () => {
-      onCloseRef.current();
-    };
-    element.addEventListener("click", onClick);
-    element.addEventListener("close", onClosed);
-    return () => {
-      element.removeEventListener("click", onClick);
-      element.removeEventListener("close", onClosed);
+      // The focus goes back where it was; opened from the page itself (the shortcut), to the palette's button.
+      const back =
+        opener.current instanceof HTMLElement && opener.current !== document.body
+          ? opener.current
+          : document.querySelector<HTMLElement>(".mast__palette");
+      back?.focus();
     };
   }, []);
 
@@ -365,12 +351,27 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
     setClosing(true);
     exitTimer.current = window.setTimeout(onClose, EXIT_MS);
   };
-  const leaveRef = useRef(leave);
-  const onCloseRef = useRef(onClose);
+  const onPressBeside = useEffectEvent(leave);
+  const onClosedByBrowser = useEffectEvent(onClose);
+  // A press on the dimmed page (the dialog's own box, outside its sheet) closes it.
   useEffect(() => {
-    leaveRef.current = leave;
-    onCloseRef.current = onClose;
-  });
+    const element = dialog.current;
+    if (!element) return;
+    const onClick = (event: MouseEvent) => {
+      if (event.target === element) onPressBeside();
+    };
+    // A dialog the browser closed by itself (a close request it does not let the page hold) is gone for the page too.
+    const onClosed = () => {
+      onClosedByBrowser();
+    };
+    element.addEventListener("click", onClick);
+    element.addEventListener("close", onClosed);
+    return () => {
+      element.removeEventListener("click", onClick);
+      element.removeEventListener("close", onClosed);
+    };
+  }, []);
+
   useEffect(() => () => window.clearTimeout(exitTimer.current), []);
 
   const commands = useMemo<Command[]>(() => {

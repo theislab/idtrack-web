@@ -26,7 +26,7 @@ import {
   type ReactNode,
 } from "react";
 import { createPortal } from "react-dom";
-import { placeCard } from "./placeCard";
+import { EDGE, placeCard } from "./placeCard";
 import { useExit } from "./useExit";
 
 const OPEN_MS = 350;
@@ -98,7 +98,6 @@ export function HoverCard({
   };
   /** Close; a card that holds the focus gives it back to its trigger first (that focus opens no card). */
   const close = useCallback(() => {
-    window.clearTimeout(timer.current);
     if (document.getElementById(cardId)?.contains(document.activeElement)) giveBack(triggerId);
     setOpen(false);
   }, [setOpen, cardId, triggerId]);
@@ -148,7 +147,18 @@ export function HoverCard({
     const anchor = button.current;
     if (!element || !anchor) return;
     const place = () => {
-      Object.assign(element.style, { left: "0px", top: "0px", right: "auto", bottom: "auto", maxHeight: "" });
+      Object.assign(element.style, {
+        left: "0px",
+        top: "0px",
+        right: "auto",
+        bottom: "auto",
+        maxHeight: "",
+        width: "",
+        minWidth: "",
+      });
+      // A card wider than the window's room (a family's own width) takes the room, 16 px inside each edge.
+      const room = document.documentElement.clientWidth - 2 * EDGE;
+      if (element.offsetWidth > room) Object.assign(element.style, { width: `${room}px`, minWidth: "0px" });
       const at = placeCard(
         anchor.getBoundingClientRect(),
         { width: element.offsetWidth, height: element.offsetHeight },

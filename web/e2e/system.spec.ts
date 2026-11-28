@@ -2,7 +2,7 @@
 // sideways, no figure's text runs out of its figure or overlaps another (expectWholeAndTyped); the masthead is opaque,
 // one layout on every page, and what scrolls into view stops below it; focus is an outline that forced colours keep.
 import { expect, test, type Page } from "@playwright/test";
-import { convertUrl, data, expectWholeAndTyped, isPhone, waitForResult } from "./helpers";
+import { convertUrl, data, expectAccessible, expectWholeAndTyped, isPhone, waitForResult } from "./helpers";
 
 const PAGES: [string, string, (page: Page) => Promise<void>][] = [
   [
@@ -471,14 +471,14 @@ test("every page's lede starts at one x, under its title", async ({ page }, info
   expect([...starts]).toHaveLength(1);
 });
 
-test("the masthead names the organism whole in its chip from 641 px, and every section (Docs too) is in the row from 861 px", async ({
+test("the masthead names the organism whole in its chip from 1080 px, on one line at every width, and every section (Docs too) is in the row from 861 px", async ({
   page,
 }, info) => {
   test.skip(!info.project.name.startsWith("desktop-light"), "the widths are set here");
   const organisms = (
     (await (await page.request.get("/api/v1/organisms")).json()) as { organisms: { organism: string }[] }
   ).organisms.map((o) => o.organism);
-  for (const width of [641, 861, 1080, 1280, 1366, 1440, 1920]) {
+  for (const width of [641, 861, 1000, 1080, 1280, 1366, 1440, 1920]) {
     await page.setViewportSize({ width, height: 800 });
     for (const organism of organisms) {
       await page.goto(`/batch?organism=${organism}`);
@@ -494,12 +494,16 @@ test("the masthead names the organism whole in its chip from 641 px, and every s
         const row = nav?.getBoundingClientRect();
         return {
           fits: Boolean(chip && name && name.scrollWidth <= name.clientWidth + 0.5),
+          line: (chip?.getBoundingClientRect().height ?? 99) <= 37,
           name: name?.textContent ?? "",
           nav: nav ? getComputedStyle(nav).display !== "none" : false,
           docs: Boolean(docs && row && docs.left >= row.left - 0.5 && docs.right <= row.right + 0.5),
         };
       });
-      expect(m.fits, `${organism} at ${width} px: the name stands whole in its chip`).toBe(true);
+      // Where the row is short the name ends in an ellipsis (its whole name in the chip's name, below); from 1080 px it
+      // stands whole for every organism; always on one line.
+      if (width >= 1080) expect(m.fits, `${organism} at ${width} px: the name stands whole in its chip`).toBe(true);
+      expect(m.line, `${organism} at ${width} px: the chip on one line`).toBe(true);
       expect(m.name.length, `${organism} at ${width} px`).toBeGreaterThan(2);
       if (width >= 861) {
         expect(m.nav, `${width} px: the sections in the row`).toBe(true);
@@ -513,8 +517,17 @@ test("the masthead names the organism whole in its chip from 641 px, and every s
   }
 });
 
-/** Boxes of the cards shown, against the window: every one 16 px inside its edges. */
+/** Boxes of the cards shown, against the window: every one 16 px inside its edges (measured once their opening has
+ *  run: every animation that ends has ended). */
 async function cardsOut(page: Page): Promise<string[]> {
+  await page.evaluate(() =>
+    Promise.all(
+      document
+        .getAnimations()
+        .filter((a) => a.effect?.getTiming().iterations !== Infinity)
+        .map((a) => a.finished.catch(() => undefined)),
+    ),
+  );
   return page.evaluate(() => {
     const out: string[] = [];
     const w = document.documentElement.clientWidth;
@@ -586,7 +599,8 @@ test.describe("cards and menus", () => {
         await page.goto(path);
         await expect(page.locator("footer.foot")).toBeVisible();
         if (path.includes("id=")) await waitForResult(page);
-        const triggers = page.locator(".hovercard__trigger:visible");
+        // The cards a press opens (a trigger that does something of its own shows its card on pointing instead).
+        const triggers = page.locator(".hovercard__trigger[aria-expanded]:visible");
         await expect(triggers.first()).toBeVisible();
         const n = Math.min(await triggers.count(), 6);
         for (let i = 0; i < n; i++) {
@@ -669,7 +683,7 @@ test.describe("tab lists", () => {
     }
   });
 
-  test("in forced colours the chosen tab keeps its bar", async ({ page }, info) => {
+  test("in forced colours the chosen tab keeps its bar, and the shell reads whole to axe", async ({ page }, info) => {
     test.skip(!info.project.name.startsWith("desktop-light"), "forced colours are their own theme");
     await page.emulateMedia({ forcedColors: "active" });
     await page.goto(`/organisms/${data.organism}?tab=databases`);
@@ -679,6 +693,16 @@ test.describe("tab lists", () => {
     expect(fill).not.toBe("rgba(0, 0, 0, 0)");
     const option = page.locator('.segmented__option[aria-checked="true"]').first();
     if (await option.count()) expect(await option.evaluate((e) => getComputedStyle(e).outlineStyle)).not.toBe("none");
+    // The shell in forced colours, as axe reads it: the masthead, a card open, the load panel.
+    await expectAccessible(page);
+    await page.goto(`/convert?organism=${data.organism}`);
+    await page.locator(".org-chip__button").click();
+    await expect(page.locator(".org-chip__option").first()).toBeVisible();
+    await expectAccessible(page);
+    await page.keyboard.press("Escape");
+    await page.locator(".load-monitor__trigger").click();
+    await expect(page.getByRole("dialog", { name: "Server load" })).toBeVisible();
+    await expectAccessible(page);
   });
 });
 
@@ -720,17 +744,17 @@ test.describe("the masthead's tools", () => {
     // Fetched once the page is idle: the press asks for no code.
     await expect
       .poll(() =>
-        page.evaluate(() => performance.getEntriesByType("resource").some((e) => /CommandPalette/.test(e.name))),
+        page.evaluate(() => performance.getEntriesByType("resource").some((e) => e.name.includes("CommandPalette"))),
       )
       .toBe(true);
     const asked: string[] = [];
     page.on("request", (request) => {
-      if (/\.js$/.test(request.url())) asked.push(request.url());
+      if (request.url().endsWith(".js")) asked.push(request.url());
     });
     await page.keyboard.press("ControlOrMeta+k");
     const field = page.getByRole("combobox", { name: /^Search/ });
     await expect(field).toBeFocused();
-    expect(asked.filter((u) => /CommandPalette/.test(u))).toEqual([]);
+    expect(asked.filter((u) => u.includes("CommandPalette"))).toEqual([]);
     await field.fill("api");
     await expect(page.locator(".palette__option").first()).toHaveText(/^The API/);
     await field.fill("dark");
@@ -775,7 +799,7 @@ test.describe("the masthead's tools", () => {
       await expect(page.locator("footer.foot")).toBeAttached();
       if (path.includes("id=")) await waitForResult(page);
       const m = await page.evaluate(() => ({
-        mast: getComputedStyle(document.querySelector(".mast") as Element).display,
+        mast: [...document.querySelectorAll(".mast")].map((e) => getComputedStyle(e).display).join(),
         ink: getComputedStyle(document.body).color,
         forms: [...document.querySelectorAll("form, .sections, .tabs__rail")].filter(
           (e) => getComputedStyle(e).display !== "none",

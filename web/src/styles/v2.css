@@ -14,7 +14,7 @@
   position: relative;
 }
 
-/* The list's rule is a line inside its foot, so the chosen tab's bar lies over it. */
+/* The list's rule is a line drawn at its foot, so the chosen tab's bar lies over it. */
 .tabs__list {
   position: relative;
   display: flex;
@@ -22,7 +22,7 @@
   overflow-x: auto;
   scrollbar-width: none;
   overscroll-behavior-x: contain;
-  box-shadow: inset 0 -1px 0 var(--line);
+  background: linear-gradient(var(--line), var(--line)) left bottom / 100% 1px no-repeat;
 }
 
 .tabs__list::-webkit-scrollbar {
@@ -30,15 +30,15 @@
 }
 
 .tabs__rail--end .tabs__list {
-  mask-image: linear-gradient(to left, transparent 0, #000 56px);
+  mask-image: linear-gradient(to left, transparent 0, #000000 56px);
 }
 
 .tabs__rail--start .tabs__list {
-  mask-image: linear-gradient(to right, transparent 0, #000 56px);
+  mask-image: linear-gradient(to right, transparent 0, #000000 56px);
 }
 
 .tabs__rail--start.tabs__rail--end .tabs__list {
-  mask-image: linear-gradient(to right, transparent 0, #000 56px, #000 calc(100% - 56px), transparent 100%);
+  mask-image: linear-gradient(to right, transparent 0, #000000 56px, #000000 calc(100% - 56px), transparent 100%);
 }
 
 .tabs__more {
@@ -139,8 +139,7 @@
 
 /* Tabs never widen what holds them: a wide panel (a table) scrolls in its own frame, the tab list sideways. */
 .tabs,
-.tabs__rail,
-.tabs__panel {
+.tabs__rail {
   min-width: 0;
 }
 
@@ -196,15 +195,6 @@
 
 .tabs__panel {
   min-width: 0;
-}
-
-@media (max-width: 640px) {
-  .tabs__tab {
-    padding: 0 var(--space-3);
-  }
-}
-
-.tabs__panel {
   padding-top: var(--space-6);
   outline: none;
   animation: v2-rise var(--dur-2) var(--ease-out);
@@ -224,8 +214,12 @@
 
 /* ---- Segmented ----------------------------------------------------------------------------------------------- */
 
+/* A row of options wider than its room scrolls sideways, the chosen one in view, a fade at each edge with more. */
 .segmented {
   position: relative;
+  max-width: 100%;
+  overflow-x: auto;
+  scrollbar-width: none;
   display: inline-flex;
   padding: 3px;
   gap: 2px;
@@ -234,6 +228,10 @@
 }
 
 .segmented__option {
+  position: relative;
+  z-index: 1;
+  flex: none;
+  white-space: nowrap;
   min-height: 32px;
   padding: 0 var(--space-4);
   border: 0;
@@ -269,11 +267,6 @@
     height var(--dur-3) var(--ease-in-out);
 }
 
-.segmented__option {
-  position: relative;
-  z-index: 1;
-}
-
 .segmented--pill .segmented__option[aria-checked="true"] {
   background: none;
   box-shadow: none;
@@ -286,32 +279,20 @@
   }
 }
 
-/* A row of options wider than its room scrolls sideways, the chosen one in view, a fade at each edge with more. */
-.segmented {
-  max-width: 100%;
-  overflow-x: auto;
-  scrollbar-width: none;
-}
-
 .segmented::-webkit-scrollbar {
   display: none;
 }
 
 .segmented--more-end {
-  mask-image: linear-gradient(to left, transparent 0, #000 40px);
+  mask-image: linear-gradient(to left, transparent 0, #000000 40px);
 }
 
 .segmented--more-start {
-  mask-image: linear-gradient(to right, transparent 0, #000 40px);
+  mask-image: linear-gradient(to right, transparent 0, #000000 40px);
 }
 
 .segmented--more-start.segmented--more-end {
-  mask-image: linear-gradient(to right, transparent 0, #000 40px, #000 calc(100% - 40px), transparent 100%);
-}
-
-.segmented__option {
-  flex: none;
-  white-space: nowrap;
+  mask-image: linear-gradient(to right, transparent 0, #000000 40px, #000000 calc(100% - 40px), transparent 100%);
 }
 
 /* ---- Expandable ---------------------------------------------------------------------------------------------- */

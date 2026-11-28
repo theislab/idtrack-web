@@ -3,7 +3,7 @@
 // edge of the window, 8 px from its trigger.
 
 /** The least room between a card and every edge of the window, and between a card and its trigger. */
-const EDGE = 16;
+export const EDGE = 16;
 const GAP = 8;
 /** A side of the trigger with less room than this is no place for a card: it then covers the window's height. */
 const LEAST_ROOM = 120;

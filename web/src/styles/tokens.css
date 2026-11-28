@@ -124,6 +124,7 @@
   --dur-2: 200ms;
   --dur-3: 320ms;
   --dur-4: 900ms;
+
   /* What closes leaves faster than what opens (a drawer, a popover, the palette): kept drawn this long while it fades. */
   --dur-exit: 160ms;
 
