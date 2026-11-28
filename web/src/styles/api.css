@@ -592,6 +592,7 @@
 .endpoint__spec,
 .endpoint__run {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--space-3);
   min-width: 0;
   align-content: start;
@@ -1785,4 +1786,10 @@
 .endpoint__tabs,
 .api-recipes {
   min-width: 0;
+}
+
+@media (max-width: 640px) {
+  .endpoint__tabs .tabs__tab {
+    padding: 0 var(--space-2);
+  }
 }
