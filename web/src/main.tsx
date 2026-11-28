@@ -39,13 +39,12 @@ if (!root) throw new Error("The page has no #root element.");
 // before any code ran. The app is drawn once the page's own code has arrived (it was fetched beside this entry), so its
 // first commit, which replaces the frame, is the page whole.
 // A control of the frame that holds the focus when the app replaces the frame (a reader who pressed Tab early) hands
-// it on to the same control of the page: the same kind of element with the same address or words.
+// it on to the same control of the page: the same kind of element with the same words (and address, where one has
+// it). The frame's control that holds the focus is followed until the app's first commit replaces it.
 void firstPageReady.then(() => {
-  const held =
-    document.activeElement instanceof HTMLElement && root.contains(document.activeElement)
-      ? document.activeElement
-      : null;
-  const mark = held ? { tag: held.tagName, href: held.getAttribute("href"), text: held.textContent.trim() } : null;
+  const frame = new Set(root.querySelectorAll("*"));
+  const markOf = (e: Element) => ({ tag: e.tagName, href: e.getAttribute("href"), text: e.textContent.trim() });
+  let mark: ReturnType<typeof markOf> | null = null;
   createRoot(root).render(
     <StrictMode>
       <RootBoundary>
@@ -53,21 +52,26 @@ void firstPageReady.then(() => {
       </RootBoundary>
     </StrictMode>,
   );
-  if (!mark) return;
   let frames = 0;
-  const handOn = () => {
-    if (
-      document.activeElement !== document.body &&
-      document.activeElement !== null &&
-      root.contains(document.activeElement)
-    )
-      return;
-    const candidates = [...root.querySelectorAll<HTMLElement>(mark.tag)].filter(
-      (e) => e.textContent.trim() === mark.text,
-    );
-    const same = candidates.find((e) => e.getAttribute("href") === mark.href) ?? candidates[0];
-    if (same) same.focus({ preventScroll: true });
-    else if (++frames < 120) requestAnimationFrame(handOn);
+  const follow = () => {
+    const now = document.activeElement;
+    if (now && now !== document.body && root.contains(now)) {
+      // Still a control of the frame: remember it; else the page's own control holds the focus, and nothing is due.
+      if (!frame.has(now)) return;
+      mark = markOf(now);
+    } else if (mark) {
+      const wanted = mark;
+      const candidates = [...root.querySelectorAll<HTMLElement>(wanted.tag)].filter(
+        (e) => !frame.has(e) && e.textContent.trim() === wanted.text,
+      );
+      const same = candidates.find((e) => e.getAttribute("href") === wanted.href) ?? candidates[0];
+      // Handed on from the keyboard, so its ring shows (`focusVisible`, where the browser knows it).
+      if (same) {
+        same.focus({ preventScroll: true, focusVisible: true } as FocusOptions);
+        return;
+      }
+    }
+    if (++frames < 600) requestAnimationFrame(follow);
   };
-  requestAnimationFrame(handOn);
+  requestAnimationFrame(follow);
 });
