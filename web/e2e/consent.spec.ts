@@ -331,7 +331,8 @@ test.describe("the notice", () => {
         return { height: bar ? bar.height : 0, under, bottom: bar?.bottom ?? 0 };
       });
       expect(found.under, `${width}x${height}`).toEqual([]);
-      expect(found.bottom, `${width}x${height}`).toBe(height);
+      // Docked at the window's foot (to the pixel: a layout may place it a fraction off).
+      expect(Math.abs(found.bottom - height), `${width}x${height}`).toBeLessThan(0.5);
       expect(found.height, `${width}x${height}`).toBeLessThanOrEqual(width >= 720 ? 64 : 120);
     }
   });
