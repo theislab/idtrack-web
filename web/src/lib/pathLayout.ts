@@ -634,7 +634,7 @@ export function scoreSteps(
 }
 
 /** The kinds of mark the drawn candidates' paths hold: the legend keys these, the rest behind "Key to every mark". */
-export function presentMarks(model: PathModel, limit: number, maxBest: number = Number.POSITIVE_INFINITY): Set<string> {
+export function presentMarks(model: PathModel, limit: number, maxBest: number): Set<string> {
   const present = new Set<string>();
   const shown = shownCandidates(model, limit, maxBest);
   const seenSteps = new Set<number>();
