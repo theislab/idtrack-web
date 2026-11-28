@@ -2575,7 +2575,7 @@ th[aria-sort] .sort__mark {
 .file__preview--table {
   display: block;
   overflow: hidden;
-  mask-image: linear-gradient(to right, #000 88%, transparent);
+  mask-image: linear-gradient(to right, #000000 88%, transparent);
 }
 
 .file__preview--table table {
