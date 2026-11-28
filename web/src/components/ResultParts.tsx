@@ -125,7 +125,7 @@ export function ScoreValue({ score, strong = false }: { score: number; strong?: 
   const { text, exact } = shortScore(score);
   if (text === exact) return <Mono strong={strong}>{exact}</Mono>;
   return (
-    <span className={`score-value mono ${strong ? "mono--strong" : ""}`} title={`As idtrack gave it: ${exact}`}>
+    <span className={`score-value mono ${strong ? "mono--strong" : ""}`} title={`As IDTrack gave it: ${exact}`}>
       <span aria-hidden="true">{text}</span>
       <span className="visually-hidden">{exact}</span>
     </span>

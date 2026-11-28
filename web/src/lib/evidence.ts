@@ -7,6 +7,7 @@
 //
 // A "caution" changes how far an answer can be trusted; a "note" says something exact about it that is not a fault.
 import type { ConversionResult } from "../api/types";
+import { convertHref, plainConversion } from "./convertParameters";
 import limitations from "../generated/limitations.json";
 import { NO_VOCABULARY, type Vocabulary } from "./vocabulary";
 
@@ -106,4 +107,30 @@ export function evidenceOf(result: ConversionResult, vocabulary: Vocabulary = NO
 /** The number of cautions: an answer without any is shown as plainly converted. */
 export function cautionCount(marks: readonly EvidenceMark[]): number {
   return marks.filter((m) => m.tone === "caution").length;
+}
+
+/** The addresses a mark of evidence leads to: the conversion that answers what it doubts (only the parts the api names
+ *  as changed differ from this conversion), and the identifier read at another release. */
+export function evidenceHrefs(
+  organism: string,
+  result: ConversionResult,
+  requestedDatabase: string | null,
+): { askHref: (ask: EvidenceAsk) => string; readAtHref: (release: number) => string } {
+  return {
+    askHref: (ask) =>
+      convertHref(organism, {
+        ...plainConversion(ask.identifier ?? result.query_id),
+        fromRelease: ask.fromRelease !== undefined ? ask.fromRelease : (result.from_release_given ?? null),
+        toRelease: ask.toRelease ?? result.to_release,
+        finalDatabase: ask.finalDatabase !== undefined ? ask.finalDatabase : requestedDatabase,
+        fromDatabase: ask.fromDatabase ?? null,
+      }),
+    readAtHref: (release) =>
+      convertHref(organism, {
+        ...plainConversion(result.query_id),
+        fromRelease: release,
+        toRelease: result.to_release,
+        finalDatabase: requestedDatabase,
+      }),
+  };
 }

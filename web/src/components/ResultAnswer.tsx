@@ -7,13 +7,20 @@
 // display size with its symbol, its first targets in small type, "and N more" on request), never as a wall of ids.
 // Under the status, the cautions a reader must weigh (`Evidence`; the notes are on the Evidence tab), then what the
 // string meant at other releases with a way to read it there.
-import { memo, useEffect, useRef, useState, useTransition } from "react";
+import { memo, useEffect, useRef, useState, useTransition, type ReactNode } from "react";
 import { api } from "../api/client";
 import type { Candidate, ConversionResult, GraphDescription } from "../api/types";
 import type { Anatomy } from "../lib/anatomy";
 import { convertHref, plainConversion } from "../lib/convertParameters";
 import { databaseLabel } from "../lib/databases";
-import { cautionCount, limitationAt, LIMITATION_OF, type EvidenceAsk, type EvidenceMark } from "../lib/evidence";
+import {
+  cautionCount,
+  evidenceHrefs,
+  limitationAt,
+  LIMITATION_OF,
+  type EvidenceAsk,
+  type EvidenceMark,
+} from "../lib/evidence";
 import { docsPage } from "../lib/links";
 import { bestWords, noTargetOf, NOT_HELD_WORDS, notHeldScheme, type NoTarget } from "../lib/noTarget";
 import { looksLikeSpreadsheetDate } from "../lib/batchList";
@@ -26,9 +33,9 @@ import { parseServerTiming } from "../lib/serverTiming";
 import { spaced, statusTitle, criterionOf } from "../lib/vocabulary";
 import { useVocabulary } from "../lib/vocabularyContext";
 import { readerText, statusTone } from "../lib/resultWords";
-import { Evidence } from "./Evidence";
+import { EvidenceCard } from "./Evidence";
 import { IdMenu, SymbolOf, type IdContext } from "./IdMenu";
-import { FigurePanel, Reasons, Term } from "./ResultParts";
+import { Reasons, Term } from "./ResultParts";
 import { Drawer } from "./v2/Drawer";
 import { HoverCard } from "./v2/HoverCard";
 import { usePhone } from "../lib/usePhone";
@@ -66,12 +73,12 @@ function ReasonNotes({ result }: { result: ConversionResult }) {
   );
 }
 
-/** The decision in one sentence, where a criterion decided: from `decided_by` and the pair idtrack compared. */
+/** The decision in one sentence, where a criterion decided: from `decided_by` and the pair IDTrack compared (the
+ *  criterion's place in IDTrack's order is said once, by the comparison under it). */
 export function DecisionSentence({ model, context }: { model: PathModel; context: IdContext }) {
   const vocabulary = useVocabulary();
   const decision = model.decision;
   if (!decision) return null;
-  const position = vocabulary.criteria.findIndex((c) => c.code === decision.key) + 1;
   const criterion = criterionOf(vocabulary, decision.key);
   // The values the deciding criterion compared, as the api sent them (never judged: no threshold of the page's own).
   const best = criterion ? criterionValue(criterion, decision.best.api) : null;
@@ -93,9 +100,7 @@ export function DecisionSentence({ model, context }: { model: PathModel; context
           (<Mono title={best.title}>{best.text}</Mono> against <Mono title={runner.title}>{runner.text}</Mono>)
         </>
       ) : null}
-      {position > 0
-        ? `, criterion ${position} of the ${vocabulary.criteria.length} in idtrack's order; the criteria before it do not tell them apart.`
-        : "."}
+      .
     </p>
   );
 }
@@ -181,7 +186,7 @@ function Facts({
         <div>
           <dt>Symbols</dt>
           <dd>
-            {context.symbols.database} <span className="muted">at {context.symbols.release}, by idtrack</span>
+            {context.symbols.database} <span className="muted">at {context.symbols.release}, by IDTrack</span>
           </dd>
         </div>
       ) : null}
@@ -552,7 +557,7 @@ function StatusSentence({
     return (
       <span className="answer__status-text">
         Every best target is an id of one gene, <IdMenu id={gene} release={result.to_release} context={context} />{" "}
-        <SymbolOf gene={gene} context={context} />: idtrack converts at the level of the gene, so the answer in{" "}
+        <SymbolOf gene={gene} context={context} />: IDTrack converts at the level of the gene, so the answer in{" "}
         {database} is every id that gene carries at release <Mono>{result.to_release}</Mono>, not the counterpart of{" "}
         <Mono>{result.query_id}</Mono> alone.
       </span>
@@ -584,64 +589,83 @@ function StatusSentence({
   ) : null;
 }
 
-/** Where another gene than the best answer may be the gene meant (a mark of evidence that says so), it is said beside
- *  the status, with the conversion that answers the doubt and the limitation of idtrack's documentation it falls under,
- *  not only among the marks below. */
-function Alerts({ marks, askHref }: { marks: readonly EvidenceMark[]; askHref: (ask: EvidenceAsk) => string }) {
-  const alerts = marks.filter((m) => m.alert);
-  if (!alerts.length) return null;
+/** The cautions of the answer, each on one line of the verdict (a caution changes how the answer may be used: it never
+ *  folds). Its triangle opens what it rests on (what the result says, IDTrack's meaning, the limitation of IDTrack's
+ *  documentation it falls under, the code it is read from) as a hover card; where another gene than the best answer
+ *  may be the gene meant, its line says so first, with the conversion that answers the doubt. */
+function CautionLines({
+  marks,
+  askHref,
+  readAtHref,
+}: {
+  marks: readonly EvidenceMark[];
+  askHref: (ask: EvidenceAsk) => string;
+  readAtHref: (release: number) => string;
+}) {
+  if (!marks.length) return null;
+  // Another gene may be meant: said first.
+  const ordered = [...marks.filter((m) => m.alert), ...marks.filter((m) => !m.alert)];
   return (
-    <ul className="answer__alerts" aria-label="Another gene may be the one meant">
-      {alerts.map((mark) => (
-        <li key={mark.kind} className="answer__alert">
-          <CautionGlyph />{" "}
-          <span>
-            <strong>Another gene may be the one meant:</strong> <Prose text={mark.label} />.
-            {mark.ask ? (
-              <>
-                {" "}
-                <Link to={askHref(mark.ask)}>{mark.ask.words} →</Link>
-              </>
-            ) : null}
-            {mark.limitation ? (
-              <span className="answer__alert-doc">
-                {" "}
-                A known limitation of idtrack:{" "}
-                <a href={mark.limitation.href} target="_blank" rel="noreferrer">
-                  {mark.limitation.title}
-                  <span className="visually-hidden"> (idtrack&apos;s documentation, opens in a new tab)</span>
-                  <span aria-hidden="true"> ↗</span>
-                </a>
-              </span>
-            ) : null}
-          </span>
-        </li>
-      ))}
+    <ul className="answer__cautions" aria-label="Cautions to weigh">
+      {ordered.map((mark) => {
+        const words = mark.label.replace(/`/g, "");
+        return (
+          <li
+            key={`${mark.kind}|${mark.label}`}
+            className={`answer__caution${mark.alert ? " answer__caution--alert" : ""}`}
+          >
+            <HoverCard
+              className="answer__caution-card"
+              triggerClassName="answer__caution-mark"
+              label={`Caution: ${words}. What it rests on`}
+              trigger={<CautionGlyph />}
+            >
+              <EvidenceCard mark={mark} links={{ readAtHref, askHref }} />
+            </HoverCard>
+            <span className="answer__caution-words">
+              {mark.alert ? <strong>Another gene may be the one meant: </strong> : null}
+              <Prose text={mark.label} />.
+              {mark.ask ? (
+                <>
+                  {" "}
+                  <Link to={askHref(mark.ask)}>{mark.ask.words} →</Link>
+                </>
+              ) : null}
+            </span>
+          </li>
+        );
+      })}
     </ul>
   );
 }
 
-/** What a tie of genes means for a list or a count matrix, in idtrack's documented terms: idtrack returns a tie rather
- *  than a guess; where the release or the source database is known, giving it decides; else every gene is kept (its
- *  harmonizer leaves such a feature unconverted, as ambiguous). */
+/** What a tie of genes means for a list or a count matrix, in IDTrack's documented terms, a press or a pointing away
+ *  from the status: IDTrack returns a tie rather than a guess; where the release or the source database is known,
+ *  giving it decides; else every gene is kept (its harmonizer leaves such a feature unconverted, as ambiguous). */
 function TieGuidance({ result }: { result: ConversionResult }) {
   const genes = new Set(result.candidates.filter((c) => c.best).map((c) => c.gene));
   if (!result.tie || genes.size < 2) return null;
   return (
-    <p className="answer__guidance">
-      <span className="answer__guidance-head">For a list or a count matrix</span> idtrack returns the tie rather than a
-      guess: give the release the list was made with, or the database it comes from, where you know them; else keep
-      every gene. Harmonizing a matrix leaves such a feature unconverted, as ambiguous.{" "}
-      <a href={docsPage("concepts.html#concept-ties")} target="_blank" rel="noreferrer">
-        The best answer and ties
-        <span className="visually-hidden"> (idtrack&apos;s documentation, opens in a new tab)</span>
-        <span aria-hidden="true"> ↗</span>
-      </a>{" "}
-      <a href={docsPage("harmonization.html")} target="_blank" rel="noreferrer">
-        Harmonizing<span className="visually-hidden"> (idtrack&apos;s documentation, opens in a new tab)</span>
-        <span aria-hidden="true"> ↗</span>
-      </a>
-    </p>
+    <HoverCard
+      className="answer__guidance"
+      triggerClassName="answer__guidance-trigger"
+      trigger="For a list or a count matrix"
+    >
+      <p className="answer__guidance-text">
+        IDTrack returns the tie rather than a guess: give the release the list was made with, or the database it comes
+        from, where you know them; else keep every gene. Harmonizing a matrix leaves such a feature unconverted, as
+        ambiguous.{" "}
+        <a href={docsPage("concepts.html#concept-ties")} target="_blank" rel="noreferrer">
+          The best answer and ties
+          <span className="visually-hidden"> (IDTrack&apos;s documentation, opens in a new tab)</span>
+          <span aria-hidden="true"> ↗</span>
+        </a>{" "}
+        <a href={docsPage("harmonization.html")} target="_blank" rel="noreferrer">
+          Harmonizing<span className="visually-hidden"> (IDTrack&apos;s documentation, opens in a new tab)</span>
+          <span aria-hidden="true"> ↗</span>
+        </a>
+      </p>
+    </HoverCard>
   );
 }
 
@@ -703,7 +727,7 @@ function CiteBlock({
       {citation ? (
         <>
           <p className="answer__cite-head">
-            Cite idtrack{" "}
+            Cite IDTrack{" "}
             <a href={citation.source} target="_blank" rel="noreferrer">
               as its documentation gives it<span className="visually-hidden"> (opens in a new tab)</span>
               <span aria-hidden="true"> ↗</span>
@@ -715,7 +739,7 @@ function CiteBlock({
           </pre>
         </>
       ) : (
-        <p className="muted">Reading idtrack&apos;s citation…</p>
+        <p className="muted">Reading IDTrack&apos;s citation…</p>
       )}
       {sentence ? (
         <>
@@ -759,7 +783,7 @@ function LimitationLink({ anchors }: { anchors: readonly string[] }) {
       {" "}
       <a href={limitation.href} target="_blank" rel="noreferrer">
         {limitation.title}
-        <span className="visually-hidden"> (idtrack&apos;s documentation, opens in a new tab)</span>
+        <span className="visually-hidden"> (IDTrack&apos;s documentation, opens in a new tab)</span>
         <span aria-hidden="true"> ↗</span>
       </a>
     </>
@@ -786,7 +810,7 @@ function NotFoundHints({ result, organism }: { result: ConversionResult; organis
     <>
       {authority ? (
         <p className="answer__next answer__hint">
-          <Mono>{result.query_id}</Mono> has the form of {prefix}&apos;s own id of a gene. idtrack&apos;s graphs hold
+          <Mono>{result.query_id}</Mono> has the form of {prefix}&apos;s own id of a gene. IDTrack&apos;s graphs hold
           the names and ids Ensembl attaches to genes, and not the name authorities&apos; own ids: ask by the
           gene&apos;s {authority} or its Ensembl id.
           <LimitationLink anchors={LIMITATION_OF.not_held} />
@@ -852,7 +876,7 @@ function OtherGraphs({ result, organism }: { result: ConversionResult; organism:
           </Link>
         </span>
       ))}
-      . idtrack converts within one organism, never across species: the answer there is that organism&apos;s gene.
+      . IDTrack converts within one organism, never across species: the answer there is that organism&apos;s gene.
     </p>
   );
 }
@@ -878,7 +902,7 @@ function OtherGenesReached({
     <div className="answer__others">
       <p>
         {absent.others.length === 1 ? "One other gene was" : `${absent.others.length} other genes were`} reached, ranked
-        below; idtrack takes the target from the best answer only, so{" "}
+        below; IDTrack takes the target from the best answer only, so{" "}
         {absent.others.length === 1 ? "its id" : "their ids"} in {databaseLabel(asked)} were not looked up. To have
         them, convert each to {databaseLabel(asked)}:
       </p>
@@ -904,8 +928,8 @@ function OtherGenesReached({
       ) : null}
       {absent.limitation ? (
         <p className="answer__limitation">
-          A known limitation of idtrack: <Prose text={absent.limitation} />{" "}
-          <Link to={href("/method")}>idtrack&apos;s limitations</Link>
+          A known limitation of IDTrack: <Prose text={absent.limitation} />{" "}
+          <Link to={href("/method")}>IDTrack&apos;s limitations</Link>
         </p>
       ) : null}
     </div>
@@ -1043,21 +1067,7 @@ export const AnswerPanel = memo(function AnswerPanel({
   const citeId = `${answerFileName(result, organism)}-cite`;
   const absent = noTargetOf(result);
   const codes = result.reasons.length ? result.reasons : reason ? [reason] : [];
-  const askHref = (ask: EvidenceAsk) =>
-    convertHref(organism, {
-      ...plainConversion(ask.identifier ?? result.query_id),
-      fromRelease: ask.fromRelease !== undefined ? ask.fromRelease : (result.from_release_given ?? null),
-      toRelease: ask.toRelease ?? result.to_release,
-      finalDatabase: ask.finalDatabase !== undefined ? ask.finalDatabase : requestedDatabase,
-      fromDatabase: ask.fromDatabase ?? null,
-    });
-  const readAtHref = (release: number) =>
-    convertHref(organism, {
-      ...plainConversion(result.query_id),
-      fromRelease: release,
-      toRelease: result.to_release,
-      finalDatabase: requestedDatabase,
-    });
+  const { askHref, readAtHref } = evidenceHrefs(organism, result, requestedDatabase);
 
   const query = (
     <div className="answer__from">
@@ -1096,110 +1106,14 @@ export const AnswerPanel = memo(function AnswerPanel({
       ) : null}
       {codes.length && (!bests.length || result.no_target) ? <Reasons codes={codes} /> : null}
       <StatusSentence result={result} model={model} database={databaseLabel(asked)} context={context} />
+      <TieGuidance result={result} />
     </div>
   );
-  // Only the cautions stand with the verdict (a caution changes how the answer may be used); the notes are on the
-  // answer's Evidence tab.
-  const cautionMarks = marks.filter((m) => m.tone === "caution");
-  const evidence = cautionMarks.length ? (
-    <div className="answer__evidence">
-      <Evidence
-        result={result}
-        marks={cautionMarks}
-        readAtHref={readAtHref}
-        askHref={askHref}
-        label="Cautions to weigh"
-      />
-    </div>
-  ) : null;
-
-  let body;
-  if (absent) {
-    // The absence is the best answer's only: idtrack takes the target from the genes of the best answer, and does not
-    // look the other genes reached up in the database (they may have an id there).
-    body = (
-      <>
-        <div className="answer__flow">
-          {query}
-          {arrow}
-          <div className="answer__to">
-            {label("Reached")}
-            <p className="answer__headline">
-              No {databaseLabel(asked)} for {bestWords(absent.best)} at release {result.to_release}
-            </p>
-            <p className="answer__reached">
-              <span className="answer__reached-label">Best answer</span>{" "}
-              {absent.best.map((gene, i) => (
-                <span key={gene}>
-                  <IdMenu id={gene} release={result.to_release} context={context} strong />{" "}
-                  <span className="muted">(Ensembl gene; no {databaseLabel(asked)})</span>
-                  {i < absent.best.length - 1 ? ", " : ""}
-                </span>
-              ))}
-            </p>
-          </div>
-        </div>
-        {status}
-        <Alerts marks={marks} askHref={askHref} />
-        {evidence}
-        <OtherGenesReached
-          absent={absent}
-          organism={organism}
-          result={result}
-          requestedDatabase={requestedDatabase}
-          context={context}
-        />
-      </>
-    );
-  } else if (!bests.length) {
-    body = (
-      <>
-        <div className="answer__flow">
-          {query}
-          {arrow}
-          <div className="answer__to">
-            {label("Asked for")}
-            <p className="answer__headline answer__headline--none">
-              No answer:{" "}
-              {reasonMeaning ? (
-                <Prose text={readerText(reasonMeaning).replace(/^The identifier/, "the identifier")} />
-              ) : (
-                `${statusTitle(result.status).toLowerCase()}.`
-              )}
-            </p>
-          </div>
-        </div>
-        {status}
-        {evidence}
-        <NoAnswerWaysOn
-          result={result}
-          organism={organism}
-          description={description}
-          requestedDatabase={requestedDatabase}
-        />
-      </>
-    );
-  } else {
-    body = (
-      <>
-        <div className="answer__flow">
-          {query}
-          {arrow}
-          <div className="answer__to">
-            {label("Answer")}
-            <AnswerTargets result={result} database={databaseLabel(asked)} context={context} />
-          </div>
-        </div>
-        {status}
-        <Alerts marks={marks} askHref={askHref} />
-        <TieGuidance result={result} />
-        {evidence}
-        <OtherMeanings result={result} readAtHref={readAtHref} context={context} />
-        <ReasonNotes result={result} />
-      </>
-    );
-  }
-
+  // Only the cautions stand with the verdict, each on its line (a caution changes how the answer may be used); the
+  // notes are on the answer's Evidence tab.
+  const cautionLines = (
+    <CautionLines marks={marks.filter((m) => m.tone === "caution")} askHref={askHref} readAtHref={readAtHref} />
+  );
   const actions = (
     <Actions
       result={result}
@@ -1215,13 +1129,102 @@ export const AnswerPanel = memo(function AnswerPanel({
       }}
     />
   );
+  // The query, the arrow and the answer on one line, the actions at its right end (on a phone they follow the answer).
+  const head = (to: ReactNode) => (
+    <div className="answer__head">
+      <div className="answer__flow">
+        {query}
+        {arrow}
+        <div className="answer__to">{to}</div>
+      </div>
+      {phone ? null : actions}
+    </div>
+  );
+
+  let body;
+  if (absent) {
+    // The absence is the best answer's only: IDTrack takes the target from the genes of the best answer, and does not
+    // look the other genes reached up in the database (they may have an id there).
+    body = (
+      <>
+        {head(
+          <>
+            {label("Reached")}
+            <p className="answer__headline">
+              No {databaseLabel(asked)} for {bestWords(absent.best)} at release {result.to_release}
+            </p>
+            <p className="answer__reached">
+              <span className="answer__reached-label">Best answer</span>{" "}
+              {absent.best.map((gene, i) => (
+                <span key={gene}>
+                  <IdMenu id={gene} release={result.to_release} context={context} strong />{" "}
+                  <span className="muted">(Ensembl gene; no {databaseLabel(asked)})</span>
+                  {i < absent.best.length - 1 ? ", " : ""}
+                </span>
+              ))}
+            </p>
+          </>,
+        )}
+        {status}
+        {cautionLines}
+        <OtherGenesReached
+          absent={absent}
+          organism={organism}
+          result={result}
+          requestedDatabase={requestedDatabase}
+          context={context}
+        />
+      </>
+    );
+  } else if (!bests.length) {
+    body = (
+      <>
+        {head(
+          <>
+            {label("Asked for")}
+            <p className="answer__headline answer__headline--none">
+              No answer:{" "}
+              {reasonMeaning ? (
+                <Prose text={readerText(reasonMeaning).replace(/^The identifier/, "the identifier")} />
+              ) : (
+                `${statusTitle(result.status).toLowerCase()}.`
+              )}
+            </p>
+          </>,
+        )}
+        {status}
+        {cautionLines}
+        <NoAnswerWaysOn
+          result={result}
+          organism={organism}
+          description={description}
+          requestedDatabase={requestedDatabase}
+        />
+      </>
+    );
+  } else {
+    body = (
+      <>
+        {head(
+          <>
+            {label("Answer")}
+            <AnswerTargets result={result} database={databaseLabel(asked)} context={context} />
+          </>,
+        )}
+        {status}
+        {cautionLines}
+        <OtherMeanings result={result} readAtHref={readAtHref} context={context} />
+        <ReasonNotes result={result} />
+      </>
+    );
+  }
+
   return (
-    <FigurePanel
-      title="The answer"
-      id={id}
-      className={`answer-panel answer-panel--${shownTone}`}
-      aside={phone ? undefined : actions}
-    >
+    <section className={`figure-panel answer-panel answer-panel--${shownTone}`} id={id} aria-labelledby={`${id}-title`}>
+      {/* The verdict's heading is for the document's outline and a screen reader: the answer itself is its title. */}
+      <h2 id={`${id}-title`} className="visually-hidden">
+        The answer
+      </h2>
       <div className="answer">{body}</div>
       {phone ? actions : null}
       <Drawer
@@ -1240,7 +1243,7 @@ export const AnswerPanel = memo(function AnswerPanel({
           apiUrl={apiUrl}
         />
       </Drawer>
-    </FigurePanel>
+    </section>
   );
 });
 

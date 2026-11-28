@@ -55,7 +55,7 @@ export function candidateValue(
     const numbers = value.filter((v): v is number => typeof v === "number");
     if (parts?.length === value.length && numbers.length === value.length) {
       const counts = numbers.map((v, i) => `${parts[i] ?? ""} ${String(-v)}`);
-      return { text: counts.join(", "), title: `As idtrack gives it: (${value.map(String).join(", ")})` };
+      return { text: counts.join(", "), title: `As IDTrack gives it: (${value.map(String).join(", ")})` };
     }
     return { text: `(${value.map(String).join(", ")})`, sortKey: true, ...(meaning ? { title: prose(meaning) } : {}) };
   }

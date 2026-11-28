@@ -54,7 +54,7 @@ export function answerProvenance({
   const url = new URL(apiUrl ?? `/api/v1/organisms/${description.organism}/convert`, "http://server.invalid");
   return {
     about:
-      "The provenance of one conversion of idtrack's web app: the server, the graph and the request that gave the answer saved beside it.",
+      "The provenance of one conversion of IDTrack's web app: the server, the graph and the request that gave the answer saved beside it.",
     organism: description.organism,
     api_version: version?.api_version ?? null,
     idtrack_version: version?.idtrack_version ?? null,
@@ -117,14 +117,14 @@ export function methodsSentence({
           result.from_release_fallback
             ? ` (release ${result.from_release_given ?? ""} was given, where the graph does not hold it)`
             : result.from_release_inferred
-              ? " (inferred by idtrack)"
+              ? " (inferred by IDTrack)"
               : ""
         }`;
   const first = description.releases[0];
   const last = description.releases[description.releases.length - 1];
   const digest = description.content_digest ? `, content digest ${description.content_digest.slice(0, 12)}` : "";
   return (
-    `The identifier ${result.query_id} (${species}) was converted with idtrack ${version.idtrack_version}` +
+    `The identifier ${result.query_id} (${species}) was converted with IDTrack ${version.idtrack_version}` +
     `${version.idtrack_commit ? ` (commit ${version.idtrack_commit.slice(0, 7)})` : ""} through its web server` +
     ` (api ${version.api_version}) on ${date}: ${read}, converted to release ${result.to_release} in ${database}` +
     `, ${bridges ? "bridges allowed" : "Ensembl's history alone (no bridges)"}, on the graph of Ensembl releases` +

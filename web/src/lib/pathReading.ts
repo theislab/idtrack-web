@@ -31,7 +31,7 @@ export function assemblyText(assembly: number | null, names: AssemblyNames): str
 function assemblyKeyText(assembly: number | null, names: AssemblyNames): string {
   if (assembly === null) return "none";
   const name = names.get(assembly);
-  return name && name !== String(assembly) ? `${name} (idtrack's key ${assembly})` : String(assembly);
+  return name && name !== String(assembly) ? `${name} (IDTrack's key ${assembly})` : String(assembly);
 }
 
 /** The stable id of an Ensembl id with version (the identifier scheme: `<stable id>.<version>`). */

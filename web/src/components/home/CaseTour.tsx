@@ -34,10 +34,8 @@ export function CaseTour({ organism, parameters }: { organism: string; parameter
   return (
     <nav className="case-tour" aria-label="The cases of this graph">
       <p className="case-tour__here">
-        <span className="case-tour__count mono">
-          {at + 1} / {cases.length}
-        </span>{" "}
-        A case of this graph: <strong>{KIND_TEXT[here.kind].title}</strong>
+        Case <span className="mono">{at + 1}</span> of <span className="mono">{cases.length}</span>:{" "}
+        <strong>{KIND_TEXT[here.kind].title}</strong>
       </p>
       {link(at - 1, "prev")}
       {link(at + 1, "next")}

@@ -147,17 +147,16 @@
   min-width: 0;
 }
 
+/* Labels of values in sentence case, in the text's face (monospace is for data). */
 .answer__label {
-  font-family: var(--font-mono);
-  font-size: var(--text-2xs);
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
+  font-family: var(--font-sans);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
   color: var(--ink-3);
 }
 
 .answer__label .mono {
   font-size-adjust: none;
-  letter-spacing: 0.04em;
 }
 
 .answer__query-id {
@@ -325,11 +324,6 @@
   font-size: var(--text-lg);
 }
 
-.answer__evidence {
-  display: grid;
-  gap: var(--space-1);
-}
-
 .answer__caution-count {
   font-size: var(--text-sm);
   color: var(--ink-2);
@@ -373,10 +367,9 @@
 }
 
 .answer__reached-label {
-  font-family: var(--font-mono);
-  font-size: var(--text-2xs);
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
+  font-family: var(--font-sans);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
   color: var(--ink-3);
 }
 
@@ -491,14 +484,13 @@
   text-decoration: none;
 }
 
+/* The facts open the answer's Record tab (the tab is their frame: no rule above them). */
 .answer__facts {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
   gap: 0 var(--space-5);
   row-gap: var(--space-3);
-  margin: var(--space-5) 0 0;
-  padding: var(--space-4) 0 0;
-  border-top: 1px solid var(--line);
+  margin: 0;
 }
 
 /* Each fact is a label row and a value row of the sheet's grid (subgrid): the values of one row of facts share a
@@ -513,10 +505,9 @@
 
 .answer__facts dt {
   align-self: end;
-  font-family: var(--font-mono);
-  font-size: var(--text-2xs);
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
+  font-family: var(--font-sans);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
   color: var(--ink-3);
 }
 
@@ -588,10 +579,9 @@ a.anatomy__link:hover {
 }
 
 .anatomy__name {
-  font-family: var(--font-mono);
-  font-size: var(--text-2xs);
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
+  font-family: var(--font-sans);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
   color: var(--ink-3);
   margin-bottom: 2px;
 }
@@ -713,83 +703,130 @@ a.anatomy__link:hover .anatomy__go {
   gap: var(--space-3);
 }
 
-/* The frame does not clip: an element's note stands over what follows the figure, whole (WCAG 1.4.13). The drawing
-   clips itself (an svg's own box). */
-.pv-frame {
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  background: var(--surface);
+/* The drawing lies flat on the page (the answer's tab is its frame), on the paper its halos take. The frame does not
+   clip: an element's note stands over what follows the figure, whole (WCAG 1.4.13). The drawing clips itself (an
+   svg's own box). */
+.pv.fig {
+  --fig-ground: var(--paper);
 }
 
 .pv-frame--waiting {
   min-height: 260px;
 }
 
+/* One row over the drawing: what the answer puts first (the drawing or the words), then the zoom, "Fit the path" and
+   the other views at its right end. Quiet words, no frames: the view set last is marked by an ink rule under it. */
 .pv-toolbar {
-  border-radius: var(--radius) var(--radius) 0 0;
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: var(--space-1) var(--space-2);
-  padding: 6px var(--space-2);
-  border-bottom: 1px solid var(--line);
-  background: var(--surface-sunk);
+  gap: var(--space-2) var(--space-3);
+  padding-bottom: var(--space-3);
+}
+
+.pv-toolbar__tools {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  margin-left: auto;
 }
 
 .pv-toolbar__group {
   display: inline-flex;
-  border: 1px solid var(--line);
+}
+
+.pv-tool,
+.pv-tool.button--quiet {
+  min-height: 32px;
+  border-width: 0;
   border-radius: var(--radius);
-  background: var(--surface);
+  background: none;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  color: var(--ink-2);
 }
 
 .pv-toolbar__group .pv-tool {
-  min-width: 36px;
+  min-width: 32px;
   font-family: var(--font-mono);
   font-size: var(--text-md);
-  border-radius: 0;
 }
 
-.pv-toolbar__group .pv-tool + .pv-tool {
-  border-left: 1px solid var(--line);
+@media (hover: hover) {
+  .pv-tool:hover {
+    background: color-mix(in srgb, var(--ink-1) 6%, transparent);
+    color: var(--ink-1);
+  }
 }
 
-.pv-tool.button--quiet {
-  min-height: 30px;
-  font-size: var(--text-sm);
-}
-
-/* The view the toolbar last set is pressed: filled in ink, as the theme switch marks its choice. */
-.pv-preset.button--quiet[aria-pressed="true"] {
-  background: var(--ink-1);
-  border-color: var(--ink-1);
-  color: var(--surface);
+/* The view the toolbar last set: ink, with a rule under its words (as the chosen tab), never a filled block. */
+.pv-preset[aria-pressed="true"] {
+  color: var(--ink-1);
+  text-decoration: underline 2px var(--ink-1);
+  text-underline-offset: 7px;
 }
 
 /* A finger's size for the zoom on a touch screen. */
 @media (pointer: coarse) {
-  .pv-toolbar__group .pv-tool,
+  .pv-tool,
   .pv-tool.button--quiet {
     min-width: 44px;
     min-height: 44px;
   }
 }
 
-.pv-toolbar__view {
-  margin-left: var(--space-3);
-  font-size: var(--text-xs);
-  color: var(--ink-2);
+.pv-views__trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 var(--space-2);
+  cursor: pointer;
 }
 
-.pv-toolbar__hint {
-  margin-left: auto;
-  color: var(--ink-3);
+.pv-views .hovercard__card {
+  left: auto;
+  right: 0;
+  width: min(320px, calc(100vw - 32px));
+  padding: var(--space-1);
+}
+
+.pv-views__list {
+  display: grid;
+}
+
+.pv-views__item {
+  min-height: 40px;
+  padding: var(--space-2) var(--space-3);
+  border: 0;
+  border-radius: var(--radius-lg);
+  background: none;
+  font: inherit;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  text-align: left;
+  color: var(--ink-2);
+  cursor: pointer;
+}
+
+@media (hover: hover) {
+  .pv-views__item:hover {
+    background: color-mix(in srgb, var(--ink-1) 6%, transparent);
+    color: var(--ink-1);
+  }
+}
+
+.pv-views__note {
+  margin: var(--space-1) 0 0;
+  padding: var(--space-2) var(--space-3);
+  border-top: 1px solid var(--line);
   font-size: var(--text-xs);
+  color: var(--ink-3);
 }
 
 .pv-overview {
   display: block;
   cursor: pointer;
+  border-top: 1px solid var(--line);
   border-bottom: 1px solid var(--line);
   touch-action: none;
 }
@@ -799,7 +836,7 @@ a.anatomy__link:hover .anatomy__go {
 }
 
 .pv-overview__band--b {
-  fill: color-mix(in srgb, var(--band) 45%, var(--surface));
+  fill: color-mix(in srgb, var(--band) 45%, var(--fig-ground));
 }
 
 .pv-overview__span {
@@ -1028,7 +1065,7 @@ a.anatomy__link:hover .anatomy__go {
   font-size: var(--text-2xs);
   fill: var(--ink-3);
   paint-order: stroke;
-  stroke: var(--surface);
+  stroke: var(--fig-ground);
   stroke-width: 3px;
   stroke-linejoin: round;
 }
@@ -1064,9 +1101,9 @@ a.anatomy__link:hover .anatomy__go {
 }
 
 .pv-answers__head {
-  font-family: var(--font-mono);
+  font-family: var(--font-sans);
   font-size: var(--text-2xs);
-  letter-spacing: 0.12em;
+  font-weight: var(--weight-medium);
   fill: var(--ink-3);
 }
 
@@ -1561,11 +1598,9 @@ a.anatomy__link:hover .anatomy__go {
 }
 
 .compare thead th {
-  font-family: var(--font-mono);
-  font-size: var(--text-2xs);
-  font-weight: var(--weight-strong);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
+  font-family: var(--font-sans);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
   color: var(--ink-3);
   background: var(--surface-sunk);
   vertical-align: bottom;
@@ -1758,10 +1793,9 @@ a.anatomy__link:hover .anatomy__go {
 }
 
 .record__head {
-  font-family: var(--font-mono);
-  font-size: var(--text-2xs);
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
+  font-family: var(--font-sans);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
   color: var(--ink-3);
   margin-bottom: var(--space-2);
 }
@@ -1963,11 +1997,6 @@ a.anatomy__link:hover .anatomy__go {
     display: none;
   }
 
-  .pv-toolbar__hint,
-  .pv-toolbar__view {
-    display: none;
-  }
-
   /* The comparison becomes one block per criterion: the two values beside their names. */
   .compare thead {
     position: absolute;
@@ -2000,10 +2029,9 @@ a.anatomy__link:hover .anatomy__go {
   .compare td[data-label]::before {
     content: attr(data-label);
     display: block;
-    font-family: var(--font-mono);
-    font-size: var(--text-2xs);
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
+    font-family: var(--font-sans);
+    font-size: var(--text-xs);
+    font-weight: var(--weight-medium);
     color: var(--ink-3);
   }
 
@@ -2084,9 +2112,9 @@ a.anatomy__link:hover .anatomy__go {
 }
 
 .pv-rows__head {
-  font-family: var(--font-mono);
+  font-family: var(--font-sans);
   font-size: var(--text-2xs);
-  letter-spacing: 0.12em;
+  font-weight: var(--weight-medium);
   fill: var(--ink-3);
 }
 
@@ -2274,17 +2302,23 @@ a.anatomy__link:hover .anatomy__go {
 
 /* ---- b, at one release: the databases crossed (components/CrossingView.tsx) ---------------------------------- */
 
+/* Flat on the page, as the drawing through the releases (the tab is its frame), between two hairlines. */
+.crossing.fig {
+  --fig-ground: var(--paper);
+}
+
 .crossing {
   display: grid;
   gap: var(--space-4);
-  padding: var(--space-4) var(--space-5);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-lg);
-  background: var(--surface);
+  padding: var(--space-4) 0;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
 }
 
 .crossing__release {
   font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  color: var(--ink-2);
 }
 
 .crossing__chain {
@@ -2493,11 +2527,10 @@ a.anatomy__link:hover .anatomy__go {
   }
 
   /* The pressed view: the highlight's ground and text, drawn as given (no backplate of the canvas behind the text). */
-  .pv-preset.button--quiet[aria-pressed="true"] {
+  .pv-preset[aria-pressed="true"] {
     forced-color-adjust: none;
     background: Highlight;
     color: HighlightText;
-    border-color: Highlight;
   }
 }
 
@@ -2640,62 +2673,6 @@ a.anatomy__link:hover .anatomy__go {
   color: var(--ink-1);
   background: var(--surface-sunk);
   border-color: var(--line-strong);
-}
-
-/* Another gene may be the one meant: said under the status, in ink with the caution's triangle, the way on and the
-   limitation of idtrack's documentation beside it. */
-.answer__alerts {
-  display: grid;
-  gap: var(--space-2);
-  margin: 0;
-  padding: var(--space-3) var(--space-4);
-  list-style: none;
-  max-width: 920px;
-  color: var(--ink-1);
-  background: var(--surface-sunk);
-  border-left: 3px solid var(--ink-1);
-  border-radius: var(--radius);
-  font-size: var(--text-sm);
-  line-height: 1.55;
-}
-
-.answer__alert {
-  display: grid;
-  grid-template-columns: 14px minmax(0, 1fr);
-  gap: var(--space-2);
-  align-items: start;
-}
-
-.answer__alert .evidence__glyph {
-  align-self: start;
-  margin-top: 5px;
-}
-
-.answer__alert-doc {
-  display: block;
-  color: var(--ink-2);
-}
-
-/* What a tie of genes means for a list or a count matrix, in idtrack's terms. */
-.answer__guidance {
-  max-width: var(--measure);
-  font-size: var(--text-sm);
-  color: var(--ink-2);
-  line-height: 1.55;
-}
-
-.answer__guidance-head {
-  display: block;
-  margin-bottom: 2px;
-  font-family: var(--font-mono);
-  font-size: var(--text-2xs);
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
-  color: var(--ink-3);
-}
-
-.answer__guidance a + a {
-  margin-left: var(--space-2);
 }
 
 /* A score cut after six significant digits: the whole value on hover and read out in its place. */

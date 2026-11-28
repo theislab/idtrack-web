@@ -6,8 +6,7 @@
 import { memo, useEffect, useId, useMemo, useState, useTransition } from "react";
 import type { ConversionResult, GraphDescription } from "../api/types";
 import { anatomyOf } from "../lib/anatomy";
-import { assemblyBands } from "./figure/releases";
-import { evidenceOf } from "../lib/evidence";
+import { evidenceHrefs, evidenceOf, type EvidenceAsk, type EvidenceMark } from "../lib/evidence";
 import { createHighlight } from "../lib/highlight";
 import { indentJson } from "../lib/jsonView";
 import { groupedInteger } from "../lib/numbers";
@@ -18,31 +17,29 @@ import { assemblyNames } from "../lib/pathReading";
 import { useVocabulary } from "../lib/vocabularyContext";
 import { BridgesConsidered, RefusedSteps } from "./PathChecks";
 import { FigureCaption } from "./figure/Legend";
-import { LIMIT_WIDE, PathView } from "./PathView";
+import { PathView } from "./PathView";
 import { AnswerPanel, AnswerRecord, DecisionSentence } from "./ResultAnswer";
 import { DecisionPanelBody } from "./ResultDecision";
 import { FigurePanel } from "./ResultParts";
 import { Details, GenePlaces, OtherReadings, ReadingPanel } from "./ResultReading";
 import type { IdContext } from "./IdMenu";
-import { Button, CopyButton } from "./ui";
+import { Button, CopyButton, Prose } from "./ui";
 import { CaptionMore } from "./home/CaptionMore";
-import { Evidence } from "./Evidence";
+import { EvidenceCard, EvidenceGlyph } from "./Evidence";
 import { Expandable } from "./v2/Expandable";
 import { Segmented } from "./v2/Segmented";
 import { Tabs, type TabItem } from "./v2/Tabs";
-import { convertHref, plainConversion } from "../lib/convertParameters";
 import "../styles/result.css";
 import "../styles/answer.css";
 
 export { DecisionText } from "./ResultDecision";
 export { ResultSkeleton } from "./ResultSkeleton";
 
-/** The caption of the drawing: what is drawn and how to read it, with this path's own releases and assemblies. */
-function PathCaption({ model, description }: { model: PathModel; description: GraphDescription }) {
+/** The caption of the drawing: what is drawn (its claim), then how to read it, on a press. The marks are named by the
+ *  key above it, the assemblies by the drawing's bands and the candidates drawn by the line under the drawing: the
+ *  caption says none of them again. */
+function PathCaption({ model }: { model: PathModel }) {
   const r = model.result;
-  const span = model.span;
-  const bands = assemblyBands(description).filter((b) => !span || (b.last >= span[0] && b.first <= span[1]));
-  const others = model.candidates.length - model.candidates.filter((c) => c.best).length;
   return (
     <FigureCaption wide>
       <CaptionMore
@@ -53,20 +50,40 @@ function PathCaption({ model, description }: { model: PathModel; description: Gr
           </strong>
         }
       >
-        Time runs along Ensembl&apos;s releases (down the page on a narrow screen), over the assemblies that serve them
-        {bands.length ? ` (${bands.map((b) => `${b.name} ${b.first}–${b.last}`).join("; ")})` : ""}. Each bar is an
-        Ensembl gene over the releases the path holds it; each step is the mark of its kind (key above). The chosen path
-        is strong
-        {others
-          ? `, the ${others} other candidate${others === 1 ? "" : "s"} light${others > LIMIT_WIDE ? " (the next in rank drawn, the rest on request)" : ""}`
-          : ""}
-        ; under the lanes, Ensembl&apos;s score of each of its steps, a stem down from 1.0.
+        Time runs along Ensembl&apos;s releases (down the page on a narrow screen), over the assemblies that serve them;
+        the chosen path is drawn strong, and the key above names each mark.
         <span className="fig-caption__how">
           Every element holds its exact values: tab to the drawing, then the arrow keys, or point at it. “In words” says
           every step.
         </span>
       </CaptionMore>
     </FigureCaption>
+  );
+}
+
+/** Every mark of the answer's evidence, cautions first, each with what it rests on written out (the tab is the place to
+ *  read them whole; the verdict keeps each caution on its line). */
+function EvidenceList({
+  marks,
+  readAtHref,
+  askHref,
+}: {
+  marks: readonly EvidenceMark[];
+  readAtHref: (release: number) => string;
+  askHref: (ask: EvidenceAsk) => string;
+}) {
+  const ordered = [...marks.filter((m) => m.tone === "caution"), ...marks.filter((m) => m.tone !== "caution")];
+  return (
+    <ul className="evidence-list" aria-label="Evidence to weigh">
+      {ordered.map((mark) => (
+        <li key={`${mark.kind}|${mark.label}`} className={`evidence-list__item evidence-list__item--${mark.tone}`}>
+          <p className="evidence-list__head">
+            <EvidenceGlyph tone={mark.tone} /> <Prose text={mark.label} />
+          </p>
+          <EvidenceCard mark={mark} links={{ readAtHref, askHref }} />
+        </li>
+      ))}
+    </ul>
   );
 }
 
@@ -218,14 +235,19 @@ export const ResultView = memo(function ResultView({
   const id = (panel: string) => `${base}-${panel}`;
   const readingId = id("words");
   const steps = model.steps.length;
-  const readAtHref = (release: number) =>
-    convertHref(description.organism, {
-      ...plainConversion(result.query_id),
-      fromRelease: release,
-      toRelease: result.to_release,
-      finalDatabase: requestedDatabase,
-    });
+  const { askHref, readAtHref } = evidenceHrefs(description.organism, result, requestedDatabase);
 
+  const viewChoice = (
+    <Segmented
+      label="The path"
+      value={view}
+      onChange={setView}
+      options={[
+        { value: "drawing", label: "Drawing" },
+        { value: "words", label: "In words" },
+      ]}
+    />
+  );
   const items: TabItem[] = [];
   if (hasPath)
     items.push({
@@ -237,18 +259,10 @@ export const ResultView = memo(function ResultView({
           title={oneRelease !== null ? `The reading at release ${oneRelease}` : "The path through the releases"}
           id={id("path")}
           className="result__path"
-          aside={
-            <Segmented
-              label="The path"
-              value={view}
-              onChange={setView}
-              options={[
-                { value: "drawing", label: "Drawing" },
-                { value: "words", label: "In words" },
-              ]}
-            />
-          }
         >
+          {/* The choice between the drawing and the words stands first on the drawing's toolbar, and alone on its row
+              over the words or a reading at one release (the same place). */}
+          {view === "words" || oneRelease !== null ? <div className="result__view-bar">{viewChoice}</div> : null}
           {view === "words" ? (
             <ReadingPanel model={model} names={names} id={readingId} highlight={highlight} context={context} />
           ) : oneRelease !== null ? (
@@ -263,10 +277,9 @@ export const ResultView = memo(function ResultView({
                     </strong>
                   }
                 >
-                  No step of Ensembl&apos;s history: every step holds at this release, so the drawing shows the
-                  databases crossed, not a time axis: the identifier, each database or form it is read through (an open
-                  square, an open circle), the gene it is read as (a bar) and the answer&apos;s id in the database asked
-                  (a filled square).
+                  Every step holds at this release, so the drawing shows the databases crossed rather than a time axis:
+                  an open square is an id of another database, an open circle a form of the identifier (a transcript, a
+                  protein), a bar the Ensembl gene it is read as, a filled square the answer.
                   <span className="fig-caption__how">
                     Every id opens a menu of where to go from it; “In words” says every step.
                   </span>
@@ -283,8 +296,9 @@ export const ResultView = memo(function ResultView({
                 readingId={readingId}
                 requestedDatabase={requestedDatabase}
                 symbols={symbols}
+                lead={viewChoice}
               />
-              <PathCaption model={model} description={description} />
+              <PathCaption model={model} />
             </figure>
           )}
         </FigurePanel>
@@ -341,7 +355,7 @@ export const ResultView = memo(function ResultView({
       count: groupedInteger(marks.length),
       panel: () => (
         <FigurePanel title="The evidence to weigh" id={id("evidence")} className="result__evidence">
-          <Evidence result={result} marks={marks} readAtHref={readAtHref} label="Evidence to weigh" />
+          <EvidenceList marks={marks} readAtHref={readAtHref} askHref={askHref} />
         </FigurePanel>
       ),
     });

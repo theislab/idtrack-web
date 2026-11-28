@@ -90,7 +90,7 @@ for (const item of cases) {
       );
     // The evidence to weigh stands under the status: a bridge of the best answer is named there.
     if (!answer.no_target && answer.candidates.some((c) => c.best && (c as { bridges?: number }).bridges))
-      await expect(page.locator(".answer__evidence")).toContainText("bridge");
+      await expect(page.locator(".answer__cautions")).toContainText("bridge");
 
     // Every step of a candidate, in order, with its numbers: releases (Ensembl's order), score, splits and merges,
     // places; the candidates one at a time, the first few chosen in turn.

@@ -35,7 +35,7 @@ export function DecisionText({ decision }: { decision: Decision }) {
         <span className="eyebrow">Decided by</span> <strong className="decision__key">{spaced(decision.key)}</strong>
         {at >= 0 && vocabulary.criteria.length ? (
           <span className="decision__position">
-            criterion {at + 1} of the {vocabulary.criteria.length} in idtrack&apos;s order
+            criterion {at + 1} of the {vocabulary.criteria.length} in IDTrack&apos;s order
           </span>
         ) : null}
       </p>
@@ -52,7 +52,7 @@ export function DecisionText({ decision }: { decision: Decision }) {
       <div className="decision__compare">
         <table className="compare">
           <caption>
-            The best answer and the runner-up, criterion by criterion in the order in which idtrack compares them; the
+            The best answer and the runner-up, criterion by criterion in the order in which IDTrack compares them; the
             first criterion in which they differ decides, and no criterion after it is compared.
             {vocabulary.criteria.length ? (
               <>
@@ -123,12 +123,12 @@ export function DecisionText({ decision }: { decision: Decision }) {
       </div>
       {sortKey ? (
         <p className="decision__fallback">
-          <span className="tag">as given</span> idtrack gives this value as its sort key; the text above names its
-          parts, and the api gives no reading of each part. The values are shown as idtrack wrote them.
+          <span className="tag">as given</span> IDTrack gives this value as its sort key; the text above names its
+          parts, and the api gives no reading of each part. The values are shown as IDTrack wrote them.
         </p>
       ) : null}
       <p className="decision__note muted">
-        The runner-up is the first candidate after the best answer: the pair idtrack&apos;s ranking compares (its result
+        The runner-up is the first candidate after the best answer: the pair IDTrack&apos;s ranking compares (its result
         names no runner-up)
         {SUCCESSOR_CRITERIA.includes(decision.key)
           ? "; within one lineage the best answer compared is the one that descends from the runner-up's own entry gene"
@@ -415,7 +415,7 @@ function Candidates({
       <TableFrame label="Candidates, ranked" className="table-frame--cards">
         <table className="table table--candidates table--cards">
           <caption className="visually-hidden">
-            Every target the search reached, ranked, with the evidence idtrack compared; the column of the deciding
+            Every target the search reached, ranked, with the evidence IDTrack compared; the column of the deciding
             criterion is marked; each row opens its whole ranking record.
           </caption>
           <thead>

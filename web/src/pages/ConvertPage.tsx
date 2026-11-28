@@ -595,7 +595,7 @@ function ConvertForm({
           ) : null}
           <ReleaseField
             label="From release"
-            hint="Where the identifier is read. Empty: idtrack infers it."
+            hint="Where the identifier is read. Empty: IDTrack infers it."
             value={fromRelease}
             onChange={setFromRelease}
             description={description}

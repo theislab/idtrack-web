@@ -167,7 +167,7 @@ describe("ResultView", () => {
     show(entry.entry.organism, entry.entry.name);
     // A reason the evidence marks say is one of them; any other is a note in idtrack's words, its code beside.
     const notes = document.querySelector(".answer__notes")?.textContent ?? "";
-    const evidence = document.querySelector(".answer__evidence")?.textContent ?? "";
+    const evidence = document.querySelector(".answer__cautions")?.textContent ?? "";
     for (const code of entry.result.reasons) {
       if (code === "read_at_another_release")
         expect(evidence).toContain(`read at release ${entry.result.from_release}`);

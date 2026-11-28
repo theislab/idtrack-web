@@ -64,6 +64,7 @@ import { ScoreTrack } from "./figure/ScoreTrack";
 import { useWidth } from "./figure/useWidth";
 
 import { Button } from "./ui";
+import { HoverCard } from "./v2/HoverCard";
 
 /** The ranking record of a candidate, in idtrack's order, where the api's vocabulary is not at hand. */
 const RECORD = [
@@ -83,7 +84,7 @@ const CHAR = textWidth("0"); // the 11 px monospaced face, one character
 const TOP = 44; // the band names (two rows) and the answer column's head (horizontal)
 const BOTTOM = 50; // the release axis and its title (horizontal)
 const SCORE_TRACK = 58; // the score track under the lanes (horizontal)
-export const LIMIT_WIDE = 10;
+const LIMIT_WIDE = 10;
 const LIMIT_PHONE = 4;
 /** Answers drawn per lane before the rest of that gene's targets are counted (one gene can have hundreds). */
 const ROWS_WIDE = 6;
@@ -170,6 +171,8 @@ export interface PathViewProps {
   requestedDatabase: string | null;
   /** The genes' symbols at the target release, where they have come (written beside the answers). */
   symbols?: Symbols | null;
+  /** What stands first on the drawing's toolbar (the answer's choice between the drawing and the words). */
+  lead?: ReactNode;
 }
 
 export function PathView({
@@ -180,6 +183,7 @@ export function PathView({
   readingId,
   requestedDatabase,
   symbols = null,
+  lead = null,
 }: PathViewProps) {
   // The frame's width is taken at once (useWidth); the drawing follows it in a transition, so that laying out and
   // drawing a large path yields to the page instead of holding it in the task that measured the frame.
@@ -219,6 +223,7 @@ export function PathView({
           readingId={readingId}
           requestedDatabase={requestedDatabase}
           symbols={symbols}
+          lead={lead}
         />
       ) : (
         <HorizontalPath
@@ -235,6 +240,7 @@ export function PathView({
           readingId={readingId}
           requestedDatabase={requestedDatabase}
           symbols={symbols}
+          lead={lead}
         />
       )}
       {showAll || (drawn !== null && drawn < model.candidates.length) ? (
@@ -275,6 +281,7 @@ interface DrawingProps {
   readingId: string;
   requestedDatabase: string | null;
   symbols: Symbols | null;
+  lead: ReactNode;
 }
 
 /** The focusable items in reading order, and the keyboard and pointer state over them. */
@@ -730,6 +737,7 @@ function HorizontalPath({
   readingId,
   requestedDatabase,
   symbols,
+  lead,
 }: DrawingProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const zoomRef = useRef<ZoomBehavior<SVGSVGElement, unknown> | null>(null);
@@ -938,78 +946,114 @@ function HorizontalPath({
 
   return (
     <div className="pv-frame">
-      <div className="pv-toolbar" role="group" aria-label="Zoom of the path">
-        <div className="pv-toolbar__group">
-          <Button
-            variant="quiet"
-            className="pv-tool"
-            onClick={() => {
-              setPreset(null);
-              zoomBy(1 / 1.6);
-            }}
-            aria-label="Zoom out"
-          >
-            −
-          </Button>
-          <Button
-            variant="quiet"
-            className="pv-tool"
-            onClick={() => {
-              setPreset(null);
-              zoomBy(1.6);
-            }}
-            aria-label="Zoom in"
-          >
-            +
-          </Button>
-        </div>
-        <Button
-          variant="quiet"
-          className="pv-tool pv-preset"
-          aria-pressed={preset === "fit"}
-          onClick={() => {
-            setPreset("fit");
-            fit(true);
-          }}
-        >
-          Fit the path
-        </Button>
-        {event ? (
+      {/* One row: the zoom, "Fit the path", and the other views in a popover (the event of the best path, every
+          release), with the releases in view and how to pan and zoom by hand. */}
+      <div className="pv-toolbar">
+        {lead}
+        <div className="pv-toolbar__tools" role="group" aria-label="Zoom of the path">
+          <div className="pv-toolbar__group">
+            <Button
+              variant="quiet"
+              className="pv-tool"
+              onClick={() => {
+                setPreset(null);
+                zoomBy(1 / 1.6);
+              }}
+              aria-label="Zoom out"
+            >
+              −
+            </Button>
+            <Button
+              variant="quiet"
+              className="pv-tool"
+              onClick={() => {
+                setPreset(null);
+                zoomBy(1.6);
+              }}
+              aria-label="Zoom in"
+            >
+              +
+            </Button>
+          </div>
           <Button
             variant="quiet"
             className="pv-tool pv-preset"
-            aria-pressed={preset === "event"}
+            aria-pressed={preset === "fit"}
             onClick={() => {
-              setPreset("event");
-              showEvent(true);
+              setPreset("fit");
+              fit(true);
             }}
           >
-            The {event.words} at{" "}
-            {event.span[0] === event.span[1] ? event.span[0] : `${event.span[0]} → ${event.span[1]}`}
+            Fit the path
           </Button>
-        ) : null}
-        <Button
-          variant="quiet"
-          className="pv-tool pv-preset"
-          aria-pressed={preset === "all"}
-          onClick={() => {
-            setPreset("all");
-            showEverything();
-          }}
-        >
-          All releases
-        </Button>
-        <span className="pv-toolbar__view">
-          In view: releases{" "}
-          <span className="mono">
-            {view[0]}–{view[1]}
-          </span>{" "}
-          of{" "}
-          <span className="mono">
-            {r0}–{rN}
-          </span>
-        </span>
-        <span className="pv-toolbar__hint">Drag to pan · ctrl or shift + wheel to zoom</span>
+          <HoverCard
+            hover={false}
+            className="pv-views"
+            triggerClassName="pv-tool pv-views__trigger"
+            label="View: other spans of releases, and the releases in view"
+            trigger={
+              <>
+                View
+                <svg viewBox="0 0 10 10" width="10" height="10" aria-hidden="true" focusable="false">
+                  <path d="M2 3.5 5 6.5 8 3.5" fill="none" stroke="currentColor" strokeWidth="1.4" />
+                </svg>
+              </>
+            }
+          >
+            {(close) => {
+              // A view chosen closes the popover and gives the focus back to its button.
+              const choose = (event: { currentTarget: HTMLElement }, set: () => void) => {
+                event.currentTarget.closest(".hovercard")?.querySelector<HTMLElement>(".hovercard__trigger")?.focus();
+                close();
+                set();
+              };
+              return (
+                <div className="pv-views__list">
+                  {event ? (
+                    <button
+                      type="button"
+                      className="pv-views__item pv-preset"
+                      aria-pressed={preset === "event"}
+                      onClick={(e) => {
+                        choose(e, () => {
+                          setPreset("event");
+                          showEvent(true);
+                        });
+                      }}
+                    >
+                      The {event.words} at{" "}
+                      {event.span[0] === event.span[1] ? event.span[0] : `${event.span[0]} → ${event.span[1]}`}
+                    </button>
+                  ) : null}
+                  <button
+                    type="button"
+                    className="pv-views__item pv-preset"
+                    aria-pressed={preset === "all"}
+                    onClick={(e) => {
+                      choose(e, () => {
+                        setPreset("all");
+                        showEverything();
+                      });
+                    }}
+                  >
+                    All releases
+                  </button>
+                  <p className="pv-views__note">
+                    In view: releases{" "}
+                    <span className="mono">
+                      {view[0]}–{view[1]}
+                    </span>{" "}
+                    of{" "}
+                    <span className="mono">
+                      {r0}–{rN}
+                    </span>
+                    . Drag the drawing to pan; ctrl or shift with the wheel, or a pinch, zooms.
+                  </p>
+                </div>
+              );
+            }}
+          </HoverCard>
+        </div>
       </div>
       <Overview
         bands={bands}
@@ -1239,7 +1283,7 @@ function RowTitles({
   return (
     <g className="pv-rows" aria-hidden="true">
       <text className="pv-rows__head" x={12} y={top - 12}>
-        DATABASE
+        Database
       </text>
       {layout.rows.map((row) => {
         const place = layout.nodes.get(row.id);
@@ -1381,6 +1425,7 @@ function VerticalPath({
   litStep,
   onStepShown,
   readingId,
+  lead,
 }: DrawingProps) {
   const releases = description.releases;
   const r0 = releases[0] ?? 0;
@@ -1498,28 +1543,31 @@ function VerticalPath({
 
   return (
     <div className="pv-frame">
-      <div className="pv-toolbar" role="group" aria-label="Scale of the path">
-        <div className="pv-toolbar__group">
-          <Button
-            variant="quiet"
-            className="pv-tool"
-            onClick={() => setPixels((p) => Math.max(10, p - 8))}
-            aria-label="Close up the releases"
-          >
-            −
-          </Button>
-          <Button
-            variant="quiet"
-            className="pv-tool"
-            onClick={() => setPixels((p) => Math.min(60, p + 8))}
-            aria-label="Spread the releases"
-          >
-            +
+      <div className="pv-toolbar">
+        {lead}
+        <div className="pv-toolbar__tools" role="group" aria-label="Scale of the path">
+          <div className="pv-toolbar__group">
+            <Button
+              variant="quiet"
+              className="pv-tool"
+              onClick={() => setPixels((p) => Math.max(10, p - 8))}
+              aria-label="Close up the releases"
+            >
+              −
+            </Button>
+            <Button
+              variant="quiet"
+              className="pv-tool"
+              onClick={() => setPixels((p) => Math.min(60, p + 8))}
+              aria-label="Spread the releases"
+            >
+              +
+            </Button>
+          </div>
+          <Button variant="quiet" className="pv-tool pv-preset" aria-pressed={all} onClick={() => setAll((v) => !v)}>
+            All releases
           </Button>
         </div>
-        <Button variant="quiet" className="pv-tool pv-preset" aria-pressed={all} onClick={() => setAll((v) => !v)}>
-          All releases
-        </Button>
       </div>
       <div className="pv-canvas">
         <svg
@@ -2170,7 +2218,7 @@ function AnswerColumn({
         <>
           <line className="pv-answers__rule" x1={x - 14} x2={x - 14} y1={6} y2={TOP + layout.stackSize} />
           <text className="pv-answers__head" x={x + 6} y={TOP - 26}>
-            {`${model.result.no_target ? "REACHED" : "ANSWER"} AT ${model.result.to_release}`}
+            {`${model.result.no_target ? "Reached" : "Answer"} at ${model.result.to_release}`}
           </text>
           <text className="pv-answers__db" x={x + 6} y={TOP - 12}>
             {wrapWords(

@@ -187,7 +187,7 @@ describe("citing one answer", () => {
       date: "2026-11-27",
     });
     expect(sentence).toBe(
-      `The identifier 1898 (Homo sapiens) was converted with idtrack 0.1.2 (commit 7f71b26) through its web server (api 0.1.2) on 2026-11-27: read at Ensembl release 52 (inferred by idtrack), converted to release 115 in Ensembl gene (with version), bridges allowed, on the graph of Ensembl releases ${graph.releases[0] ?? ""}–${graph.releases[graph.releases.length - 1] ?? ""}, content digest ${graph.content_digest?.slice(0, 12) ?? ""}.`,
+      `The identifier 1898 (Homo sapiens) was converted with IDTrack 0.1.2 (commit 7f71b26) through its web server (api 0.1.2) on 2026-11-27: read at Ensembl release 52 (inferred by IDTrack), converted to release 115 in Ensembl gene (with version), bridges allowed, on the graph of Ensembl releases ${graph.releases[0] ?? ""}–${graph.releases[graph.releases.length - 1] ?? ""}, content digest ${graph.content_digest?.slice(0, 12) ?? ""}.`,
     );
   });
 

@@ -1,6 +1,6 @@
 // The evidence of an answer a reader should weigh, where the answer is: one short mark per class (`lib/evidence.ts`),
-// each opening on a press to what the result says, idtrack's meaning of the code it is read from, the code itself, and
-// the limitation of idtrack's documentation it falls under. A caution is marked by a small triangle, a note by a dot
+// each opening on a press to what the result says, IDTrack's meaning of the code it is read from, the code itself, and
+// the limitation of IDTrack's documentation it falls under. A caution is marked by a small triangle, a note by a dot
 // (shape and words, never colour alone). `compact` draws the marks small, at most `max` of them and "+ N more", for a
 // table's cell.
 import { useMemo } from "react";
@@ -11,7 +11,8 @@ import { Toggletip } from "./Toggletip";
 import { Link, Prose } from "./ui";
 import "../styles/evidence.css";
 
-function Glyph({ tone }: { tone: EvidenceMark["tone"] }) {
+/** A mark's glyph: a caution's triangle, a note's dot (a shape, never colour alone). */
+export function EvidenceGlyph({ tone }: { tone: EvidenceMark["tone"] }) {
   return tone === "caution" ? (
     <svg
       className="evidence__glyph evidence__glyph--caution"
@@ -42,7 +43,9 @@ interface EvidenceLinks {
   askHref?: ((ask: EvidenceAsk) => string) | undefined;
 }
 
-function Card({ mark, links }: { mark: EvidenceMark; links: EvidenceLinks }) {
+/** What a mark rests on: what the result says, IDTrack's meaning of its code, its ways on, the limitation of IDTrack's
+ *  documentation it falls under, and the code it is read from (a mark's card; the verdict's caution's hover card). */
+export function EvidenceCard({ mark, links }: { mark: EvidenceMark; links: EvidenceLinks }) {
   const { readAtHref, askHref } = links;
   return (
     <span className="evidence__card">
@@ -52,7 +55,7 @@ function Card({ mark, links }: { mark: EvidenceMark; links: EvidenceLinks }) {
       </span>
       {mark.meaning ? (
         <span className="evidence__card-meaning">
-          <span className="evidence__card-source">idtrack:</span> <Prose text={mark.meaning} />
+          <span className="evidence__card-source">IDTrack:</span> <Prose text={mark.meaning} />
         </span>
       ) : null}
       {mark.readAt !== undefined && readAtHref ? (
@@ -67,10 +70,10 @@ function Card({ mark, links }: { mark: EvidenceMark; links: EvidenceLinks }) {
       ) : null}
       {mark.limitation ? (
         <span className="evidence__card-limitation">
-          <span className="evidence__card-source">A known limitation of idtrack:</span> {mark.limitation.lead}{" "}
+          <span className="evidence__card-source">A known limitation of IDTrack:</span> {mark.limitation.lead}{" "}
           <a href={mark.limitation.href} target="_blank" rel="noreferrer">
             {mark.limitation.title}
-            <span className="visually-hidden"> (idtrack&apos;s documentation, opens in a new tab)</span>
+            <span className="visually-hidden"> (IDTrack&apos;s documentation, opens in a new tab)</span>
             <span aria-hidden="true"> ↗</span>
           </a>
         </span>
@@ -88,10 +91,10 @@ function Mark({ mark, links }: { mark: EvidenceMark; links: EvidenceLinks }) {
   return (
     <li className={`evidence__mark evidence__mark--${mark.tone}`}>
       <Toggletip
-        tip={<Card mark={mark} links={links} />}
+        tip={<EvidenceCard mark={mark} links={links} />}
         label={`${mark.tone === "caution" ? "Caution" : "Note"}: ${words}`}
       >
-        <Glyph tone={mark.tone} />
+        <EvidenceGlyph tone={mark.tone} />
         <span className="evidence__label">
           <Prose text={mark.label} />
         </span>
@@ -144,7 +147,7 @@ export function Evidence({
               <span className="evidence__card">
                 {marks.slice(shown.length).map((m) => (
                   <span key={`${m.kind}|${m.label}`} className="evidence__card-detail">
-                    <Glyph tone={m.tone} /> <Prose text={m.label} />
+                    <EvidenceGlyph tone={m.tone} /> <Prose text={m.label} />
                   </span>
                 ))}
               </span>

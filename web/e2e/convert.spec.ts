@@ -112,7 +112,11 @@ test("zoom and pan along the releases", async ({ page }, info) => {
   // The release labels on the axis say which releases are in view.
   const ticks = page.locator(".pv-axis text");
   const shown = async () => (await ticks.allTextContents()).join(",");
+  // The other views are in the toolbar's popover, "View".
+  await page.getByRole("button", { name: /^View/ }).click();
   await page.getByRole("button", { name: "All releases" }).click();
+  await expect(page.getByRole("button", { name: "All releases" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: /^View/ })).toBeFocused();
   await expect.poll(shown).not.toBe("");
   const all = await shown();
   await page.getByRole("button", { name: "Zoom in" }).click();
@@ -197,9 +201,13 @@ test("every note of the path view stands whole in the window, and every element 
   if (!isPhone(info)) {
     // The toolbar says which view it set: the whole path, at first.
     await expect(page.getByRole("button", { name: "Fit the path" })).toHaveAttribute("aria-pressed", "true");
+    const views = page.getByRole("button", { name: /^View/ });
+    await views.click();
     await page.getByRole("button", { name: "All releases" }).click();
-    await expect(page.getByRole("button", { name: "All releases" })).toHaveAttribute("aria-pressed", "true");
     await expect(page.getByRole("button", { name: "Fit the path" })).toHaveAttribute("aria-pressed", "false");
+    await views.click();
+    await expect(page.getByRole("button", { name: "All releases" })).toHaveAttribute("aria-pressed", "true");
+    await page.keyboard.press("Escape");
   }
 });
 

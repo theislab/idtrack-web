@@ -364,12 +364,12 @@ test("a case's answer: the strip above it names the case and steps to the next",
   await page.goto(caseHref(caseQueryOf(data.organism, first.query)));
   await waitForResult(page);
   const tour = page.getByRole("navigation", { name: "The cases of this graph" });
-  await expect(tour).toContainText(`1 / ${cases.length}`);
+  await expect(tour).toContainText(`Case 1 of ${cases.length}`);
   if (cases.length > 1) {
     await tour.getByRole("link", { name: /Next/ }).click();
     await waitForResult(page);
     await expect(page).toHaveURL(new RegExp(`id=${encodeURIComponent(cases[1]?.query.identifier ?? "")}`));
-    await expect(tour).toContainText(`2 / ${cases.length}`);
+    await expect(tour).toContainText(`Case 2 of ${cases.length}`);
   }
   await expectAccessible(page);
 });

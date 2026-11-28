@@ -5,38 +5,156 @@
   gap: var(--space-6);
 }
 
+/* The state is the card's left edge, 3 px in the state's colour (a converted answer with cautions in ink, not in the
+   colour of a plain one); the status says it in words beside the answer. */
 .result--v2 .answer-panel {
+  --answer-state: var(--line-strong);
+
   overflow: visible;
+  border-top: 1px solid var(--line);
   border-radius: var(--radius-md);
   box-shadow: var(--elev-1);
   padding: var(--space-6) var(--space-7) var(--space-6) calc(var(--space-7) + 3px);
 }
 
+.result--v2 .answer-panel--ok {
+  --answer-state: var(--state-ok);
+}
+
+.result--v2 .answer-panel--warn {
+  --answer-state: var(--state-warn);
+}
+
+.result--v2 .answer-panel--caution {
+  --answer-state: var(--ink-2);
+}
+
+.result--v2 .answer-panel--danger {
+  --answer-state: var(--state-danger);
+}
+
 .result--v2 .answer-panel::before {
-  inset: 0 auto 0 0;
-  width: 3px;
-  height: auto;
-  border-radius: var(--radius-md) 0 0 var(--radius-md);
-}
-
-.result--v2 .answer-panel > .figure-panel__head {
-  border-bottom: 0;
-  padding-bottom: 0;
-  margin-bottom: var(--space-4);
-}
-
-/* The verdict's heading is for the document's outline and a screen reader: the answer itself is the card's title. */
-.result--v2 .answer-panel > .figure-panel__head .figure-panel__title {
+  content: "";
   position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip-path: inset(50%);
-  white-space: nowrap;
+  inset: -1px auto -1px -1px;
+  width: 3px;
+  border-radius: var(--radius-md) 0 0 var(--radius-md);
+  background: var(--answer-state);
 }
 
-.result--v2 .answer-panel > .figure-panel__head .figure-panel__aside {
-  margin-left: auto;
+/* The verdict's top line: the query, the arrow and the answer, the actions at its right end (on a phone they follow
+   the answer). */
+.answer__head {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-4) var(--space-6);
+}
+
+.answer__head > .answer__flow {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.answer__head > .answer__actions {
+  flex: none;
+  margin-top: -6px;
+}
+
+/* The status: its glyph and its word in the state's colour. The state is the card's left edge already: the word needs
+   no second frame. */
+.result--v2 .answer-panel .answer__codes .status {
+  padding: 0;
+  border: 0;
+  background: none;
+}
+
+/* The actions are quiet: words that tint under the pointer, no frames (the answer is the card's one strong thing). */
+.result--v2 .answer__actions .button,
+.result--v2 .answer__actions .hovercard__trigger {
+  border-width: 0;
+  background: none;
+  color: var(--ink-2);
+}
+
+@media (hover: hover) {
+  .result--v2 .answer__actions .button:hover,
+  .result--v2 .answer__actions .hovercard__trigger:hover {
+    background: color-mix(in srgb, var(--ink-1) 6%, transparent);
+    color: var(--ink-1);
+  }
+}
+
+/* Each caution on its line: its triangle opens what it rests on (a hover card), its words stay on the surface. */
+.answer__cautions {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  max-width: 920px;
+  font-size: var(--text-sm);
+  line-height: 1.55;
+  color: var(--ink-1);
+}
+
+.answer__caution {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-1);
+}
+
+.answer__caution-words {
+  padding-top: 2px;
+  min-width: 0;
+}
+
+/* The triangle as a button of a finger's or a pointer's size (24 px), the glyph at its centre. */
+.answer__caution-mark {
+  display: inline-grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  margin-left: -6px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  color: inherit;
+  cursor: help;
+}
+
+@media (hover: hover) {
+  .answer__caution-mark:hover {
+    background: color-mix(in srgb, var(--state-warn) 14%, transparent);
+  }
+}
+
+.answer__caution-card .hovercard__card,
+.answer__guidance .hovercard__card {
+  width: min(440px, calc(100vw - 32px));
+}
+
+/* What a tie of genes means for a list: a quiet term after the status sentence, its card a press or a pointing away. */
+.answer__guidance-trigger {
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: var(--text-sm);
+  color: var(--ink-1);
+  text-decoration: underline dotted var(--line-strong);
+  text-underline-offset: 3px;
+  cursor: help;
+}
+
+.answer__guidance-text {
+  font-size: var(--text-sm);
+  line-height: 1.55;
+  color: var(--ink-1);
+}
+
+.answer__guidance-text a + a {
+  margin-left: var(--space-2);
 }
 
 .answer__more {
@@ -90,9 +208,33 @@
   background: none;
 }
 
+/* Inside a tab the tab is the panel's name: the panel's heading stays for the document's outline and a screen reader,
+   unseen (a second title under the tab would say the same twice). */
 .result__tabs .tabs__panel > .figure-panel > .figure-panel__head {
-  border-bottom: 0;
-  padding-bottom: 0;
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* A tab's count is quiet words beside its label, not a chip. */
+.result__tabs .tabs__count {
+  padding: 0;
+  background: none;
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-regular);
+}
+
+/* The choice between the drawing and the words, alone on its row where no drawing's toolbar holds it. */
+.result__view-bar {
+  display: flex;
+  padding-bottom: var(--space-3);
 }
 
 .result__tabs .figure-panel .figure-panel {
@@ -133,4 +275,37 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
+}
+
+/* The Evidence tab: every mark written out, one after another between hairlines (cautions first). */
+.evidence-list {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  max-width: 920px;
+}
+
+.evidence-list__item {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-4) 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.evidence-list__item:first-child {
+  padding-top: 0;
+}
+
+.evidence-list__head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  font-size: var(--text-md);
+  font-weight: var(--weight-medium);
+  color: var(--ink-1);
+}
+
+.evidence-list .evidence__card {
+  padding-left: calc(10px + var(--space-2));
 }

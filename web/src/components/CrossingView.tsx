@@ -132,8 +132,7 @@ export function CrossingView({
       aria-describedby={readingId}
     >
       <p className="crossing__release">
-        <span className="eyebrow">Release</span> <span className="mono">{release}</span>{" "}
-        <span className="muted">every step holds here: no step of Ensembl&apos;s history</span>
+        At release <span className="mono">{release}</span>
       </p>
       {shown.map((candidate) => (
         <Chain key={candidate.index} candidate={candidate} model={model} context={context} />

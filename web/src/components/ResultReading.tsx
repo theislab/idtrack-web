@@ -516,7 +516,7 @@ export const ReadingPanel = memo(function ReadingPanel({
             <span className="mono">{pythonFloat(floor)}</span> at the right, the dot at the score.
           </>
         ) : null}{" "}
-        A kind of step or a relation of places opens idtrack&apos;s meaning where the table first names it.
+        A kind of step or a relation of places opens IDTrack&apos;s meaning where the table first names it.
       </p>
     </FigurePanel>
   );
@@ -599,7 +599,7 @@ export function Details({ result }: { result: ConversionResult }) {
           {result.from_release === null
             ? "not read"
             : result.from_release_inferred
-              ? "inferred by idtrack"
+              ? "inferred by IDTrack"
               : "as given"}
           {result.from_release_fallback
             ? `; ${result.from_release_given ?? ""} was given, where the graph does not hold the identifier`
@@ -628,7 +628,7 @@ export function Details({ result }: { result: ConversionResult }) {
                 <Mono>{id}</Mono>{" "}
                 {answers.has(id) ? (
                   <span className="copies-list__answer">
-                    the answer itself, also listed here by idtrack (a known limitation: the answer is right)
+                    the answer itself, also listed here by IDTrack (a known limitation: the answer is right)
                   </span>
                 ) : (
                   <span className="muted">{copyKind(id)}</span>
