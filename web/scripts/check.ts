@@ -74,6 +74,11 @@ const CHECKS: Check[] = [
     count: (output) => plural(matches(output, /error TS\d+/g), "error"),
   },
   {
+    name: "unused classes",
+    command: ["node", "scripts/unused-classes.ts"],
+    count: (output) => plural(matches(output, /is styled but never named/g), "class"),
+  },
+  {
     name: "knip",
     command: [bin("knip")],
     count: (output) =>

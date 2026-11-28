@@ -35,13 +35,15 @@ test("the load monitor: a quiet reading, its panel by keyboard, Escape back", as
   await page.goto(`/convert?organism=${data.organism}`);
   const trigger = page.locator(".load-monitor__trigger");
   await expect(trigger).toBeVisible();
-  await expect(trigger).toContainText(/Server load: (ok|busy|saturated)/i);
+  await expect(trigger).toContainText(/Server load: (ok|busy|memory near its bound|saturated)/i);
   if (isPhone(info)) {
     await expect(trigger.locator(".load-monitor__reading").first()).toBeHidden();
   } else {
-    await expect(trigger).toContainText("CPU");
-    await expect(trigger).toContainText(/MEM \d+\.\d\d GiB/);
-    await expect(trigger).toContainText(/CPU \d+\.\d %/);
+    // From 1280 px both readings stand at rest, in the quiet ink: CPU against the workers' capacity, the memory.
+    const rest = trigger.locator(".load-monitor__readings");
+    await expect(rest).toBeVisible();
+    await expect(rest).toContainText(/CPU\s*\d+\.\d %/);
+    await expect(rest).toContainText(/Memory\s*\d+\.\d\d GiB/);
   }
   await trigger.focus();
   await page.keyboard.press("Enter");
@@ -51,10 +53,13 @@ test("the load monitor: a quiet reading, its panel by keyboard, Escape back", as
   // Focus is on the panel's title, and the processes are the server's own.
   await expect(panel.getByRole("heading", { name: "Server load" })).toBeFocused();
   const status = (await (await page.request.get("/api/v1/status")).json()) as Status;
-  const rows = panel.getByRole("region", { name: "Processes" }).locator("tbody tr");
+  // At first view the state, CPU and memory; every process one press away.
+  await panel.getByRole("button", { name: /^Processes/ }).click();
+  const rows = panel.getByRole("region", { name: "Processes", exact: true }).locator("tbody tr");
   await expect(rows).toHaveCount(status.workers_alive + (status.master ? 1 : 0));
   await expect(panel.getByRole("link", { name: "GET /api/v1/status" })).toHaveAttribute("href", "/api/v1/status");
-  await expect(panel.getByText("PSS is the honest sum")).toBeVisible();
+  // The definitions are hints beside their labels (the capacity, the cores, the footprint), not printed.
+  await expect(panel.getByRole("button", { name: "Hint" })).toHaveCount(3);
   await expectAccessible(page);
   await page.waitForTimeout(400);
   await plainShot(page, info, "40-load-panel", false);
@@ -107,7 +112,9 @@ test("the load monitor says a reading is late while /status waits, and never sho
   });
   await page.goto(`/convert?organism=${data.organism}`);
   const trigger = page.locator(".load-monitor__trigger");
-  await expect(trigger).toHaveAccessibleName(/Server load: (ok|busy|saturated)\. CPU .* MEM .* GiB/);
+  await expect(trigger).toHaveAccessibleName(
+    /Server load: (ok|busy|memory near its bound|saturated)\. CPU .* of the workers' capacity, memory .* GiB/,
+  );
   hold = true;
   await trigger.click();
   const panel = page.getByRole("dialog", { name: "Server load" });
@@ -176,6 +183,8 @@ test("the load panel on a phone: each process a card under its name, the latency
   await page.goto(`/convert?organism=${data.organism}`);
   await page.locator(".load-monitor__trigger").click();
   const panel = page.getByRole("dialog", { name: "Server load" });
+  await panel.getByRole("button", { name: /^Processes/ }).click();
+  await panel.getByRole("button", { name: /^Latency/ }).click();
   await expect(panel.locator(".load-table__process").first()).toBeVisible();
   // The process's name stands on a line of its own, above its first value.
   const placed = await panel.locator(".load-table tbody tr").evaluateAll((rows) =>

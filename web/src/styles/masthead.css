@@ -1,6 +1,7 @@
-/* The masthead and the footer (DIRECTION.md, "The shell"). One bar of glass over the page: the mark and IDTrack, four
-   sections and the documentation, then the organism, the server's state, the palette and the theme. It stays in view
-   where the screen can spare it (641 px wide and 600 px tall), else it scrolls away with the page. */
+/* The masthead and the footer (DIRECTION.md, "The shell"). One bar of glass over the page, the only glass of the site:
+   the mark and IDTrack, four sections and the documentation, then the organism, the server's state, the palette and
+   the theme. It stays in view where the screen can spare it (641 px wide and 600 px tall); elsewhere it scrolls away
+   with the page and slides back in when the page is scrolled up. */
 
 .mast {
   position: relative;
@@ -34,6 +35,19 @@
   }
 }
 
+/* Where it scrolls with the page: held at the top, out of view while the page is scrolled down (Masthead.tsx). */
+@media (max-width: 640px), (max-height: 599px) {
+  .mast {
+    position: sticky;
+    top: 0;
+    transition: transform var(--dur-2) var(--ease-out);
+  }
+
+  .mast--away {
+    transform: translateY(-100%);
+  }
+}
+
 .mast__inner {
   max-width: var(--content);
   height: calc(var(--masthead-height) - 1px);
@@ -45,6 +59,7 @@
 }
 
 .mast__brand {
+  flex: none;
   display: inline-flex;
   align-items: center;
   gap: 10px;
@@ -117,17 +132,31 @@
 
 .mast__tools {
   margin-left: auto;
+  min-width: 0;
   display: flex;
   align-items: center;
   gap: var(--space-2);
 }
 
-/* The organism: a chip; its list in a popover. */
+/* Every tool keeps its size; only the organism's chip gives way where the row is short (its name then ends in an
+   ellipsis on one line; the whole name is in its accessible name and its list). */
+.mast__tools > * {
+  flex: none;
+}
+
+.mast__tools > .org-chip {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+/* The organism: a chip; its list in a popover (a sheet from the bottom on a phone). */
 .org-chip__button {
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  max-width: 100%;
   min-height: 36px;
+  white-space: nowrap;
   padding: 0 var(--space-3);
   border: 1px solid var(--line);
   border-radius: var(--radius-pill);
@@ -142,6 +171,16 @@
 .org-chip--waiting {
   width: 92px;
   height: 36px;
+}
+
+.org-chip__name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.org-chip__button svg {
+  flex: none;
 }
 
 .org-chip__button[aria-expanded="true"] {
@@ -190,53 +229,20 @@
   font-size: var(--text-sm);
 }
 
+/* The sheet of a phone: a finger's row for each organism. */
+.drawer--organisms .org-chip__option {
+  min-height: 56px;
+  align-content: center;
+  padding: var(--space-2) var(--space-4);
+}
+
+.drawer--organisms .org-chip__binomial {
+  font-size: var(--text-md);
+}
+
 .org-chip__common {
   font-size: var(--text-xs);
   color: var(--ink-3);
-}
-
-/* The server's state: its dot alone at rest (its state in the button's name and title); its readings unfold beside it
-   on pointing or focus, over the masthead, so nothing beside it moves (a press opens the load panel, as before). */
-.mast .load-monitor__trigger {
-  position: relative;
-  width: 36px;
-  height: 36px;
-  padding: 0;
-  justify-content: center;
-  border-radius: var(--radius-pill);
-}
-
-.mast .load-monitor__shown {
-  position: absolute;
-  top: 50%;
-  right: calc(100% + 4px);
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-  padding: 6px var(--space-3);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-pill);
-  background: var(--surface-raised);
-  box-shadow: var(--elev-1);
-  white-space: nowrap;
-  opacity: 0;
-  transform: translate(6px, -50%);
-  pointer-events: none;
-  transition:
-    opacity var(--dur-2) var(--ease-out),
-    transform var(--dur-2) var(--ease-out);
-}
-
-@media (hover: hover) {
-  .mast .load-monitor__trigger:hover .load-monitor__shown {
-    opacity: 1;
-    transform: translate(0, -50%);
-  }
-}
-
-.mast .load-monitor__trigger:focus-visible .load-monitor__shown {
-  opacity: 1;
-  transform: translate(0, -50%);
 }
 
 /* The command palette's button. */
@@ -252,6 +258,26 @@
   color: var(--ink-2);
   font: inherit;
   cursor: pointer;
+}
+
+@media (hover: hover) {
+  .mast__palette:hover,
+  .theme-button:hover,
+  .hero-menu__button:hover {
+    color: var(--ink-1);
+    border-color: var(--line-strong);
+    background: color-mix(in srgb, var(--ink-1) 5%, var(--surface));
+  }
+}
+
+.mast__palette,
+.theme-button,
+.hero-menu__button {
+  transition:
+    background var(--dur-1),
+    border-color var(--dur-1),
+    color var(--dur-1),
+    transform var(--dur-2) var(--ease-out);
 }
 
 .mast__kbd {
@@ -321,8 +347,9 @@
   }
 }
 
-/* The narrowest phones (320 px): the tools a little tighter, so that the organism's whole name, the server's dot, the
-   palette, the theme and the menu stand inside the page's 16 px edges (each still a target of 36 px). */
+/* The narrowest phones (up to 360 px): the tools a little tighter, so that the organism, the server's dot, the
+   palette, the theme and the menu stand inside the page's 16 px edges (each still a target of 36 px); the home's
+   picture is chosen in the drawer of the sections instead of by its button. */
 @media (max-width: 360px) {
   .org-chip__button {
     padding: 0 var(--space-2);
@@ -333,6 +360,53 @@
     width: 36px;
     height: 36px;
   }
+}
+
+@media (max-width: 359px) {
+  .mast__tools > .hero-menu {
+    display: none;
+  }
+}
+
+/* The home's picture in the drawer of the sections (below 360 px only: wider, its button stands in the masthead). */
+.mast__pictures {
+  display: none;
+  margin: var(--space-5) 0 0;
+  padding: var(--space-4) 0 0;
+  border: 0;
+  border-top: 1px solid var(--line);
+}
+
+@media (max-width: 359px) {
+  .mast__pictures {
+    display: grid;
+  }
+}
+
+.mast__pictures-title {
+  padding: 0 var(--space-3) var(--space-2);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  color: var(--ink-3);
+}
+
+.mast__picture {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 48px;
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-pill);
+  font-size: var(--text-md);
+  color: var(--ink-1);
+  cursor: pointer;
+}
+
+.mast__picture input {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  accent-color: var(--accent);
 }
 
 /* Convert's tabs, under the masthead on its three pages. */
@@ -449,6 +523,33 @@
   }
 }
 
+/* A finger's row for every link of the footer on a touch screen: its links in two columns. */
+@media (pointer: coarse) {
+  .foot__links {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: var(--space-5);
+    row-gap: 0;
+  }
+
+  .foot__links a,
+  .foot__legal a,
+  .foot__origin a,
+  .foot__button {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+  }
+
+  .foot__links .foot__quiet {
+    grid-column: 1 / -1;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    column-gap: var(--space-2);
+  }
+}
+
 /* The theme: one round button; its icon is the theme in force. */
 .theme-button {
   display: grid;
@@ -460,7 +561,6 @@
   background: var(--surface);
   color: var(--ink-1);
   cursor: pointer;
-  transition: transform var(--dur-2) var(--ease-out);
 }
 
 .theme-button svg {
@@ -472,7 +572,8 @@
   transform: rotate(-20deg);
 }
 
-/* The home's picture menu: a round button; a glass menu of the three pictures. */
+/* The home's picture menu: a round button; a menu of the three pictures on the raised surface (opaque: a blur nested
+   in the masthead's glass would blur the masthead alone, and the hero's words would read through it). */
 .hero-menu {
   position: relative;
 }
@@ -498,10 +599,14 @@
   padding: var(--space-1);
   border: 1px solid var(--line);
   border-radius: var(--radius-md);
-  background: var(--glass);
-  backdrop-filter: blur(16px) saturate(1.4);
+  background: var(--surface-raised);
   box-shadow: var(--elev-2);
   animation: v2-pop var(--dur-2) var(--ease-out);
+}
+
+.hero-menu__list--closing {
+  pointer-events: none;
+  animation: v2-out var(--dur-exit) var(--ease-in-out) forwards;
 }
 
 .hero-menu__item {
@@ -517,6 +622,12 @@
   outline: none;
 }
 
+@media (pointer: coarse) {
+  .hero-menu__item {
+    min-height: 48px;
+  }
+}
+
 .hero-menu__item:focus-visible {
   background: var(--accent-soft);
   box-shadow: inset 0 0 0 2px var(--focus-color);
@@ -526,6 +637,19 @@
   .hero-menu__item:hover {
     background: color-mix(in srgb, var(--ink-1) 6%, transparent);
   }
+}
+
+.hero-menu__sketch {
+  flex: none;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--paper);
+  color: var(--ink-2);
+}
+
+.hero-menu__item[aria-checked="true"] .hero-menu__sketch {
+  border-color: var(--line-strong);
+  color: var(--ink-1);
 }
 
 .hero-menu__check {
@@ -541,7 +665,8 @@
   color: var(--ink-3);
 }
 
-.foot__origin a {
+.foot__origin a,
+.consent__text a {
   color: inherit;
 }
 
@@ -569,5 +694,40 @@
   .foot__button:hover {
     color: var(--ink-1);
     text-decoration: underline;
+  }
+}
+
+/* The question about counting visits: a calm card at the foot of the window, once. */
+.consent {
+  position: fixed;
+  z-index: 50;
+  left: var(--space-5);
+  bottom: var(--space-5);
+  width: min(420px, calc(100vw - 2 * var(--space-4)));
+  padding: var(--space-4) var(--space-5);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--surface-raised);
+  box-shadow: var(--elev-2);
+  animation: v2-rise var(--dur-3) var(--ease-out);
+}
+
+.consent__text {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--ink-2);
+}
+
+.consent__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+}
+
+@media (max-width: 640px) {
+  .consent {
+    left: var(--space-4);
+    bottom: var(--space-4);
   }
 }

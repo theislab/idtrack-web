@@ -7,6 +7,8 @@ import { ApiError, UnexpectedAnswerError, UnreachableError, type Answer } from "
 import type { StatusResponse } from "../src/api/types";
 import {
   appendSample,
+  capacityShare,
+  occupancy,
   CLOSED_INTERVAL_MS,
   cores,
   coresSource,
@@ -67,19 +69,58 @@ describe("the work waiting", () => {
 });
 
 describe("the state rule", () => {
-  it("is ok below 70 % of the cores and of the memory limit with no search waiting", () => {
+  it("is ok while fewer than 70 % of the workers search, below 90 % of the memory limit, with no search waiting", () => {
     expect(loadState(recorded())).toBe("ok");
-    expect(loadState(withLoad((s) => (s.cpu.share_of_available = 0.6999)))).toBe("ok");
+    // The machine's cores are not the server's room: a share of them decides nothing.
+    expect(loadState(withLoad((s) => (s.cpu.share_of_available = 0.99)))).toBe("ok");
+    const one = withLoad((s) => {
+      s.workers_alive = 2;
+      s.requests.searches_running = 1;
+    });
+    expect(occupancy(one)).toBe(0.5);
+    expect(loadState(one)).toBe("ok");
   });
 
-  it("is busy from 70 % of the cores available or of the memory limit (PSS)", () => {
-    expect(loadState(withLoad((s) => (s.cpu.share_of_available = 0.7)))).toBe("busy");
+  it("is busy from 70 % of the workers searching (a worker runs one search at a time)", () => {
+    const full = withLoad((s) => {
+      s.workers_alive = 2;
+      s.requests.searches_running = 2;
+    });
+    expect(loadState(full)).toBe("busy");
+    const three = withLoad((s) => {
+      s.workers_alive = 3;
+      s.requests.searches_running = 2;
+    });
+    expect(loadState(three)).toBe("ok");
+    three.requests.searches_running = 3;
+    expect(loadState(three)).toBe("busy");
+  });
+
+  it("reads memory near its bound from 90 % of the limit (PSS), the VM's steady footprint below it", () => {
     const memory = withLoad((s) => {
       s.memory.limit_bytes = 1000;
-      s.memory.pss_bytes = 700;
+      s.memory.pss_bytes = 899;
     });
-    expect(memoryShare(memory)).toBe(0.7);
-    expect(loadState(memory)).toBe("busy");
+    expect(loadState(memory)).toBe("ok");
+    memory.memory.pss_bytes = 900;
+    expect(memoryShare(memory)).toBe(0.9);
+    expect(loadState(memory)).toBe("memory");
+    // SETUP's steady footprint of three workers under a 12 GiB bound: 11,079,015,424 bytes, 86 % of it.
+    const steady = withLoad((s) => {
+      s.memory.limit_bytes = 12 * 2 ** 30;
+      s.memory.pss_bytes = 11_079_015_424;
+    });
+    expect(loadState(steady)).toBe("ok");
+  });
+
+  it("measures CPU against the workers' capacity, one core each", () => {
+    const status = withLoad((s) => {
+      s.workers_alive = 2;
+      s.cpu.cores_used = 1.94;
+      s.cpu.cores_available = 12;
+    });
+    expect(capacityShare(status)).toBeCloseTo(0.97, 10);
+    expect(capacityShare(withLoad((s) => (s.workers_alive = 0)))).toBeNull();
   });
 
   it("is saturated while a search waits, whatever the shares", () => {
@@ -98,6 +139,7 @@ describe("the state rule", () => {
     const unmeasured = withLoad((s) => {
       s.cpu.share_of_available = null;
       s.memory.pss_bytes = null;
+      s.workers_alive = 0;
     });
     expect(memoryShare(unmeasured)).toBeNull();
     expect(loadState(unmeasured)).toBe("ok");
@@ -195,6 +237,7 @@ describe("the samples and their lines", () => {
     at: t,
     coresUsed: v,
     cpuShare: v,
+    capacityShare: v,
     pssBytes: v,
     limitBytes: null,
     waiting: 0,
@@ -207,6 +250,7 @@ describe("the samples and their lines", () => {
       at: 5,
       coresUsed: s.cpu.cores_used,
       cpuShare: s.cpu.share_of_available,
+      capacityShare: (s.cpu.cores_used ?? 0) / s.workers_alive,
       pssBytes: s.memory.pss_bytes,
       limitBytes: s.memory.limit_bytes,
       waiting: s.requests.searches_waiting,

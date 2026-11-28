@@ -14,5 +14,7 @@ export function usePhone(): boolean {
       return () => media?.removeEventListener("change", listener);
     },
     () => media?.matches ?? false,
+    // Drawn ahead of any browser (the build's frames of the pages): the wide layout.
+    () => false,
   );
 }

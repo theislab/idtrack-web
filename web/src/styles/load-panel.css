@@ -1,5 +1,5 @@
-/* The panel "Server load" (LoadPanel.tsx, loaded on the monitor's first open, with this stylesheet): its sections,
-   charts, processes, latency strip and exact values. The masthead's reading is styled in load.css. */
+/* The panel "Server load" (LoadPanel.tsx, its code fetched once the page is idle, with this stylesheet): its
+   sections, charts, processes, latency strip and exact values. The masthead's reading is styled in load.css. */
 
 /* ---- The panel: a drawer (v2.css), a little wider than the default for its charts and table of processes ---- */
 
@@ -93,26 +93,44 @@
   font-weight: var(--weight-strong);
 }
 
-.load-section__aside {
-  margin-left: auto;
-  font-weight: var(--weight-regular);
-  font-size: var(--text-xs);
-  color: var(--ink-3);
-  font-family: var(--font-mono);
-}
-
 .load-section__note {
   font-size: var(--text-sm);
   color: var(--ink-2);
   max-width: 70ch;
 }
 
-.load-subtitle {
-  font-size: var(--text-xs);
-  font-weight: var(--weight-strong);
+/* One value and its share at the size of a figure, a second line in the quiet ink, a hint beside the label. */
+.load-figure {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 6px;
+  margin: 0;
+  font-size: var(--text-md);
   color: var(--ink-2);
-  letter-spacing: 0.02em;
-  margin: var(--space-2) 0 0;
+}
+
+.load-figure .exact--strong .mono {
+  font-size: var(--text-xl);
+  font-size-adjust: none;
+  font-weight: var(--weight-medium);
+  letter-spacing: -0.02em;
+  color: var(--ink-1);
+}
+
+.load-figure__more {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 6px;
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--ink-3);
+}
+
+.load-figure .hint,
+.load-figure__more .hint {
+  align-self: center;
 }
 
 .load-caption {

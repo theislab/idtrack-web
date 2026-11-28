@@ -1,11 +1,15 @@
-// The server's load, shown quietly in the masthead (built on `GET /api/v1/status`): a state dot and two small readings,
-// CPU and memory, each with a line of this session's samples (up to the last ten minutes). Nothing moves but the
-// numbers, which change in place. Pressing it opens the panel "Server load" (loaded on first open): every process, the
-// requests, the latency, how it is measured, and charts of the session. A reading that is not current (the request of
-// /status is late, refused or unreadable) is drawn faint and says since when it is old.
+// The server's load, shown quietly in the masthead (built on `GET /api/v1/status`): a state dot, its shape and colour
+// the state; from 1280 px the two readings at rest beside it in the quiet ink (CPU against the workers' capacity, and
+// the server's memory), with no box, line or motion; from 641 px the state's word whenever it is not ok. Pointing or
+// focus unfolds the readings with a line of this session's samples (up to the last ten minutes) where they are not at
+// rest. Nothing moves but the numbers, which change in place. Pressing it opens the panel "Server load" (loaded on
+// first open, fetched beforehand once the page is idle). A reading that is not current (the request of /status is
+// late, refused or unreadable) is drawn faint and says since when it is old.
 import { Suspense, useCallback, useEffect, useId, useRef, useState } from "react";
+import { whenIdle } from "../lib/idle";
 import { lazyPart } from "../lib/lazyPart";
 import {
+  capacityShare,
   clock,
   gib,
   monitorState,
@@ -117,6 +121,12 @@ export function LoadMonitor() {
   useEffect(() => {
     loadStore.setOpen(open);
   }, [open]);
+  // The panel's code comes once the page is idle, so that the first press opens it at once.
+  useEffect(() => {
+    return whenIdle(() => {
+      void LoadPanel.preload();
+    });
+  }, []);
 
   const close = useCallback(() => {
     setOpenOn(null);
@@ -143,7 +153,7 @@ export function LoadMonitor() {
     };
   }, [open]);
 
-  const cpu = status?.cpu.share_of_available ?? null;
+  const cpu = status ? capacityShare(status) : null;
   const pss = status?.memory.pss_bytes ?? null;
   const limit = status?.memory.limit_bytes ?? null;
   const now = latest?.receivedAt ?? failure?.at ?? 0;
@@ -153,7 +163,7 @@ export function LoadMonitor() {
   // seen; the panel's charts carry the axes.
   const recent = samples.filter((s) => s.at >= now - span && !s.failed);
   const pssTop = Math.max(1, ...recent.map((s) => s.pssBytes ?? 0)) * 1.15;
-  const cpuTop = Math.max(0.1, ...recent.map((s) => s.cpuShare ?? 0)) * 1.15;
+  const cpuTop = Math.max(0.1, ...recent.map((s) => s.capacityShare ?? 0)) * 1.15;
 
   const cpuText = cpu === null ? "–" : percent(cpu).text;
   const pssText = pss === null ? "–" : gib(pss).text;
@@ -163,7 +173,7 @@ export function LoadMonitor() {
     state === "late" ? `late ${lateSeconds} s` : state === "waiting" ? "reading" : STATE_WORDS[state].toLowerCase();
   // The button's name: the state and both readings at every width (the visible text, whatever of it a width shows,
   // is part of it), and how old a reading that is not current is.
-  const readings = `CPU ${cpuText} MEM ${pssText}${limit !== null && pss !== null ? ` of ${gib(limit).text}` : ""}`;
+  const readings = `CPU ${cpuText} of the workers' capacity, memory ${pssText}${limit !== null && pss !== null ? ` of ${gib(limit).text}` : ""}`;
   const name =
     state === "unreachable" || state === "waiting" || !latest
       ? `Server load: ${word}.`
@@ -192,8 +202,21 @@ export function LoadMonitor() {
           setOpen(!open);
         }}
       >
-        <span className={`load-dot load-dot--${state}`} aria-hidden="true" />
         <span className="visually-hidden">{name}</span>
+        {/* At rest: the state's word where it is not ok (from 641 px), the readings (from 1280 px), then the dot. */}
+        <span className="load-monitor__rest" aria-hidden="true">
+          {state !== "ok" ? <span className="load-monitor__word">{word}</span> : null}
+          {hasReading ? (
+            <span className="load-monitor__readings">
+              <span className="load-monitor__label">CPU</span>
+              <span className="load-monitor__value load-monitor__value--cpu">{cpuText}</span>
+              <span className="load-monitor__label">Memory</span>
+              <span className="load-monitor__value load-monitor__value--mem">{pssText}</span>
+            </span>
+          ) : null}
+        </span>
+        <span className={`load-dot load-dot--${state}`} aria-hidden="true" />
+        {/* On pointing or focus, where the readings are not at rest: over the masthead, so nothing beside it moves. */}
         <span className="load-monitor__shown" aria-hidden="true">
           {state !== "ok" ? <span className="load-monitor__word">{word}</span> : null}
           {hasReading ? (
@@ -201,17 +224,17 @@ export function LoadMonitor() {
               {/* On a phone, where the readings and lines do not fit, one compact block of both numbers. */}
               <span className="load-monitor__compact">
                 <span className="load-monitor__label">CPU</span>
-                <span>{cpuText}</span>
-                <span className="load-monitor__label">MEM</span>
-                <span>{pssText}</span>
+                <span className="load-monitor__value">{cpuText}</span>
+                <span className="load-monitor__label">Memory</span>
+                <span className="load-monitor__value">{pssText}</span>
               </span>
               <span className="load-monitor__reading">
-                <span className="load-monitor__label">CPU</span>{" "}
+                <span className="load-monitor__label">CPU</span>
                 <span className="load-monitor__value load-monitor__value--cpu">{cpuText}</span>
-                <Spark samples={samples} value={(s) => s.cpuShare} top={cpuTop} now={now} span={span} />
-              </span>{" "}
+                <Spark samples={samples} value={(s) => s.capacityShare} top={cpuTop} now={now} span={span} />
+              </span>
               <span className="load-monitor__reading">
-                <span className="load-monitor__label">MEM</span>{" "}
+                <span className="load-monitor__label">Memory</span>
                 <span className="load-monitor__value load-monitor__value--mem">{pssText}</span>
                 <Spark samples={samples} value={(s) => s.pssBytes} top={pssTop} now={now} span={span} />
               </span>

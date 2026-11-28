@@ -99,7 +99,7 @@ test("the home is one picture: a headline, a sentence, two calls to action, noth
 test("the home's picture menu offers three pictures and keeps the choice", async ({ page }) => {
   // The home of the graph under test (a server of several graphs shows the first by default).
   await page.goto(`/?organism=${data.organism}`);
-  const button = page.getByRole("button", { name: "Choose the home page picture" });
+  const button = page.getByRole("button", { name: /^Home page picture: / });
   await button.click();
   const menu = page.getByRole("menu", { name: "Home page picture" });
   await expect(menu.getByRole("menuitemradio")).toHaveCount(3);
@@ -115,7 +115,7 @@ test("the home's picture menu offers three pictures and keeps the choice", async
   await page.reload();
   await expect(page.locator(".hero2__field")).toHaveAttribute("data-picture", "rings");
   await page.goto("/method");
-  await expect(page.getByRole("button", { name: "Choose the home page picture" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: /^Home page picture: / })).toHaveCount(0);
 });
 
 test("the convoluted journeys: the showcase's answers braided about the axis of time, clear of every word", async ({

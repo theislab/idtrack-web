@@ -7,6 +7,7 @@ import { useState } from "react";
 import { afterEach, describe, expect, it } from "vitest";
 import { HeroMenu } from "../src/components/shell/HeroMenu";
 import { ThemeSwitch } from "../src/components/ThemeSwitch";
+import { listen } from "../src/lib/announce";
 import { nextTheme, themeLabel } from "../src/lib/theme";
 import { Field } from "../src/components/ui";
 import { Drawer } from "../src/components/v2/Drawer";
@@ -236,12 +237,19 @@ describe("the theme", () => {
     expect(nextTheme("dark")).toBe("system");
     expect(nextTheme("system")).toBe("light");
     expect(themeLabel("light")).toBe("Light mode; switch to dark");
+    expect(themeLabel("dark")).toBe("Dark mode; switch to the system's setting");
+    const said: string[] = [];
+    const stop = listen((text) => said.push(text));
     render(<ThemeSwitch />);
     const button = screen.getByRole("button", { name: "Light mode; switch to dark" });
     fireEvent.click(button);
     expect(document.documentElement.getAttribute("data-theme")).toBe("dark");
     expect(window.localStorage.getItem("idtrack-theme")).toBe("dark");
-    fireEvent.click(screen.getByRole("button", { name: "Dark mode; switch to the system's" }));
+    // Each press says the theme now in force on the page's status line.
+    expect(said).toEqual(["Theme: dark."]);
+    fireEvent.click(screen.getByRole("button", { name: "Dark mode; switch to the system's setting" }));
+    expect(said[1]).toMatch(/^Theme: the system's setting, (light|dark) now\.$/);
+    stop();
     expect(document.documentElement.getAttribute("data-theme")).toBe("system");
     fireEvent.click(screen.getByRole("button", { name: /^System mode/ }));
     expect(document.documentElement.getAttribute("data-theme")).toBe("light");
@@ -252,7 +260,10 @@ describe("the theme", () => {
 describe("the home's picture menu", () => {
   it("is a menu of radio items, the one shown checked; the keys move, Enter chooses, Escape returns", () => {
     render(<HeroMenu />);
-    const button = screen.getByRole("button", { name: "Choose the home page picture" });
+    // The button says which picture is shown.
+    const button = screen.getByRole("button", {
+      name: "Home page picture: lineages through the releases; choose another",
+    });
     expect(button.getAttribute("aria-haspopup")).toBe("menu");
     fireEvent.click(button);
     const menu = screen.getByRole("menu", { name: "Home page picture" });

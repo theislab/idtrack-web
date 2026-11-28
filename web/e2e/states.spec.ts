@@ -142,7 +142,7 @@ test.describe("the theme", () => {
     await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
     await page.reload();
     await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
-    await expect(button).toHaveAccessibleName("Dark mode; switch to the system's");
+    await expect(button).toHaveAccessibleName("Dark mode; switch to the system's setting");
     await button.click();
     await expect(page.locator("html")).toHaveAttribute("data-theme", "system");
     await button.click();

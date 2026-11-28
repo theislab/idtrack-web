@@ -6,10 +6,14 @@
 import type { StatusResponse } from "../api/types";
 import { groupedInteger, pythonFloat } from "./numbers";
 
-/** The share of the cores available, or of the memory limit, from which the server reads as busy. */
+/** The share of the workers searching from which the server reads as busy. */
 const BUSY_SHARE = 0.7;
+/** The share of the memory limit from which the server's footprint reads as near its bound: the room left before the
+ *  kernel would end a worker is then a tenth of the bound. */
+const MEMORY_SHARE = 0.9;
 
-export type LoadState = "ok" | "busy" | "saturated" | "late" | "refused" | "unreadable" | "unreachable" | "waiting";
+export type LoadState =
+  "ok" | "busy" | "memory" | "saturated" | "late" | "refused" | "unreadable" | "unreachable" | "waiting";
 
 /** A request of /status still unanswered after this long makes the reading late: its values are then the last
  *  answer's, said to be old (below the open interval, so that a late answer is told before the next ask is due). */
@@ -19,14 +23,15 @@ export const STATUS_TIMEOUT_MS = 30_000;
 
 /** The state rule, in words (shown in the panel under the state). */
 export const STATE_RULE =
-  "OK below 70 % of the cores available and below 70 % of the memory limit in the server's own footprint (its processes' PSS summed; what else the limit's cgroup holds is shown, not counted); busy from 70 % of either; saturated while work waits (a search for a worker free of searches, a search for its worker's own search thread, or a connection in the kernel's listen queue); late while /status has not answered for 4 s (the values are then its last answer, a sign of load in itself); refused while /status answers with a refusal; unreadable while it answers with something this page cannot read; unreachable while this page gets no answer from /status.";
+  "OK while fewer than 70 % of the workers search, the server's own footprint (its processes' PSS summed; what else the limit's cgroup holds is shown, not counted) is below 90 % of the memory limit, and no work waits; busy from 70 % of the workers searching (a worker runs one search at a time, so this is how full the server is); memory near its bound from 90 % of the limit; saturated while work waits (a search for a worker free of searches, a search for its worker's own search thread, or a connection in the kernel's listen queue), whatever else holds; late while /status has not answered for 4 s (the values are then its last answer, a sign of load in itself); refused while /status answers with a refusal; unreadable while it answers with something this page cannot read; unreachable while this page gets no answer from /status.";
 
 /** What each state says of the server now. */
 export const STATE_SENTENCES: Record<LoadState, string> = {
-  ok: "The cores used and the server's footprint are below 70 % of the cores available and of the memory limit, and no work waits for a worker.",
-  busy: "The cores used or the server's footprint is at 70 % or more of the cores available or of the memory limit.",
-  saturated:
-    "Work waits: a search for a worker free of searches or for its worker's own search thread, or a connection in the kernel's listen queue; new work queues until a worker is free.",
+  ok: "Fewer than 70 % of the workers search, the footprint is below 90 % of the memory limit, and no work waits.",
+  busy: "70 % or more of the workers are searching; the next searches may wait for one to be free.",
+  memory:
+    "The server's footprint is at 90 % or more of its memory limit: little room is left before a worker is ended.",
+  saturated: "Work waits for a worker; new work queues until one is free.",
   late: "The server has not answered /status for a while (a busy server answers it late too); the values are its last answer, not current.",
   refused:
     "The server answered /status with a refusal (too many requests from this address, or busy); the values are its last answer.",
@@ -39,6 +44,7 @@ export const STATE_SENTENCES: Record<LoadState, string> = {
 export const STATE_WORDS: Record<LoadState, string> = {
   ok: "OK",
   busy: "Busy",
+  memory: "Memory near its bound",
   saturated: "Saturated",
   late: "Late",
   refused: "Refused",
@@ -71,12 +77,28 @@ export function memoryShare(status: StatusResponse): number | null {
   return pss / limit;
 }
 
-/** Which state an answer of `/status` shows. Saturated wins over busy; a share the api could not measure is not used. */
-export function loadState(status: StatusResponse): "ok" | "busy" | "saturated" {
+/** The share of the workers alive that are searching now (a worker runs one search at a time), or `null` with none
+ *  alive. */
+export function occupancy(status: StatusResponse): number | null {
+  return status.workers_alive > 0 ? status.requests.searches_running / status.workers_alive : null;
+}
+
+/** The cores the server uses against the workers' capacity: one core for each worker alive (a worker runs one search
+ *  at a time, and a search holds the interpreter's lock: README, "Processes, not threads"). It may pass 1 briefly:
+ *  the master and each worker's other threads use the cores too. `null` where either is unknown. */
+export function capacityShare(status: StatusResponse): number | null {
+  const used = status.cpu.cores_used;
+  return used === null || status.workers_alive <= 0 ? null : used / status.workers_alive;
+}
+
+/** Which state an answer of `/status` shows. Saturated wins over the memory's bound, which wins over busy; a share the
+ *  api could not measure is not used. */
+export function loadState(status: StatusResponse): "ok" | "busy" | "memory" | "saturated" {
   if (workWaiting(status) > 0) return "saturated";
-  const cpu = status.cpu.share_of_available;
   const memory = memoryShare(status);
-  if ((cpu !== null && cpu >= BUSY_SHARE) || (memory !== null && memory >= BUSY_SHARE)) return "busy";
+  if (memory !== null && memory >= MEMORY_SHARE) return "memory";
+  const searching = occupancy(status);
+  if (searching !== null && searching >= BUSY_SHARE) return "busy";
   return "ok";
 }
 
@@ -161,6 +183,8 @@ export interface Sample {
   at: number;
   coresUsed: number | null;
   cpuShare: number | null;
+  /** The cores used against the workers' capacity (`capacityShare`). */
+  capacityShare: number | null;
   pssBytes: number | null;
   limitBytes: number | null;
   waiting: number;
@@ -173,6 +197,7 @@ export function sampleOf(status: StatusResponse, at: number): Sample {
     at,
     coresUsed: status.cpu.cores_used,
     cpuShare: status.cpu.share_of_available,
+    capacityShare: capacityShare(status),
     pssBytes: status.memory.pss_bytes,
     limitBytes: status.memory.limit_bytes,
     waiting: workWaiting(status),
@@ -182,8 +207,8 @@ export function sampleOf(status: StatusResponse, at: number): Sample {
 
 /** The server's own samples of the last minutes (`history`), placed on the browser's clock: each at the time of the
  *  answer that carried it less how much earlier than that answer the server took it (so that the two clocks need not
- *  agree). The share of the cores and the limit are the answer's (the cores available and the limit do not change
- *  while a server runs). */
+ *  agree). The shares are against the answer's cores, workers and limit (they do not change while a server runs, a
+ *  worker replaced aside). */
 function historyOf(status: StatusResponse, receivedAt: number): Sample[] {
   const answered = Date.parse(status.sampled_at);
   const available = status.cpu.cores_available;
@@ -194,6 +219,7 @@ function historyOf(status: StatusResponse, receivedAt: number): Sample[] {
       at: receivedAt - before,
       coresUsed: s.cores_used,
       cpuShare: s.cores_used === null || available <= 0 ? null : s.cores_used / available,
+      capacityShare: s.cores_used === null || status.workers_alive <= 0 ? null : s.cores_used / status.workers_alive,
       pssBytes: s.pss_bytes,
       limitBytes: status.memory.limit_bytes,
       waiting: s.waiting ?? 0,

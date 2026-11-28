@@ -14,13 +14,11 @@ import { href } from "../../lib/router";
 import { Expandable } from "../v2/Expandable";
 import { Link } from "../ui";
 import { lazyPart } from "../../lib/lazyPart";
-import { chipName } from "../../lib/explore/chips";
-import { organismName } from "../../lib/organismNames";
 import { useOrganisms } from "../../lib/organisms";
 import { usePhone } from "../../lib/usePhone";
 import { useShowcase } from "../../lib/showcase";
 import { ErrorBoundary } from "../ErrorBoundary";
-import { Segmented } from "../v2/Segmented";
+import { OrganismChoice } from "../v2/OrganismChoice";
 import { JourneysStory } from "./Journeys";
 import { JourneyUpClose } from "./JourneyUpClose";
 import "../../styles/home.css";
@@ -56,19 +54,10 @@ export function StoriesOrganism() {
       </label>
     );
   return (
-    <Segmented
+    <OrganismChoice
       className="stories-organism"
       label="Stories of the graph"
       value={current.organism}
-      options={organisms.map((o) => ({
-        value: o.organism,
-        label: (
-          <span title={organismName(o.organism)}>
-            {chipName(o.organism)}
-            <span className="visually-hidden"> ({organismName(o.organism)})</span>
-          </span>
-        ),
-      }))}
       onChange={choose}
     />
   );

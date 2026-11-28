@@ -126,9 +126,7 @@
 /* A caution's card and the tie's guidance open from their trigger at the verdict's left side: rightwards, as wide as
    the window leaves (never aligned to the trigger's right, which would run them off the window's left edge). */
 .answer__caution-card .hovercard__card,
-.answer__guidance .hovercard__card,
-.answer__caution-card .hovercard__card--right,
-.answer__guidance .hovercard__card--right {
+.answer__guidance .hovercard__card {
   left: 0;
   right: auto;
   width: min(440px, calc(100vw - 64px));

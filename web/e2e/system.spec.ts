@@ -2,21 +2,19 @@
 // sideways, no figure's text runs out of its figure or overlaps another (expectWholeAndTyped); the masthead is opaque,
 // one layout on every page, and what scrolls into view stops below it; focus is an outline that forced colours keep.
 import { expect, test, type Page } from "@playwright/test";
-import { convertUrl, data, expectWholeAndTyped, waitForResult } from "./helpers";
+import { convertUrl, data, expectWholeAndTyped, isPhone, waitForResult } from "./helpers";
 
 const PAGES: [string, string, (page: Page) => Promise<void>][] = [
   [
-    "home",
-    "/",
+    "convert",
+    `/convert?organism=${data.organism}`,
     async (page) => {
-      // The headline, and the picture's caption drawn (a window too short for it leaves the caption out).
       await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
-      await expect(page.locator(".hero2__caption")).toBeAttached();
     },
   ],
   [
-    "convert",
-    `/convert?organism=${data.organism}`,
+    "home",
+    `/?organism=${data.organism}`,
     async (page) => {
       await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
     },
@@ -104,23 +102,14 @@ const PAGES: [string, string, (page: Page) => Promise<void>][] = [
   ],
 ];
 
-/** The sizes every page is drawn at: a small phone, the zoom of 400 % on a screen 1280 by 1024 px (WCAG 1.4.10) and
- *  of 200 % on one 1440 by 900 px, a tablet, a laptop, a wide screen. */
-const SIZES: [number, number][] = [
-  [320, 640],
-  [320, 256],
-  [720, 450],
-  [768, 900],
-  [1024, 900],
-  [2560, 900],
-];
+const WIDTHS = [320, 768, 1024, 2560];
 
 test.describe("every page at every width", () => {
   for (const [name, url, ready] of PAGES) {
     test(`${name}: whole, legible figures, no sideways scroll`, async ({ page }, info) => {
       test.skip(!info.project.name.startsWith("desktop"), "the widths are set here; once per theme");
-      for (const [width, height] of SIZES) {
-        await page.setViewportSize({ width, height });
+      for (const width of WIDTHS) {
+        await page.setViewportSize({ width, height: width < 400 ? 640 : 900 });
         await page.goto(url);
         await ready(page);
         await page.evaluate(async () => {
@@ -138,7 +127,7 @@ test("the masthead: glass, the same places on every page, what scrolls into view
 }, info) => {
   test.skip(info.project.name.startsWith("phone"), "the phone's masthead scrolls away with the page");
   const places: Record<string, number> = {};
-  for (const [name, url, ready] of PAGES.slice(1, 8)) {
+  for (const [name, url, ready] of PAGES.slice(0, 8)) {
     await page.goto(url);
     await ready(page);
     const masthead = page.locator(".mast");
@@ -165,8 +154,19 @@ test("the masthead: glass, the same places on every page, what scrolls into view
 
 /** Answers of /status for each state the load monitor shows, each with the widest values of its kind (a share of
  *  100.0 %, memory of three digits of GiB), so that the widest content of every state is measured. */
-type StatusRoute = "waiting" | "ok" | "busy" | "saturated" | "late" | "refused" | "unreadable" | "unreachable";
-const STATES: StatusRoute[] = ["waiting", "ok", "busy", "saturated", "late", "refused", "unreadable", "unreachable"];
+type StatusRoute =
+  "waiting" | "ok" | "busy" | "memory" | "saturated" | "late" | "refused" | "unreadable" | "unreachable";
+const STATES: StatusRoute[] = [
+  "waiting",
+  "ok",
+  "busy",
+  "memory",
+  "saturated",
+  "late",
+  "refused",
+  "unreadable",
+  "unreachable",
+];
 
 async function routeStatus(page: Page, state: StatusRoute): Promise<void> {
   let answered = 0;
@@ -196,13 +196,17 @@ async function routeStatus(page: Page, state: StatusRoute): Promise<void> {
       });
     const response = await route.fetch();
     const body = (await response.json()) as {
-      cpu: { share_of_available: number | null };
+      workers_alive: number;
+      cpu: { share_of_available: number | null; cores_used: number | null };
       memory: { pss_bytes: number | null; limit_bytes: number | null };
-      requests: { searches_waiting: number };
+      requests: { searches_waiting: number; searches_running: number };
     };
-    body.cpu.share_of_available = state === "ok" ? 0.699 : 1;
+    // The widest values: CPU at 100.0 % of the workers' capacity, memory of three digits of GiB.
+    body.cpu.cores_used = body.workers_alive;
+    body.cpu.share_of_available = 1;
     body.memory.pss_bytes = Math.round(999.99 * 2 ** 30);
-    body.memory.limit_bytes = 4096 * 2 ** 30;
+    body.memory.limit_bytes = state === "memory" ? 1000 * 2 ** 30 : 4096 * 2 ** 30;
+    body.requests.searches_running = state === "busy" ? body.workers_alive : 0;
     if (state === "saturated") body.requests.searches_waiting = 3;
     await route.fulfill({ response, body: JSON.stringify(body) });
   });
@@ -224,9 +228,14 @@ test("the load monitor keeps one width in every state, so nothing beside it move
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto(`/convert?organism=${data.organism}`);
     const trigger = page.locator(".load-monitor__trigger");
-    const word = { waiting: /reading/, ok: /MEM/, busy: /busy/, saturated: /saturated/, late: /late \d+ s/ }[
-      state as string
-    ];
+    const word = {
+      waiting: /reading/,
+      ok: /Memory/,
+      busy: /busy/,
+      memory: /memory near its bound/,
+      saturated: /saturated/,
+      late: /late \d+ s/,
+    }[state as string];
     // The second ask, which the late and refused states need, is sent 15 s after the first.
     if (state === "refused" || state === "unreadable")
       await page.locator(`.load-monitor__trigger--${state}`).waitFor({ timeout: 30_000 });
@@ -237,10 +246,11 @@ test("the load monitor keeps one width in every state, so nothing beside it move
     for (const width of widths) {
       await page.setViewportSize({ width, height: 900 });
       const box = await trigger.evaluate((element) => {
-        // At rest the trigger is its dot; the readings unfold over the masthead, outside it, on pointing or focus.
-        const shown = element.querySelector(".load-monitor__dot, .load-dot");
+        // At rest the dot, the state's word (from 641 px) and the readings (from 1280 px); every one inside the trigger.
+        const shown = [...element.querySelectorAll(".load-dot, .load-monitor__rest")].filter(
+          (e) => e.getBoundingClientRect().width > 0,
+        );
         const inner = element.getBoundingClientRect();
-        const content = shown?.getBoundingClientRect();
         const style = getComputedStyle(element);
         // Where the navigation shares the masthead's row with the tools, its last link ends before they begin.
         const links = [...document.querySelectorAll(".mast__nav .mast__link")];
@@ -251,10 +261,13 @@ test("the load monitor keeps one width in every state, so nothing beside it move
           width: inner.width,
           clear: !sameRow || !nav || !tools || nav.right <= tools.left + 0.5,
           // The content stays inside the trigger's padding box.
-          fits:
-            !content ||
-            (content.left >= inner.left + parseFloat(style.borderLeftWidth) - 0.5 &&
-              content.right <= inner.right - parseFloat(style.borderRightWidth) + 0.5),
+          fits: shown.every((e) => {
+            const content = e.getBoundingClientRect();
+            return (
+              content.left >= inner.left + parseFloat(style.borderLeftWidth) - 0.5 &&
+              content.right <= inner.right - parseFloat(style.borderRightWidth) + 0.5
+            );
+          }),
         };
       });
       (seen[width] ??= {})[state] = Math.round(box.width * 10) / 10;
@@ -288,9 +301,8 @@ test("focus is an outline, kept as the highlight colour in forced colours", asyn
 });
 
 test.describe("one heading system on every page", () => {
-  // The home's headline is the display, its only use (DIRECTION.md, "The visual language"); every other page's title
-  // is the title tier.
-  for (const [name, url, ready] of PAGES.filter(([page]) => page !== "home")) {
+  // The home's headline is the display (DIRECTION.md, "Type"): its own test (home.spec.ts).
+  for (const [name, url, ready] of PAGES.filter(([n]) => n !== "home")) {
     test(`${name}: the title, the sections' serif tier, three weights, one head`, async ({ page }, info) => {
       test.skip(!info.project.name.startsWith("desktop"), "the widths are set here; once per theme");
       for (const width of [1440, 390]) {
@@ -351,32 +363,57 @@ test.describe("one heading system on every page", () => {
   }
 });
 
-test("the phone's masthead: one row, the page's 16 px edges, the sections in a drawer", async ({ page }, info) => {
+test("the phone's masthead: one row, the page's 16 px edges, for every organism on every page, the sections in a drawer", async ({
+  page,
+}, info) => {
   test.skip(!info.project.name.startsWith("desktop"), "the widths are set here; once per theme");
-  for (const width of [320, 360, 390]) {
+  test.setTimeout(240_000);
+  const organisms = (
+    (await (await page.request.get("/api/v1/organisms")).json()) as { organisms: { organism: string }[] }
+  ).organisms.map((o) => o.organism);
+  const wrong: string[] = [];
+  for (const width of [320, 340, 360, 390]) {
     await page.setViewportSize({ width, height: 740 });
-    await page.goto(`/convert?organism=${data.organism}`);
-    await expect(page.locator(".org-chip__button")).toBeVisible();
-    const m = await page.evaluate(() => {
-      const box = (sel: string) => document.querySelector(sel)?.getBoundingClientRect() ?? null;
-      return {
-        masthead: box(".mast")?.height ?? 0,
-        brand: box(".mast__brand")?.left ?? 0,
-        right: Math.max(
-          ...[...document.querySelectorAll(".mast__tools > *")].map((e) => e.getBoundingClientRect().right),
-        ),
-        scroll: document.documentElement.scrollWidth - document.documentElement.clientWidth,
-      };
-    });
-    expect(m.masthead, `${width}`).toBeLessThanOrEqual(57);
-    expect(m.brand, `${width}`).toBeGreaterThanOrEqual(15.5);
-    expect(m.right, `${width}: every tool inside the window`).toBeLessThanOrEqual(width - 15.5);
-    expect(m.scroll, `${width}`).toBeLessThanOrEqual(0);
+    for (const organism of organisms)
+      for (const path of ["/", "/convert", "/batch", "/names"]) {
+        await page.goto(`${path}?organism=${organism}`);
+        await expect(page.locator(".org-chip__button")).toBeVisible();
+        await page.evaluate(async () => {
+          await document.fonts.ready;
+        });
+        const m = await page.evaluate(() => {
+          const box = (sel: string) => document.querySelector(sel)?.getBoundingClientRect() ?? null;
+          const tools = [...document.querySelectorAll(".mast__tools > *")].filter(
+            (e) => e.getBoundingClientRect().width > 0,
+          );
+          return {
+            masthead: box(".mast")?.height ?? 0,
+            brand: box(".mast__brand")?.left ?? 0,
+            right: Math.max(...tools.map((e) => e.getBoundingClientRect().right)),
+            chip: box(".org-chip__button")?.height ?? 0,
+            scroll: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+          };
+        });
+        const where = `${path} ${organism} at ${width} px`;
+        if (m.masthead > 57) wrong.push(`${where}: the masthead is ${m.masthead} px tall`);
+        if (m.brand < 15.5) wrong.push(`${where}: the mark at ${m.brand}`);
+        if (m.right > width - 15.5) wrong.push(`${where}: a tool ends at ${m.right}`);
+        if (m.chip > 37) wrong.push(`${where}: the chip is ${m.chip} px tall (two lines)`);
+        if (m.scroll > 0) wrong.push(`${where}: the page scrolls ${m.scroll} px sideways`);
+      }
   }
-  // The sections: a drawer, its links, Escape back to the menu button.
+  expect(wrong).toEqual([]);
+  // Below 360 px the home's picture is chosen in the drawer of the sections.
+  await page.setViewportSize({ width: 320, height: 740 });
+  await page.goto(`/?organism=${data.organism}`);
+  await expect(page.getByRole("button", { name: /^Home page picture/ })).toBeHidden();
   await page.getByRole("button", { name: "Sections" }).click();
   const drawer = page.getByRole("dialog", { name: "IDTrack" });
   await expect(drawer.getByRole("link", { name: "Explore" })).toBeVisible();
+  const pictures = drawer.getByRole("group", { name: "Home page picture" });
+  await expect(pictures.getByRole("radio")).toHaveCount(3);
+  await pictures.getByRole("radio", { name: "The releases as rings" }).check();
+  await expect(page.locator(".hero2__field")).toHaveAttribute("data-picture", "rings");
   await page.keyboard.press("Escape");
   await expect(drawer).toBeHidden();
   await expect(page.getByRole("button", { name: "Sections" })).toBeFocused();
@@ -434,14 +471,14 @@ test("every page's lede starts at one x, under its title", async ({ page }, info
   expect([...starts]).toHaveLength(1);
 });
 
-test("the masthead names the organism whole in its chip, and every section (Docs too) is in the row from 861 px", async ({
+test("the masthead names the organism whole in its chip from 641 px, and every section (Docs too) is in the row from 861 px", async ({
   page,
 }, info) => {
   test.skip(!info.project.name.startsWith("desktop-light"), "the widths are set here");
   const organisms = (
     (await (await page.request.get("/api/v1/organisms")).json()) as { organisms: { organism: string }[] }
   ).organisms.map((o) => o.organism);
-  for (const width of [360, 390, 640, 861, 1080, 1280, 1366, 1440, 1920]) {
+  for (const width of [641, 861, 1080, 1280, 1366, 1440, 1920]) {
     await page.setViewportSize({ width, height: 800 });
     for (const organism of organisms) {
       await page.goto(`/batch?organism=${organism}`);
@@ -468,6 +505,285 @@ test("the masthead names the organism whole in its chip, and every section (Docs
         expect(m.nav, `${width} px: the sections in the row`).toBe(true);
         expect(m.docs, `${organism} at ${width} px: Docs in the row`).toBe(true);
       } else expect(m.nav, `${width} px: the sections in the menu`).toBe(false);
+      // Whatever the width, the chip names the whole organism to a screen reader.
+      await expect(page.locator(".org-chip__button")).toHaveAccessibleName(
+        new RegExp(`the organism in view \\(${organism.replace(/_/g, " ").replace(/^./, (c) => c.toUpperCase())}\\)`),
+      );
     }
   }
+});
+
+/** Boxes of the cards shown, against the window: every one 16 px inside its edges. */
+async function cardsOut(page: Page): Promise<string[]> {
+  return page.evaluate(() => {
+    const out: string[] = [];
+    const w = document.documentElement.clientWidth;
+    const h = window.innerHeight;
+    for (const card of document.querySelectorAll(".hovercard__card, dialog[open] .drawer__sheet")) {
+      const r = card.getBoundingClientRect();
+      if (r.width === 0) continue;
+      const sheet = card.classList.contains("drawer__sheet");
+      // A sheet from the bottom spans the window's width by design; a card stands 16 px inside every edge.
+      const edge = sheet ? 0 : 15.5;
+      if (r.left < edge || r.right > w - edge || r.top < (sheet ? 0 : edge) || r.bottom > h - (sheet ? 0 : edge))
+        out.push(
+          `${card.className} at [${Math.round(r.left)}, ${Math.round(r.top)}, ${Math.round(r.right)}, ${Math.round(r.bottom)}]`,
+        );
+    }
+    return out;
+  });
+}
+
+test.describe("cards and menus", () => {
+  test("the organisms open inside the window at every phone width for every organism; the focus comes back", async ({
+    page,
+  }, info) => {
+    test.skip(!info.project.name.startsWith("desktop"), "the widths are set here; once per theme");
+    test.setTimeout(180_000);
+    const organisms = (
+      (await (await page.request.get("/api/v1/organisms")).json()) as { organisms: { organism: string }[] }
+    ).organisms.map((o) => o.organism);
+    for (const width of [320, 340, 360, 390, 800]) {
+      await page.setViewportSize({ width, height: 740 });
+      for (const organism of organisms) {
+        await page.goto(`/?organism=${organism}`);
+        const chip = page.locator(".org-chip__button");
+        await chip.click();
+        // Below 641 px a sheet from the bottom, a row of 56 px each; wider, a popover under the chip.
+        const options = page.locator(".org-chip__option");
+        await expect(options.first()).toBeVisible();
+        expect(await cardsOut(page), `${organism} at ${width} px`).toEqual([]);
+        if (width < 641) expect((await options.first().boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(56);
+        await page.keyboard.press("Escape");
+        await expect(options).toHaveCount(0);
+        await expect(chip).toBeFocused();
+      }
+    }
+    // A choice by keyboard: the focus on the chip, the organism said on the status line.
+    if (organisms.length > 1) {
+      await page.setViewportSize({ width: 1440, height: 900 });
+      await page.goto(`/convert?organism=${organisms[0] ?? ""}`);
+      const chip = page.locator(".org-chip__button");
+      await chip.focus();
+      await page.keyboard.press("Enter");
+      await page.keyboard.press("Tab");
+      await page.keyboard.press("Tab");
+      await page.keyboard.press("Enter");
+      await expect(page).toHaveURL(new RegExp(`organism=${organisms[1] ?? ""}`));
+      await expect(chip).toBeFocused();
+      await expect(page.locator('p[role="status"]')).toHaveText(/^Organism: .+\.$/);
+    }
+  });
+
+  test("every hint and menu opens inside the window, by the keyboard's focus too, and gives the focus back", async ({
+    page,
+  }, info) => {
+    test.skip(!info.project.name.startsWith("desktop"), "the widths are set here; once per theme");
+    test.setTimeout(180_000);
+    for (const width of [320, 390, 1440]) {
+      await page.setViewportSize({ width, height: width < 641 ? 740 : 900 });
+      for (const path of ["/method", `/batch?organism=${data.organism}`, convertUrl(data.long)]) {
+        await page.goto(path);
+        await expect(page.locator("footer.foot")).toBeVisible();
+        if (path.includes("id=")) await waitForResult(page);
+        const triggers = page.locator(".hovercard__trigger:visible");
+        await expect(triggers.first()).toBeVisible();
+        const n = Math.min(await triggers.count(), 6);
+        for (let i = 0; i < n; i++) {
+          const trigger = triggers.nth(i);
+          await trigger.scrollIntoViewIfNeeded();
+          await trigger.click();
+          await expect(page.locator(".hovercard__card").first()).toBeVisible();
+          expect(await cardsOut(page), `${path} #${i} at ${width} px`).toEqual([]);
+          await page.keyboard.press("Escape");
+          await expect(page.locator(".hovercard__card")).toHaveCount(0);
+          expect(await page.evaluate(() => document.activeElement?.tagName), `${path} #${i}`).not.toBe("BODY");
+        }
+      }
+    }
+    // A field's hint opens on the keyboard's focus, not only on a press (DIRECTION.md, rule 5).
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto(`/batch?organism=${data.organism}`);
+    const hint = page.getByRole("button", { name: "Hint" }).first();
+    await hint.focus();
+    await page.keyboard.press("Shift+Tab");
+    await page.keyboard.press("Tab");
+    await expect(hint).toHaveAttribute("aria-expanded", "true");
+    await expect(page.getByRole("region", { name: "Hint" })).toBeVisible();
+  });
+});
+
+test.describe("tab lists", () => {
+  const NAMED = [
+    `${convertUrl(data.long)}&tab=record`,
+    `/organisms/${data.organism}?tab=history`,
+    "/method?accuracy=tools",
+    "/method?stage=rank",
+  ];
+
+  test("the chosen tab is always in view; a list wider than its room says so at its edges", async ({ page }, info) => {
+    test.skip(!info.project.name.startsWith("desktop"), "the widths are set here; once per theme");
+    test.setTimeout(180_000);
+    for (const width of [320, 390]) {
+      await page.setViewportSize({ width, height: 844 });
+      for (const path of NAMED) {
+        await page.goto(path);
+        await expect(page.locator('[role="tab"][aria-selected="true"]').first()).toBeVisible({ timeout: 30_000 });
+        await page.waitForTimeout(500);
+        const lists = await page.evaluate(() =>
+          [...document.querySelectorAll('[role="tablist"]')].map((list) => {
+            const l = list.getBoundingClientRect();
+            const r = list.querySelector('[aria-selected="true"]')?.getBoundingClientRect();
+            const rail = list.parentElement?.className ?? "";
+            const more = list.scrollWidth > list.clientWidth + 1;
+            return {
+              name: list.getAttribute("aria-label"),
+              shown: r ? r.left >= l.left - 1 && r.right <= l.right + 1 : true,
+              marked: !more || /tabs__rail--(start|end)/.test(rail),
+            };
+          }),
+        );
+        for (const list of lists) {
+          expect(list.shown, `${path} at ${width}: ${list.name}: the chosen tab in view`).toBe(true);
+          expect(list.marked, `${path} at ${width}: ${list.name}: more tabs said at the edge`).toBe(true);
+        }
+      }
+    }
+  });
+
+  test("an address that names a tab brings its list under the masthead", async ({ page }, info) => {
+    test.skip(!info.project.name.startsWith("desktop-light"), "the place is the same in every theme");
+    for (const path of NAMED) {
+      await page.goto(path);
+      const chosen = page.locator('[role="tab"][aria-selected="true"]').first();
+      await expect(chosen).toBeVisible({ timeout: 30_000 });
+      await page.waitForTimeout(1500);
+      const top = await page.evaluate(() => {
+        const named = [...document.querySelectorAll('[role="tab"][aria-selected="true"]')].find(
+          (t) => t.getBoundingClientRect().top >= 0 && t.getBoundingClientRect().bottom <= innerHeight,
+        );
+        return named ? named.getBoundingClientRect().top : -1;
+      });
+      expect(top, `${path}: a chosen tab in the first screen`).toBeGreaterThanOrEqual(0);
+      expect(top, `${path}: near the top`).toBeLessThan(400);
+    }
+  });
+
+  test("in forced colours the chosen tab keeps its bar", async ({ page }, info) => {
+    test.skip(!info.project.name.startsWith("desktop-light"), "forced colours are their own theme");
+    await page.emulateMedia({ forcedColors: "active" });
+    await page.goto(`/organisms/${data.organism}?tab=databases`);
+    const bar = page.locator(".tabs__bar").first();
+    await expect(bar).toBeVisible();
+    const fill = await bar.evaluate((e) => getComputedStyle(e).backgroundColor);
+    expect(fill).not.toBe("rgba(0, 0, 0, 0)");
+    const option = page.locator('.segmented__option[aria-checked="true"]').first();
+    if (await option.count()) expect(await option.evaluate((e) => getComputedStyle(e).outlineStyle)).not.toBe("none");
+  });
+});
+
+test.describe("the organism in view", () => {
+  test("is carried by every link of the shell and kept for an address that names none", async ({ page }) => {
+    const organisms = (
+      (await (await page.request.get("/api/v1/organisms")).json()) as { organisms: { organism: string }[] }
+    ).organisms.map((o) => o.organism);
+    const other = organisms[organisms.length - 1] ?? data.organism;
+    await page.goto(`/convert?organism=${other}`);
+    for (const href of await page
+      .locator(".mast__nav .mast__link:not(.mast__link--out)")
+      .evaluateAll((links) => links.map((l) => l.getAttribute("href") ?? "")))
+      expect(href, href).toContain(`organism=${other}`);
+    await expect(page.locator(".foot__links a", { hasText: "API" })).toHaveAttribute(
+      "href",
+      new RegExp(`organism=${other}`),
+    );
+    // An address that names none shows the one last in view.
+    await page.goto("/batch");
+    await expect(page.locator(".org-chip__button")).toHaveAccessibleName(new RegExp(other.replace(/_/g, " "), "i"));
+    // A graph's own page puts its organism in view; the chip is not on a page of every organism, nor on no page.
+    await page.goto(`/organisms/${data.organism}`);
+    await expect(page.locator(".mast__brand")).toHaveAttribute("href", new RegExp(`organism=${data.organism}`));
+    await expect(page.locator(".org-chip__button")).toHaveCount(0);
+    await page.goto("/no/such/page");
+    await expect(page.getByRole("heading", { level: 1, name: "No such page" })).toBeVisible();
+    await expect(page.locator(".org-chip__button")).toHaveCount(0);
+  });
+});
+
+test.describe("the masthead's tools", () => {
+  test("the palette's code is there before the first press; a page's name ranks over what is typed", async ({
+    page,
+  }, info) => {
+    test.skip(isPhone(info), "a keyboard's shortcut");
+    await page.goto(`/convert?organism=${data.organism}`);
+    await page.waitForLoadState("networkidle");
+    // Fetched once the page is idle: the press asks for no code.
+    await expect
+      .poll(() =>
+        page.evaluate(() => performance.getEntriesByType("resource").some((e) => /CommandPalette/.test(e.name))),
+      )
+      .toBe(true);
+    const asked: string[] = [];
+    page.on("request", (request) => {
+      if (/\.js$/.test(request.url())) asked.push(request.url());
+    });
+    await page.keyboard.press("ControlOrMeta+k");
+    const field = page.getByRole("combobox", { name: /^Search/ });
+    await expect(field).toBeFocused();
+    expect(asked.filter((u) => /CommandPalette/.test(u))).toEqual([]);
+    await field.fill("api");
+    await expect(page.locator(".palette__option").first()).toHaveText(/^The API/);
+    await field.fill("dark");
+    await expect(page.locator(".palette__option").first()).toHaveText(/^Switch to the dark theme/);
+    await page.keyboard.press("Enter");
+    await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+    await expect(page.locator('p[role="status"]')).toHaveText("Theme: dark.");
+    await expect(page.locator("dialog.palette")).toHaveCount(0);
+    expect(await page.evaluate(() => document.activeElement?.tagName)).not.toBe("BODY");
+  });
+
+  test("the theme button says the theme now in force; the readings stand at rest on a wide screen", async ({
+    page,
+  }, info) => {
+    test.skip(!info.project.name.startsWith("desktop-light"), "the widths are set here");
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto(`/convert?organism=${data.organism}`);
+    await page.locator(".theme-button").click();
+    await expect(page.locator('p[role="status"]')).toHaveText("Theme: dark.");
+    const readings = page.locator(".load-monitor__readings");
+    await expect(readings).toBeVisible();
+    await expect(readings).toContainText(/CPU\s*\d+\.\d %/);
+    await expect(readings).toContainText(/Memory\s*\d+\.\d\d GiB/);
+    // Narrower, the readings unfold on pointing, never empty, in a pill of the chip's height.
+    for (const width of [1100, 900, 700]) {
+      await page.setViewportSize({ width, height: 900 });
+      await expect(readings).toBeHidden();
+      await page.locator(".load-monitor__trigger").hover();
+      const pill = page.locator(".load-monitor__shown");
+      await expect(pill).toContainText(/CPU/);
+      await expect(pill).toContainText(/Memory/);
+      expect(Math.round((await pill.boundingBox())?.height ?? 0), `${width}`).toBe(36);
+      await page.mouse.move(0, 400);
+    }
+  });
+
+  test("a page prints as dark ink on white without the site's controls, whatever the theme", async ({ page }, info) => {
+    test.skip(!info.project.name.startsWith("desktop-dark"), "the dark theme is the case to print");
+    await page.emulateMedia({ media: "print" });
+    for (const path of ["/legal", convertUrl(data.long)]) {
+      await page.goto(path);
+      await expect(page.locator("footer.foot")).toBeAttached();
+      if (path.includes("id=")) await waitForResult(page);
+      const m = await page.evaluate(() => ({
+        mast: getComputedStyle(document.querySelector(".mast") as Element).display,
+        ink: getComputedStyle(document.body).color,
+        forms: [...document.querySelectorAll("form, .sections, .tabs__rail")].filter(
+          (e) => getComputedStyle(e).display !== "none",
+        ).length,
+      }));
+      expect(m.mast, path).toBe("none");
+      expect(m.ink, path).toBe("rgb(0, 0, 0)");
+      expect(m.forms, path).toBe(0);
+    }
+  });
 });

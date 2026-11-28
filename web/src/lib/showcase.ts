@@ -33,6 +33,14 @@ export function caseIndex(cases: readonly { query: ShowcaseQuery }[], wanted: Wa
   return cases.findIndex((c) => same(c.query, wanted));
 }
 
+/** The showcase's queries of a graph without their answers (a few kilobytes, where the whole showcase is hundreds):
+ *  what a view needs that only names the cases (the tour above an answer, the palette). */
+export function useShowcaseQueries(organism: string | null) {
+  return useRequest(organism === null ? null : `showcase-queries|${organism}`, (signal, fresh) =>
+    api.showcaseQueries(organism ?? "", { signal, fresh }),
+  );
+}
+
 /** The showcase of a graph (one request per page session; the shared cache answers every later view). */
 export function useShowcase(organism: string | null) {
   return useRequest(organism === null ? null : `showcase|${organism}`, (signal, fresh) =>

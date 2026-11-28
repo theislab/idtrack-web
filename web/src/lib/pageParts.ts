@@ -1,8 +1,9 @@
-// The pages loaded when first visited (all but Convert, so that the first page loads small), and the code of the page
-// of the address the app starts at, asked for at once.
+// The pages loaded when first visited (all but the home, so that the first page loads small), the code of the page of
+// the address the app starts at, asked for at once, and a page's code asked for when a link to it is pointed at.
 import { lazyPart } from "./lazyPart";
 import { routeOf } from "./routes";
 
+export const ConvertPage = lazyPart(() => import("../pages/ConvertPage").then((m) => ({ default: m.ConvertPage })));
 export const BatchPage = lazyPart(() => import("../pages/BatchPage").then((m) => ({ default: m.BatchPage })));
 export const NamesPage = lazyPart(() => import("../pages/NamesPage").then((m) => ({ default: m.NamesPage })));
 export const MethodPage = lazyPart(() => import("../pages/MethodPage").then((m) => ({ default: m.MethodPage })));
@@ -30,9 +31,10 @@ export const AccessibilityPage = lazyPart(() =>
  *  page's code never waits for the organisms to arrive before it is asked for; an address that holds an identifier
  *  also fetches the answer's view beside its conversion. The promise settles when the page's code has arrived (or
  *  failed): the app is first drawn then (main.tsx), over the page's frame, so the page is drawn whole at once. */
-function preloadRoute(path: string, search: string): Promise<void> {
+export function preloadRoute(path: string, search = ""): Promise<void> {
   const route = routeOf(path);
   const part = {
+    convert: ConvertPage,
     batch: BatchPage,
     names: NamesPage,
     method: MethodPage,

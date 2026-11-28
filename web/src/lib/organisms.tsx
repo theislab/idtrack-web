@@ -1,5 +1,7 @@
 // What the server holds (`/organisms`, `/version`), what its codes mean (`/vocabulary`) and its bounds (`/limits`),
-// read once and shared by every view, and the organism chosen. When the graphs' digests change (the server was
+// read once and shared by every view, and the organism in view: the one the address names (`?organism=`, or the
+// graph's own page `/organisms/<organism>`), else the one last in view in this browser, else a default. Every link of
+// the shell carries it, so that it stays in view from section to section until another is chosen. When the graphs' digests change (the server was
 // given other graphs), every answer held of the earlier ones is forgotten and every view's read is asked again
 // (api/client.ts, a new generation): the version, vocabulary and limits too, and /organisms only once.
 import { createContext, use, useEffect, useMemo, useRef, type ReactNode } from "react";
@@ -9,6 +11,7 @@ import { commonName } from "./organismNames";
 import { FAILED_VOCABULARY, NO_VOCABULARY, readVocabulary } from "./vocabulary";
 import { LimitsContext, VocabularyContext } from "./vocabularyContext";
 import { href, navigate, useLocation } from "./router";
+import { routeOf } from "./routes";
 import { setDocsRoot } from "./links";
 import { useRequest } from "./useRequest";
 
@@ -16,6 +19,25 @@ import { useRequest } from "./useRequest";
 const KEPT = ["id", "name", "fold_case"];
 
 const PREFERRED = ["homo_sapiens", "mus_musculus", "sus_scrofa"];
+
+/** The organism last in view, kept in the browser (listed on the privacy page: lib/site/storage.ts). */
+const REMEMBERED = "idtrack-organism";
+
+function remembered(): string | null {
+  try {
+    return window.localStorage.getItem(REMEMBERED);
+  } catch {
+    return null;
+  }
+}
+
+function remember(organism: string): void {
+  try {
+    window.localStorage.setItem(REMEMBERED, organism);
+  } catch {
+    // Storage may be off (a private window): the organism is then carried by the addresses alone.
+  }
+}
 
 interface OrganismsValue {
   status: "loading" | "done" | "failed";
@@ -25,7 +47,7 @@ interface OrganismsValue {
   version: VersionResponse | null;
   /** The state of each fact the pages share, so that a placeholder of one that failed says "not read". */
   facts: Record<"version" | "vocabulary" | "limits", "loading" | "done" | "failed">;
-  /** The organism in view (the address's `organism`, else a default), and its description. */
+  /** The organism in view (the address's, else the one last in view in this browser, else a default). */
   current: GraphDescription | null;
   /** The address asked for an organism the server does not hold. */
   unknownRequested: string | null;
@@ -89,7 +111,9 @@ export function OrganismsProvider({ children }: { children: ReactNode }) {
     [vocabulary],
   );
   const location = useLocation();
-  const requested = location.search.get("organism");
+  const named = location.search.get("organism");
+  const route = routeOf(location.path);
+  const requested = named ?? (route.page === "organism" ? route.organism : null);
 
   const value = useMemo<OrganismsValue>(() => {
     const list = organisms.state === "done" ? organisms.answer.data.organisms : [];
@@ -97,7 +121,7 @@ export function OrganismsProvider({ children }: { children: ReactNode }) {
       name === null
         ? undefined
         : list.find((o) => o.organism === name || commonName(o.organism) === name.toLowerCase());
-    const fallback = PREFERRED.map((p) => byName(p)).find(Boolean) ?? list[0] ?? null;
+    const fallback = byName(remembered()) ?? PREFERRED.map((p) => byName(p)).find(Boolean) ?? list[0] ?? null;
     const asked = byName(requested);
     const status = organisms.state === "failed" ? "failed" : organisms.state === "done" ? "done" : "loading";
     return {
@@ -117,14 +141,28 @@ export function OrganismsProvider({ children }: { children: ReactNode }) {
         limits: factState(limits.state),
       },
       current: asked ?? fallback,
-      unknownRequested: requested !== null && list.length > 0 && !asked ? requested : null,
+      // A graph's own page says itself when it names no graph of the server.
+      unknownRequested: named !== null && list.length > 0 && !asked ? named : null,
       choose: (organism: string) => {
-        // Releases and databases belong to one graph; the identifier, a name or a gene may be asked of another.
+        remember(organism);
+        // On a graph's page, another graph is its page (the same tab); elsewhere the same page of the other graph:
+        // releases and databases belong to one graph; the identifier, a name or a gene may be asked of another.
+        if (route.page === "organism") {
+          navigate(href(`/organisms/${encodeURIComponent(organism)}`, { tab: location.search.get("tab") }));
+          return;
+        }
         const kept = Object.fromEntries([...location.search.entries()].filter(([key]) => KEPT.includes(key)));
         navigate(href(location.path, { ...kept, organism }));
       },
     };
-  }, [organisms, version, vocabulary, limits, requested, location.path, location.search]);
+  }, [organisms, version, vocabulary, limits, requested, named, route.page, location.path, location.search]);
+  // What the address names is the organism in view from now on, also where a later address names none.
+  const inView = value.current?.organism ?? null;
+  const fromAddress =
+    inView !== null && requested !== null && (inView === requested || commonName(inView) === requested.toLowerCase());
+  useEffect(() => {
+    if (fromAddress && inView) remember(inView);
+  }, [fromAddress, inView]);
 
   return (
     <Context value={value}>

@@ -1035,12 +1035,6 @@ code {
   line-height: var(--leading-head);
 }
 
-.notice__message {
-  font-family: var(--font-mono);
-  font-size: var(--text-sm);
-  overflow-wrap: anywhere;
-}
-
 .notice__meta {
   color: var(--ink-3);
   font-size: var(--text-sm);
@@ -1069,12 +1063,6 @@ code {
 .empty--small {
   padding: var(--space-4);
   margin-top: var(--space-4);
-}
-
-.empty__title {
-  font-weight: var(--weight-strong);
-  font-size: var(--text-lg);
-  color: var(--ink-1);
 }
 
 .skeleton {
@@ -1145,17 +1133,6 @@ code {
 }
 
 /* ---- Batch, names, organisms, about --------------------------------------------------------------------------- */
-
-.about-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 460px), 1fr));
-  gap: var(--space-5);
-  align-items: start;
-}
-
-.about-grid > * {
-  min-width: 0;
-}
 
 .page--organism .panel + .panel {
   margin-top: var(--space-5);
@@ -1338,5 +1315,68 @@ code {
   .switch__track,
   .switch__thumb {
     transition: none;
+  }
+}
+
+/* ---- Print ---------------------------------------------------------------------------------------------------- */
+
+/* Any page prints as dark ink on white (the dark theme's tokens hold on the screen only: tokens.css), without the
+   site's controls: the masthead, Convert's tabs, a tab list, the forms, the toolbars, the drawers and the notice of
+   counting. What a page says stays, with its paragraphs' spacing, inside set margins. */
+@media print {
+  @page {
+    margin: 16mm 14mm;
+  }
+
+  :root {
+    color-scheme: light;
+  }
+
+  body {
+    background: #fff;
+    color: #000;
+  }
+
+  .mast,
+  .skip,
+  .sections,
+  .consent,
+  .tabs__rail,
+  form,
+  .pv-toolbar,
+  .answer__actions,
+  .drawer,
+  .palette,
+  .reload-notice {
+    display: none !important;
+  }
+
+  main,
+  .page {
+    max-width: none;
+    padding-left: 0;
+    padding-right: 0;
+  }
+
+  p,
+  li {
+    orphans: 3;
+    widows: 3;
+  }
+
+  h1,
+  h2,
+  h3 {
+    break-after: avoid;
+  }
+
+  figure,
+  table,
+  .notice {
+    break-inside: avoid;
+  }
+
+  a[href] {
+    color: inherit;
   }
 }

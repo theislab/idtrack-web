@@ -17,12 +17,12 @@ import { OrganismsProvider, useOrganisms } from "./lib/organisms";
 import { routeOf } from "./lib/routes";
 import { navigate, useLocation } from "./lib/router";
 import { organismLike, pageNameOf, setPageTitle } from "./lib/title";
-import { ConvertPage } from "./pages/ConvertPage";
 import { HomePage } from "./pages/HomePage";
 import {
   AccessibilityPage,
   ApiPage,
   BatchPage,
+  ConvertPage,
   LegalPage,
   LicencesPage,
   MethodPage,
@@ -115,13 +115,14 @@ function Page() {
     );
   }
   if (status === "loading" && route.page === "convert") {
-    // The Convert page's head names no organism: it is drawn at once, its form and figures when the organisms arrive.
+    // The Convert page's head names no organism: it is drawn at once, its form and figures when the organisms arrive
+    // (in the place it keeps when they have: the second of two, so nothing of it is drawn anew).
     return (
       <>
         {null}
-        <ErrorBoundary part="This page" resetKey={path} framed>
+        <Part path={path}>
           <ConvertPage />
-        </ErrorBoundary>
+        </Part>
       </>
     );
   }
@@ -168,9 +169,9 @@ function Page() {
   let page;
   if (route.page === "convert")
     page = (
-      <ErrorBoundary part="This page" resetKey={path} framed>
+      <Part path={path}>
         <ConvertPage />
-      </ErrorBoundary>
+      </Part>
     );
   else if (route.page === "batch")
     page = (

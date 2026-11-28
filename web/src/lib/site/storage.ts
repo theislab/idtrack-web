@@ -51,6 +51,34 @@ export const STORED: Stored[] = [
     },
   },
   {
+    key: "idtrack-organism",
+    where: "local",
+    en: {
+      holds:
+        "The organism last in view (chosen in the header, or named by an address you opened), so that a page whose address names none shows it again.",
+      when: "From the first page that names an organism; until another one is in view.",
+    },
+    de: {
+      holds:
+        "Der zuletzt angezeigte Organismus (in der Kopfzeile gewählt oder von einer geöffneten Adresse genannt), damit eine Seite, deren Adresse keinen nennt, ihn wieder zeigt.",
+      when: "Ab der ersten Seite, die einen Organismus nennt; bis ein anderer angezeigt wird.",
+    },
+  },
+  {
+    key: "idtrack-recent",
+    where: "local",
+    en: {
+      holds:
+        "The last five conversions you opened (the organism, the identifier, the releases and the database), offered under “Recent” in the search.",
+      when: "From your first conversion; until you choose “Clear recent” in the search.",
+    },
+    de: {
+      holds:
+        "Die letzten fünf geöffneten Umwandlungen (Organismus, Kennung, Releases und Datenbank), in der Suche unter „Recent“ angeboten.",
+      when: "Ab Ihrer ersten Umwandlung; bis Sie in der Suche „Clear recent“ wählen.",
+    },
+  },
+  {
     key: "idtrack-consent",
     where: "local",
     counting: true,

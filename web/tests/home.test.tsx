@@ -428,14 +428,16 @@ describe("the kinds of the cases", () => {
     expect(card?.querySelector(".case__line")?.textContent).toContain(tie.query_id);
     expect(card?.textContent).not.toContain(KIND_TEXT.tie.concept);
     fireEvent.click(screen.getByRole("button", { name: /^About this case: a tie, not a guess/ }));
+    // The hover card is drawn over the page, named by its trigger.
+    const about = screen.getByRole("region", { name: /^About this case: a tie, not a guess/ });
     for (const target of new Set(
       tie.candidates
         .filter((c) => c.best)
         .slice(0, 2)
         .map((c) => c.target),
     ))
-      expect(card?.textContent).toContain(target);
-    expect(card?.textContent).toContain(KIND_TEXT.tie.concept);
+      expect(about.textContent).toContain(target);
+    expect(about.textContent).toContain(KIND_TEXT.tie.concept);
     // The small figure is drawn once the page has painted what comes first.
     await waitFor(() => {
       expect(document.querySelector(".case-sketch svg[role=img]")?.getAttribute("aria-label")).toContain(tie.query_id);

@@ -124,6 +124,8 @@
   --dur-2: 200ms;
   --dur-3: 320ms;
   --dur-4: 900ms;
+  /* What closes leaves faster than what opens (a drawer, a popover, the palette): kept drawn this long while it fades. */
+  --dur-exit: 160ms;
 
   /* v2 colours (light): the accent of a selection and a focus within a control, glass, elevations */
   --accent: #1f4fd1;
@@ -140,6 +142,7 @@
     --dur-2: 0ms;
     --dur-3: 0ms;
     --dur-4: 0ms;
+    --dur-exit: 0ms;
   }
 }
 
@@ -157,45 +160,48 @@
   }
 }
 
-/* The dark theme: its own steps of the same hues, checked separately (not an inversion). */
-:root[data-theme="dark"] {
-  color-scheme: dark;
+/* The dark theme: its own steps of the same hues, checked separately (not an inversion); on the screen only, so that
+   a page prints in the light theme's ink whatever the theme on screen (app.css, "Print"). */
+@media screen {
+  :root[data-theme="dark"] {
+    color-scheme: dark;
 
-  --paper: #0b0d10;
-  --surface: #111418;
-  --surface-sunk: #161a1f;
-  --surface-raised: #181c22;
-  --band: #1a1e24;
-  --ink-1: #eceef1;
-  --ink-2: #b9bec6;
-  --ink-3: #a5abb4;
-  --line: #262b32;
-  --line-strong: #434a54;
-  --line-control: #737b87;
-  --grid: rgb(236 238 241 / 4%);
-  --shadow: 0 1px 2px rgb(0 0 0 / 40%), 0 8px 24px rgb(0 0 0 / 30%);
-  --shadow-pop: 0 2px 6px rgb(0 0 0 / 50%), 0 18px 48px rgb(0 0 0 / 55%);
-  --inverse-paper: #eceef1;
-  --inverse-ink: #0b0d10;
-  --hue-history: #5b8def;
-  --hue-event: #e0702a;
-  --hue-external: #1f9e78;
-  --hue-handoff: #d45cb8;
-  --state-ok: #5cc28f;
-  --state-warn: #e3b25a;
-  --state-danger: #ff8a7a;
-  --state-ok-surface: #13241b;
-  --state-danger-surface: #2a1714;
-  --state-warn-surface: #2a2113;
-  --accent: #7aa2ff;
-  --accent-soft: rgb(122 162 255 / 14%);
-  --glass: rgb(11 13 16 / 72%);
-  --elev-1: 0 0 0 1px rgb(255 255 255 / 4%), 0 8px 24px rgb(0 0 0 / 35%);
-  --elev-2: 0 0 0 1px rgb(255 255 255 / 6%), 0 16px 40px rgb(0 0 0 / 50%);
-  --elev-3: 0 0 0 1px rgb(255 255 255 / 7%), 0 32px 80px rgb(0 0 0 / 60%);
+    --paper: #0b0d10;
+    --surface: #111418;
+    --surface-sunk: #161a1f;
+    --surface-raised: #181c22;
+    --band: #1a1e24;
+    --ink-1: #eceef1;
+    --ink-2: #b9bec6;
+    --ink-3: #a5abb4;
+    --line: #262b32;
+    --line-strong: #434a54;
+    --line-control: #737b87;
+    --grid: rgb(236 238 241 / 4%);
+    --shadow: 0 1px 2px rgb(0 0 0 / 40%), 0 8px 24px rgb(0 0 0 / 30%);
+    --shadow-pop: 0 2px 6px rgb(0 0 0 / 50%), 0 18px 48px rgb(0 0 0 / 55%);
+    --inverse-paper: #eceef1;
+    --inverse-ink: #0b0d10;
+    --hue-history: #5b8def;
+    --hue-event: #e0702a;
+    --hue-external: #1f9e78;
+    --hue-handoff: #d45cb8;
+    --state-ok: #5cc28f;
+    --state-warn: #e3b25a;
+    --state-danger: #ff8a7a;
+    --state-ok-surface: #13241b;
+    --state-danger-surface: #2a1714;
+    --state-warn-surface: #2a2113;
+    --accent: #7aa2ff;
+    --accent-soft: rgb(122 162 255 / 14%);
+    --glass: rgb(11 13 16 / 72%);
+    --elev-1: 0 0 0 1px rgb(255 255 255 / 4%), 0 8px 24px rgb(0 0 0 / 35%);
+    --elev-2: 0 0 0 1px rgb(255 255 255 / 6%), 0 16px 40px rgb(0 0 0 / 50%);
+    --elev-3: 0 0 0 1px rgb(255 255 255 / 7%), 0 32px 80px rgb(0 0 0 / 60%);
+  }
 }
 
-@media (prefers-color-scheme: dark) {
+@media screen and (prefers-color-scheme: dark) {
   :root[data-theme="system"] {
     color-scheme: dark;
 

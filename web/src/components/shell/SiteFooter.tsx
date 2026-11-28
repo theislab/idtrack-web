@@ -5,12 +5,13 @@
 import { BENCHMARKS_SOURCE, docsPage, IDTRACK_PACKAGE, IDTRACK_SOURCE, SITE_SOURCE } from "../../lib/links";
 import { useOrganisms } from "../../lib/organisms";
 import { LogoMark } from "../Logo";
+import { href } from "../../lib/router";
 import { Link, Mono } from "../ui";
 import { SitePageLinks } from "../SitePages";
 import { ConsentSettings } from "./Consent";
 
 export function SiteFooter() {
-  const { version, facts } = useOrganisms();
+  const { version, facts, current } = useOrganisms();
   const releases = version ? [...new Set(version.graphs.map((g) => g.snapshot_release))].join(", ") : null;
   const pending = facts.version === "failed" ? "not read" : "…";
   return (
@@ -37,7 +38,7 @@ export function SiteFooter() {
           <a href={docsPage()}>Documentation</a>
           <a href={IDTRACK_PACKAGE}>PyPI</a>
           <a href={IDTRACK_SOURCE}>GitHub</a>
-          <Link to="/developers">API</Link>
+          <Link to={href("/developers", current ? { organism: current.organism } : {})}>API</Link>
           <a href="/llms.txt">llms.txt</a>
           <span className="foot__quiet">
             Sources: <a href={SITE_SOURCE}>this site</a>, <a href={BENCHMARKS_SOURCE}>the benchmarks</a>

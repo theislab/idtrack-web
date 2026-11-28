@@ -28,6 +28,7 @@ export type CriterionField = Schemas["CriterionField"];
 export type LimitsResponse = Schemas["LimitsResponse"];
 export type StatusResponse = Schemas["StatusResponse"];
 export type ShowcaseResponse = Schemas["ShowcaseResponse"];
+export type ShowcaseQueriesResponse = Schemas["ShowcaseQueriesResponse"];
 export type ShowcaseQuery = Schemas["ShowcaseQuery"];
 export type ShowcaseQueriesResponse = Schemas["ShowcaseQueriesResponse"];
 export type HistoryResponse = Schemas["HistoryResponse"];

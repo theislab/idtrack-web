@@ -1,11 +1,13 @@
-// The panel "Server load" (loaded on the monitor's first open): the server's CPU and memory against what it may use,
-// every process, the requests and their latency, how each number is measured, and charts of this session's samples.
-// A drawer (DIRECTION.md, "Load panel"): from the right on a wide screen, from the bottom on a phone; focus moves to
-// its title, Escape (after a shown value's tip), its close button or a press beside it closes it, and focus returns
-// to the monitor.
+// The panel "Server load" (its code fetched once the page is idle): at first view the state in a sentence, then CPU and
+// memory, each one value with its share and a chart of this session's samples under a one-line caption; every
+// definition beside its label in a hint or in "How it is measured"; every process, the requests and their latency,
+// and the answer as sent, each an expandable row. A drawer (DIRECTION.md, "Load panel"): from the right on a wide
+// screen, from the bottom on a phone; focus moves to its title, Escape (after a shown value's tip), its close button or
+// a press beside it closes it, and focus returns to the monitor.
 import { useEffect, useId, useRef, useState, type KeyboardEvent, type PointerEvent } from "react";
 import type { StatusResponse } from "../api/types";
 import {
+  capacityShare,
   clock,
   logTicks,
   coresSource,
@@ -15,6 +17,7 @@ import {
   memoryShare,
   memorySource,
   milliseconds,
+  occupancy,
   niceTop,
   placeOnLine,
   OPEN_INTERVAL_MS,
@@ -40,6 +43,7 @@ import { useWidth } from "./figure/useWidth";
 import { Absent, Mono, TableFrame } from "./ui";
 import { Drawer } from "./v2/Drawer";
 import { Expandable } from "./v2/Expandable";
+import { Hint } from "./v2/HoverCard";
 import "../styles/load-panel.css";
 
 const CHART_H = 104;
@@ -469,6 +473,121 @@ function LatencyStrip({ status }: { status: StatusResponse }) {
   );
 }
 
+interface SectionProps {
+  status: StatusResponse;
+  samples: Sample[];
+  /** The chart's value axis's top. */
+  top: number;
+  titleId: string;
+}
+
+/** CPU: the cores used against the workers' capacity, the share of the machine's, and their chart. */
+function CpuSection({ status, samples, top, titleId }: SectionProps) {
+  const share = capacityShare(status);
+  return (
+    <section className="load-section" aria-labelledby={`${titleId}-cpu`}>
+      <h3 id={`${titleId}-cpu`} className="load-section__title">
+        CPU
+      </h3>
+      <p className="load-figure">
+        {status.cpu.cores_used === null ? (
+          <Missing field="cpu.cores_used" />
+        ) : (
+          <>
+            <Value reading={cores(status.cpu.cores_used)} strong /> cores
+            {share === null ? null : (
+              <>
+                {" "}
+                · <Value reading={percent(share)} strong /> of the workers&apos; capacity
+              </>
+            )}
+            <Hint descriptionId={`${titleId}-capacity`}>
+              One core for each of the {groupedInteger(status.workers_alive)} workers alive: a worker runs one search at
+              a time, and a search holds Python&apos;s interpreter lock. The master and each worker&apos;s other threads
+              use the cores too, so the share can pass 100 % for a moment.
+            </Hint>
+          </>
+        )}
+      </p>
+      <p className="load-figure__more">
+        {status.cpu.share_of_available === null ? (
+          <Missing field="cpu.share_of_available" />
+        ) : (
+          <>
+            <Value reading={percent(status.cpu.share_of_available)} /> of the{" "}
+            {groupedInteger(status.cpu.cores_available)} cores available
+            <Hint descriptionId={`${titleId}-cores`}>The cores available: {coresSource(status)}.</Hint>
+          </>
+        )}
+      </p>
+      <LoadChart
+        label="Cores used over this session"
+        samples={samples}
+        value={(s) => s.coresUsed}
+        top={top}
+        tick={(v) => `${Number(v.toFixed(3))}`}
+        read={(s) =>
+          s.coresUsed === null
+            ? "not measured"
+            : `${cores(s.coresUsed).text} cores${s.capacityShare === null ? "" : `, ${percent(s.capacityShare).text} of the workers' capacity`}`
+        }
+        reference={{
+          value: status.workers_alive,
+          label: `${groupedInteger(status.workers_alive)} workers' capacity`,
+        }}
+      />
+      <p className="load-caption">Cores in use by all the server&apos;s processes, this session.</p>
+    </section>
+  );
+}
+
+/** Memory: the server's footprint against its limit, and its chart. */
+function MemorySection({ status, samples, top, titleId }: SectionProps) {
+  const share = memoryShare(status);
+  return (
+    <section className="load-section" aria-labelledby={`${titleId}-memory`}>
+      <h3 id={`${titleId}-memory`} className="load-section__title">
+        Memory
+      </h3>
+      <p className="load-figure">
+        {status.memory.pss_bytes === null ? (
+          <Missing field="memory.pss_bytes" />
+        ) : (
+          <>
+            <Value reading={gib(status.memory.pss_bytes)} strong />
+            {share === null || status.memory.limit_bytes === null ? null : (
+              <>
+                {" "}
+                · <Value reading={percent(share)} strong /> of its limit,{" "}
+                <Value reading={gib(status.memory.limit_bytes)} />
+              </>
+            )}
+            <Hint descriptionId={`${titleId}-pss`}>
+              The server&apos;s own footprint: its processes&apos; PSS summed, each resident page divided by the number
+              of processes sharing it, so the graphs, loaded once by the master before it forks the workers, count once
+              in all. The limit: {memorySource(status)}.
+            </Hint>
+          </>
+        )}
+      </p>
+      <LoadChart
+        label="Footprint (PSS) over this session"
+        samples={samples}
+        value={(s) => s.pssBytes}
+        top={top}
+        tick={(v) => `${Number((v / 2 ** 30).toFixed(2))} GiB`}
+        read={(s) => (s.pssBytes === null ? "not measured" : `${gib(s.pssBytes).text} PSS`)}
+        reference={
+          status.memory.limit_bytes === null
+            ? null
+            : { value: status.memory.limit_bytes, label: `limit ${gib(status.memory.limit_bytes).text}` }
+        }
+      />
+      <p className="load-caption">The server&apos;s footprint (PSS summed), this session.</p>
+    </section>
+  );
+}
+
 export default function LoadPanel({
   id,
   open,
@@ -517,7 +636,7 @@ export default function LoadPanel({
   const status = latest?.status ?? null;
   const unavailable = new Set(status?.unavailable ?? []);
   const ages = status ? sampleAges(status) : null;
-  const memShare = status ? memoryShare(status) : null;
+  const searching = status ? occupancy(status) : null;
   const cpuTop = niceTop(Math.max(0.05, ...samples.map((s) => s.coresUsed ?? 0)) * 1.2);
   const pssMax = Math.max(0, ...samples.map((s) => s.pssBytes ?? 0));
   const memTop = niceTop(Math.max(1, (pssMax / 2 ** 30) * 1.25)) * 2 ** 30;
@@ -598,157 +717,32 @@ export default function LoadPanel({
             aria-label="The values (one tab stop: the arrow keys move between the exact values)"
             className={`load-panel__data${state === "late" || state === "refused" || state === "unreadable" ? " load-panel__data--stale" : ""}`}
           >
-            <section className="load-section" aria-labelledby={`${titleId}-cpu`}>
-              <h3 id={`${titleId}-cpu`} className="load-section__title">
-                <span className="panel-letter">a</span> CPU
-              </h3>
-              <dl className="load-stats">
-                <Stat
-                  label="Cores used"
-                  note={`of ${groupedInteger(status.cpu.cores_available)} available: ${coresSource(status)}`}
-                >
-                  {status.cpu.cores_used === null ? (
-                    <Missing field="cpu.cores_used" />
-                  ) : (
-                    <Value reading={cores(status.cpu.cores_used)} strong />
-                  )}
-                </Stat>
-                <Stat label="Share of the cores available">
-                  {status.cpu.share_of_available === null ? (
-                    <Missing field="cpu.share_of_available" />
-                  ) : (
-                    <Value reading={percent(status.cpu.share_of_available)} strong />
-                  )}
-                </Stat>
-              </dl>
-              <LoadChart
-                label="Cores used over this session"
-                samples={samples}
-                value={(s) => s.coresUsed}
-                top={cpuTop}
-                tick={(v) => `${Number(v.toFixed(3))}`}
-                read={(s) =>
-                  s.coresUsed === null
-                    ? "not measured"
-                    : `${cores(s.coresUsed).text} cores${s.cpuShare === null ? "" : `, ${percent(s.cpuShare).text} of those available`}`
-                }
-                reference={{
-                  value: status.cpu.cores_available,
-                  label: `${groupedInteger(status.cpu.cores_available)} available`,
-                }}
-              />
-              <p className="load-caption">
-                Cores kept busy by the server&apos;s processes (master and workers summed; 1 is one core). The line
-                begins with the server&apos;s own samples of the last minutes (one every{" "}
-                {status.history.interval_seconds}&nbsp;s, sent with the answer), then each answer this page takes: every{" "}
-                {OPEN_INTERVAL_MS / 1000}&nbsp;s while this panel is open, every {CLOSED_INTERVAL_MS / 1000}
-                &nbsp;s while it is closed, none while the tab is hidden (a gap the server&apos;s samples fill when it
-                is shown again). The axis ends at {Number(cpuTop.toFixed(3))} cores
-                {cpuTop < status.cpu.cores_available
-                  ? `; the ${groupedInteger(status.cpu.cores_available)} available lie above it.`
-                  : "."}
-              </p>
-            </section>
+            <CpuSection status={status} samples={samples} top={cpuTop} titleId={titleId} />
+            <MemorySection status={status} samples={samples} top={memTop} titleId={titleId} />
 
-            <section className="load-section" aria-labelledby={`${titleId}-memory`}>
-              <h3 id={`${titleId}-memory`} className="load-section__title">
-                <span className="panel-letter">b</span> Memory
-              </h3>
-              <dl className="load-stats">
-                <Stat
-                  label="Footprint (PSS, summed)"
-                  note={
-                    status.memory.limit_bytes === null ? (
-                      "no limit could be read"
-                    ) : (
-                      <>
-                        of a limit of <Value reading={gib(status.memory.limit_bytes)} />
-                        {memShare === null ? null : (
-                          <>
-                            {" "}
-                            (<Value reading={percent(memShare)} />)
-                          </>
-                        )}
-                        : {memorySource(status)}
-                      </>
-                    )
-                  }
-                >
-                  {status.memory.pss_bytes === null ? (
-                    <Missing field="memory.pss_bytes" />
-                  ) : (
-                    <Value reading={gib(status.memory.pss_bytes)} strong />
-                  )}
-                </Stat>
-                <Stat label="RSS, summed" note="counts a shared page once in every process that maps it">
-                  {bytesOrMissing(status.memory.rss_bytes, "memory.rss_bytes")}
-                </Stat>
-                <Stat
-                  label={status.memory.source === "cgroup" ? "The limit's cgroup holds" : "The machine uses"}
-                  note={
-                    status.memory.source === "cgroup"
-                      ? "its memory.current: every process in it, page cache included (not used to judge the state)"
-                      : "its total less its available memory (not used to judge the state)"
-                  }
-                >
-                  {bytesOrMissing(status.memory.limit_used_bytes, "memory.limit_used_bytes")}
-                </Stat>
-              </dl>
-              <p className="load-section__note">
-                The state is judged on the server&apos;s own footprint against the limit; other processes in the
-                limit&apos;s cgroup and reclaimable page cache are shown beside it, not counted in it. PSS is the honest
-                sum: each resident page is divided by the number of processes that share it, so the graphs, loaded once
-                by the master before it forks the workers, are counted once in all; RSS counts them again in every
-                process.
-              </p>
-              <LoadChart
-                label="Footprint (PSS) over this session"
-                samples={samples}
-                value={(s) => s.pssBytes}
-                top={memTop}
-                tick={(v) => `${Number((v / 2 ** 30).toFixed(2))} GiB`}
-                read={(s) => (s.pssBytes === null ? "not measured" : `${gib(s.pssBytes).text} PSS`)}
-                reference={
-                  status.memory.limit_bytes === null
-                    ? null
-                    : { value: status.memory.limit_bytes, label: `limit ${gib(status.memory.limit_bytes).text}` }
-                }
-              />
-              <p className="load-caption">
-                The server&apos;s footprint, PSS summed over its processes (1 GiB = 2<sup>30</sup> bytes), sampled as in
-                a. The server reads each process&apos;s memory every {status.memory_sample_interval_seconds}&nbsp;s
-                {status.memory.limit_bytes !== null && status.memory.limit_bytes > memTop
-                  ? `; the limit, ${gib(status.memory.limit_bytes).text}, lies above the axis.`
-                  : "."}
-              </p>
-            </section>
-
-            <section className="load-section" aria-labelledby={`${titleId}-processes`}>
-              <h3 id={`${titleId}-processes`} className="load-section__title">
-                <span className="panel-letter">c</span> Processes
-                <span className="load-section__aside">
-                  {status.workers_alive} of {status.workers_configured} workers alive
-                  {status.workers_exited > 0 && status.last_worker_exit_at !== null ? (
-                    <>
-                      ; {groupedInteger(status.workers_exited)} ended and replaced since the start, the last at{" "}
-                      <Mono>{clock(Date.parse(status.last_worker_exit_at))}</Mono>
-                    </>
-                  ) : null}
-                </span>
-              </h3>
+            <Expandable
+              summary="Processes"
+              meta={`${groupedInteger(status.workers_alive)} of ${groupedInteger(status.workers_configured)} workers alive`}
+              className="load-panel__expand"
+            >
+              {status.workers_exited > 0 && status.last_worker_exit_at !== null ? (
+                <p className="load-section__note">
+                  {groupedInteger(status.workers_exited)} ended and replaced since the start, the last at{" "}
+                  <Mono>{clock(Date.parse(status.last_worker_exit_at))}</Mono>.
+                </p>
+              ) : null}
               <Processes status={status} />
               <p className="load-caption">
-                CPU in cores (1 is one core kept busy) over the last interval of {status.sample_interval_seconds}
-                &nbsp;s; requests answered since each worker began, with its share of all the workers&apos; requests
-                (the balance between them); in flight: held now; searching: its search thread busy (one at a time);
-                waiting: requests queued for that thread.
+                CPU in cores over the last {status.sample_interval_seconds}&nbsp;s; requests answered since each worker
+                began, with its share of all; searching: its search thread busy; waiting: queued for that thread.
               </p>
-            </section>
+            </Expandable>
 
-            <section className="load-section" aria-labelledby={`${titleId}-requests`}>
-              <h3 id={`${titleId}-requests`} className="load-section__title">
-                <span className="panel-letter">d</span> Requests
-              </h3>
+            <Expandable
+              summary="Requests"
+              meta={`${groupedInteger(status.requests.last_60_seconds)} in the last 60 s · ${groupedInteger(workWaiting(status))} waiting`}
+              className="load-panel__expand"
+            >
               <dl className="load-stats load-stats--four">
                 <Stat label="Last 60 s">
                   <Count value={status.requests.last_60_seconds} />
@@ -769,13 +763,33 @@ export default function LoadPanel({
                 </Stat>
                 <Stat label="Searches running">
                   <Count value={status.requests.searches_running} />
+                  {searching === null ? null : (
+                    <>
+                      {" "}
+                      (<Value reading={percent(searching)} /> of the workers)
+                    </>
+                  )}
                 </Stat>
                 <Stat label="Waiting, in all" note="the three places below, each request counted once">
                   <Count value={workWaiting(status)} />
                 </Stat>
               </dl>
               <WaitingStats status={status} />
-              <h4 className="load-subtitle">Latency</h4>
+              <p className="load-caption">
+                Requests to /status are counted apart ({groupedInteger(status.requests.status_requests)} since the
+                start), so watching the load does not change it.
+              </p>
+            </Expandable>
+
+            <Expandable
+              summary="Latency"
+              meta={
+                status.requests.latency.p95_ms === null
+                  ? "no request"
+                  : `p95 ${milliseconds(status.requests.latency.p95_ms).text}`
+              }
+              className="load-panel__expand"
+            >
               <dl className="load-stats load-stats--four">
                 {(
                   [
@@ -799,35 +813,52 @@ export default function LoadPanel({
                 From arrival to the last byte sent, nearest rank, over the{" "}
                 {groupedInteger(status.requests.latency.count)} most recent requests (at most{" "}
                 {groupedInteger(status.requests.latency.most_recent)}) that ended in the last{" "}
-                {status.requests.latency.window_seconds}&nbsp;s; the strip is logarithmic. Requests to /status are
-                counted apart ({groupedInteger(status.requests.status_requests)} since the start), so watching the load
-                does not change it.
+                {status.requests.latency.window_seconds}&nbsp;s; the strip is logarithmic.
               </p>
-            </section>
+            </Expandable>
 
-            <dl className="load-facts">
-              <Stat label="Up">
-                <Value reading={duration(status.uptime_seconds)} />
-              </Stat>
-              <Stat label="Lost with a worker" note="held by a worker that was killed: no answer was sent">
-                <Count value={status.requests.lost} />
-              </Stat>
-              <Stat label="Graphs held">
-                <Mono>{status.graphs.length}</Mono>, files <Value reading={gib(status.graphs_file_bytes)} />
-              </Stat>
-              <Stat label="Answer received">
-                <Mono>{latest ? clock(latest.receivedAt) : ""}</Mono>
-              </Stat>
-              <Stat label="Samples' age at the answer">
-                CPU {ages?.cpu === null || !ages ? "—" : <Value reading={seconds(ages.cpu)} />}, memory{" "}
-                {ages?.memory === null || !ages ? "—" : <Value reading={seconds(ages.memory)} />}
-              </Stat>
-            </dl>
-            {unavailable.size ? (
-              <p className="load-section__note">
-                Not measured on this server: {[...unavailable].map((f) => f).join(", ")}.
-              </p>
-            ) : null}
+            <Expandable
+              summary="The server"
+              meta={`up ${duration(status.uptime_seconds).text}`}
+              className="load-panel__expand"
+            >
+              <dl className="load-facts">
+                <Stat label="Up">
+                  <Value reading={duration(status.uptime_seconds)} />
+                </Stat>
+                <Stat label="Lost with a worker" note="held by a worker that was killed: no answer was sent">
+                  <Count value={status.requests.lost} />
+                </Stat>
+                <Stat label="Graphs held">
+                  <Mono>{status.graphs.length}</Mono>, files <Value reading={gib(status.graphs_file_bytes)} />
+                </Stat>
+                <Stat label="RSS, summed" note="counts a shared page once in every process that maps it">
+                  {bytesOrMissing(status.memory.rss_bytes, "memory.rss_bytes")}
+                </Stat>
+                <Stat
+                  label={status.memory.source === "cgroup" ? "The limit's cgroup holds" : "The machine uses"}
+                  note={
+                    status.memory.source === "cgroup"
+                      ? "its memory.current, page cache included; not used to judge the state"
+                      : "its total less its available memory; not used to judge the state"
+                  }
+                >
+                  {bytesOrMissing(status.memory.limit_used_bytes, "memory.limit_used_bytes")}
+                </Stat>
+                <Stat label="Answer received">
+                  <Mono>{latest ? clock(latest.receivedAt) : ""}</Mono>
+                </Stat>
+                <Stat label="Samples' age at the answer">
+                  CPU {ages?.cpu === null || !ages ? "—" : <Value reading={seconds(ages.cpu)} />}, memory{" "}
+                  {ages?.memory === null || !ages ? "—" : <Value reading={seconds(ages.memory)} />}
+                </Stat>
+              </dl>
+              {unavailable.size ? (
+                <p className="load-section__note">
+                  Not measured on this server: {[...unavailable].map((f) => f).join(", ")}.
+                </p>
+              ) : null}
+            </Expandable>
 
             <Expandable summary="How it is measured" className="load-panel__expand">
               <ul className="load-method">
@@ -839,14 +870,30 @@ export default function LoadPanel({
                   &nbsp;s.
                 </li>
                 <li>
-                  CPU share: the CPU time a process used (user and system, all its threads) over the wall time between
-                  two samples, counted in the kernel&apos;s 10 ms ticks. Cores available: the CPU affinity set, or fewer
-                  when a cgroup v2 cpu.max quota allows fewer.
+                  The charts begin with the server&apos;s own samples of the last minutes (one every{" "}
+                  {status.history.interval_seconds}&nbsp;s, sent with the answer), then each answer this page takes:
+                  every {OPEN_INTERVAL_MS / 1000}&nbsp;s while this panel is open, every {CLOSED_INTERVAL_MS / 1000}
+                  &nbsp;s while it is closed, none while the tab is hidden (a gap the server&apos;s samples fill when it
+                  is shown again). The CPU axis ends at {Number(cpuTop.toFixed(3))} cores
+                  {cpuTop < status.workers_alive
+                    ? `, below the workers' capacity of ${groupedInteger(status.workers_alive)}`
+                    : ""}
+                  ; the memory axis ends at {Number((memTop / 2 ** 30).toFixed(2))} GiB
+                  {status.memory.limit_bytes !== null && status.memory.limit_bytes > memTop
+                    ? `, below the limit of ${gib(status.memory.limit_bytes).text}`
+                    : ""}
+                  .
+                </li>
+                <li>
+                  CPU: the CPU time a process used (user and system, all its threads) over the wall time between two
+                  samples, counted in the kernel&apos;s 10 ms ticks; 1 is one core kept busy. Cores available: the CPU
+                  affinity set, or fewer when a cgroup v2 cpu.max quota allows fewer.
                 </li>
                 <li>
                   Memory, from the kernel&apos;s smaps_rollup: RSS, the resident pages; PSS, each resident page divided
-                  by the number of processes sharing it; USS, the pages of the process alone. The limit: the smallest
-                  cgroup v2 memory.max of the server&apos;s cgroup and its ancestors, else the machine&apos;s total.
+                  by the number of processes sharing it; USS, the pages of the process alone. The state is judged on the
+                  server&apos;s own footprint (PSS summed) against the limit; other processes in the limit&apos;s cgroup
+                  and reclaimable page cache are shown beside it, not counted. 1 GiB is 1,073,741,824 bytes.
                 </li>
                 <li>
                   Latency: nearest-rank percentiles of the most recent requests that ended in the window, from arrival

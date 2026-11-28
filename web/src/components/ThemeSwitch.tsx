@@ -1,7 +1,8 @@
 // The theme: light (the default), dark, or the system's, one button going round them. Kept in the browser; set on the
 // root as `data-theme` before the first paint by index.html, so no other theme flashes.
 import { useEffect, useState } from "react";
-import { nextTheme, themeLabel, type Theme } from "../lib/theme";
+import { announce } from "../lib/announce";
+import { isTheme, nextTheme, THEME_REQUEST, themeLabel, themeSaid, type Theme } from "../lib/theme";
 
 const KEY = "idtrack-theme";
 
@@ -13,6 +14,9 @@ function readTheme(): Theme {
     return "light";
   }
 }
+
+const systemDark = () =>
+  typeof window.matchMedia === "function" && window.matchMedia("(prefers-color-scheme: dark)").matches;
 
 function Icon({ theme }: { theme: Theme }) {
   if (theme === "light")
@@ -48,7 +52,7 @@ function Icon({ theme }: { theme: Theme }) {
 }
 
 /** The theme: one button whose icon shows the theme in force; a press goes on to the next (light, dark, the
- *  system's), kept in the browser. */
+ *  system's), kept in the browser, and says the theme now in force on the page's status line. */
 export function ThemeSwitch() {
   const [theme, setTheme] = useState<Theme>(readTheme);
   useEffect(() => {
@@ -88,6 +92,19 @@ export function ThemeSwitch() {
       media?.removeEventListener("change", paint);
     };
   }, [theme]);
+  // A theme asked for elsewhere (the command palette) is set and said here, as a press would.
+  useEffect(() => {
+    const asked = (event: Event) => {
+      const wanted: unknown = (event as CustomEvent<unknown>).detail;
+      if (!isTheme(wanted)) return;
+      setTheme(wanted);
+      announce(themeSaid(wanted, systemDark()));
+    };
+    window.addEventListener(THEME_REQUEST, asked);
+    return () => {
+      window.removeEventListener(THEME_REQUEST, asked);
+    };
+  }, []);
   const label = themeLabel(theme);
   return (
     <button
@@ -96,7 +113,9 @@ export function ThemeSwitch() {
       aria-label={label}
       title={label}
       onClick={() => {
-        setTheme(nextTheme);
+        const next = nextTheme(theme);
+        setTheme(next);
+        announce(themeSaid(next, systemDark()));
       }}
     >
       <Icon theme={theme} />

@@ -53,7 +53,16 @@ function failureKind(error: unknown): FailureKind {
 
 /** A sample that marks no reading (a failed request, or a request that is late): the charts draw a gap there. */
 function gapAt(at: number): Sample {
-  return { at, coresUsed: null, cpuShare: null, pssBytes: null, limitBytes: null, waiting: 0, failed: true };
+  return {
+    at,
+    coresUsed: null,
+    cpuShare: null,
+    capacityShare: null,
+    pssBytes: null,
+    limitBytes: null,
+    waiting: 0,
+    failed: true,
+  };
 }
 
 export class LoadStore {

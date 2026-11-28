@@ -1,9 +1,10 @@
 // A drawer (DIRECTION.md, "The disclosure components"): a side sheet over the page, from the right on a wide screen
 // and from the bottom on a phone, with its own scroll. A native modal <dialog>: focus moves to its title when it opens,
-// the page behind is inert, Escape, the close button or a press on the dimmed page closes it, and focus returns to what
-// opened it. Escape is offered first to the drawer's content (`onEscape`: a tip it shows hides before the drawer
-// closes).
+// the page behind is inert, Escape, the close button or a press on the dimmed page closes it (it glides out in 160 ms,
+// at once under reduced motion), and focus returns to what opened it. Escape is offered first to the drawer's content
+// (`onEscape`: a tip it shows hides before the drawer closes).
 import { useEffect, useId, useRef, type ReactNode } from "react";
+import { useExit } from "./useExit";
 
 export function Drawer({
   open,
@@ -34,45 +35,54 @@ export function Drawer({
   const dialog = useRef<HTMLDialogElement>(null);
   const heading = useRef<HTMLHeadingElement>(null);
   const opener = useRef<Element | null>(null);
+  const { shown, closing } = useExit(open);
   useEffect(() => {
     const element = dialog.current;
-    if (!element) return;
-    if (open && !element.open) {
-      opener.current = document.activeElement;
-      if (typeof element.showModal === "function") element.showModal();
-      else element.setAttribute("open", "");
-      heading.current?.focus();
-    } else if (!open && element.open) {
-      if (typeof element.close === "function") element.close();
-      else element.removeAttribute("open");
-      if (opener.current instanceof HTMLElement) opener.current.focus();
-    }
+    if (!element || !open || element.open) return;
+    opener.current = document.activeElement;
+    if (typeof element.showModal === "function") element.showModal();
+    else element.setAttribute("open", "");
+    heading.current?.focus();
   }, [open]);
-  // A press on the dimmed page lands on the dialog itself (its sheet fills the box): it closes the drawer.
+  // Closed once its exit has run.
+  useEffect(() => {
+    const element = dialog.current;
+    if (!element || shown || !element.open) return;
+    if (typeof element.close === "function") element.close();
+    else element.removeAttribute("open");
+    if (opener.current instanceof HTMLElement) opener.current.focus();
+  }, [shown]);
+  // A press on the dimmed page lands on the dialog itself (its sheet fills the box): it closes the drawer. A dialog the
+  // browser closed by itself (a close request it does not let the page hold) is closed for the page too.
   useEffect(() => {
     const element = dialog.current;
     if (!element) return;
     const onClick = (event: MouseEvent) => {
       if (event.target === element) onClose();
     };
+    const onClosed = () => {
+      if (open) onClose();
+    };
     element.addEventListener("click", onClick);
+    element.addEventListener("close", onClosed);
     return () => {
       element.removeEventListener("click", onClick);
+      element.removeEventListener("close", onClosed);
     };
-  }, [onClose]);
+  }, [onClose, open]);
   return (
     <dialog
       ref={dialog}
       id={givenId}
-      className={`drawer ${className}`}
+      className={`drawer ${className}${closing ? " drawer--closing" : ""}`}
       aria-labelledby={`${id}-title`}
       onCancel={(event) => {
         event.preventDefault();
-        if (onEscape?.()) return;
+        if (!open || onEscape?.()) return;
         onClose();
       }}
     >
-      {open ? (
+      {shown ? (
         <div className="drawer__sheet">
           <div className="drawer__head">
             <div>
