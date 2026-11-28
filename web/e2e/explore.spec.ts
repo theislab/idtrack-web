@@ -487,7 +487,8 @@ test("Explore: every gallery sentence writes a step in Ensembl's direction, and 
       .filter({ has: page.locator(".case__line", { hasText: c.query.identifier }) })
       .first();
     await card.getByRole("button", { name: /^About this case/ }).click();
-    const story = card.locator(".case__story");
+    // The hover card is drawn over the page, named by its trigger.
+    const story = page.getByRole("region", { name: /^About this case/ }).locator(".case__story");
     const steps = ensemblSteps(r);
     // The step the card writes: the kind's own reason first, then the combined one (as the card chooses it).
     const reasons =
@@ -504,7 +505,10 @@ test("Explore: every gallery sentence writes a step in Ensembl's direction, and 
       if (s.backward) await expect(story).toContainText(`the walk followed it back, from ${s.later}`);
     }
     if (c.kind === "split") await expect(story).not.toContainText(walksBack(r) ? "descend" : "ancestors");
-    if (walksBack(r)) await expect(card.locator(".case__concept")).toContainText("the walk runs back in time");
+    if (walksBack(r))
+      await expect(page.getByRole("region", { name: /^About this case/ }).locator(".case__concept")).toContainText(
+        "the walk runs back in time",
+      );
     await page.keyboard.press("Escape");
   }
   // The cards stand on rows of one height: the kinds' names of one row share their line.
