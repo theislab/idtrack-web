@@ -5,7 +5,7 @@
       "description": "A published file: where it is and what its bytes are.",
       "properties": {
         "key": {
-          "description": "The key in the store: `idtrack/<format>/<organism>/<sha256>.npz`.",
+          "description": "The key in the store: `idtrack/<format>/<organism>/<sha256>.npz` (a graph) or `idtrack/<format>/<organism>/<sha256>.lineages.json` (its lineages).",
           "title": "Key",
           "type": "string"
         },
@@ -48,6 +48,10 @@
         },
         "file": {
           "$ref": "#/$defs/ManifestFile"
+        },
+        "lineages": {
+          "$ref": "#/$defs/ManifestFile",
+          "description": "The lineages of the graph's gene ids, computed from the graph by the publisher and read by the server at start (`GET /organisms/{organism}/lineages`)."
         },
         "content_digest": {
           "description": "The graph's content digest (its build's).",
@@ -96,6 +100,7 @@
         "organism",
         "snapshot_release",
         "file",
+        "lineages",
         "content_digest",
         "idtrack_version",
         "idtrack_commit",
@@ -109,7 +114,7 @@
   "description": "A release of published graphs: what a server loads.",
   "properties": {
     "schema_version": {
-      "const": 1,
+      "const": 2,
       "description": "The version of this manifest's layout.",
       "title": "Schema Version",
       "type": "integer"

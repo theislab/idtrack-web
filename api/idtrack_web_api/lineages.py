@@ -6,27 +6,34 @@ edge from one version of the id to another), and its history edges to versions o
 releases and Ensembl's mapping score. Ids joined by such edges, directly or through others, form a family; a family is
 given whole or not at all, so that every edge between ids given has both its ends.
 
-The families that hold a gene of the showcase's answers (the journeys and cases the site draws) come first, in the
-order of the showcase; then every other family, ordered by the SHA-256 digest of its smallest id (a fixed order that
-favours no kind of family); a request for ``limit`` gene ids is given the families in that order until the next would
-pass it. Reading the human
-graph took about 30 s, so it is done in the master before the workers are forked, and answered from memory.
+Reading every gene id's lineage walks the whole graph (about 30 s for the human graph), so it is done once, when the
+graph is published (``idtrack-web publish``, :py:func:`compute`): the publisher writes the lineages of every gene id
+as one JSON file named by its content beside the graph file, and the manifest names it with its SHA-256 and size
+(SETUP.md, section 7, "The lineages file"). The server reads that file at start (:py:func:`read`) and orders the
+families (:py:func:`table`): first those that hold a gene of the showcase's answers (the journeys and cases the site
+draws), in the order of the showcase; then every other family in the file's order, the SHA-256 digest of its smallest
+id (a fixed order that favours no kind of family). A request for ``limit`` gene ids is given the families in that
+order until the next would pass it.
 """
 
 from __future__ import annotations
 
 import hashlib
+import json
 import logging
 import math
 import time
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, TypedDict, cast
+
+from idtrack_web_api.data import DataError
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Iterator
+    from pathlib import Path
 
-if TYPE_CHECKING:
-    from idtrack_web_api.graphs import LoadedGraph
+    from idtrack_web_api.adapter import Graph
+    from idtrack_web_api.data import ManifestGraph
 
 log = logging.getLogger(__name__)
 
@@ -34,6 +41,30 @@ log = logging.getLogger(__name__)
 DEFAULT_LIMIT = 12_000
 #: The most gene ids one answer gives (about 2 MB of JSON for the human graph).
 LIMIT_MAX = 50_000
+#: The version of the lineages file's own layout (``layout`` in the file).
+FILE_LAYOUT = 1
+#: The largest lineages file read (the human graph's is about 9 MB).
+FILE_MAX_BYTES = 256 * 1024 * 1024
+
+
+class LineagesFile(TypedDict):
+    """The content of a lineages file (layout 1): the graph it was read from, then every family as ``/lineages``."""
+
+    layout: int
+    organism: str
+    content_digest: str
+    releases: list[int]
+    genes: int
+    ids: list[str]
+    family_starts: list[int]
+    active: list[list[list[int]]]
+    versions: list[list[int]]
+    edges: list[list[int | float | None]]
+
+
+#: One family as the server holds it: its ids, each ``(id, active runs, version releases)``, and its edges between
+#: them as ``(index in family, index in family, old release, new release, score or None)``.
+Family = tuple[list[tuple[str, list[list[int]], list[int]]], list[tuple[int, int, int, int, float | None]]]
 
 
 @dataclass(frozen=True)
@@ -41,16 +72,14 @@ class Table:
     """The lineages of one graph, in the order they are given."""
 
     organism: str
-    content_digest: str | None
+    content_digest: str
     releases: list[int]
     genes: int
     families: int
-    #: Per family in order: its ids, each ``(id, active runs, version releases)``, and its edges between them as
-    #: ``(index in family, index in family, old release, new release, score or None)``.
-    rows: list[tuple[list[tuple[str, list[list[int]], list[int]]], list[tuple[int, int, int, int, float | None]]]]
+    #: Per family, in the order given.
+    rows: list[Family]
     #: How many of the first families hold a gene of the showcase's answers.
     focus: int
-    compute_seconds: float
 
 
 def _runs(mask: int, releases: list[int]) -> list[list[int]]:
@@ -106,18 +135,20 @@ def _strings(value: object) -> Iterator[str]:
             yield from _strings(item)
 
 
-def compute(graph: LoadedGraph, showcase: object = None) -> Table:
-    """Read every gene id's lineage from the graph's public interface and order the families.
+def compute(graph: Graph) -> LineagesFile:
+    """Read every gene id's lineage from the graph's public interface: the lineages file's content.
 
     Args:
         graph: The graph.
-        showcase: The showcase's body of this graph (its answers name the genes whose families come first), or None.
 
     Returns:
-        Table: The lineages, families in the order of the digest of their smallest id.
+        LineagesFile: ``layout``, ``organism``, ``content_digest``, ``releases``, ``genes``, then every family in the
+        order of the SHA-256 digest of its smallest id, as the body of ``/lineages`` gives families: ``ids``,
+        ``family_starts``, ``active``, ``versions`` and ``edges`` (indices into ``ids``).
     """
     start = time.monotonic()
-    g = graph.graph.api.graph
+    g = graph.api.graph
+    identity = graph.identity()
     releases = [int(r) for r in g.releases]
     masks: dict[str, int] = {}
     versions: dict[str, set[int]] = {}
@@ -154,38 +185,139 @@ def compute(graph: LoadedGraph, showcase: object = None) -> Table:
     for (a, b, old, new), score in edges.items():
         if a in parent and b in parent:
             family_edges.setdefault(find(a), []).append((a, b, old, new, score))
-    # The families of the genes the showcase's answers name (a string of an answer that is a gene id of the graph, with
-    # or without its version), in the order they are named; then the rest by digest.
-    focus: list[str] = []
-    for text in _strings(showcase):
-        base = text if text in masks else text.rsplit(".", 1)[0]
-        if base in masks and find(base) not in focus:
-            focus.append(find(base))
-    chosen = set(focus)
-    rest = sorted((r for r in members if r not in chosen), key=lambda r: hashlib.sha256(r.encode()).hexdigest())
-    rows = []
-    for root in [*focus, *rest]:
+    ids: list[str] = []
+    family_starts: list[int] = []
+    active: list[list[list[int]]] = []
+    changes: list[list[int]] = []
+    links: list[list[int | float | None]] = []
+    for root in sorted(members, key=lambda r: hashlib.sha256(r.encode()).hexdigest()):
         runs = {base: _runs(masks[base], releases) for base in members[root]}
         # Within a family: by the first release a version of the id is active, then by the id.
-        ids = sorted(members[root], key=lambda b: (runs[b][0][0] if runs[b] else releases[-1] + 1, b))
-        index = {base: i for i, base in enumerate(ids)}
-        rows.append(
-            (
-                [(base, runs[base], sorted(versions.get(base, ()))) for base in ids],
-                sorted((index[a], index[b], old, new, score) for a, b, old, new, score in family_edges.get(root, [])),
+        order = sorted(members[root], key=lambda b: (runs[b][0][0] if runs[b] else releases[-1] + 1, b))
+        offset = len(ids)
+        index = {base: offset + i for i, base in enumerate(order)}
+        family_starts.append(offset)
+        for base in order:
+            ids.append(base)
+            active.append(runs[base])
+            changes.append(sorted(versions.get(base, ())))
+        links.extend(
+            [a, b, old, new, score]
+            for a, b, old, new, score in sorted(
+                (index[a], index[b], old, new, score) for a, b, old, new, score in family_edges.get(root, [])
             )
         )
-    seconds = time.monotonic() - start
-    log.info("%s: lineages of %d gene ids read in %.1f s.", graph.organism, len(masks), seconds)
+    log.info("%s: lineages of %d gene ids read in %.1f s.", identity.organism, len(masks), time.monotonic() - start)
+    return {
+        "layout": FILE_LAYOUT,
+        "organism": identity.organism,
+        "content_digest": identity.content_digest or "",
+        "releases": releases,
+        "genes": len(masks),
+        "ids": ids,
+        "family_starts": family_starts,
+        "active": active,
+        "versions": changes,
+        "edges": links,
+    }
+
+
+def file_bytes(content: LineagesFile) -> bytes:
+    """Return the lineages file's bytes: compact JSON, keys sorted, a final line break.
+
+    The same graph always gives the same bytes, so the file's key, named by its content, is the same at every
+    publication.
+
+    Args:
+        content: As :py:func:`compute` returns it.
+
+    Returns:
+        bytes: The file.
+    """
+    return (json.dumps(content, sort_keys=True, separators=(",", ":"), allow_nan=False) + "\n").encode()
+
+
+def read(path: Path, entry: ManifestGraph) -> LineagesFile:
+    """Read a verified lineages file and check that it is of this layout and of the manifest's graph.
+
+    Args:
+        path: The file (its size and SHA-256 verified against the manifest).
+        entry: The manifest's entry of the graph.
+
+    Returns:
+        LineagesFile: The file's content.
+
+    Raises:
+        DataError: If it is not a lineages file of this layout, or not of the graph the manifest names.
+    """
+    key = entry.lineages.key
+    start = time.monotonic()
+    try:
+        content: object = json.loads(path.read_bytes())
+    except (OSError, ValueError) as error:
+        msg = f"{key}: the lineages file cannot be read ({error}); publish the graphs again (idtrack-web publish)."
+        raise DataError(msg) from None
+    found = {k: content.get(k) for k in ("layout", "organism", "content_digest")} if isinstance(content, dict) else {}
+    expected = {"layout": FILE_LAYOUT, "organism": entry.organism, "content_digest": entry.content_digest}
+    if found != expected:
+        msg = (
+            f"{key} is not the lineages file of the manifest's graph in this server's layout: {found} (file), "
+            f"{expected} (expected); publish the graphs again (idtrack-web publish)."
+        )
+        raise DataError(msg)
+    read_file = cast("LineagesFile", content)
+    log.info("%s: lineages of %d gene ids read from %s in %.2f s.", entry.organism, read_file["genes"], key,
+             time.monotonic() - start)  # fmt: skip
+    return read_file
+
+
+def table(content: LineagesFile, showcase: object = None) -> Table:
+    """Order the families of a lineages file: those of the showcase's genes first, then the file's order.
+
+    Args:
+        content: The lineages file's content (:py:func:`read`).
+        showcase: The showcase's body of this graph (its answers name the genes whose families come first), or None.
+
+    Returns:
+        Table: The lineages, families in the order they are given.
+    """
+    ids: list[str] = content["ids"]
+    starts = [*content["family_starts"], len(ids)]
+    family_of: dict[str, int] = {}
+    rows: list[Family] = []
+    for f in range(len(starts) - 1):
+        first, end = starts[f], starts[f + 1]
+        for i in range(first, end):
+            family_of[ids[i]] = f
+        rows.append(
+            (
+                [(ids[i], content["active"][i], content["versions"][i]) for i in range(first, end)],
+                [],
+            )
+        )
+    for a, b, old, new, score in content["edges"]:
+        f = family_of[ids[int(a or 0)]]
+        offset = starts[f]
+        rows[f][1].append((int(a or 0) - offset, int(b or 0) - offset, int(old or 0), int(new or 0), score))
+    # The families of the genes the showcase's answers name (a string of an answer that is a gene id of the graph, with
+    # or without its version), in the order they are named; then the rest in the file's order.
+    focus: list[int] = []
+    for text in _strings(showcase):
+        named = family_of.get(text)
+        if named is None:
+            named = family_of.get(text.rsplit(".", 1)[0])
+        if named is not None and named not in focus:
+            focus.append(named)
+    chosen = set(focus)
+    ordered = [rows[f] for f in focus] + [row for f, row in enumerate(rows) if f not in chosen]
     return Table(
-        organism=graph.organism,
-        content_digest=graph.graph.identity().content_digest,
-        releases=releases,
-        genes=len(masks),
+        organism=content["organism"],
+        content_digest=content["content_digest"],
+        releases=content["releases"],
+        genes=content["genes"],
         families=len(rows),
-        rows=rows,
+        rows=ordered,
         focus=len(focus),
-        compute_seconds=round(seconds, 3),
     )
 
 
@@ -229,5 +361,4 @@ def body(table: Table, limit: int) -> dict[str, object]:
         "active": active,
         "versions": versions,
         "edges": edges,
-        "compute_seconds": table.compute_seconds,
     }

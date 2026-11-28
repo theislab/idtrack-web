@@ -1,10 +1,12 @@
 """The data layer: the manifest of published graph files, the stores they are read from, and their verification.
 
 A release of graphs is published (:py:mod:`idtrack_web_api.publish`) as immutable objects named by their content,
-``idtrack/<graph format version>/<organism>/<sha256>.npz``, beside a small manifest (``idtrack/<format>/manifest.json``
-by default) that lists, per organism, the file's key, SHA-256 and size and what the graph is (snapshot release,
-content digest, the idtrack that built it). A store is either a folder with that layout (the owner's Hetzner node) or
-an S3-compatible bucket (Cloudflare R2).
+``idtrack/<graph format version>/<organism>/<sha256>.npz`` (the graph) and
+``idtrack/<graph format version>/<organism>/<sha256>.lineages.json`` (the lineages of its gene ids, computed by the
+publisher: :py:mod:`idtrack_web_api.lineages`), beside a small manifest (``idtrack/<format>/manifest.json`` by default)
+that lists, per organism, each file's key, SHA-256 and size and what the graph is (snapshot release, content digest,
+the idtrack that built it). A store is either a folder with that layout (the owner's Hetzner node) or an
+S3-compatible bucket (Cloudflare R2).
 
 At start the server reads the manifest, makes every file it needs local (a folder store: in place; a bucket: in the
 cache folder, fetched to a temporary name and renamed only after its SHA-256 and size are verified), verifies the
@@ -22,7 +24,7 @@ import secrets
 from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, Literal, Protocol
+from typing import TYPE_CHECKING, Final, Literal, Protocol
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
 
@@ -37,8 +39,8 @@ if TYPE_CHECKING:
 
 log = logging.getLogger(__name__)
 
-#: The version of the manifest's own layout (not idtrack's graph format).
-MANIFEST_SCHEMA_VERSION = 1
+#: The version of the manifest's own layout (not idtrack's graph format): 2 names each graph's lineages file.
+MANIFEST_SCHEMA_VERSION: Final = 2
 #: The largest manifest read (a manifest of five organisms is about 3 kB).
 MANIFEST_MAX_BYTES = 1_048_576
 _CHUNK = 8 * 1024 * 1024
@@ -76,6 +78,20 @@ def object_key(format_version: int, organism: str, sha256: str) -> str:
     return f"idtrack/{format_version}/{organism}/{sha256}.npz"
 
 
+def lineages_key(format_version: int, organism: str, sha256: str) -> str:
+    """Return the key of a graph's lineages file, named by its content.
+
+    Args:
+        format_version: The graph format version.
+        organism: The organism.
+        sha256: The SHA-256 of the file's bytes (lowercase hex).
+
+    Returns:
+        str: ``idtrack/<format_version>/<organism>/<sha256>.lineages.json``.
+    """
+    return f"idtrack/{format_version}/{organism}/{sha256}.lineages.json"
+
+
 # ------------------------------------------------------------------------------------------------------------------
 # The manifest
 
@@ -86,7 +102,13 @@ class ManifestFile(BaseModel):
     """A published file: where it is and what its bytes are."""
 
     model_config = _STRICT
-    key: str = Field(..., description="The key in the store: `idtrack/<format>/<organism>/<sha256>.npz`.")
+    key: str = Field(
+        ...,
+        description=(
+            "The key in the store: `idtrack/<format>/<organism>/<sha256>.npz` (a graph) or "
+            "`idtrack/<format>/<organism>/<sha256>.lineages.json` (its lineages)."
+        ),
+    )
     sha256: str = Field(..., pattern=_SHA256.pattern, description="The SHA-256 of the file's bytes (lowercase hex).")
     size: int = Field(..., gt=0, description="The size of the file in bytes.")
 
@@ -98,6 +120,13 @@ class ManifestGraph(BaseModel):
     organism: str = Field(..., pattern=_ORGANISM.pattern, description="The organism (Ensembl production name).")
     snapshot_release: int = Field(..., gt=0, description="The last Ensembl release of the graph.")
     file: ManifestFile
+    lineages: ManifestFile = Field(
+        ...,
+        description=(
+            "The lineages of the graph's gene ids, computed from the graph by the publisher and read by the server at "
+            "start (`GET /organisms/{organism}/lineages`)."
+        ),
+    )
     content_digest: str = Field(..., pattern=_SHA256.pattern, description="The graph's content digest (its build's).")
     idtrack_version: str | None = Field(..., description="The idtrack version that built the graph.")
     idtrack_commit: str | None = Field(..., description="The idtrack commit that built the graph, where known.")
@@ -108,7 +137,7 @@ class Manifest(BaseModel):
     """A release of published graphs: what a server loads."""
 
     model_config = _STRICT
-    schema_version: Literal[1] = Field(..., description="The version of this manifest's layout.")
+    schema_version: Literal[2] = Field(..., description="The version of this manifest's layout.")
     format_version: int = Field(..., gt=0, description="The graph file format of every graph listed.")
     published: str = Field(..., description="When the manifest was written (UTC, ISO 8601).")
     publisher: str = Field(..., description="The idtrack-web-api and idtrack versions that wrote the manifest.")
@@ -124,6 +153,10 @@ class Manifest(BaseModel):
             expected = object_key(self.format_version, graph.organism, graph.file.sha256)
             if graph.file.key != expected:
                 msg = f"the key of {graph.organism} is {graph.file.key!r}; a content key is {expected!r}"
+                raise ValueError(msg)
+            expected = lineages_key(self.format_version, graph.organism, graph.lineages.sha256)
+            if graph.lineages.key != expected:
+                msg = f"the lineages key of {graph.organism} is {graph.lineages.key!r}; a content key is {expected!r}"
                 raise ValueError(msg)
         return self
 
@@ -161,6 +194,18 @@ def parse_manifest(content: bytes, where: str) -> Manifest:
     """
     if len(content) > MANIFEST_MAX_BYTES:
         msg = f"The manifest {where} is {len(content)} bytes; a manifest is at most {MANIFEST_MAX_BYTES}."
+        raise DataError(msg)
+    try:
+        layout = json.loads(content).get("schema_version")
+    except (ValueError, AttributeError):
+        layout = None
+    if isinstance(layout, int) and layout < MANIFEST_SCHEMA_VERSION:
+        msg = (
+            f"The manifest {where} is of layout {layout}, which names no lineages file of each graph; this server "
+            f"reads layout {MANIFEST_SCHEMA_VERSION}. Publish the graphs again with `idtrack-web publish` (SETUP.md, "
+            f"section 7), which computes each graph's lineages and writes a manifest of layout "
+            f"{MANIFEST_SCHEMA_VERSION}."
+        )
         raise DataError(msg)
     try:
         return Manifest.model_validate_json(content, strict=True)
@@ -505,11 +550,13 @@ class VerifiedData:
         manifest: The manifest.
         manifest_file: The manifest's own key, SHA-256 and size.
         files: Organism to its verified local graph file.
+        lineages: Organism to its verified local lineages file.
     """
 
     manifest: Manifest
     manifest_file: ManifestFile
     files: dict[str, Path]
+    lineages: dict[str, Path]
 
 
 def prepare(store: Store, manifest_key: str, organisms: tuple[str, ...]) -> VerifiedData:
@@ -538,9 +585,19 @@ def prepare(store: Store, manifest_key: str, organisms: tuple[str, ...]) -> Veri
         raise DataError(msg)
     wanted = organisms or tuple(g.organism for g in manifest.graphs)
     files: dict[str, Path] = {}
+    lineages: dict[str, Path] = {}
     for organism in wanted:
         entry = manifest.graph(organism)
         files[organism] = store.local_file(entry.file)
         log.info("%s: %s verified (sha256 %s).", organism, entry.file.key, entry.file.sha256)
+        try:
+            lineages[organism] = store.local_file(entry.lineages)
+        except DataError as error:
+            msg = (
+                f"The lineages file of {organism} that the manifest names cannot be used ({error}). `idtrack-web "
+                "publish` computes it beside each graph: publish the graphs again (SETUP.md, section 7)."
+            )
+            raise DataError(msg) from None
+        log.info("%s: %s verified (sha256 %s).", organism, entry.lineages.key, entry.lineages.sha256)
     manifest_file = ManifestFile(key=manifest_key, sha256=hashlib.sha256(content).hexdigest(), size=len(content))
-    return VerifiedData(manifest=manifest, manifest_file=manifest_file, files=files)
+    return VerifiedData(manifest=manifest, manifest_file=manifest_file, files=files, lineages=lineages)

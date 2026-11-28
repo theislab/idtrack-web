@@ -179,9 +179,10 @@ The server logs its settings at start with every secret shown as `<set>`. Each r
 idtrack/<graph format>/manifest.json                     the current release: what servers load
 idtrack/<graph format>/manifests/<sha256>.json           every manifest ever published, named by its content
 idtrack/<graph format>/<organism>/<sha256>.npz           graph files, named by their content (never replaced)
+idtrack/<graph format>/<organism>/<sha256>.lineages.json the lineages of each graph's gene ids, named by their content
 ```
 
-The manifest (`data/manifest.schema.json`; an example, the manifest of the five organisms' graphs in format 6 that idtrack 0.1.2 reads, as `idtrack-web publish` wrote it: `data/manifest.example.json`) lists per organism the file's key, SHA-256 and size, the snapshot release, the graph's content digest and the idtrack version and commit that built it. `<graph format>` is idtrack's graph file format (6 for idtrack 0.1.0 to 0.1.2; `/api/v1/version` reports it as `graph_format_version`): an idtrack that reads another format reads another manifest, so a format change never breaks running servers.
+The manifest (`data/manifest.schema.json`, layout 2; an example, the manifest of the five organisms' graphs in format 6 that idtrack 0.1.2 reads, as `idtrack-web publish` wrote it: `data/manifest.example.json`) lists per organism the graph file's key, SHA-256 and size, its lineages file's key, SHA-256 and size, the snapshot release, the graph's content digest and the idtrack version and commit that built it. `<graph format>` is idtrack's graph file format (6 for idtrack 0.1.0 to 0.1.2; `/api/v1/version` reports it as `graph_format_version`): an idtrack that reads another format reads another manifest, so a format change never breaks running servers.
 
 **Where graphs come from.** idtrack builds them (`idtrack.API.build`, from Ensembl's public data). The graphs of the five organisms of idtrack's organism table in graph format 6 (Ensembl releases up to 115, the graphs idtrack 0.1.0 to 0.1.2 is measured on: their conversions are the same in these versions) are: human 156 MB, mouse 101 MB, pig 40 MB, macaque (rhesus) 34 MB, cynomolgus 22 MB (0.35 GB in all).
 
@@ -198,11 +199,13 @@ $ uv run --no-sync idtrack-web publish --graph <human.npz> --graph <pig.npz> ...
 }
 ```
 
+**The lineages file.** Publishing also reads, from each loaded graph, the lineages of all its gene ids (the walk of the whole graph that `GET /organisms/{organism}/lineages` answers from: measured, human 35.2 s, mouse 32.3 s, pig 18.5 s, rhesus 14.1 s, cynomolgus 8.4 s; publishing the five took 140 s in all with their loading) and stores them beside the graph as one JSON file named by its content: human 5.9 MB, mouse 5.7 MB, pig 3.4 MB, rhesus 2.8 MB, cynomolgus 2.2 MB (20 MB for the five). The same graph always gives the same bytes (keys sorted, no time recorded), so publishing a graph again keeps its lineages file. Its content (layout 1, `idtrack_web_api/lineages.py`): `layout` (1), `organism`, `content_digest` (the graph's), `releases` and `genes` (the gene ids of the graph's history), then every family of ids joined by history edges, in the order of the SHA-256 digest of each family's smallest id, as the endpoint's body gives families: `ids`, `family_starts`, `active` (per id its runs of active releases, `[first, last]`), `versions` (per id the releases of a new version) and `edges` (`[from index, to index, old release, new release, score or null]`). The server reads it at start (about a second for the five) and puts first the families of the genes its showcase's answers name; it never walks a graph for its lineages itself, so a store without the file is refused at start with what to do: a manifest of layout 1 (written before lineages files) with `The manifest ... is of layout 1, which names no lineages file of each graph; this server reads layout 2. Publish the graphs again with idtrack-web publish ...`, a missing or damaged file with `The lineages file of <organism> that the manifest names cannot be used (...)`.
+
 `deploy/publish_graphs.sh <folder> s3` publishes every `graph_*.npz` under a folder. A file already published with the same bytes is `kept`; a content key that holds other bytes stops the publication. The manifest is written last, so a server starting meanwhile reads either the old release or the new one, whole. Older releases stay in the store (their manifests under `manifests/`); to serve one again, point `IDTRACK_WEB_MANIFEST_KEY` at its manifest.
 
 **Cloudflare R2.** In the Cloudflare dashboard: R2, create a bucket (e.g. `idtrack-graphs`, no public access); R2, Manage API tokens: one token with "Object Read & Write" on that bucket for publishing (kept by the publisher), one with "Object Read" for the servers; each gives an access key id and a secret access key, and the endpoint is `https://<account id>.r2.cloudflarestorage.com`. The five graphs are 0.35 GB (353 MB, above), inside R2's free 10 GB; a server start reads one manifest and, for files its cache lacks, one object each. The R2 path of the code (publishing with an MD5 checked on arrival, the cache, the verification, every refusal) is tested against a local S3-compatible server (section 5); it has not been run against R2 itself, which needs the owner's account.
 
-**At start** the server reads the manifest; for `s3` it fetches each file its cache lacks (or holds with other bytes) to a temporary name, verifies size and SHA-256, and renames it; for `directory` it verifies the files in place; it then loads each graph and checks that it is the graph the manifest names (organism, snapshot release, content digest, format). Any mismatch stops it with exit status 2 and a message naming the file. `idtrack-web check-data` does all of this and exits, printing what it verified:
+**At start** the server reads the manifest; for `s3` it fetches each file its cache lacks (or holds with other bytes) to a temporary name, verifies size and SHA-256, and renames it; for `directory` it verifies the files in place (the graphs and their lineages files); it then loads each graph and checks that it is the graph the manifest names (organism, snapshot release, content digest, format), and that each lineages file records that graph's content digest. Any mismatch stops it with exit status 2 and a message naming the file. `idtrack-web check-data` does all of this and exits, printing what it verified:
 
 ```console
 $ IDTRACK_WEB_SOURCE=directory IDTRACK_WEB_DIRECTORY=/tmp/idtrack-store uv run --no-sync idtrack-web check-data   # the store of section 8
@@ -212,6 +215,8 @@ $ IDTRACK_WEB_SOURCE=directory IDTRACK_WEB_DIRECTORY=/tmp/idtrack-store uv run -
     "sus_scrofa": {
       "file": {"key": "idtrack/6/sus_scrofa/8958696c....npz", "sha256": "8958696c...", "size": 569398},
       "path": ".../idtrack-store/idtrack/6/sus_scrofa/8958696c....npz",
+      "lineages": {"key": "idtrack/6/sus_scrofa/052d7f60....lineages.json", "sha256": "052d7f60...", "size": 42741},
+      "lineages_path": ".../idtrack-store/idtrack/6/sus_scrofa/052d7f60....lineages.json",
       "load_seconds": 0.099,
       "releases": [56, 115]
     }
@@ -601,6 +606,8 @@ Caddy comes from Caddy's own repository: Ubuntu 26.04's package (Caddy 2.6.2) re
 | `idtrack-web: idtrack/6/<organism>/<sha>.npz: the SHA-256 of <path> is ...; the manifest says ...` | A damaged file: in a folder store, copy it again; in a bucket, the object was replaced behind the publisher's back: publish again |
 | `idtrack-web: The manifest ... lists graphs of format version 2; this idtrack reads format version 6.` | Graphs built by another idtrack; publish graphs built by this one |
 | `... is not the graph the manifest names: {...}` | The manifest and the file disagree (organism, snapshot, digest): publish again |
+| `The manifest ... is of layout 1, which names no lineages file of each graph; this server reads layout 2. ...` | A store published before lineages files: publish the graphs again (section 7) |
+| `The lineages file of <organism> that the manifest names cannot be used (...)` | The lineages file is missing or damaged: publish the graphs again (section 7) |
 | `uv sync --locked` fails: `The lockfile ... needs to be updated` | `pyproject.toml` changed without `uv lock` (section 3) |
 | A test fails in `test_openapi.py`: `api/openapi.json is not what the app generates` | Regenerate it (section 5), and the frontend's types from it |
 | Answers `429 rate_limited` from one address for every user | The proxy's address is not in `IDTRACK_WEB_FORWARDED_ALLOW_IPS`, so every request counts as the proxy's; the message says which allowance was used up (searching requests, other requests, or seconds of search) |

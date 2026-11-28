@@ -270,7 +270,7 @@ export type paths = {
     };
     /**
      * The lineages of gene ids in the graph: active releases, new versions, edges to other ids
-     * @description The lineages of the graph's gene ids as Ensembl's stable id history gives them, read from idtrack's graph: per id the releases at which it is active and those at which a new version of it begins, and the history edges between ids with their releases and Ensembl's scores. Ids joined by such edges form a family, given whole: first the families of the genes the showcase's answers name, then the others in a fixed order (the digest of each one's smallest id), until `limit` ids. No event is classified by idtrack's rules here (a split or a merge is a property of a path; see `PathStep.reason`). Read once per graph when the server started; the home page draws them.
+     * @description The lineages of the graph's gene ids as Ensembl's stable id history gives them, read from idtrack's graph: per id the releases at which it is active and those at which a new version of it begins, and the history edges between ids with their releases and Ensembl's scores. Ids joined by such edges form a family, given whole: first the families of the genes the showcase's answers name, then the others in a fixed order (the digest of each one's smallest id), until `limit` ids. No event is classified by idtrack's rules here (a split or a merge is a property of a path; see `PathStep.reason`). Computed from the graph when it was published and read by the server at its start; the home page draws them.
      */
     get: operations["lineages"];
     put?: never;
@@ -2097,7 +2097,7 @@ export type components = {
        * Content Digest
        * @description The digest of the graph's content read.
        */
-      content_digest: string | null;
+      content_digest: string;
       /**
        * Releases
        * @description Every release of the graph, ascending.
@@ -2148,11 +2148,6 @@ export type components = {
        * @description History edges from a version of one id to a version of another, both given: `[from index, to index, old release, new release, score]`, `score` Ensembl's mapping score (the highest between the two ids across those releases) or `null` where it gave none. A version's edges to two or more ids at once is Ensembl's mapping fanning out, two or more ids' edges to one id fanning in; neither is idtrack's classification of a step of a path (`PathStep.reason`).
        */
       edges: (number | null)[][];
-      /**
-       * Compute Seconds
-       * @description The seconds the server took to read the graph's lineages, at its start.
-       */
-      compute_seconds: number;
     };
     /**
      * MemoryLoad

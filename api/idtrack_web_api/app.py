@@ -504,8 +504,10 @@ def create_app(  # noqa: PLR0915 - every endpoint, in one place
     showcases = {organism: showcase.compute(graph, settings) for organism, graph in registry.graphs.items()}
     showcase_bodies = {organism: _json_bytes(body) for organism, body in showcases.items()}
     showcase_queries_bodies = {organism: _json_bytes(showcase.queries_of(body)) for organism, body in showcases.items()}
+    # The lineages, computed by the publisher (the store's lineages file of each graph); here only their order.
     lineage_tables = {
-        organism: lineages.compute(graph, showcases.get(organism)) for organism, graph in registry.graphs.items()
+        organism: lineages.table(lineages.read(graph.lineages, graph.entry), showcases.get(organism))
+        for organism, graph in registry.graphs.items()
     }
     del showcases
     history_bodies = {organism: _json_bytes(history.compute(graph)) for organism, graph in registry.graphs.items()}
@@ -1041,8 +1043,8 @@ def create_app(  # noqa: PLR0915 - every endpoint, in one place
             "history edges between ids with their releases and Ensembl's scores. Ids joined by such edges form a "
             "family, given whole: first the families of the genes the showcase's answers name, then the others in "
             "a fixed order (the digest of each one's smallest id), until `limit` ids. No event is classified by "
-            "idtrack's rules here (a split or a merge is a property of a path; see `PathStep.reason`). Read once per "
-            "graph when the server started; the home page draws them."
+            "idtrack's rules here (a split or a merge is a property of a path; see `PathStep.reason`). Computed from "
+            "the graph when it was published and read by the server at its start; the home page draws them."
         ),
         dependencies=[Depends(only("limit"))],
     )

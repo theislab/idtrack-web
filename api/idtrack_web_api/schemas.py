@@ -1333,7 +1333,7 @@ class LineagesResponse(BaseModel):
 
     model_config = _STRICT
     organism: str = Field(..., description="The organism.")
-    content_digest: str | None = Field(..., description="The digest of the graph's content read.")
+    content_digest: str = Field(..., description="The digest of the graph's content read.")
     releases: list[int] = Field(..., description="Every release of the graph, ascending.")
     genes: int = Field(
         ...,
@@ -1386,9 +1386,6 @@ class LineagesResponse(BaseModel):
             "Ensembl's mapping fanning out, two or more ids' edges to one id fanning in; neither is idtrack's "
             "classification of a step of a path (`PathStep.reason`)."
         ),
-    )
-    compute_seconds: float = Field(
-        ..., description="The seconds the server took to read the graph's lineages, at its start."
     )
 
 

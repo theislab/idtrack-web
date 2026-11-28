@@ -1,8 +1,11 @@
 """Publishing a release of graph files: upload each by its content, then write the manifest that names them.
 
 Every graph file is first loaded with idtrack (so a file that is not a graph of this idtrack's format is never
-published) and its SHA-256 and size are computed. It is stored under ``idtrack/<format>/<organism>/<sha256>.npz``;
-a key that exists already must hold the same bytes (keys named by content are never overwritten). The manifest is
+published) and its SHA-256 and size are computed. It is stored under ``idtrack/<format>/<organism>/<sha256>.npz``.
+The lineages of its gene ids are then read from the loaded graph (:py:func:`idtrack_web_api.lineages.compute`, about
+30 s for the human graph, the walk a server would otherwise make at every start) and stored as one JSON file under
+``idtrack/<format>/<organism>/<sha256>.lineages.json``. A key that exists already must hold the same bytes (keys
+named by content are never overwritten; the same graph gives the same lineages file). The manifest is
 written last: first as an immutable copy named by its own SHA-256 (``idtrack/<format>/manifests/<sha256>.json``),
 then under the current key that servers read (``idtrack/<format>/manifest.json`` by default). A server that starts
 while a release is being published reads either the previous manifest or the new one, and every file of either.
@@ -19,14 +22,17 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Protocol
 
 import idtrack_web_api
+from idtrack_web_api import lineages
 from idtrack_web_api.adapter import FORMAT_VERSION, Graph, GraphLoadError, idtrack_version
 from idtrack_web_api.data import (
+    MANIFEST_SCHEMA_VERSION,
     DataError,
     Manifest,
     ManifestFile,
     ManifestGraph,
     default_manifest_key,
     file_digest,
+    lineages_key,
     manifest_bytes,
     move_into_place,
     object_key,
@@ -51,6 +57,10 @@ class Target(Protocol):
 
     def put_file(self, source: Path, file: ManifestFile) -> str:
         """Store a file under its key unless the same bytes are there; return what was done."""
+        ...
+
+    def put_content(self, content: bytes, file: ManifestFile) -> str:
+        """Store bytes under their content key unless the same bytes are there; return what was done."""
         ...
 
     def put_bytes(self, key: str, content: bytes) -> None:
@@ -115,6 +125,38 @@ class DirectoryTarget:
         verify_file(path, file)
         return "linked" if self.link else "copied"
 
+    def put_content(self, content: bytes, file: ManifestFile) -> str:
+        """Store a file computed by the publisher (a lineages file) under its content key, always as a copy.
+
+        Args:
+            content: The bytes.
+            file: Their key, SHA-256 and size.
+
+        Returns:
+            str: ``kept`` (the same bytes were there) or ``written``.
+
+        Raises:
+            DataError: If the key holds other bytes.
+        """
+        path = self.root / file.key
+        if path.exists() or path.is_symlink():
+            try:
+                verify_file(path, file)
+            except DataError as error:
+                msg = (
+                    f"{file.key} exists in the {self.describe()} with other bytes; keys named by content "
+                    f"are never replaced ({error})."
+                )
+                raise DataError(msg) from None
+            return "kept"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with temporary_beside(path) as temporary:
+            temporary.write_bytes(content)
+            verify_file(temporary, file)
+            move_into_place(temporary, path)
+        verify_file(path, file)
+        return "written"
+
     def put_bytes(self, key: str, content: bytes) -> None:
         """Store a small file, replacing it atomically.
 
@@ -176,13 +218,7 @@ class S3Target:
         Raises:
             DataError: If the key holds another object, or the uploaded object is not what was sent.
         """
-        found = self._head(file.key)
-        if found is not None:
-            if found != {"size": file.size, "sha256": file.sha256}:
-                msg = (
-                    f"{file.key} exists in the {self.describe()} as {found}; keys named by content are never replaced."
-                )
-                raise DataError(msg)
+        if self._kept(file):
             return "kept"
         md5 = hashlib.md5(usedforsecurity=False)
         with source.open("rb") as handle:
@@ -198,11 +234,48 @@ class S3Target:
                 ContentType="application/octet-stream",
                 Metadata={"sha256": file.sha256},
             )
+        self._check_uploaded(file)
+        return "uploaded"
+
+    def put_content(self, content: bytes, file: ManifestFile) -> str:
+        """Upload a file computed by the publisher (a lineages file) under its content key.
+
+        Args:
+            content: The bytes.
+            file: Their key, SHA-256 and size.
+
+        Returns:
+            str: ``kept`` (an object with the same size and SHA-256 was there) or ``uploaded``.
+        """
+        if self._kept(file):
+            return "kept"
+        self.client.put_object(
+            Bucket=self.bucket,
+            Key=file.key,
+            Body=content,
+            ContentLength=file.size,
+            ContentMD5=base64.b64encode(hashlib.md5(content, usedforsecurity=False).digest()).decode(),
+            ContentType="application/json",
+            Metadata={"sha256": file.sha256},
+        )
+        self._check_uploaded(file)
+        return "uploaded"
+
+    def _kept(self, file: ManifestFile) -> bool:
+        """Whether the key holds the file already; a key that holds another object stops the publication."""
+        found = self._head(file.key)
+        if found is None:
+            return False
+        if found != {"size": file.size, "sha256": file.sha256}:
+            msg = f"{file.key} exists in the {self.describe()} as {found}; keys named by content are never replaced."
+            raise DataError(msg)
+        return True
+
+    def _check_uploaded(self, file: ManifestFile) -> None:
         stored = self._head(file.key)
         if stored != {"size": file.size, "sha256": file.sha256}:
             msg = f"{file.key} was uploaded to the {self.describe()} but reads back as {stored}."
             raise DataError(msg)
-        return "uploaded"
 
     def put_bytes(self, key: str, content: bytes) -> None:
         """Upload a small object (the manifest), replacing what is there.
@@ -221,36 +294,45 @@ class S3Target:
         )
 
 
-def graph_entry(path: Path) -> ManifestGraph:
-    """Load a graph file with idtrack and return its manifest entry.
+def graph_entry(path: Path) -> tuple[ManifestGraph, bytes]:
+    """Load a graph file with idtrack, read the lineages of its gene ids, and return its manifest entry.
 
     Args:
         path: The graph file.
 
     Returns:
-        ManifestGraph: The entry.
+        tuple[ManifestGraph, bytes]: The entry, and the bytes of the graph's lineages file that it names.
 
     Raises:
         DataError: If the file is not a graph this idtrack reads.
     """
     try:
-        identity = Graph.load(str(path)).identity()
+        graph = Graph.load(str(path))
     except GraphLoadError as error:
         msg = f"{path} is not a graph this idtrack reads: {error}"
         raise DataError(msg) from None
+    identity = graph.identity()
     if identity.content_digest is None or identity.format_version != FORMAT_VERSION:
         msg = f"{path} records no content digest or another format; build it with this idtrack."
         raise DataError(msg)
     sha256, size = file_digest(path)
-    return ManifestGraph(
+    content = lineages.file_bytes(lineages.compute(graph))
+    content_sha256 = hashlib.sha256(content).hexdigest()
+    entry = ManifestGraph(
         organism=identity.organism,
         snapshot_release=identity.snapshot_release,
         file=ManifestFile(key=object_key(FORMAT_VERSION, identity.organism, sha256), sha256=sha256, size=size),
+        lineages=ManifestFile(
+            key=lineages_key(FORMAT_VERSION, identity.organism, content_sha256),
+            sha256=content_sha256,
+            size=len(content),
+        ),
         content_digest=identity.content_digest,
         idtrack_version=identity.package_version,
         idtrack_commit=identity.package_commit,
         build_date=identity.build_date,
     )
+    return entry, content
 
 
 def publish(paths: list[Path], target: Target, manifest_key: str | None = None) -> tuple[Manifest, dict[str, str]]:
@@ -268,20 +350,24 @@ def publish(paths: list[Path], target: Target, manifest_key: str | None = None) 
         DataError: If a file is not a graph, two files are of one organism, or a content key holds other bytes.
     """
     entries = []
+    contents = []
     for path in paths:
-        entry = graph_entry(path)
+        entry, content = graph_entry(path)
         log.info("%s: %s, snapshot %d, sha256 %s", path, entry.organism, entry.snapshot_release, entry.file.sha256)
         entries.append(entry)
+        contents.append(content)
     organisms = [e.organism for e in entries]
     if len(set(organisms)) != len(organisms):
         msg = f"Two graph files are of one organism: {organisms}; a release holds one graph per organism."
         raise DataError(msg)
     done: dict[str, str] = {}
-    for path, entry in zip(paths, entries, strict=True):
+    for path, entry, content in zip(paths, entries, contents, strict=True):
         done[entry.file.key] = target.put_file(path, entry.file)
         log.info("%s: %s", entry.file.key, done[entry.file.key])
+        done[entry.lineages.key] = target.put_content(content, entry.lineages)
+        log.info("%s: %s", entry.lineages.key, done[entry.lineages.key])
     manifest = Manifest(
-        schema_version=1,
+        schema_version=MANIFEST_SCHEMA_VERSION,
         format_version=FORMAT_VERSION,
         published=dt.datetime.now(dt.UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
         publisher=f"idtrack-web-api {idtrack_web_api.__version__}, idtrack {idtrack_version()}",

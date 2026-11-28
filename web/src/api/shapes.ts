@@ -338,7 +338,7 @@ export const SCHEMAS: Record<string, Shape> = {
   LineagesResponse: {
     o: {
       organism: "string",
-      content_digest: { u: ["string", "null"] },
+      content_digest: "string",
       releases: { a: "integer" },
       genes: "integer",
       families: "integer",
@@ -349,7 +349,6 @@ export const SCHEMAS: Record<string, Shape> = {
       active: { a: { a: { a: "integer" } } },
       versions: { a: { a: "integer" } },
       edges: { a: { a: { u: ["integer", "number", "null"] } } },
-      compute_seconds: "number",
     },
   },
   MemoryLoad: {

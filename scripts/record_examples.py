@@ -249,7 +249,7 @@ def constructed() -> dict[str, Any]:
         settings = Settings(source="directory", directory=Path(folder))
         loaded = load_registry(prepare(store_of(settings), default_manifest_key(), ()), 1000, 10.0)
         held = next(iter(loaded.graphs.values()))
-        cut = load_graph(held.path, held.entry, budget_states=1, budget_seconds=10.0)
+        cut = load_graph(held.path, held.lineages, held.entry, budget_states=1, budget_seconds=10.0)
         arguments = ConversionArguments(
             from_release=None,
             to_release=56,

@@ -223,7 +223,8 @@ def test_search_budget_exceeded(
     check_response: Callable[..., Any],
 ) -> None:
     graphs = {
-        o: load_graph(g.path, g.entry, budget_states=1, budget_seconds=10.0) for o, g in cut_registry.graphs.items()
+        o: load_graph(g.path, g.lineages, g.entry, budget_states=1, budget_seconds=10.0)
+        for o, g in cut_registry.graphs.items()
     }
     client = make_client(registry=Registry(graphs=graphs, manifest_file=cut_registry.manifest_file), rate_per_minute=0)
     response = client.get(f"{P}/organisms/pig/convert", params={"identifier": GENE, "to_release": 56})

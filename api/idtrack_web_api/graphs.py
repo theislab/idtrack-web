@@ -29,6 +29,7 @@ class LoadedGraph:
         graph: The graph (the idtrack calls on it: :py:class:`idtrack_web_api.adapter.Graph`).
         entry: The manifest's entry of the graph.
         path: The verified local file it was loaded from.
+        lineages: The verified local file of the lineages of its gene ids (:py:mod:`idtrack_web_api.lineages`).
         description: idtrack's description of the graph (``to_dict()``).
         load_seconds: How long the load took.
     """
@@ -37,6 +38,7 @@ class LoadedGraph:
     graph: Graph
     entry: ManifestGraph
     path: Path
+    lineages: Path
     description: dict[str, Any]
     load_seconds: float
 
@@ -67,12 +69,17 @@ class Registry:
 
 
 def load_graph(
-    path: Path, entry: ManifestGraph, budget_states: int | None = None, budget_seconds: float | None = None
+    path: Path,
+    lineages: Path,
+    entry: ManifestGraph,
+    budget_states: int | None = None,
+    budget_seconds: float | None = None,
 ) -> LoadedGraph:
     """Load one verified graph file and check that it is the graph the manifest names.
 
     Args:
         path: The verified file.
+        lineages: The verified lineages file of the graph.
         entry: The manifest's entry.
         budget_states: The search budget of one identifier in states (``None``: idtrack's default).
         budget_seconds: The search budget of one identifier in seconds (``None``: idtrack's default).
@@ -113,6 +120,7 @@ def load_graph(
         graph=graph,
         entry=entry,
         path=path,
+        lineages=lineages,
         description=graph.describe(),
         load_seconds=seconds,
     )
@@ -132,7 +140,9 @@ def load_registry(
         Registry: The graphs.
     """
     graphs = {
-        organism: load_graph(path, data.manifest.graph(organism), budget_states, budget_seconds)
+        organism: load_graph(
+            path, data.lineages[organism], data.manifest.graph(organism), budget_states, budget_seconds
+        )
         for organism, path in data.files.items()
     }
     return Registry(graphs=graphs, manifest_file=data.manifest_file)

@@ -82,6 +82,8 @@ def _check_data(settings: Settings) -> int:
             organism: {
                 "file": graph.entry.file.model_dump(mode="json"),
                 "path": str(graph.path),
+                "lineages": graph.entry.lineages.model_dump(mode="json"),
+                "lineages_path": str(graph.lineages),
                 "load_seconds": round(graph.load_seconds, 3),
                 "releases": [graph.graph.releases()[0], graph.graph.releases()[-1]],
             }

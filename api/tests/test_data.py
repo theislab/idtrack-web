@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import shutil
@@ -14,6 +15,8 @@ from typing import TYPE_CHECKING, Any
 import pytest
 from idtrack.graph import GRAPH_FORMAT_VERSION
 
+from idtrack_web_api import lineages
+from idtrack_web_api.adapter import Graph
 from idtrack_web_api.data import (
     DataError,
     DirectoryStore,
@@ -57,6 +60,14 @@ def test_manifest_round_trip_and_example(tmp_path: Path) -> None:
     assert graph.file == ManifestFile(
         key=f"idtrack/{GRAPH_FORMAT_VERSION}/sus_scrofa/{sha256}.npz", sha256=sha256, size=size
     )
+    # The lineages file, computed from the graph by the publisher and named by its content.
+    computed = lineages.file_bytes(lineages.compute(Graph.load(str(CUT_GRAPH))))
+    assert (root / graph.lineages.key).read_bytes() == computed
+    assert graph.lineages == ManifestFile(
+        key=f"idtrack/{GRAPH_FORMAT_VERSION}/sus_scrofa/{graph.lineages.sha256}.lineages.json",
+        sha256=graph.lineages.sha256,
+        size=len(computed),
+    )
     # The immutable copy is named by its own content.
     copies = list((root / f"idtrack/{GRAPH_FORMAT_VERSION}/manifests").iterdir())
     assert [c.read_bytes() for c in copies] == [content]
@@ -70,13 +81,15 @@ def test_manifest_round_trip_and_example(tmp_path: Path) -> None:
 @pytest.mark.parametrize(
     "change",
     [
-        lambda d: d.update(schema_version=2),
+        lambda d: d.update(schema_version=3),
         lambda d: d.update(format_version="2"),
         lambda d: d.update(extra=1),
         lambda d: d["graphs"][0].update(organism="Sus Scrofa"),
         lambda d: d["graphs"][0]["file"].update(sha256="A" * 64),
         lambda d: d["graphs"][0]["file"].update(size=0),
         lambda d: d["graphs"][0]["file"].update(key="idtrack/2/sus_scrofa/other.npz"),
+        lambda d: d["graphs"][0]["lineages"].update(key=d["graphs"][0]["file"]["key"]),
+        lambda d: d["graphs"][0].pop("lineages"),
         lambda d: d["graphs"].append(dict(d["graphs"][0])),
         lambda d: d.update(graphs=[]),
     ],
@@ -133,12 +146,51 @@ def test_other_refusals(tmp_path: Path) -> None:
     # A manifest of another graph format.
     other = json.loads(manifest_bytes(manifest))
     other["format_version"] = GRAPH_FORMAT_VERSION + 1
-    other["graphs"][0]["file"]["key"] = other["graphs"][0]["file"]["key"].replace(
-        f"idtrack/{GRAPH_FORMAT_VERSION}/", f"idtrack/{GRAPH_FORMAT_VERSION + 1}/"
-    )
+    for file in ("file", "lineages"):
+        other["graphs"][0][file]["key"] = other["graphs"][0][file]["key"].replace(
+            f"idtrack/{GRAPH_FORMAT_VERSION}/", f"idtrack/{GRAPH_FORMAT_VERSION + 1}/"
+        )
     (root / "other.json").write_text(json.dumps(other))
     with pytest.raises(DataError, match="this idtrack reads"):
         prepare(DirectoryStore(root), "other.json", ())
+
+
+def test_the_lineages_file_is_required(tmp_path: Path) -> None:
+    """A server never computes the lineages itself: a manifest of the layout before lineages files, a missing or
+    damaged lineages file, and one of another graph are each refused at start with what to do."""
+    root, manifest = published(tmp_path)
+    older = json.loads(manifest_bytes(manifest))
+    older["schema_version"] = 1
+    older["graphs"][0].pop("lineages")
+    (root / "older.json").write_text(json.dumps(older))
+    with pytest.raises(DataError, match=r"of layout 1, which names no lineages file.*Publish the graphs again"):
+        prepare(DirectoryStore(root), "older.json", ())
+    path = root / manifest.graphs[0].lineages.key
+    content = path.read_bytes()
+    path.write_bytes(content[:-1])
+    with pytest.raises(DataError, match=r"lineages file of sus_scrofa.*publish the graphs again"):
+        prepare(DirectoryStore(root), default_manifest_key(), ())
+    path.unlink()
+    with pytest.raises(DataError, match=r"lineages file of sus_scrofa.*cannot be read.*publish the graphs again"):
+        prepare(DirectoryStore(root), default_manifest_key(), ())
+    # A lineages file whose bytes are the manifest's but whose graph is not (the digest it records).
+    other = json.loads(content)
+    other["content_digest"] = "0" * 64
+    other_bytes = lineages.file_bytes(other)
+    path.write_bytes(other_bytes)
+    changed = json.loads(manifest_bytes(manifest))
+    sha256 = hashlib.sha256(other_bytes).hexdigest()
+    changed["graphs"][0]["lineages"] = {
+        "key": f"idtrack/{GRAPH_FORMAT_VERSION}/sus_scrofa/{sha256}.lineages.json",
+        "sha256": sha256,
+        "size": len(other_bytes),
+    }
+    (root / changed["graphs"][0]["lineages"]["key"]).write_bytes(other_bytes)
+    (root / "changed.json").write_text(json.dumps(changed))
+    registry = registry_of(settings_of(root, manifest_key="changed.json"))
+    loaded = registry.graphs["sus_scrofa"]
+    with pytest.raises(DataError, match=r"is not the lineages file of the manifest's graph.*publish the graphs again"):
+        lineages.read(loaded.lineages, loaded.entry)
 
 
 def test_a_graph_that_is_not_the_manifests(tmp_path: Path) -> None:
@@ -187,8 +239,11 @@ def test_publish_directory(tmp_path: Path) -> None:
     manifest, done = publish([CUT_GRAPH], target)
     key = manifest.graphs[0].file.key
     assert done[key] == "copied"
+    assert done[manifest.graphs[0].lineages.key] == "written"
     again, done = publish([CUT_GRAPH], target)
     assert done[key] == "kept"
+    # The same graph gives the same lineages file.
+    assert done[manifest.graphs[0].lineages.key] == "kept"
     assert again.graphs == manifest.graphs
     # A content key that holds other bytes is never replaced.
     (tmp_path / "store" / key).write_bytes(b"other")
@@ -198,6 +253,8 @@ def test_publish_directory(tmp_path: Path) -> None:
     linked, done = publish([CUT_GRAPH], DirectoryTarget(tmp_path / "linked", link=True))
     path = tmp_path / "linked" / linked.graphs[0].file.key
     assert path.is_symlink() and path.resolve() == CUT_GRAPH.resolve()
+    # The lineages file, computed by the publisher, is a file of the store, never a link.
+    assert not (tmp_path / "linked" / linked.graphs[0].lineages.key).is_symlink()
     assert done[linked.graphs[0].file.key] == "linked"
 
 
@@ -214,8 +271,10 @@ def test_publish_refuses_what_is_not_a_graph(tmp_path: Path) -> None:
 
 
 def test_graph_entry() -> None:
-    entry = graph_entry(CUT_GRAPH)
+    entry, content = graph_entry(CUT_GRAPH)
     assert entry.organism == "sus_scrofa"
+    assert entry.lineages.size == len(content)
+    assert json.loads(content)["content_digest"] == entry.content_digest
     assert entry.snapshot_release == 115
 
 
@@ -250,9 +309,15 @@ def test_s3_publish_fetch_and_verify(s3_endpoint: str, tmp_path: Path) -> None:
     head = client.head_object(Bucket="graphs-a", Key=key)
     assert head["ContentLength"] == manifest.graphs[0].file.size
     assert head["Metadata"]["sha256"] == manifest.graphs[0].file.sha256
-    assert publish([CUT_GRAPH], S3Target(client, "graphs-a", s3_endpoint))[1][key] == "kept"
+    lineages_key = manifest.graphs[0].lineages.key
+    assert done[lineages_key] == "uploaded"
+    assert client.head_object(Bucket="graphs-a", Key=lineages_key)["Metadata"]["sha256"] == (
+        manifest.graphs[0].lineages.sha256
+    )
+    kept = publish([CUT_GRAPH], S3Target(client, "graphs-a", s3_endpoint))[1]
+    assert kept[key] == kept[lineages_key] == "kept"
     keys = {o["Key"] for o in client.list_objects_v2(Bucket="graphs-a")["Contents"]}
-    assert key in keys and default_manifest_key() in keys
+    assert key in keys and lineages_key in keys and default_manifest_key() in keys
     assert any(k.startswith(f"idtrack/{GRAPH_FORMAT_VERSION}/manifests/") for k in keys)
 
     cache = tmp_path / "cache"
@@ -260,6 +325,7 @@ def test_s3_publish_fetch_and_verify(s3_endpoint: str, tmp_path: Path) -> None:
     data = prepare(store, default_manifest_key(), ())
     path = data.files["sus_scrofa"]
     assert path == cache / key
+    assert data.lineages["sus_scrofa"] == cache / lineages_key
     assert file_digest(path) == (manifest.graphs[0].file.sha256, manifest.graphs[0].file.size)
     assert not [p for p in path.parent.iterdir() if ".part-" in p.name]
 
