@@ -29,7 +29,7 @@ export const KIND_TEXT: Record<CaseKind, KindText> = {
   lineage: {
     title: "A lineage across assemblies",
     concept:
-      "An identifier is followed release by release through every version Ensembl gave the gene, across each change of genome assembly, to the release asked.",
+      "An identifier is followed release by release through Ensembl's history, across each change of genome assembly, to the release asked; where that history gives a gene no successor, a bridge (IDTrack's inference, marked as one) can carry the walk to another gene.",
     href: HISTORY,
   },
   renamed: {
@@ -58,7 +58,8 @@ export const KIND_TEXT: Record<CaseKind, KindText> = {
   },
   merge: {
     title: "A merge",
-    concept: "Ensembl recorded several genes becoming one. Each of the old ids answers the gene they became.",
+    concept:
+      "Ensembl recorded several genes becoming one. Followed forward, each of the old ids answers the gene they became; walked back in time, the merge is a split, and the genes that merged are the candidates.",
     href: HISTORY,
   },
   handoff: {

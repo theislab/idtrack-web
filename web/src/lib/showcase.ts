@@ -29,7 +29,7 @@ export function fromShowcase(showcase: ShowcaseResponse | null, wanted: WantedCo
 }
 
 /** The index of the showcase's case that is the conversion `wanted`, or -1. */
-export function caseIndex(cases: ShowcaseResponse["cases"], wanted: WantedConversion): number {
+export function caseIndex(cases: readonly { query: ShowcaseQuery }[], wanted: WantedConversion): number {
   return cases.findIndex((c) => same(c.query, wanted));
 }
 

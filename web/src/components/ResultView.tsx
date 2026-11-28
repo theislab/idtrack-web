@@ -3,7 +3,7 @@
 // the decision and every candidate, how the identifier was read, the evidence to weigh, and the record (the facts, how
 // the answer was reached, the api's answer as sent). Only the tab shown is drawn, so that the largest answer opens
 // with its verdict and its path alone.
-import { memo, useEffect, useId, useMemo, useState, useTransition } from "react";
+import { memo, useEffect, useId, useMemo, useState, useTransition, type ReactNode } from "react";
 import type { ConversionResult, GraphDescription } from "../api/types";
 import { anatomyOf } from "../lib/anatomy";
 import { evidenceHrefs, evidenceOf, type EvidenceAsk, type EvidenceMark } from "../lib/evidence";
@@ -23,9 +23,9 @@ import { DecisionPanelBody } from "./ResultDecision";
 import { FigurePanel } from "./ResultParts";
 import { Details, GenePlaces, OtherReadings, ReadingPanel } from "./ResultReading";
 import type { IdContext } from "./IdMenu";
-import { Button, CopyButton, Prose } from "./ui";
+import { Button, CopyButton } from "./ui";
 import { CaptionMore } from "./v2/CaptionMore";
-import { EvidenceCard, EvidenceGlyph } from "./Evidence";
+import { EvidenceCard, EvidenceGlyph, MarkTitle, verdictOrder } from "./Evidence";
 import { Expandable } from "./v2/Expandable";
 import { Segmented } from "./v2/Segmented";
 import { Tabs, type TabItem } from "./v2/Tabs";
@@ -61,8 +61,9 @@ function PathCaption({ model }: { model: PathModel }) {
   );
 }
 
-/** Every mark of the answer's evidence, cautions first, each with what it rests on written out (the tab is the place to
- *  read them whole; the verdict keeps each caution on its line). */
+/** Every mark of the answer's evidence in the verdict's order and with the verdict's titles (another gene first, then
+ *  the other cautions, then the notes), each with what it rests on written out (the tab is the place to read them
+ *  whole; the verdict keeps each caution on its line). */
 function EvidenceList({
   marks,
   readAtHref,
@@ -72,13 +73,16 @@ function EvidenceList({
   readAtHref: (release: number) => string;
   askHref: (ask: EvidenceAsk) => string;
 }) {
-  const ordered = [...marks.filter((m) => m.tone === "caution"), ...marks.filter((m) => m.tone !== "caution")];
   return (
     <ul className="evidence-list" aria-label="Evidence to weigh">
-      {ordered.map((mark) => (
+      {verdictOrder(marks).map((mark) => (
         <li key={`${mark.kind}|${mark.label}`} className={`evidence-list__item evidence-list__item--${mark.tone}`}>
           <p className="evidence-list__head">
-            <EvidenceGlyph tone={mark.tone} /> <Prose text={mark.label} />
+            <EvidenceGlyph tone={mark.tone} />{" "}
+            <span>
+              <span className="visually-hidden">{mark.tone === "caution" ? "Caution: " : "Note: "}</span>
+              <MarkTitle mark={mark} />
+            </span>
           </p>
           <EvidenceCard mark={mark} links={{ readAtHref, askHref }} />
         </li>
@@ -158,6 +162,8 @@ export const ResultView = memo(function ResultView({
   apiUrl = null,
   serverTiming = null,
   requestId = null,
+  asked = null,
+  tour = null,
 }: {
   result: ConversionResult;
   raw: string;
@@ -170,6 +176,10 @@ export const ResultView = memo(function ResultView({
   serverTiming?: string | null;
   /** The answer's request id (`X-Request-ID`), for its provenance. */
   requestId?: string | null;
+  /** Under the query: the settings it was asked with and the way to edit them (the Convert page's folded form). */
+  asked?: ReactNode;
+  /** The verdict's top line: the case of the showcase this answer is. */
+  tour?: ReactNode;
 }) {
   // When the page received this answer, for its provenance.
   const [received, setReceived] = useState(() => ({ result, at: new Date().toISOString() }));
@@ -395,6 +405,8 @@ export const ResultView = memo(function ResultView({
         id={id("answer")}
         requestId={requestId}
         receivedAt={receivedAt}
+        asked={asked}
+        tour={tour}
       />
       {model.problems.length ? (
         <div className="notice notice--danger" role="alert">

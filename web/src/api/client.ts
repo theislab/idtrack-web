@@ -19,6 +19,7 @@ import type {
   HistoryResponse,
   LineagesResponse,
   LimitsResponse,
+  ShowcaseQueriesResponse,
   ShowcaseResponse,
   SourceInferenceRequest,
   SourceInferenceResponse,
@@ -513,6 +514,13 @@ export const api = {
     get<ShowcaseResponse>(`${organismPath(organism)}/showcase`, SHOWCASE_ENDPOINT, share(options), {
       shape: SHOWCASE_SHAPE,
     }),
+  /** The showcase's queries and the cases' kinds, without their answers (which answer is a case, and of which kind). */
+  showcaseQueries: (organism: string, options?: Share) =>
+    get<ShowcaseQueriesResponse>(
+      `${organismPath(organism)}/showcase/queries`,
+      "GET /organisms/{organism}/showcase/queries",
+      share(options),
+    ),
   /** Ensembl's gene id history in a graph, counted once by the server. */
   history: (organism: string, options?: Share) =>
     get<HistoryResponse>(`${organismPath(organism)}/history`, "GET /organisms/{organism}/history", share(options)),

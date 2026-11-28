@@ -28,12 +28,12 @@ import { groupedInteger, releaseRanges } from "../lib/numbers";
 import { commonName, organismName } from "../lib/organismNames";
 import type { PathModel } from "../lib/pathModel";
 import { assemblyText, stableId, type AssemblyNames } from "../lib/pathReading";
-import { href } from "../lib/router";
+import { href, navigate } from "../lib/router";
 import { parseServerTiming } from "../lib/serverTiming";
 import { spaced, statusTitle, criterionOf } from "../lib/vocabulary";
 import { useVocabulary } from "../lib/vocabularyContext";
 import { readerText, statusTone } from "../lib/resultWords";
-import { EvidenceCard } from "./Evidence";
+import { EvidenceCard, lowerFirst, sentenceCase, standingClaim, verdictOrder } from "./Evidence";
 import { IdMenu, SymbolOf, type IdContext } from "./IdMenu";
 import { Reasons, Term } from "./ResultParts";
 import { Drawer } from "./v2/Drawer";
@@ -51,6 +51,25 @@ import { Button, CopyButton, Link, Mono, Prose, StatusBadge } from "./ui";
 export const TARGETS_SHOWN = 6;
 /** The genes of a best answer shown at display size, before "and N more genes". */
 const GENES_SHOWN = 3;
+
+/** The address of this answer with one of its tabs open (`?tab=`). */
+function tabHref(tab: string): string {
+  const search = new URLSearchParams(window.location.search);
+  search.set("tab", tab);
+  return `${window.location.pathname}?${search.toString()}`;
+}
+
+/** Open one of the answer's tabs from the verdict, and bring the tabs into view (the press is answered where the tabs
+ *  are; the address keeps the tab). */
+function openTab(tab: string) {
+  navigate(tabHref(tab), { replace: true });
+  window.requestAnimationFrame(() => {
+    const list = document.querySelector<HTMLElement>(".result__tabs [role='tablist']");
+    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    list?.scrollIntoView({ block: "start", behavior: reduced ? "auto" : "smooth" });
+    list?.querySelector<HTMLElement>("[aria-selected='true']")?.focus({ preventScroll: true });
+  });
+}
 
 /** The reasons a result gives that its evidence marks do not already say, each in words first. */
 const SAID_BY_EVIDENCE = new Set(["read_at_another_release"]);
@@ -227,6 +246,41 @@ function Facts({
   );
 }
 
+/** A press that copies a text, inside a menu: it says "Copied" (or why not) in place of its words for a moment. */
+function CopyItem({ text, label, note }: { text: () => string; label: string; note: string }) {
+  const [state, setState] = useState<"idle" | "copied" | "failed">("idle");
+  return (
+    <button
+      type="button"
+      className="answer__more-item"
+      onClick={() => {
+        // The clipboard is given only to secure pages (https, localhost); elsewhere the copy is said to fail.
+        const clipboard = (navigator as { clipboard?: Clipboard }).clipboard;
+        if (typeof clipboard?.writeText !== "function") {
+          setState("failed");
+          return;
+        }
+        clipboard.writeText(text()).then(
+          () => {
+            setState("copied");
+            window.setTimeout(() => {
+              setState("idle");
+            }, 1600);
+          },
+          () => {
+            setState("failed");
+          },
+        );
+      }}
+    >
+      <span aria-live="polite">{state === "copied" ? "Copied" : state === "failed" ? "Copy failed" : label}</span>
+      <span className="answer__more-note">{note}</span>
+    </button>
+  );
+}
+
+/** The verdict's two actions: Copy (a menu: the answer, a link to it, the answer and its provenance as files, the
+ *  api's request) and Cite (a drawer). */
 function Actions({
   result,
   apiUrl,
@@ -271,39 +325,34 @@ function Actions({
   };
   return (
     <div className="answer__actions">
-      {targets.length && !result.no_target ? (
-        <CopyButton
-          text={targets.join("\n")}
-          label={targets.length > 1 ? `Copy ${groupedInteger(targets.length)} answers` : "Copy answer"}
-          what={targets.length > 3 ? `the ${targets.length} best targets, one a line` : targets.join(", ")}
-        />
-      ) : null}
-      <CopyButton
-        text={() => pinnedLink(result, description, window.location.href)}
-        label="Copy link"
-        what="to this conversion, with its target release and graph"
-      />
-      <Button variant="quiet" aria-haspopup="dialog" aria-expanded={citing} onClick={onCite}>
-        Cite<span className="visually-hidden"> IDTrack and this conversion</span>
-      </Button>
       <HoverCard
         hover={false}
         className="answer__more"
         triggerClassName="button button--quiet"
-        label="More: the answer as a file, its provenance, the api's request"
+        label="Copy: the answer, a link to it, the answer and its provenance as files, the api's request"
         trigger={
           <>
-            More
-            <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" focusable="false">
-              <circle cx="3.5" cy="8" r="1.3" fill="currentColor" />
-              <circle cx="8" cy="8" r="1.3" fill="currentColor" />
-              <circle cx="12.5" cy="8" r="1.3" fill="currentColor" />
+            Copy
+            <svg viewBox="0 0 10 10" width="10" height="10" aria-hidden="true" focusable="false">
+              <path d="M2 3.5 L5 6.5 L8 3.5" fill="none" stroke="currentColor" strokeWidth="1.4" />
             </svg>
           </>
         }
       >
         {(close) => (
           <div className="answer__more-list">
+            {targets.length && !result.no_target ? (
+              <CopyItem
+                text={() => targets.join("\n")}
+                label={targets.length > 1 ? `Copy the ${groupedInteger(targets.length)} answers` : "Copy the answer"}
+                note={targets.length > 1 ? "one a line" : (targets[0] ?? "")}
+              />
+            ) : null}
+            <CopyItem
+              text={() => pinnedLink(result, description, window.location.href)}
+              label="Copy a link"
+              note="to this conversion, with its target release and graph"
+            />
             <button
               type="button"
               className="answer__more-item"
@@ -312,7 +361,7 @@ function Actions({
                 close();
               }}
             >
-              Download JSON<span className="answer__more-note">the api&apos;s answer as sent</span>
+              Save the answer<span className="answer__more-note">the api&apos;s answer as sent, JSON</span>
             </button>
             <button
               type="button"
@@ -322,7 +371,7 @@ function Actions({
                 close();
               }}
             >
-              Provenance<span className="answer__more-note">the server, the graph and the request, as JSON</span>
+              Save its provenance<span className="answer__more-note">the server, the graph and the request, JSON</span>
             </button>
             {apiUrl ? (
               <a className="answer__more-item" href={apiUrl} target="_blank" rel="noreferrer">
@@ -332,6 +381,9 @@ function Actions({
           </div>
         )}
       </HoverCard>
+      <Button variant="quiet" aria-haspopup="dialog" aria-expanded={citing} onClick={onCite}>
+        Cite<span className="visually-hidden"> IDTrack and this conversion</span>
+      </Button>
     </div>
   );
 }
@@ -490,7 +542,16 @@ function AnswerTargets({
   );
 }
 
-/** What the string meant at other releases, with a way to read it there (a list of that time means that gene). */
+/** Whether a reading of the string at other releases leads to the best answer's genes alone: the string was then a name
+ *  of the same gene (no other meaning a reader must weigh). */
+export function sameGeneReading(result: ConversionResult, reading: ConversionResult["other_readings"][number]): boolean {
+  const best = new Set(result.candidates.filter((c) => c.best).map((c) => c.gene));
+  return reading.genes.length > 0 && reading.genes.every((gene) => best.has(gene));
+}
+
+/** What the string meant at other releases, where it led to another gene than the answer, with a way to read it there
+ *  (a list of that time means that gene). A reading that leads to the answer's own gene is no other meaning: it is
+ *  stated on the Reading tab, not here. */
 function OtherMeanings({
   result,
   readAtHref,
@@ -500,7 +561,9 @@ function OtherMeanings({
   readAtHref: (release: number) => string;
   context: IdContext;
 }) {
-  const others = result.other_readings.filter((r) => r.reason === "other_release" && r.releases.length);
+  const others = result.other_readings.filter(
+    (r) => r.reason === "other_release" && r.releases.length && !sameGeneReading(result, r),
+  );
   if (!others.length) return null;
   return (
     <ul className="answer__meanings">
@@ -509,8 +572,10 @@ function OtherMeanings({
         return (
           <li key={`${reading.graph_id}|${reading.releases.join(",")}`}>
             At releases <Mono>{releaseRanges(reading.releases)}</Mono>, <Mono>{result.query_id}</Mono>{" "}
-            {reading.graph_id === result.query_id ? (
+            {reading.graph_id === result.query_id && reading.genes.length ? (
               "named another gene"
+            ) : reading.graph_id === result.query_id ? (
+              "named a gene"
             ) : (
               <>
                 was read as <Mono>{reading.graph_id}</Mono>
@@ -535,8 +600,68 @@ function OtherMeanings({
   );
 }
 
-/** The status in a sentence that fits the answer: one gene's every id, the best of several candidates (with Ensembl's
- *  split or merge on its path), or idtrack's meaning of the status. */
+/** Ensembl's events of a reason on the best path, in the page's words ("split" -> "splits"). */
+const EVENT_WORDS: Record<string, [string, string]> = {
+  split: ["split", "splits"],
+  merge: ["merge", "merges"],
+  split_and_merge: ["split and merge", "splits and merges"],
+  replaced: ["replacement", "replacements"],
+};
+
+/** The events of Ensembl's history on the path of the first best answer, by reason in the order of their first release,
+ *  each with the releases it joins in Ensembl's direction (earlier to later), from the path's own steps. */
+export function pathEvents(model: PathModel): { reason: string; words: string; releases: string[] }[] {
+  const best = model.candidates.find((c) => c.best);
+  if (!best) return [];
+  const byReason = new Map<string, { first: number; releases: string[] }>();
+  for (const index of best.steps) {
+    const step = model.steps[index];
+    if (step?.api.kind !== "history" || !(step.api.reason in EVENT_WORDS)) continue;
+    const old = step.api.old_release;
+    const next = step.api.new_release;
+    if (old === null || next === null) continue;
+    const entry = byReason.get(step.api.reason) ?? { first: old, releases: [] };
+    const text = `${old} → ${next}`;
+    if (!entry.releases.includes(text)) entry.releases.push(text);
+    entry.first = Math.min(entry.first, old);
+    byReason.set(step.api.reason, entry);
+  }
+  return [...byReason]
+    .sort((a, b) => a[1].first - b[1].first)
+    .map(([reason, entry]) => {
+      const releases = [...entry.releases].sort((a, b) => Number.parseInt(a, 10) - Number.parseInt(b, 10));
+      const [one, many] = EVENT_WORDS[reason] ?? [reason, reason];
+      return { reason, words: releases.length === 1 ? one : many, releases };
+    });
+}
+
+/** "; its path holds Ensembl's splits at 60 → 61 and 63 → 64 and a merge at 62 → 63", or nothing (`own`: as a
+ *  sentence of its own). */
+function EventsClause({ model, own = false }: { model: PathModel; own?: boolean }) {
+  const events = pathEvents(model);
+  if (!events.length) return null;
+  return (
+    <>
+      {own ? " Its" : "; its"} path holds Ensembl&apos;s{" "}
+      {events.map((event, i) => (
+        <span key={event.reason}>
+          {i === 0 ? "" : i === events.length - 1 ? " and " : ", "}
+          {event.words} at{" "}
+          {event.releases.map((r, j) => (
+            <span key={r}>
+              {j === 0 ? "" : j === event.releases.length - 1 ? " and " : ", "}
+              <Mono>{r}</Mono>
+            </span>
+          ))}
+        </span>
+      ))}
+      {own ? "." : null}
+    </>
+  );
+}
+
+/** The status in a sentence that fits the answer: one gene's every id, the best of several candidates or the one
+ *  answer, each with Ensembl's events on its path; or idtrack's meaning of the status. */
 function StatusSentence({
   result,
   model,
@@ -559,25 +684,23 @@ function StatusSentence({
         Every best target is an id of one gene, <IdMenu id={gene} release={result.to_release} context={context} />{" "}
         <SymbolOf gene={gene} context={context} />: IDTrack converts at the level of the gene, so the answer in{" "}
         {database} is every id that gene carries at release <Mono>{result.to_release}</Mono>, not the counterpart of{" "}
-        <Mono>{result.query_id}</Mono> alone.
+        <Mono>{result.query_id}</Mono> alone
+        <EventsClause model={model} />.
       </span>
     );
   }
-  if (result.status === "converted" && bests.length === 1 && result.candidates.length > 1) {
-    const best = model.candidates.find((c) => c.best);
-    const event = best?.steps.map((i) => model.steps[i]).find((s) => s?.kind === "split_merge");
+  if (result.status === "converted" && bests.length === 1) {
     return (
       <span className="answer__status-text">
-        One best answer, ranked first of <Mono>{groupedInteger(result.candidates.length)}</Mono> candidates
-        {event ? (
+        {result.candidates.length > 1 ? (
           <>
-            ; its path holds Ensembl&apos;s {spaced(event.api.reason)} at{" "}
-            <Mono>
-              {event.api.old_release ?? "—"} → {event.api.new_release ?? "—"}
-            </Mono>
+            One best answer, ranked first of <Mono>{groupedInteger(result.candidates.length)}</Mono> candidates
           </>
-        ) : null}
-        . Every candidate is on the Decision tab.
+        ) : (
+          "One answer, the only candidate"
+        )}
+        <EventsClause model={model} />.
+        {result.candidates.length > 1 ? " Every candidate is on the Decision tab." : null}
       </span>
     );
   }
@@ -585,14 +708,17 @@ function StatusSentence({
   return meaning ? (
     <span className="answer__status-text">
       <Prose text={readerText(meaning)} />
+      {bests.length ? <EventsClause model={model} own /> : null}
     </span>
   ) : null;
 }
 
-/** The cautions of the answer, each on one line of the verdict (a caution changes how the answer may be used: it never
- *  folds). Its triangle opens what it rests on (what the result says, IDTrack's meaning, the limitation of IDTrack's
- *  documentation it falls under, the code it is read from) as a hover card; where another gene than the best answer
- *  may be the gene meant, its line says so first, with the conversion that answers the doubt. */
+/** The cautions of the answer, each on one line of the verdict as a sentence (a caution changes how the answer may be
+ *  used: it never folds): its lead, and where the answer's own text closes with the standing claim of its class (a
+ *  bridge: IDTrack's inference, no record of Ensembl), that claim; then a visible (i) that opens what it rests on (the
+ *  answer's sentence, this site's reading of the class, the limitation of IDTrack's documentation it falls under) as a
+ *  hover card. Where another gene than the best answer may be the gene meant, its line says so first, with the
+ *  conversion that answers the doubt. */
 function CautionLines({
   marks,
   askHref,
@@ -603,34 +729,48 @@ function CautionLines({
   readAtHref: (release: number) => string;
 }) {
   if (!marks.length) return null;
-  // Another gene may be meant: said first.
-  const ordered = [...marks.filter((m) => m.alert), ...marks.filter((m) => !m.alert)];
   return (
     <ul className="answer__cautions" aria-label="Cautions to weigh">
-      {ordered.map((mark) => {
+      {verdictOrder(marks).map((mark) => {
         const words = mark.label.replace(/`/g, "");
+        const claim = standingClaim(mark);
         return (
           <li
             key={`${mark.kind}|${mark.label}`}
             className={`answer__caution${mark.alert ? " answer__caution--alert" : ""}`}
           >
-            <HoverCard
-              className="answer__caution-card"
-              triggerClassName="answer__caution-mark"
-              label={`Caution: ${words}. What it rests on`}
-              trigger={<CautionGlyph />}
-            >
-              <EvidenceCard mark={mark} links={{ readAtHref, askHref }} />
-            </HoverCard>
+            <CautionGlyph />
             <span className="answer__caution-words">
-              {mark.alert ? <strong>Another gene may be the one meant: </strong> : null}
-              <Prose text={mark.label} />.
+              {mark.alert ? (
+                <>
+                  <strong>Another gene may be the one meant:</strong> <Prose text={mark.label} />
+                </>
+              ) : (
+                <strong>
+                  <Prose text={sentenceCase(mark.label)} />
+                </strong>
+              )}
+              {claim ? (
+                <>
+                  : <Prose text={lowerFirst(claim)} />
+                </>
+              ) : (
+                "."
+              )}
               {mark.ask ? (
                 <>
                   {" "}
                   <Link to={askHref(mark.ask)}>{mark.ask.words} →</Link>
                 </>
-              ) : null}
+              ) : null}{" "}
+              <HoverCard
+                className="answer__caution-card"
+                triggerClassName="hint__trigger answer__caution-why"
+                label={`What “${words}” rests on`}
+                trigger={<span className="hint__mark" aria-hidden="true" />}
+              >
+                <EvidenceCard mark={mark} links={{ readAtHref, askHref }} />
+              </HoverCard>
             </span>
           </li>
         );
@@ -1032,6 +1172,8 @@ export const AnswerPanel = memo(function AnswerPanel({
   id,
   requestId,
   receivedAt,
+  asked: askedLine = null,
+  tour = null,
 }: {
   result: ConversionResult;
   model: PathModel;
@@ -1048,6 +1190,11 @@ export const AnswerPanel = memo(function AnswerPanel({
   requestId: string | null;
   /** When the page received the answer (ISO 8601), for its provenance. */
   receivedAt: string;
+  /** The settings the conversion was asked with that the verdict does not show otherwise, and the way to edit them
+   *  (the Convert page's folded form), under the query. */
+  asked?: ReactNode;
+  /** The verdict's top line: the case of the showcase this answer is, with the previous and the next. */
+  tour?: ReactNode;
 }) {
   const vocabulary = useVocabulary();
   const organism = description.organism;
@@ -1073,23 +1220,43 @@ export const AnswerPanel = memo(function AnswerPanel({
     <div className="answer__from">
       <p className="answer__label">Query</p>
       <p className={`answer__query-id ${result.query_id.length > 40 ? "answer__query-id--long" : ""}`}>
-        <Mono strong>{result.query_id}</Mono>
+        <Mono strong>
+          <bdi>{result.query_id}</bdi>
+        </Mono>
       </p>
+      {askedLine}
     </div>
   );
+  // The releases on the arrow: the release read (marked where IDTrack inferred it, or read it at another release than
+  // the one given) and the release asked.
+  const fromNote =
+    result.from_release === null
+      ? null
+      : result.from_release_fallback
+        ? `${result.from_release_given ?? ""} given`
+        : result.from_release_inferred
+          ? "inferred"
+          : null;
   const arrow = (
-    <div className="answer__arrow" aria-hidden="true">
-      <span className="answer__arrow-line" />
+    <div className="answer__arrow">
+      <span className="answer__arrow-line" aria-hidden="true" />
       <span className="answer__arrow-text mono">
-        {result.from_release ?? "—"} → {result.to_release}
+        <span className="visually-hidden">Read at release </span>
+        {result.from_release ?? "—"}
+        {fromNote ? <span className="answer__arrow-note"> ({fromNote})</span> : null}
+        <span aria-hidden="true"> → </span>
+        <span className="visually-hidden">, answered at release </span>
+        {result.to_release}
       </span>
     </div>
   );
   const label = (word: string) => (
     <p className="answer__label">
-      {word} · {databaseLabel(asked)} at release <span className="mono">{result.to_release}</span>
+      {word} · {databaseLabel(asked)}
     </p>
   );
+  const notes = marks.filter((m) => m.tone !== "caution");
+  const firstNote = verdictOrder(notes)[0];
   const status = (
     <div className={`answer__codes answer__codes--${shownTone} ${oneGene ? "answer__codes--one-gene" : ""}`}>
       <StatusBadge status={result.status} said />
@@ -1100,18 +1267,42 @@ export const AnswerPanel = memo(function AnswerPanel({
               <CautionGlyph /> with {cautions} caution{cautions === 1 ? "" : "s"} to weigh
             </>
           ) : (
-            "no caution"
+            <a href={docsPage("limitations.html")} target="_blank" rel="noreferrer" className="answer__no-caution">
+              no caution
+              <span className="visually-hidden">
+                {" "}
+                raised by this site&apos;s rules; the limitations IDTrack documents (opens in a new tab)
+              </span>
+            </a>
           )}
         </span>
       ) : null}
-      {codes.length && (!bests.length || result.no_target) ? <Reasons codes={codes} /> : null}
-      {/* Without an answer, the headline says the reason in IDTrack's words: the status's meaning would say it again. */}
-      {bests.length ? (
-        <StatusSentence result={result} model={model} database={databaseLabel(asked)} context={context} />
+      {notes.length && firstNote ? (
+        <span className="answer__note-count">
+          {groupedInteger(notes.length)} note{notes.length === 1 ? "" : "s"}:{" "}
+          <a
+            href={tabHref("evidence")}
+            className="answer__note-link"
+            onClick={(event) => {
+              if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey) return;
+              event.preventDefault();
+              openTab("evidence");
+            }}
+          >
+            <Prose text={firstNote.label} />
+          </a>
+        </span>
       ) : null}
+      {codes.length && (!bests.length || result.no_target) ? <Reasons codes={codes} /> : null}
       <TieGuidance result={result} />
     </div>
   );
+  // Without an answer, the headline says the reason in IDTrack's words: the status's meaning would say it again.
+  const sentence = bests.length ? (
+    <p className="answer__sentence">
+      <StatusSentence result={result} model={model} database={databaseLabel(asked)} context={context} />
+    </p>
+  ) : null;
   // Only the cautions stand with the verdict, each on its line (a caution changes how the answer may be used); the
   // notes are on the answer's Evidence tab.
   const cautionLines = (
@@ -1169,6 +1360,7 @@ export const AnswerPanel = memo(function AnswerPanel({
           </>,
         )}
         {status}
+        {sentence}
         {cautionLines}
         <OtherGenesReached
           absent={absent}
@@ -1196,6 +1388,7 @@ export const AnswerPanel = memo(function AnswerPanel({
           </>,
         )}
         {status}
+        {sentence}
         {cautionLines}
         <NoAnswerWaysOn
           result={result}
@@ -1215,6 +1408,7 @@ export const AnswerPanel = memo(function AnswerPanel({
           </>,
         )}
         {status}
+        {sentence}
         {cautionLines}
         <OtherMeanings result={result} readAtHref={readAtHref} context={context} />
         <ReasonNotes result={result} />
@@ -1228,7 +1422,10 @@ export const AnswerPanel = memo(function AnswerPanel({
       <h2 id={`${id}-title`} className="visually-hidden">
         The answer
       </h2>
-      <div className="answer">{body}</div>
+      <div className="answer">
+        {tour}
+        {body}
+      </div>
       {phone ? actions : null}
       <Drawer
         open={citing}

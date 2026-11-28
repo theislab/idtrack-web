@@ -38,8 +38,9 @@ export interface Vocabulary {
     string,
     { status: number; title: string; meaning: string; retryable: boolean; retryAfter: boolean; retry: string }
   >;
-  /** The classes of evidence the api computes on every result (`cautions`): what each means, and its tone. */
-  cautions: Map<string, { meaning: string; tone: string }>;
+  /** The classes of evidence the api computes on every result (`cautions`): what each means, its tone, and whose
+   *  reading it is (`idtrack-web`: the web api's own; `idtrack`: the package's). */
+  cautions: Map<string, { meaning: string; tone: string; source: string }>;
 }
 
 /** The vocabulary while the api's answer is still being read: every list empty, nothing said of a failure. */
@@ -89,7 +90,9 @@ export function readVocabulary(data: VocabularyResponse): Vocabulary {
         },
       ]),
     ),
-    cautions: new Map((data.cautions ?? []).map((t) => [t.code, { meaning: t.meaning, tone: t.tone }])),
+    cautions: new Map(
+      (data.cautions ?? []).map((t) => [t.code, { meaning: t.meaning, tone: t.tone, source: t.source }]),
+    ),
   };
 }
 

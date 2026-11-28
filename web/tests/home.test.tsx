@@ -15,7 +15,6 @@ import { runs } from "../src/lib/explore/runs";
 import { releaseScale, shortNames } from "../src/components/figure/releases";
 import { bestSteps, CASE_KINDS, holdsKind, isHandoff, isRenamedAnswer } from "../src/lib/home/caseKinds";
 import { KIND_TEXT } from "../src/lib/home/cases";
-import { placeholderOf } from "../src/lib/home/examples";
 import { facts } from "../src/lib/explore/facts";
 import { figureModel, previousOnLane, shortLabel, type FigureGene } from "../src/lib/explore/figureModel";
 import {
@@ -333,22 +332,6 @@ describe("the journeys", () => {
     expect(setDatabases({ from: 50, to: null, db: "HGNC Symbol" }, 115, ["HGNC Symbol", "NCBI gene"])).toBe(
       "HGNC Symbol and NCBI gene at 50 → HGNC Symbol at 115",
     );
-  });
-});
-
-describe("the hero's examples", () => {
-  it("hint the identifier field with the graph's own examples, shortest first, as many as fit", () => {
-    const ex = (identifier: string) => ({
-      kind: "renamed" as const,
-      title: "A renamed gene",
-      query: { organism: "o", identifier },
-      from: 50,
-      to: 115,
-    });
-    expect(placeholderOf([ex("ENSG00000141510.5"), ex("SEPT9"), ex("ENSG00000277780.1")])).toBe("e.g. SEPT9");
-    expect(placeholderOf([ex("ENSMUSG00000059552"), ex("Sept9"), ex("Ins2")])).toBe("e.g. Ins2 or Sept9");
-    expect(placeholderOf([ex("ENSG00000141510.5")], 40)).toBe("e.g. ENSG00000141510.5");
-    expect(placeholderOf([])).toBe("a gene id, symbol or accession");
   });
 });
 

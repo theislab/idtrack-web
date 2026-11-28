@@ -1460,5 +1460,93 @@
   "status": 200,
   "content_type": "application/json",
   "file": "showcase_split_back.json"
+ },
+ {
+  "name": "convert_other_release_same_gene",
+  "method": "GET",
+  "path": "/organisms/homo_sapiens/convert",
+  "query": {
+   "identifier": "C17orf44",
+   "from_release": "67",
+   "explain": "true"
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "convert_other_release_same_gene.json"
+ },
+ {
+  "name": "convert_showcase_merge",
+  "method": "GET",
+  "path": "/organisms/homo_sapiens/convert",
+  "query": {
+   "identifier": "ENSG00000258574",
+   "from_release": "64",
+   "to_release": "48",
+   "explain": "true"
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "convert_showcase_merge.json"
+ },
+ {
+  "name": "convert_showcase_split",
+  "method": "GET",
+  "path": "/organisms/homo_sapiens/convert",
+  "query": {
+   "identifier": "ENSG00000239975",
+   "from_release": "115",
+   "to_release": "48",
+   "explain": "true"
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "convert_showcase_split.json"
+ },
+ {
+  "name": "convert_showcase_bridge",
+  "method": "GET",
+  "path": "/organisms/homo_sapiens/convert",
+  "query": {
+   "identifier": "ENSG00000255833",
+   "from_release": "115",
+   "to_release": "48",
+   "explain": "true"
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "convert_showcase_bridge.json"
+ },
+ {
+  "name": "convert_showcase_tie",
+  "method": "GET",
+  "path": "/organisms/homo_sapiens/convert",
+  "query": {
+   "identifier": "ENSG00000234278",
+   "from_release": "115",
+   "to_release": "48",
+   "explain": "true"
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "convert_showcase_tie.json"
+ },
+ {
+  "name": "convert_backward_no_conversion",
+  "method": "GET",
+  "path": "/organisms/homo_sapiens/convert",
+  "query": {
+   "identifier": "ENSG00000237495.3",
+   "to_release": "48",
+   "explain": "true"
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "convert_backward_no_conversion.json"
  }
 ]

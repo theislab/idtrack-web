@@ -3,7 +3,7 @@ import { Suspense, useEffect, useId, useRef, useState, type SyntheticEvent } fro
 import { api, API_BASE, queryString } from "../api/client";
 import type { GraphDescription } from "../api/types";
 import { ConvertEmpty } from "../components/ConvertEmpty";
-import { CaseTour } from "../components/home/CaseTour";
+import { CaseTour, useCaseTour } from "../components/home/CaseTour";
 import { ErrorBoundary } from "../components/ErrorBoundary";
 import { ErrorPanel } from "../components/ErrorPanel";
 import { ResultSkeleton } from "../components/ResultSkeleton";
@@ -31,7 +31,7 @@ import { href, navigate, useLocation } from "../lib/router";
 import { setTitleDetail } from "../lib/title";
 import { useRequest } from "../lib/useRequest";
 import { useLimits } from "../lib/vocabularyContext";
-import { examplesOf, placeholderOf, type Example } from "../lib/home/examples";
+import { examplesOf, pathSketch, placeholderOf, type Example } from "../lib/home/examples";
 import { useShowcase } from "../lib/showcase";
 import "../styles/convert.css";
 
@@ -206,6 +206,14 @@ function ConvertForOrganism({
     revealArea(area.current);
     result.retry();
   };
+  // Over an answer the form is folded into the verdict's query (the settings it was asked with, and Edit); Edit unfolds
+  // it above the verdict until the next conversion is asked.
+  const [editingKey, setEditingKey] = useState<string | null>(null);
+  const editing = editingKey !== null && editingKey === key;
+  const formId = useId();
+  // The answer is drawn once the showcase's queries are known (is it a case?), so that its top line never arrives
+  // under a drawn verdict.
+  const tour = useCaseTour(organism, parameters);
   const refused = result.state === "failed" ? refusedArguments(result.error) : [];
   const ways = refused
     .map((argument) => ({ argument, field: FIELD_OF_ARGUMENT[argument] }))
@@ -221,16 +229,35 @@ function ConvertForOrganism({
         form={<ConvertForm description={description} parameters={parameters} onSubmit={go} variant="hero" />}
       />
     );
+  const reveal = notRelease !== null || refused.some((a) => FIELD_OF_ARGUMENT[a] !== undefined);
+  // The form stands open where there is no verdict to fold it into (a refusal, a cancelled conversion), and while edited.
+  const answered = result.state === "done" || result.state === "loading";
+  const showForm = editing || reveal || !answered || isCancelled;
+  const asked = (
+    <AskedLine
+      parameters={parameters}
+      editing={editing}
+      formId={formId}
+      onEdit={() => {
+        setEditingKey(editing ? null : key);
+      }}
+    />
+  );
   return (
     <>
       <ConvertTitle />
       {/* One form for the answer's life: it follows the address (a link, Back), and a submit keeps its focus. */}
-      <ConvertForm
-        description={description}
-        parameters={parameters}
-        onSubmit={go}
-        reveal={notRelease !== null || refused.some((a) => FIELD_OF_ARGUMENT[a] !== undefined)}
-      />
+      {showForm ? (
+        <ConvertForm
+          id={formId}
+          description={description}
+          parameters={parameters}
+          onSubmit={go}
+          reveal={reveal}
+          answered={answered && !reveal && !isCancelled}
+          focusOnOpen={editing}
+        />
+      ) : null}
 
       <section
         className="result-area"
@@ -284,7 +311,7 @@ function ConvertForOrganism({
                 announce(`The conversion of ${parameters.identifier} was cancelled.`);
               }}
             />
-            <ResultSkeleton description={description} />
+            <ResultSkeleton description={description} identifier={parameters.identifier} asked={asked} />
           </>
         ) : null}
         {result.state === "failed" ? (
@@ -304,13 +331,19 @@ function ConvertForOrganism({
             ))}
           />
         ) : null}
-        {result.state === "done" && query ? (
+        {result.state === "done" && query && !tour.settled ? (
+          <ResultSkeleton description={description} identifier={parameters.identifier} asked={asked} />
+        ) : null}
+        {result.state === "done" && query && tour.settled ? (
           <ErrorBoundary part="The answer" resetKey={key ?? ""}>
-            <Suspense fallback={<ResultSkeleton description={description} />}>
+            <Suspense
+              fallback={<ResultSkeleton description={description} identifier={parameters.identifier} asked={asked} />}
+            >
               <div data-result="">
-                <CaseTour organism={organism} parameters={parameters} />
                 <GraphNotice linked={linkedGraph} description={description} />
                 <ResultView
+                  asked={asked}
+                  tour={tour.place ? <CaseTour place={tour.place} /> : null}
                   result={result.answer.data}
                   raw={result.answer.raw}
                   description={description}
@@ -325,6 +358,48 @@ function ConvertForOrganism({
         ) : null}
       </section>
     </>
+  );
+}
+
+/** The settings a conversion was asked with that its verdict does not show otherwise (the releases are on its arrow,
+ *  the database asked over its answer), in the words of a batch's head, and Edit, which unfolds the form above the
+ *  verdict. A screen reader hears every setting here. */
+function AskedLine({
+  parameters,
+  editing,
+  formId,
+  onEdit,
+}: {
+  parameters: ConvertParameters;
+  editing: boolean;
+  formId: string;
+  onEdit: () => void;
+}) {
+  const release = (value: ConvertParameters["fromRelease"]) => (value === null ? null : String(value));
+  const from = release(parameters.fromRelease);
+  const to = release(parameters.toRelease);
+  return (
+    <p className="answer__asked">
+      <span className="visually-hidden">
+        Asked: read at {from ?? "the release IDTrack infers"}, to {to ?? "the graph's last release"}, in{" "}
+        {databaseLabel(parameters.finalDatabase ?? "ensembl_gene")};{" "}
+      </span>
+      <span className="answer__asked-words">
+        from {parameters.fromDatabase === null ? "any database" : databaseLabel(parameters.fromDatabase)} · bridges{" "}
+        {parameters.allowBridges ? "allowed" : "not allowed"}
+        {parameters.explain ? "" : " · no path asked"}
+      </span>{" "}
+      <button
+        type="button"
+        className="answer__edit"
+        aria-expanded={editing}
+        aria-controls={editing ? formId : undefined}
+        onClick={onEdit}
+      >
+        {editing ? "Close" : "Edit"}
+        <span className="visually-hidden"> the conversion</span>
+      </button>
+    </p>
   );
 }
 
@@ -402,12 +477,16 @@ function pastedLines(text: string): string[] {
 }
 
 function ConvertForm({
+  id,
   description,
   parameters,
   onSubmit,
   variant = "compact",
   reveal = false,
+  answered = false,
+  focusOnOpen = false,
 }: {
+  id?: string;
   description: GraphDescription;
   parameters: ConvertParameters;
   onSubmit: (parameters: ConvertParameters) => void;
@@ -415,6 +494,11 @@ function ConvertForm({
   variant?: "hero" | "compact";
   /** Open the folded settings: a value of them was refused (said below the form), so its field is shown. */
   reveal?: boolean;
+  /** An answer of the address stands below: Convert is quiet until the form is changed (the answer is the screen's
+   *  one strong thing; a changed form is a new question). */
+  answered?: boolean;
+  /** Focus the identifier when the form appears (it was unfolded by Edit). */
+  focusOnOpen?: boolean;
 }) {
   const organism = description.organism;
   const hero = variant === "hero";
@@ -469,27 +553,21 @@ function ConvertForm({
   const setExplain = (v: boolean) => {
     setField("explain", v);
   };
-  // The releases and the database fold under one line that says them, a press away from their fields: over an answer
-  // (the form is one row and the answer the screen's subject) and in the hero; they open by themselves where the address
-  // sets an option the line does not say (the source database, bridges or the path turned off), in the hero where it
-  // sets one of them, and where a value of them is refused.
+  // Every setting folds under one line that says them all, one press away from their fields (the releases, the
+  // databases, bridges and the path); they open by themselves where a value of them is refused.
   const settingsId = useId();
-  const [settingsOpen, setSettingsOpen] = useState(
-    () =>
-      reveal ||
-      parameters.fromDatabase !== null ||
-      !parameters.allowBridges ||
-      !parameters.explain ||
-      (hero && (parameters.fromRelease !== null || parameters.toRelease !== null || parameters.finalDatabase !== null)),
-  );
+  const [settingsOpen, setSettingsOpen] = useState(() => reveal);
   const [revealed, setRevealed] = useState(reveal);
   if (reveal !== revealed) {
     setRevealed(reveal);
     if (reveal) setSettingsOpen(true);
   }
-  const [advanced, setAdvanced] = useState(
-    parameters.fromDatabase !== null || !parameters.allowBridges || !parameters.explain,
-  );
+  const formRef = useRef<HTMLFormElement>(null);
+  useEffect(() => {
+    if (focusOnOpen) formRef.current?.querySelector<HTMLInputElement>(".field--identifier input")?.focus();
+  }, [focusOnOpen]);
+  // The form says a new question once it differs from the address.
+  const changed = identifier.trim() !== parameters.identifier || JSON.stringify(fields) !== JSON.stringify(fieldsOf(parameters));
 
   const toNumber = /^\d+$/.test(toRelease.trim()) ? Number(toRelease.trim()) : null;
   const finals = useRequest(`${organism}:${toNumber ?? "snapshot"}`, (signal, fresh) =>
@@ -528,7 +606,9 @@ function ConvertForm({
 
   return (
     <form
-      className={`${hero ? "" : "panel "}convert-form convert-form--${variant}${settingsOpen ? "" : " convert-form--folded"}`}
+      ref={formRef}
+      id={id}
+      className={`convert-form convert-form--${variant}${settingsOpen ? "" : " convert-form--folded"}`}
       onSubmit={submit}
       noValidate
       aria-label="Conversion"
@@ -569,7 +649,7 @@ function ConvertForm({
           id={settingsId}
           className={`convert-form__settings${settingsOpen ? "" : " is-collapsed"}`}
           role="group"
-          aria-label={hero ? "Organism, releases and database" : "Releases and database"}
+          aria-label={hero ? "Organism and settings" : "Settings"}
         >
           {hero && organisms.length > 1 ? (
             <Field label="Organism" className="field--organism">
@@ -636,6 +716,46 @@ function ConvertForm({
               </Select>
             )}
           </Field>
+          <Field
+            label="Source database"
+            className="field--source"
+            hint="The database the identifier belongs to, when a name means different genes in different databases. Empty: any database."
+          >
+            {({ id, describedBy }) => (
+              <Select
+                id={id}
+                value={fromDatabase}
+                aria-describedby={describedBy}
+                onChange={(e) => {
+                  setFromDatabase(e.target.value);
+                }}
+              >
+                <option value="">Any database</option>
+                {description.external_databases.map((d) => (
+                  <option key={d} value={d}>
+                    {databaseLabel(d)}
+                  </option>
+                ))}
+              </Select>
+            )}
+          </Field>
+          <div className="convert-form__switches">
+            <Switch
+              checked={allowBridges}
+              onChange={setAllowBridges}
+              label="Allow bridges"
+              hint="When Ensembl's history ends before the target release, continue through an id that two genes share (a symbol, an accession). Off: history alone."
+            />
+            <Switch
+              checked={explain}
+              onChange={setExplain}
+              label="Show the path"
+              hint="Ask for every candidate's path (explain). Off: the answer and the ranking only, a smaller answer."
+            />
+          </div>
+          <div className="convert-form__foot">
+            <RangeNote description={description} fromRelease={fromRelease} toRelease={toRelease} />
+          </div>
         </div>
         <button
           type="button"
@@ -646,21 +766,26 @@ function ConvertForm({
             setSettingsOpen((o) => !o);
           }}
         >
-          <span className="convert-form__settings-label">
-            {hero ? "Organism, releases and database" : "Releases and database"}
-          </span>{" "}
+          <span className="convert-form__settings-label">Settings</span>{" "}
           <span className="convert-form__settings-value">
             {hero ? (
               <>
-                <em>{organismName(organism)}</em>,{" "}
+                <em>{organismName(organism)}</em> ·{" "}
               </>
             ) : null}
-            from <span className="mono">{fromRelease.trim() || "inferred"}</span> to{" "}
-            <span className="mono">{toRelease.trim() || description.snapshot_release}</span>,{" "}
-            {finalDatabase ? databaseLabel(finalDatabase) : "Ensembl gene"}
+            read at <span className="mono">{fromRelease.trim() || "inferred"}</span> · to{" "}
+            <span className="mono">{toRelease.trim() || description.snapshot_release}</span> · in{" "}
+            {finalDatabase ? databaseLabel(finalDatabase) : "Ensembl gene"} · from{" "}
+            {fromDatabase ? databaseLabel(fromDatabase) : "any database"} · bridges{" "}
+            {allowBridges ? "allowed" : "not allowed"}
+            {explain ? "" : " · no path"}
           </span>
         </button>
-        <Button type="submit" variant="primary" className="convert-form__go">
+        <Button
+          type="submit"
+          variant={answered && !changed ? "secondary" : "primary"}
+          className="convert-form__go"
+        >
           Convert
         </Button>
         {hero ? (
@@ -706,60 +831,70 @@ function ConvertForm({
           </div>
         </div>
       ) : null}
-      <div className="convert-form__foot">
-        <RangeNote description={description} fromRelease={fromRelease} toRelease={toRelease} />
-      </div>
-      <details
-        className="convert-form__advanced"
-        open={advanced}
-        onToggle={(e) => {
-          setAdvanced(e.currentTarget.open);
-        }}
-      >
-        <summary>More options</summary>
-        <div className="convert-form__grid">
-          <Field
-            label="Source database"
-            hint="The database the identifier belongs to, when a name means different genes in different databases. Empty: any database."
-          >
-            {({ id, describedBy }) => (
-              <Select
-                id={id}
-                value={fromDatabase}
-                aria-describedby={describedBy}
-                onChange={(e) => {
-                  setFromDatabase(e.target.value);
-                }}
-              >
-                <option value="">Any database</option>
-                {description.external_databases.map((d) => (
-                  <option key={d} value={d}>
-                    {databaseLabel(d)}
-                  </option>
-                ))}
-              </Select>
-            )}
-          </Field>
-          <Switch
-            checked={allowBridges}
-            onChange={setAllowBridges}
-            label="Allow bridges"
-            hint="When Ensembl's history ends before the target release, continue through an id that two genes share (a symbol, an accession). Off: history alone."
-          />
-          <Switch
-            checked={explain}
-            onChange={setExplain}
-            label="Show the path"
-            hint="Ask for every candidate's path (explain). Off: the answer and the ranking only, a smaller answer."
-          />
-        </div>
-      </details>
     </form>
   );
 }
 
-/** The hero's examples, one a line: the identifier, the release it is read at, and what its answer shows. Their room
- *  is held while the showcase is on its way (nothing moves when they come); where the server gives none, none stand. */
+/** The width and height of an example's sketch. */
+const SKETCH_W = 96;
+const SKETCH_H = 22;
+
+/** An example's path as a small figure in the answer's grammar (lib/home/examples.ts, `pathSketch`): each stable id a
+ *  lane, Ensembl's steps between ids as diagonals (an event of other ids, a split or merge, as a dot in the event
+ *  hue), a bridge dashed; the release read an open circle, the release answered a square. Its shape is all it says:
+ *  the words beside it name the case. */
+function ExampleSketch({ example }: { example: Example }) {
+  const sketch = pathSketch(example.result);
+  if (!sketch) return <span className="convert-example__sketch" aria-hidden="true" />;
+  const span = Math.max(1, sketch.last - sketch.first);
+  const x = (r: number) => 3 + ((r - sketch.first) / span) * (SKETCH_W - 6);
+  const lanes = Math.max(1, sketch.lanes.length - 1);
+  const pitch = Math.min(6, (SKETCH_H - 6) / lanes);
+  const y = (lane: number) => 3 + lane * pitch;
+  const readLane = sketch.lanes.findIndex((l) => l.from <= sketch.read && l.to >= sketch.read);
+  const answerLane = sketch.lanes.length - 1;
+  return (
+    <svg
+      className="convert-example__sketch"
+      width={SKETCH_W}
+      height={SKETCH_H}
+      viewBox={`0 0 ${SKETCH_W} ${SKETCH_H}`}
+      aria-hidden="true"
+      focusable="false"
+    >
+      {sketch.lanes.map((lane, i) => (
+        <line key={lane.id} className="convert-example__lane" x1={x(lane.from)} x2={x(lane.to)} y1={y(i)} y2={y(i)} />
+      ))}
+      {sketch.steps.map((step, i) => (
+        <line
+          key={i}
+          className={`convert-example__step${step.bridge ? " convert-example__step--bridge" : ""}`}
+          x1={x(step.from)}
+          x2={x(step.to)}
+          y1={y(step.laneFrom)}
+          y2={y(step.laneTo)}
+        />
+      ))}
+      {sketch.steps
+        .filter((step) => step.fan)
+        .map((step, i) => (
+          <circle key={i} className="convert-example__event" cx={x(step.to)} cy={y(step.laneTo)} r={1.8} />
+        ))}
+      <circle className="convert-example__read" cx={x(sketch.read)} cy={y(Math.max(0, readLane))} r={2.2} />
+      <rect
+        className="convert-example__answer"
+        x={x(sketch.answered) - 2.2}
+        y={y(answerLane) - 2.2}
+        width={4.4}
+        height={4.4}
+      />
+    </svg>
+  );
+}
+
+/** The examples, one a line: a sketch of its path, the identifier, the releases it is read at and answered (left out on
+ *  a phone, where the sketch shows the travel), what its answer shows and the facts its answer states. Their room is
+ *  held while the showcase is on its way (nothing moves when they come); where the server gives none, none stand. */
 function Examples({
   examples,
   waiting,
@@ -774,7 +909,7 @@ function Examples({
     <div
       className={`convert-examples${examples.length ? "" : " convert-examples--waiting"}`}
       role="group"
-      aria-label="Examples from this graph's showcase"
+      aria-label="Examples from this graph's showcase, the most convoluted first"
     >
       <span className="convert-examples__label" aria-hidden="true">
         Try
@@ -789,11 +924,22 @@ function Examples({
                 onPick(e);
               }}
             >
-              <span className="convert-example__id mono">{e.query.identifier}</span>
-              <span className="convert-example__at mono">
-                {e.from}→{e.to}
+              <ExampleSketch example={e} />
+              <span className="convert-example__id mono">
+                <bdi>{e.query.identifier}</bdi>
               </span>
-              <span className="convert-example__kind">{e.title}</span>
+              <span className="convert-example__at mono">
+                <span className="visually-hidden">, read at release </span>
+                {e.from}
+                <span aria-hidden="true">→</span>
+                <span className="visually-hidden">, to release </span>
+                {e.to}
+              </span>
+              <span className="convert-example__kind">
+                <span className="visually-hidden">: </span>
+                {e.title}
+                {e.facts.length ? <span className="convert-example__facts"> · {e.facts.join(" · ")}</span> : null}
+              </span>
             </button>
           </li>
         ))}

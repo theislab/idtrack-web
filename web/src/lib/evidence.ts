@@ -42,6 +42,8 @@ export interface EvidenceMark {
   detail: string;
   /** The api's text of the class (`/vocabulary`, `cautions`). */
   meaning: string | null;
+  /** Whose reading the class is (`/vocabulary`, `cautions[].source`): the web api's own, or IDTrack's. */
+  source: string | null;
   /** Where the mark is read from, as the api names it. */
   code: string;
   limitation: Limitation | null;
@@ -96,6 +98,7 @@ export function evidenceOf(result: ConversionResult, vocabulary: Vocabulary = NO
     label: c.label,
     detail: c.text,
     meaning: vocabulary.cautions.get(c.code)?.meaning ?? null,
+    source: vocabulary.cautions.get(c.code)?.source ?? null,
     code: `cautions[].code = ${c.code}`,
     limitation: c.limitation ? limitationAt(c.limitation.replace(/^[^#]*#/, "")) : null,
     ...(c.alert ? { alert: true } : {}),

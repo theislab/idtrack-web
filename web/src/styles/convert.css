@@ -35,8 +35,17 @@
 }
 
 .convert-form .convert-form__settings > .field--database,
-.convert-form .convert-form__settings > .field--organism {
+.convert-form .convert-form__settings > .field--organism,
+.convert-form .convert-form__settings > .field--source,
+.convert-form .convert-form__settings > .convert-form__switches,
+.convert-form .convert-form__settings > .convert-form__foot {
   grid-column: 1 / -1;
+}
+
+.convert-form .convert-form__switches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3) var(--space-6);
 }
 
 /* The folded settings: one line that says them, a press away from the fields. */
@@ -116,23 +125,16 @@
   margin-top: 0;
 }
 
-.convert-form .convert-form__advanced[open] > summary {
-  margin-bottom: var(--space-3);
-}
-
-/* While the settings are folded, what belongs to them (the releases crossed, more options) is folded too. */
-.convert-form--folded .convert-form__foot,
-.convert-form--folded .convert-form__advanced {
-  display: none;
-}
-
+/* One height for the field and its button on every page of Convert (one identifier, a list, names): 48 px. */
 .convert-form .input--large {
-  min-height: 52px;
+  min-height: 48px;
   font-size: var(--text-lg);
 }
 
 .convert-form .convert-form__go {
-  min-height: 52px;
+  min-height: 48px;
+  font-size: var(--text-md);
+  font-weight: var(--weight-strong);
 }
 
 /* ---- The examples of the hero: one a line, the identifier, its releases and what its answer shows ------------ */
@@ -164,7 +166,7 @@
   margin: 0;
   padding: 0;
   display: grid;
-  grid-template-columns: max-content max-content minmax(0, 1fr);
+  grid-template-columns: max-content max-content max-content minmax(0, 1fr);
   gap: 0;
 }
 
@@ -210,6 +212,70 @@
   color: var(--ink-2);
 }
 
+.convert-example__facts {
+  color: var(--ink-3);
+}
+
+/* An example's sketch: the path's shape in the answer's grammar (each stable id a lane, steps as diagonals). */
+.convert-example__sketch {
+  align-self: center;
+  overflow: visible;
+}
+
+.convert-example__lane {
+  stroke: var(--ink-2);
+  stroke-width: 1.6;
+  stroke-linecap: round;
+}
+
+.convert-example__step {
+  stroke: var(--hue-history);
+  stroke-width: 1.1;
+}
+
+.convert-example__step--bridge {
+  stroke: var(--hue-external);
+  stroke-dasharray: 2 1.5;
+}
+
+.convert-example__event {
+  fill: var(--hue-event);
+}
+
+.convert-example__read {
+  fill: var(--paper);
+  stroke: var(--ink-1);
+  stroke-width: 1.1;
+}
+
+.convert-example__answer {
+  fill: var(--ink-1);
+}
+
+@media (forced-colors: active) {
+  .convert-example__lane,
+  .convert-example__step,
+  .convert-example__read {
+    stroke: CanvasText;
+  }
+
+  .convert-example__event,
+  .convert-example__answer {
+    fill: CanvasText;
+  }
+}
+
+/* On a phone the sketch shows the travel: the releases go (they are in the answer). */
+@media (max-width: 640px) {
+  .convert-examples__list {
+    grid-template-columns: max-content max-content minmax(0, 1fr);
+  }
+
+  .convert-example__at {
+    display: none;
+  }
+}
+
 @media (hover: hover) {
   .convert-example:hover {
     background: var(--surface-sunk);
@@ -231,18 +297,18 @@
 }
 
 .convert-form--hero .input--large {
-  min-height: 56px;
   box-shadow: 0 1px 0 var(--line);
-}
-
-.convert-form--hero .convert-form__go {
-  min-height: 56px;
 }
 
 /* ---- The form over an answer: one row under the section's tabs ------------------------------------------------ */
 
 .page.page--answer {
   padding-top: var(--space-5);
+}
+
+/* Over an answer the verdict is the first thing under the section's tabs; an unfolded form stands above it. */
+.page.page--answer .result-area {
+  margin-top: 0;
 }
 
 .convert-form.convert-form--compact {
@@ -270,15 +336,16 @@
   }
 
   .convert-form--compact .convert-form__settings {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.6fr);
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.6fr) minmax(0, 1.6fr);
   }
 
-  .convert-form--compact .convert-form__settings > .field--database {
+  .convert-form--compact .convert-form__settings > .field--database,
+  .convert-form--compact .convert-form__settings > .field--source {
     grid-column: auto;
   }
 
   .convert-form--compact .convert-form__settings-toggle {
-    min-height: 52px;
+    min-height: 48px;
     padding-left: var(--space-1);
   }
 }
@@ -291,8 +358,33 @@
     width: auto;
     padding: 0 var(--space-4);
   }
+}
 
-  .convert-form--hero .convert-form__go {
-    margin-top: 26px;
+/* ---- The landing (components/ConvertEmpty.tsx): the head of every page of Convert, flush left ----------------- */
+
+.convert-landing {
+  max-width: 760px;
+  padding: var(--space-7) 0 var(--space-6);
+}
+
+.convert-landing__title {
+  margin: 0;
+  letter-spacing: var(--track-title);
+}
+
+.convert-landing__lede {
+  margin: var(--space-2) 0 0;
+  max-width: 40rem;
+  font-size: var(--text-md);
+  color: var(--ink-2);
+}
+
+.convert-landing__form {
+  margin-top: var(--space-6);
+}
+
+@media (max-width: 640px) {
+  .convert-landing {
+    padding: var(--space-5) 0;
   }
 }

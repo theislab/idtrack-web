@@ -84,7 +84,8 @@
   }
 }
 
-/* Each caution on its line: its triangle opens what it rests on (a hover card), its words stay on the surface. */
+/* Each caution on its line, a sentence: its triangle, its words, and a visible (i) that opens what it rests on (a hover
+   card); the words stay on the surface. */
 .answer__cautions {
   display: grid;
   gap: 2px;
@@ -99,34 +100,27 @@
 
 .answer__caution {
   display: flex;
-  align-items: flex-start;
-  gap: var(--space-1);
+  align-items: baseline;
+  gap: var(--space-2);
+}
+
+.answer__caution > .evidence__glyph {
+  flex: none;
+  transform: translateY(1px);
 }
 
 .answer__caution-words {
-  padding-top: 2px;
   min-width: 0;
 }
 
-/* The triangle as a button of a finger's or a pointer's size (24 px), the glyph at its centre. */
-.answer__caution-mark {
-  display: inline-grid;
-  place-items: center;
-  width: 24px;
-  height: 24px;
-  margin-left: -6px;
-  padding: 0;
-  border: 0;
-  border-radius: 50%;
-  background: none;
-  color: inherit;
-  cursor: help;
+.answer__caution-words strong {
+  font-weight: var(--weight-strong);
 }
 
-@media (hover: hover) {
-  .answer__caution-mark:hover {
-    background: color-mix(in srgb, var(--state-warn) 14%, transparent);
-  }
+.answer__caution-card {
+  position: relative;
+  display: inline-block;
+  vertical-align: -6px;
 }
 
 /* A caution's card and the tie's guidance open from their trigger at the verdict's left side: rightwards, as wide as
@@ -314,4 +308,132 @@
 
 .evidence-list .evidence__card {
   padding-left: calc(10px + var(--space-2));
+}
+
+/* ---- The verdict's parts (fix round 5): the case line, the query's settings, the arrow's note, the status line ---- */
+
+/* The verdict's top line where the answer is a case of the showcase: which case, and the previous and the next. */
+.case-tour {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-1) var(--space-5);
+  margin: calc(-1 * var(--space-2)) 0 var(--space-1);
+  font-size: var(--text-xs);
+  color: var(--ink-3);
+}
+
+.case-tour__here {
+  margin: 0 auto 0 0;
+}
+
+.case-tour__here strong {
+  font-weight: var(--weight-medium);
+  color: var(--ink-2);
+}
+
+.case-tour a {
+  font-weight: var(--weight-medium);
+  color: var(--ink-2);
+  text-decoration: none;
+}
+
+@media (hover: hover) {
+  .case-tour a:hover {
+    color: var(--ink-1);
+    text-decoration: underline;
+  }
+}
+
+/* Under the query: the settings it was asked with that the verdict does not show otherwise, and Edit. */
+.answer__asked {
+  margin: 0;
+  font-size: var(--text-xs);
+  line-height: 1.5;
+  color: var(--ink-3);
+}
+
+.answer__edit {
+  min-height: 24px;
+  padding: 0 2px;
+  border: 0;
+  background: none;
+  color: var(--ink-2);
+  font: inherit;
+  font-weight: var(--weight-medium);
+  text-decoration: underline dotted var(--line-strong);
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+@media (hover: hover) {
+  .answer__edit:hover {
+    color: var(--ink-1);
+    text-decoration-color: var(--ink-1);
+  }
+}
+
+.answer__arrow-note {
+  color: var(--ink-3);
+}
+
+/* The status, its cautions and notes on one line; the sentence of the answer under it. */
+.answer__note-count {
+  font-size: var(--text-sm);
+  color: var(--ink-2);
+}
+
+.answer__no-caution,
+.answer__note-link {
+  color: inherit;
+  text-decoration: underline dotted var(--line-strong);
+  text-underline-offset: 3px;
+}
+
+@media (hover: hover) {
+  .answer__no-caution:hover,
+  .answer__note-link:hover {
+    color: var(--ink-1);
+    text-decoration-color: var(--ink-1);
+  }
+}
+
+.answer__sentence {
+  margin: 0;
+  max-width: 88ch;
+  font-size: var(--text-sm);
+  line-height: 1.55;
+  color: var(--ink-2);
+}
+
+.answer__sentence .answer__status-text {
+  flex: none;
+  max-width: none;
+}
+
+/* The verdict closes its gaps: the answer's rows follow each other at the text's rhythm. */
+.result--v2 .answer {
+  gap: var(--space-2);
+}
+
+.result--v2 .answer__flow {
+  padding-bottom: 0;
+}
+
+/* An identifier the person typed is set apart from the page's own words (an invisible mark of direction in it moves
+   nothing around it), and never breaks inside itself. */
+.answer__query-id bdi {
+  unicode-bidi: isolate;
+}
+
+@media (max-width: 640px) {
+  /* On a phone the case line keeps the kinds of the previous and the next case as arrows. */
+  .case-tour__count {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
 }
