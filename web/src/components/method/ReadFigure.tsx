@@ -1,5 +1,5 @@
-// Stage a on a real answer: how the typed string was read. The steps of a match in idtrack's order (the api's
-// vocabulary, `match_steps`), each tried on names, then on synonyms, before the next (idtrack's documentation, "How an
+// Stage a on a real answer: how the typed string was read. The steps of a match in IDTrack's order (the api's
+// vocabulary, `match_steps`), each tried on names, then on synonyms, before the next (IDTrack's documentation, "How an
 // Identifier Is Read"): the steps before the one that matched found nothing, the one the answer names (`match`) found
 // the identifier of the graph (`graph_id`), the later ones were not needed; the prefixes that applied before it; the
 // release it was read at, and whether that release was given or inferred; the databases that attach it there.
@@ -39,7 +39,7 @@ export function ReadFigure({ result }: { result: ConversionResult }) {
           </ul>
         ) : null}
       </div>
-      <ol className="read-fig__steps" aria-label="The steps of a match, in the order idtrack tries them">
+      <ol className="read-fig__steps" aria-label="The steps of a match, in the order IDTrack tries them">
         {steps.map(([code, meaning], i) => {
           const state = at < 0 ? "unknown" : i < at ? "missed" : i === at ? "matched" : "unneeded";
           return (

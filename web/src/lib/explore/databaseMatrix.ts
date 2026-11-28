@@ -1,5 +1,5 @@
 // What a conversion to each release of a graph can end in, as a release-by-database matrix: the server's
-// `GET /organisms/{organism}/databases` (for every release, idtrack's `API.final_databases(release)`; per assembly,
+// `GET /organisms/{organism}/databases` (for every release, IDTrack's `API.final_databases(release)`; per assembly,
 // `API.databases_by_assembly()`), its rows ordered so that what differs stands out: first the databases a conversion
 // can end in at some releases only (by the first release, then the last), then those it can end in at every release
 // (Ensembl's own first, then the api's order).

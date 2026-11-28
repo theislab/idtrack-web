@@ -83,7 +83,7 @@ export function strataByRate(family: Family): Stratum[] {
 
 /** Whether a stratum is one in which no line is judged right in any organism (the generator's `wrongOnly`): its
  *  lines can only be judged wrong or undetermined (D's open lines, judged by open_within), so its rate is 0 whatever
- *  idtrack answers. Such a stratum is no measure of agreement: it is said as a count, never as a rate. */
+ *  IDTrack answers. Such a stratum is no measure of agreement: it is said as a count, never as a rate. */
 export function wrongOnly(family: Family, stratum: string): boolean {
   const codes: readonly string[] = family.strata.wrongOnly;
   return codes.includes(stratum);
@@ -173,14 +173,14 @@ export function cleanStrata(family: Family): [string, number][] {
 export type ToolCell = NonNullable<ToolRow["cells"][number]>;
 export type Tool = ToolRow;
 
-/** Whether a tool's cell can be set beside idtrack's: not where no kept line has an answer (coverage 0 on kept
+/** Whether a tool's cell can be set beside IDTrack's: not where no kept line has an answer (coverage 0 on kept
  *  lines), for then every right line is one whose truth is nothing and the tool named no gene of the graph's
  *  annotation (G's reading names why: another annotation's genes only); its rate there measures no answer. */
 export function comparable(cell: ToolCell): boolean {
   return !(cell.kept > 0 && Number(cell.coverage) === 0);
 }
 
-/** For one task, the comparisons of the tools with idtrack on the same lines, every organism together: how many
+/** For one task, the comparisons of the tools with IDTrack on the same lines, every organism together: how many
  *  find the tool wrong more often, as often (both none wrong), or less often, and the smallest and largest ratio of
  *  the wrong shares with their tool and organism; the cells that cannot be compared are counted apart. */
 export function taskComparison(task: string): {
@@ -241,7 +241,7 @@ export function toolWrongShare(cell: ToolCell): number {
   return n ? (cell.wrong + cell.error) / n : 0;
 }
 
-/** idtrack's wrong share on the same lines, from its published rate (4 decimals): exact 0 where the rate is 1 and
+/** IDTrack's wrong share on the same lines, from its published rate (4 decimals): exact 0 where the rate is 1 and
  *  half a unit of the last decimal is less than one line of the lines asked, else 1 − the rate, with whether it is
  *  only bounded (a published 1 that a wrong line could hide in). */
 export function idtrackWrongShare(cell: ToolCell): { share: number; bounded: boolean } {
@@ -251,7 +251,7 @@ export function idtrackWrongShare(cell: ToolCell): { share: number; bounded: boo
   return { share: 1 - rate, bounded: false };
 }
 
-/** How many times idtrack's wrong share the tool's is, in words. idtrack's share comes from a rate published to 4
+/** How many times IDTrack's wrong share the tool's is, in words. IDTrack's share comes from a rate published to 4
  *  decimals, so it is known to half a unit of the last one: the ratio is written as the range that leaves ("460–770×"),
  *  or as one value where that range is narrow ("about 6.2×"); null where there is nothing to compare. */
 export function wrongRatio(tool: number, idtrack: number, half = 0.5e-4): string | null {
@@ -277,7 +277,7 @@ export function powerParts(exponent: number): { base: string; exponent: string }
 /** What a judge measures, by its role (the commit and the repository's own words are in the provenance). */
 export function judgeWords(judge: string): string {
   if (judge === "decided")
-    return "with the rules idtrack has decided: a line a decided rule changes expects its answer";
-  if (judge === "now") return "by the base set: each line as idtrack documented it before its decided rules";
+    return "with the rules IDTrack has decided: a line a decided rule changes expects its answer";
+  if (judge === "now") return "by the base set: each line as IDTrack documented it before its decided rules";
   return judge;
 }

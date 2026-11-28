@@ -68,11 +68,7 @@ export function viewFrame(width: number, height: number, view: readonly [number,
 /** A view moved by `delta` (fractions of the axis) and scaled by `factor` about `at`, kept within the axis. */
 export function moveView(
   view: readonly [number, number],
-  {
-    delta = 0,
-    factor = 1,
-    at = (view[0] + view[1]) / 2,
-  }: { delta?: number; factor?: number; at?: number | undefined },
+  { delta = 0, factor = 1, at = (view[0] + view[1]) / 2 }: { delta?: number; factor?: number; at?: number | undefined },
 ): [number, number] {
   const span = Math.min(1, Math.max(LEAST_SPAN, (view[1] - view[0]) * factor));
   let from = at - (at - view[0]) * (span / (view[1] - view[0])) + delta;
@@ -445,14 +441,16 @@ function FieldView({
           </div>
         ) : null}
         {frame
-          ? bands.slice(1).map((band) => (
-              <span
-                key={band.assembly}
-                className="lineage-field__change"
-                aria-hidden="true"
-                style={{ left: xOf(band.first), top: frame.centre - frame.half, height: 2 * frame.half }}
-              />
-            ))
+          ? bands
+              .slice(1)
+              .map((band) => (
+                <span
+                  key={band.assembly}
+                  className="lineage-field__change"
+                  aria-hidden="true"
+                  style={{ left: xOf(band.first), top: frame.centre - frame.half, height: 2 * frame.half }}
+                />
+              ))
           : null}
         <svg
           className="lineage-field__focus"
@@ -504,8 +502,8 @@ function FieldView({
         <CaptionMore
           lead={
             <>
-              <Mono>{groupedInteger(layout.shown)}</Mono> of the <Mono>{groupedInteger(layout.genes)}</Mono> gene ids
-              of the <em>{organismName(organism)}</em> graph, each a line over the releases at which a version of it is
+              <Mono>{groupedInteger(layout.shown)}</Mono> of the <Mono>{groupedInteger(layout.genes)}</Mono> gene ids of
+              the <em>{organismName(organism)}</em> graph, each a line over the releases at which a version of it is
               active.
             </>
           }

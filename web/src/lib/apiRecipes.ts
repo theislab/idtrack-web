@@ -4,9 +4,9 @@
 //
 // A list is read as it was when it was made: the release of its annotation is given (FROM_RELEASE), or asked of the
 // api from the list itself (`POST .../source-inference`, its `from_release`), and sent with every batch. A batch's
-// answers can depend on its members (`read_copies`, on by default: idtrack answers an item that is another item of the
+// answers can depend on its members (`read_copies`, on by default: IDTrack answers an item that is another item of the
 // batch with `-`, `_` or `.` and a number appended as its copy, `idtrack.ids.NUMBERED_SUFFIX`), so the recipes never
-// split a name from its copies: they tie the items by idtrack's rule, through chains (as the api's own `batch_groups`
+// split a name from its copies: they tie the items by IDTrack's rule, through chains (as the api's own `batch_groups`
 // does), fill each request with whole groups up to `batch_max`, and write the answers in the order given, with how each was read (`match`), the bridges it crossed and the criterion that decided it. The graph
 // is the one every answer names (`Idtrack-Graph-Digest` of each batch's answer, checked to be one), written with the
 // releases in the table's first line.
@@ -83,7 +83,7 @@ for chunk in batches(identifiers, size):
             result["status"],
             ";".join(c["target"] for c in best),
             result["match"] or "",  # how the string was read: synonym:, copy:, ...
-            max((c["bridges"] for c in best), default=0),  # above 0: idtrack's inference, not Ensembl's history
+            max((c["bridges"] for c in best), default=0),  # above 0: IDTrack's inference, not Ensembl's history
             result["decided_by"] or "",
         ]
 assert len(graphs) == 1, f"the graph changed during the run: {graphs}"
@@ -164,7 +164,7 @@ for (chunk in batches(identifiers, size)) {
       query = result$query_id, status = result$status,
       best = paste(vapply(best, \(c) c$target, ""), collapse = ";"),
       match = if (is.null(result$match)) "" else result$match,  # synonym:, copy:, ...
-      bridges = max(c(0, vapply(best, \(c) c$bridges, 0))),  # above 0: idtrack's inference
+      bridges = max(c(0, vapply(best, \(c) c$bridges, 0))),  # above 0: IDTrack's inference
       decided_by = if (is.null(result$decided_by)) "" else result$decided_by
     )
   }

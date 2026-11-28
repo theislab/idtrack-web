@@ -2,7 +2,7 @@
 // assembly change and whether Ensembl maps it; Ensembl's id history of each graph, release by release; the counts of
 // their builds), and each graph on its own page: its assemblies, its id history, the composition of its build, what a
 // conversion to each release can end in (and what each database name holds), and the record of its build and file,
-// with whether the benchmarks measured this very graph. Every value is the api's, idtrack's documentation's or the
+// with whether the benchmarks measured this very graph. Every value is the api's, IDTrack's documentation's or the
 // benchmarks' published results'.
 import { docsPage } from "../lib/links";
 import { useEffect, useId, useMemo, useState } from "react";
@@ -482,10 +482,10 @@ function TheGraphs({ organisms }: { organisms: GraphDescription[] }) {
           >
             In each row, the assemblies of the organism in the order they serve releases (the assembly whose annotation
             counts at the release). An earlier assembly can be held beside the one that serves, so that its identifiers
-            convert from it: each graph&apos;s page draws the releases at which it holds data of each assembly. A diamond
-            is filled where Ensembl publishes a mapping of the two assemblies, through which IDTrack compares the places
-            of genes across the change; open where it publishes none, and genes across the change are told apart only by
-            the names of their chromosomes, as IDTrack&apos;s documentation states (
+            convert from it: each graph&apos;s page draws the releases at which it holds data of each assembly. A
+            diamond is filled where Ensembl publishes a mapping of the two assemblies, through which IDTrack compares
+            the places of genes across the change; open where it publishes none, and genes across the change are told
+            apart only by the names of their chromosomes, as IDTrack&apos;s documentation states (
             <a href={docs.assemblyMapping.source}>{docs.assemblyMapping.title}</a>). Focus the figure and use the arrow
             keys for each assembly&apos;s exact releases and databases.
           </CaptionMore>
@@ -577,8 +577,8 @@ function TheGraphs({ organisms }: { organisms: GraphDescription[] }) {
           >
             The counts are <span className="mono">counts</span> of the file, by IDTrack&apos;s names:{" "}
             <span className="mono">nodes</span>, <span className="mono">history_edges</span>,{" "}
-            <span className="mono">cross_reference_edges</span>. Each bar is the value&apos;s share of the largest in its
-            column (a linear scale from zero).
+            <span className="mono">cross_reference_edges</span>. Each bar is the value&apos;s share of the largest in
+            its column (a linear scale from zero).
           </CaptionMore>
         </p>
       </section>
@@ -680,8 +680,8 @@ function MatrixPanel({ description: d }: { description: GraphDescription }) {
           As IDTrack&apos;s <span className="mono">API.final_databases(to_release)</span> gives them: the external
           databases of the assembly that serves the release, and Ensembl&apos;s own gene ids with and without version;
           the external databases of each assembly are listed with the assemblies above. The rows a conversion can end in
-          at some releases only come first, by their first release, above a rule; those of every release after it.
-          Focus the matrix and use the arrow keys for each cell. Below, what each name holds, in IDTrack&apos;s words.
+          at some releases only come first, by their first release, above a rule; those of every release after it. Focus
+          the matrix and use the arrow keys for each cell. Below, what each name holds, in IDTrack&apos;s words.
         </CaptionMore>
       </p>
       {matrix.state === "done" ? <DatabaseMeanings matrix={matrix.answer.data} organism={d.organism} /> : null}
@@ -689,9 +689,9 @@ function MatrixPanel({ description: d }: { description: GraphDescription }) {
   );
 }
 
-/** What each database name of the graph holds, for this organism: idtrack's words for the name (its page of external
- *  databases), the resource it comes from (idtrack's data sources) and the Ensembl form it is attached to (the api).
- *  The names idtrack does not describe are named together once, never explained by the page. */
+/** What each database name of the graph holds, for this organism: IDTrack's words for the name (its page of external
+ *  databases), the resource it comes from (IDTrack's data sources) and the Ensembl form it is attached to (the api).
+ *  The names IDTrack does not describe are named together once, never explained by the page. */
 function DatabaseMeanings({ matrix, organism }: { matrix: DatabaseMatrixData; organism: string }) {
   const graph = { symbolDatabases: matrix.symbol_databases, commonName: commonName(organism) };
   const rows = matrix.databases.map((r) => ({ row: r, d: describeDatabase(r.name, graph) }));
@@ -700,15 +700,15 @@ function DatabaseMeanings({ matrix, organism }: { matrix: DatabaseMatrixData; or
   return (
     <Expandable summary="What each database name holds" meta={`${rows.length} names`}>
       <p className="small muted db-meanings__lead">
-        In idtrack&apos;s words (<a href={DATABASE_MEANINGS_SOURCE}>The names a graph lists</a>; {said.length} of{" "}
+        In IDTrack&apos;s words (<a href={DATABASE_MEANINGS_SOURCE}>The names a graph lists</a>; {said.length} of{" "}
         {rows.length} names described there), for this graph: its name authority is{" "}
         {matrix.symbol_databases[0] ? <span className="mono">{matrix.symbol_databases[0]}</span> : "not named"}
         {matrix.symbol_databases.length > 1 ? (
           <>
-            , then <span className="mono">{matrix.symbol_databases.slice(1).join(", ")}</span> in idtrack&apos;s order
+            , then <span className="mono">{matrix.symbol_databases.slice(1).join(", ")}</span> in IDTrack&apos;s order
           </>
         ) : null}
-        ; each name&apos;s resource as idtrack&apos;s <a href={DATA_SOURCES_SOURCE}>data sources</a> describe it.
+        ; each name&apos;s resource as IDTrack&apos;s <a href={DATA_SOURCES_SOURCE}>data sources</a> describe it.
       </p>
       <dl className="db-meanings">
         {said.map(({ row, d }) => (
@@ -723,7 +723,7 @@ function DatabaseMeanings({ matrix, organism }: { matrix: DatabaseMatrixData; or
       </dl>
       {unsaid.length ? (
         <p className="db-meanings__unsaid small">
-          idtrack&apos;s page of databases does not describe{" "}
+          IDTrack&apos;s page of databases does not describe{" "}
           {unsaid.length === 1 ? "one name of this graph" : `${unsaid.length} names of this graph`}; the page names them
           without a meaning of its own:{" "}
           {unsaid.map(({ row, d }, i) => (
@@ -778,7 +778,7 @@ function DatabaseHolds({ d }: { d: DatabaseDescription }) {
   if (symbols?.role === "projected")
     return (
       <span className="db-meanings__holds">
-        {capitalized(symbols.phrase)} (<a href={DATABASE_FILING_SOURCE}>idtrack&apos;s words</a>); this organism&apos;s
+        {capitalized(symbols.phrase)} (<a href={DATABASE_FILING_SOURCE}>IDTrack&apos;s words</a>); this organism&apos;s
         name authority is <span className="mono">{symbols.authority}</span>.
       </span>
     );
@@ -929,9 +929,9 @@ function HistoryCounts({ description: d }: { description: GraphDescription }) {
             </>
           ) : null}{" "}
           These are plain facts of Ensembl&apos;s records, counted from the ends of its edges, not IDTrack&apos;s
-          reading of them: a conversion&apos;s path names its own steps a split or a merge by IDTrack&apos;s rules. Focus
-          the figure and use the arrow keys for each release&apos;s exact counts, the pairs of releases its edges join
-          and the conversions of this server through it.
+          reading of them: a conversion&apos;s path names its own steps a split or a merge by IDTrack&apos;s rules.
+          Focus the figure and use the arrow keys for each release&apos;s exact counts, the pairs of releases its edges
+          join and the conversions of this server through it.
         </CaptionMore>
       </p>
       {marks.length ? (
@@ -965,7 +965,7 @@ function HistoryCounts({ description: d }: { description: GraphDescription }) {
   );
 }
 
-/** The version a graph file records, in words: idtrack writes a statement in its place for a graph built from a
+/** The version a graph file records, in words: IDTrack writes a statement in its place for a graph built from a
  *  source folder ("none: built from a source folder, not an installed idtrack"), which is said as such. */
 function VersionWords({ text }: { text: string }) {
   const statement = /^none:\s*(.+)$/.exec(text);
@@ -1176,8 +1176,9 @@ function OrganismDetail({
                   >
                     The counts are <span className="mono">counts</span> of the file, by IDTrack&apos;s names. Under each
                     name, what IDTrack says the counted things are: its page of concepts for the nodes and the two kinds
-                    of edge (<a href={docs.counts.concepts}>The graph</a>), the description its code gives of the part of
-                    the graph of the same name for the others (<a href={docs.counts.source}>where the build counts them</a>
+                    of edge (<a href={docs.counts.concepts}>The graph</a>), the description its code gives of the part
+                    of the graph of the same name for the others (
+                    <a href={docs.counts.source}>where the build counts them</a>
                     ); a count it says no more of is said to be named only.
                   </CaptionMore>
                 </p>
@@ -1241,8 +1242,8 @@ function BuildPanel({ description: d, file }: { description: GraphDescription; f
           <span className="cli">
             <code>idtrack verify &lt;graph file&gt;</code>
           </span>{" "}
-          recomputes the content digest from the file&apos;s content and compares it with the one the file records;
-          this graph&apos;s is the digest above (IDTrack&apos;s command line,{" "}
+          recomputes the content digest from the file&apos;s content and compares it with the one the file records; this
+          graph&apos;s is the digest above (IDTrack&apos;s command line,{" "}
           <a href={docsPage("cli.html")}>its documentation</a>).
         </Readout>
         <Readout label="File format">

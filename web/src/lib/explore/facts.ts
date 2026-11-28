@@ -46,7 +46,7 @@ export function facts(graphs: readonly GraphDescription[]): Fact[] {
     },
   ];
   const counted: [string, string][] = [
-    // What idtrack counts (its builder): every identifier of every database, and the markers of an id's creation and
+    // What IDTrack counts (its builder): every identifier of every database, and the markers of an id's creation and
     // retirement that Ensembl's history writes as nodes (`<id>.Void`, `<id>.Retired`).
     ["nodes", "identifiers of every database, with the markers of an id's creation and retirement"],
     // Every edge of the history backbone: from an id's creation marker, between versions (a version kept with

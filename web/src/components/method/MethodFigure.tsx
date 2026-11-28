@@ -1,8 +1,8 @@
 // How IDTrack answers, as a stepper of five stages, one at a time: read the identifier, walk Ensembl's history, bridge
 // through an id two genes carried, rank the candidates, answer in the database asked. Each stage draws itself on a
 // real answer of this server (StageCase: asked when the panel comes into view, linked to its answer),
-// with the figure grammar of every page, and beside it the terms of the stage, every word of meaning idtrack's: the
-// api's vocabulary (`GET /api/v1/vocabulary`, idtrack's own tables) or idtrack's documentation at the pinned commit
+// with the figure grammar of every page, and beside it the terms of the stage, every word of meaning IDTrack's: the
+// api's vocabulary (`GET /api/v1/vocabulary`, IDTrack's own tables) or IDTrack's documentation at the pinned commit
 // (src/generated/idtrack_docs.json), linked.
 import { docsPage } from "../../lib/links";
 import docs from "../../generated/idtrack_docs.json";
@@ -42,10 +42,10 @@ function PanelHead({ id, title, docs }: { id: string; title: string; docs: strin
   );
 }
 
-/** Every term of a list with its meaning in idtrack's full words, the code as idtrack writes it: one press away. */
+/** Every term of a list with its meaning in IDTrack's full words, the code as IDTrack writes it: one press away. */
 function FullWords({
   entries,
-  summary = "In idtrack's full words",
+  summary = "In IDTrack's full words",
 }: {
   entries: [string, string | null | undefined][];
   summary?: string;
@@ -68,9 +68,9 @@ function FullWords({
   );
 }
 
-/** A list of terms, each a code in words (idtrack's meaning and the code on a press) and the first sentence of its
+/** A list of terms, each a code in words (IDTrack's meaning and the code on a press) and the first sentence of its
  *  meaning read for a person (lib/method/readerText.ts); the list flows in balanced columns, and every meaning in
- *  idtrack's full words is one press away. */
+ *  IDTrack's full words is one press away. */
 function TermList({
   title,
   entries,
@@ -110,15 +110,11 @@ function Glossary({ lists, children }: { lists: [string, number][]; children: Re
 function ReadPanel({ v }: { v: Vocabulary }) {
   return (
     <section className="method-panel" aria-labelledby="method-read">
-      <PanelHead
-        id="method-read"
-        title="Read the identifier"
-        docs={docsPage("reading.html#reading-matching")}
-      />
+      <PanelHead id="method-read" title="Read the identifier" docs={docsPage("reading.html#reading-matching")} />
       <p className="method-panel__lede">
         Before anything is looked up, the typed string is read as a person who pasted it meant it: where it is read (the
         starting release), what is cleaned from it, how it is matched against the identifiers of the graph. The steps of
-        a match are tried in idtrack&apos;s order, each on names, then on synonyms, before the next; the match a result
+        a match are tried in IDTrack&apos;s order, each on names, then on synonyms, before the next; the match a result
         names is the step that matched, after the prefixes that applied.
       </p>
       <StageCase
@@ -127,7 +123,7 @@ function ReadPanel({ v }: { v: Vocabulary }) {
         reserve={340}
         caption={
           <>
-            The steps of a match in idtrack&apos;s order, each with what it compares, as this answer took them: those
+            The steps of a match in IDTrack&apos;s order, each with what it compares, as this answer took them: those
             above the step that matched found nothing, the one that matched names the identifier of the graph, those
             below were not needed; beside them, the release the string was read at and the databases that attach it
             there.
@@ -143,7 +139,7 @@ function ReadPanel({ v }: { v: Vocabulary }) {
           ["the other readings beside an answer", v.readingReasons.size],
         ]}
       >
-        <FullWords entries={[...v.matchSteps.entries()]} summary="The steps of a match, in idtrack's full words" />
+        <FullWords entries={[...v.matchSteps.entries()]} summary="The steps of a match, in IDTrack's full words" />
         <div className="method-columns">
           <TermList title="Prefixes of a match" entries={[...v.matchPrefixes.entries()]} />
           <TermList title="Other readings, reported beside the answer" entries={[...v.readingReasons.entries()]} />
@@ -156,16 +152,12 @@ function ReadPanel({ v }: { v: Vocabulary }) {
 function WalkPanel({ v }: { v: Vocabulary }) {
   return (
     <section className="method-panel" aria-labelledby="method-walk">
-      <PanelHead
-        id="method-walk"
-        title="Walk Ensembl's history"
-        docs={docsPage("concepts.html#concept-history")}
-      />
+      <PanelHead id="method-walk" title="Walk Ensembl's history" docs={docsPage("concepts.html#concept-history")} />
       <p className="method-panel__lede">
         From the gene an identifier names at the starting release (its entry gene), the search follows Ensembl&apos;s
         history forward or backward to the target release. Each history step is a version event of Ensembl. In
-        idtrack&apos;s words: <Prose text={docs.mappingScore.text} />{" "}
-        <a href={docs.mappingScore.source}>idtrack&apos;s documentation</a>
+        IDTrack&apos;s words: <Prose text={docs.mappingScore.text} />{" "}
+        <a href={docs.mappingScore.source}>IDTrack&apos;s documentation</a>
       </p>
       <StageCase
         stage="walk"
@@ -192,7 +184,7 @@ function WalkPanel({ v }: { v: Vocabulary }) {
       <HistoryKinds v={v} />
       <Glossary
         lists={[
-          ["each kind of step in idtrack's full words", 0],
+          ["each kind of step in IDTrack's full words", 0],
           ["where the later gene lies", v.placeRelations.size],
         ]}
       >
@@ -206,7 +198,7 @@ function WalkPanel({ v }: { v: Vocabulary }) {
             "self_loop",
             "mitochondrial_genome",
           ].map((code) => [code, v.stepReasons.get(code)])}
-          summary="Each kind of step in idtrack's full words"
+          summary="Each kind of step in IDTrack's full words"
         />
         <TermList
           title="Where the later gene lies, for a step between two genes"
@@ -217,9 +209,9 @@ function WalkPanel({ v }: { v: Vocabulary }) {
   );
 }
 
-/** Where the bridge of an answer's path joins two genes whose places idtrack cannot compare (their assemblies have no
+/** Where the bridge of an answer's path joins two genes whose places IDTrack cannot compare (their assemblies have no
  *  published mapping), the answer rests on the shared id and the chromosomes' names alone: said under the figure, in
- *  idtrack's words, with its limitation. */
+ *  IDTrack's words, with its limitation. */
 function BridgePlaces({ result }: { result: ConversionResult }) {
   const steps = result.path?.steps ?? [];
   const near = steps.find((s) => s.kind === "bridge_near");
@@ -232,14 +224,14 @@ function BridgePlaces({ result }: { result: ConversionResult }) {
   return (
     <p className="method-caveat" role="note">
       <strong>Places not compared.</strong> This bridge joins genes on two assemblies ({spaced(bridge.places)}), so
-      their places are not compared; in idtrack&apos;s words: <Prose text={limitation.sentence} />{" "}
+      their places are not compared; in IDTrack&apos;s words: <Prose text={limitation.sentence} />{" "}
       {limitation.next ? <Prose text={limitation.next} /> : null}{" "}
       <a href={`${docs.limitations.source.replace(/#.*$/, "")}#${limitation.anchor}`}>{limitation.title}</a>
     </p>
   );
 }
 
-/** idtrack's limitation on places across an assembly change (its section's anchor in the documentation). */
+/** IDTrack's limitation on places across an assembly change (its section's anchor in the documentation). */
 const PLACES_LIMITATION = "places-across-an-assembly-change";
 
 function BridgePanel({ v }: { v: Vocabulary }) {
@@ -252,7 +244,7 @@ function BridgePanel({ v }: { v: Vocabulary }) {
         docs={docsPage("concepts.html#concept-bridges")}
       />
       <p className="method-panel__lede">
-        No record of Ensembl states a bridge: it is idtrack&apos;s inference that one gene became the other, so it is
+        No record of Ensembl states a bridge: it is IDTrack&apos;s inference that one gene became the other, so it is
         taken only where the identifier is evidence of that. With the path, a result lists every bridge the search
         considered, taken or refused, with its rule.
       </p>
@@ -308,11 +300,7 @@ function BridgePanel({ v }: { v: Vocabulary }) {
 function RankPanel({ v }: { v: Vocabulary }) {
   return (
     <section className="method-panel" aria-labelledby="method-rank">
-      <PanelHead
-        id="method-rank"
-        title="Rank the candidates"
-        docs={docsPage("concepts.html#concept-ranking")}
-      />
+      <PanelHead id="method-rank" title="Rank the candidates" docs={docsPage("concepts.html#concept-ranking")} />
       <p className="method-panel__lede">
         The search returns every candidate it reached: a gene at the target release and its target. The candidates are
         ranked by the criteria in this order; the first criterion in which two candidates differ decides between them,
@@ -326,7 +314,7 @@ function RankPanel({ v }: { v: Vocabulary }) {
         reserve={380}
         caption={
           <>
-            The best answer and the runner-up on each of idtrack&apos;s criteria, in the order they decide: equal above
+            The best answer and the runner-up on each of IDTrack&apos;s criteria, in the order they decide: equal above
             the criterion that decides, different on it, not compared below it.
           </>
         }
@@ -395,7 +383,7 @@ function AnswerPanel({ v }: { v: Vocabulary }) {
         caption={
           <>
             The last steps of the answer, at the target release: the number read as its gene through the database that
-            attaches it, then every id of the database asked that idtrack attaches to that gene there, each through the
+            attaches it, then every id of the database asked that IDTrack attaches to that gene there, each through the
             transcript and translation that carries it.
           </>
         }

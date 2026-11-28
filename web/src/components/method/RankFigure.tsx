@@ -1,7 +1,7 @@
-// Stage d on a real answer: the ranking as a ladder of idtrack's criteria in the order they decide (the api's
+// Stage d on a real answer: the ranking as a ladder of IDTrack's criteria in the order they decide (the api's
 // vocabulary), the best answer and the runner-up side by side on each rung: equal on every rung above the one that
-// decides (`decided_by`), different on it, and not compared below it, as idtrack's ranking defines it. The runner-up is
-// the first candidate that is not best (idtrack's results name no runner-up); the values are the api's, by their type.
+// decides (`decided_by`), different on it, and not compared below it, as IDTrack's ranking defines it. The runner-up is
+// the first candidate that is not best (IDTrack's results name no runner-up); the values are the api's, by their type.
 import { useMemo } from "react";
 import type { ConversionResult } from "../../api/types";
 import { buildModel } from "../../lib/pathModel";
@@ -25,7 +25,7 @@ export function RankFigure({ result }: { result: ConversionResult }) {
     <div className="rank-fig">
       <table className="rank-fig__table">
         <caption className="visually-hidden">
-          The best answer and the runner-up on each of idtrack&apos;s criteria, in the order they decide
+          The best answer and the runner-up on each of IDTrack&apos;s criteria, in the order they decide
         </caption>
         <thead>
           <tr>

@@ -1,6 +1,8 @@
-// The http api: the conventions every endpoint shares, how a program should use it, then every endpoint read live from
-// the server's OpenAPI document (`/api/v1/openapi.json`) with examples of this server that run, a console per
-// endpoint, the error codes from `/vocabulary`, and the same answers from the Python package.
+// The http api: its base address, the texts for programs and agents (llms.txt, llms-full.txt, the OpenAPI document)
+// one click away, a first request, the conventions every endpoint shares (each folded to one line), how to read an
+// answer and how a program should use the api, then every endpoint read live from the server's OpenAPI document
+// (`/api/v1/openapi.json`) as tabs (Try it, Parameters, Response, Examples), the error codes from `/vocabulary`
+// (folded), and recipes: the same answers from the Python package, and a whole feature list over HTTP.
 import { docsPage } from "../lib/links";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { API_BASE, api, send, type Exchange } from "../api/client";
@@ -10,6 +12,9 @@ import { CodeBlock, CodeChoice, CodeTabs, LanguageProvider } from "../components
 import { EndpointSection } from "../components/api/EndpointSection";
 import { ExchangeView } from "../components/api/Exchange";
 import { Button, CopyButton, Mono, Prose, Skeleton } from "../components/ui";
+import { Expandable } from "../components/v2/Expandable";
+import { HoverCard } from "../components/v2/HoverCard";
+import { Tabs } from "../components/v2/Tabs";
 import {
   exampleOrganism,
   exampleRequest,
@@ -66,7 +71,7 @@ function Section({
   );
 }
 
-/** The page's contents: its sections and every endpoint, grouped as the document groups them. */
+/** The page's contents: its sections, then every endpoint folded by its group (the group being read open). */
 function ContentsLinks({
   groups,
   active,
@@ -91,10 +96,15 @@ function ContentsLinks({
       {link("first-request", "A first request")}
       {link("conventions", "Conventions")}
       {link("reading", "Reading an answer")}
-      {link("programs", "For programs and automated clients")}
+      {link("programs", "For programs and agents")}
       {groups.map((g) => (
-        <div key={g.tag} className="api-toc__group">
-          {link(`group-${g.tag}`, g.title)}
+        <TocGroup
+          key={g.tag}
+          title={g.title}
+          count={g.endpoints.length}
+          holds={active !== null && (active === `group-${g.tag}` || g.endpoints.some((e) => e.anchor === active))}
+        >
+          {link(`group-${g.tag}`, `About ${g.title.toLowerCase()}`)}
           {g.endpoints.map((e) =>
             link(
               e.anchor,
@@ -118,12 +128,43 @@ function ContentsLinks({
               "api-toc__link--endpoint",
             ),
           )}
-        </div>
+        </TocGroup>
       ))}
       {link("errors", "Error codes")}
-      {link("locally", "Locally, in Python")}
-      {link("pipeline", "A whole feature list")}
+      {link("recipes", "Recipes")}
     </>
+  );
+}
+
+/** A group of the contents, folded to its name and count; it opens by itself while one of its entries is read. */
+function TocGroup({
+  title,
+  count,
+  holds,
+  children,
+}: {
+  title: string;
+  count: number;
+  holds: boolean;
+  children: ReactNode;
+}) {
+  const [open, setOpen] = useState(false);
+  useEffect(() => {
+    if (holds) setOpen(true);
+  }, [holds]);
+  return (
+    <details
+      className="api-toc__group"
+      open={open}
+      onToggle={(event) => {
+        setOpen(event.currentTarget.open);
+      }}
+    >
+      <summary className="api-toc__group-name">
+        {title} <span className="api-toc__count">{count}</span>
+      </summary>
+      {children}
+    </details>
   );
 }
 
@@ -594,11 +635,10 @@ const ENDPOINTS_AT_ONCE = 2;
 export function ApiHead() {
   return (
     <header className="page-head api-head">
-      <p className="eyebrow">API</p>
-      <h1>idtrack over HTTP</h1>
+      <h1>IDTrack over HTTP</h1>
       <p className="lede">
-        Every answer of this site is its api&apos;s: idtrack&apos;s results unchanged, no field renamed, no number
-        rounded. The reference is this server&apos;s OpenAPI document; every example runs here.
+        Every answer of this site is its api&apos;s, IDTrack&apos;s results unchanged, and every example here runs on
+        this server.
       </p>
     </header>
   );
@@ -670,38 +710,55 @@ export function ApiPage() {
       <div className="page api-page">
         <ApiHead />
 
-        <dl className="api-facts">
-          <div className="api-facts__item api-facts__item--base">
-            <dt>Base address</dt>
-            <dd>
-              <Mono strong>{base}</Mono>
-              <CopyButton text={base} what="the base address" />
-            </dd>
+        <div className="api-facts">
+          <div className="api-facts__base">
+            <span className="api-facts__label">Base address</span>
+            <Mono strong>{base}</Mono>
+            <CopyButton text={base} what="the base address" />
           </div>
-          <Fact label="Document" state={docState} failed="The request of /api/v1/openapi.json failed.">
-            OpenAPI <Mono>{doc?.openapi ?? "?"}</Mono>, api <Mono>{doc?.info?.version ?? "?"}</Mono>
-          </Fact>
-          <Fact label="Endpoints" state={docState} failed="The request of /api/v1/openapi.json failed.">
-            <Mono>{list.length}</Mono>
-          </Fact>
-          <Fact label="Rate" state={facts.limits} failed="The request of /api/v1/limits failed.">
-            {rateWords(limits)}
-          </Fact>
-          <Fact label="idtrack" state={facts.version} failed="The request of /api/v1/version failed.">
-            <Mono>{version?.idtrack_version ?? ""}</Mono>
-          </Fact>
-        </dl>
-        <p className="api-links">
+          <HoverCard
+            className="api-facts__more"
+            triggerClassName="api-facts__more-button"
+            label="The server's api: its document, endpoints, rate and IDTrack's version"
+            trigger={
+              <>
+                {doc ? (
+                  <>
+                    OpenAPI <Mono>{doc.openapi ?? "?"}</Mono> · <Mono>{list.length}</Mono> endpoints
+                  </>
+                ) : docState === "failed" ? (
+                  "The document: not read"
+                ) : (
+                  "The document…"
+                )}
+              </>
+            }
+          >
+            <dl className="api-facts__list">
+              <Fact label="Document" state={docState} failed="The request of /api/v1/openapi.json failed.">
+                OpenAPI <Mono>{doc?.openapi ?? "?"}</Mono>, api <Mono>{doc?.info?.version ?? "?"}</Mono>
+              </Fact>
+              <Fact label="Endpoints" state={docState} failed="The request of /api/v1/openapi.json failed.">
+                <Mono>{list.length}</Mono>
+              </Fact>
+              <Fact label="Rate" state={facts.limits} failed="The request of /api/v1/limits failed.">
+                {rateWords(limits)}
+              </Fact>
+              <Fact label="IDTrack" state={facts.version} failed="The request of /api/v1/version failed.">
+                <Mono>{version?.idtrack_version ?? ""}</Mono>
+              </Fact>
+            </dl>
+          </HoverCard>
+        </div>
+        <nav className="api-links" aria-label="The api as text, for programs and agents">
+          <a href="/llms.txt">llms.txt</a>
+          <a href="/llms-full.txt">llms-full.txt</a>
+          <a href={`${API_BASE}/openapi.json`}>openapi.json</a>
           <a href={`${API_BASE}/openapi.json`} download="idtrack-openapi.json">
             Download the OpenAPI document
           </a>
-          <a href="/llms.txt">llms.txt, the index for language models</a>
-          <a href="/llms-full.txt">llms-full.txt, every rule and example as text</a>
           <a href={API_BASE}>The api&apos;s index (JSON)</a>
-          <span className="api-links__source">
-            Sources: <Mono>/api/v1/openapi.json</Mono>, <Mono>/api/v1/limits</Mono>, <Mono>/api/v1/vocabulary</Mono>
-          </span>
-        </p>
+        </nav>
 
         <PhoneContents groups={groups} count={list.length} />
 
@@ -716,13 +773,11 @@ export function ApiPage() {
             />
             <Section id="conventions" title="Conventions" aside="What every endpoint shares.">
               <div className="api-conventions">
-                <div className="api-card">
-                  <h3 className="api-card__title">
-                    <span className="panel-letter" aria-hidden="true">
-                      a
-                    </span>
-                    Requests and answers
-                  </h3>
+                <Expandable
+                  className="api-convention"
+                  summary="Requests and answers"
+                  meta="JSON under /api/v1; no key, no cookie"
+                >
                   <ul className="api-list">
                     <li>
                       Every endpoint is under <Mono>{API_BASE}</Mono> and answers JSON (<Mono>application/json</Mono>
@@ -738,10 +793,10 @@ export function ApiPage() {
                       knows (<Mono>human</Mono>); <Mono>GET /organisms</Mono> lists those this server holds.
                     </li>
                     <li>
-                      A result is idtrack&apos;s <Mono>to_dict()</Mono>: a float is written as the shortest text that
+                      A result is IDTrack&apos;s <Mono>to_dict()</Mono>: a float is written as the shortest text that
                       reads back as the same double, which JSON parsers read exactly. The api adds three things of its
                       own, each said to be the api&apos;s: <Mono>cautions</Mono> on every result (its reading of the
-                      result&apos;s evidence, each with its code and the limitation of idtrack it falls under), the
+                      result&apos;s evidence, each with its code and the limitation of IDTrack it falls under), the
                       stable <Mono>error.code</Mono> of a batch item that failed, and around a list&apos;s answers the{" "}
                       <Mono>organism</Mono> and the <Mono>arguments</Mono> as read.
                     </li>
@@ -752,14 +807,8 @@ export function ApiPage() {
                       <Mono>304</Mono>, without a search.
                     </li>
                   </ul>
-                </div>
-                <div className="api-card">
-                  <h3 className="api-card__title">
-                    <span className="panel-letter" aria-hidden="true">
-                      b
-                    </span>
-                    Errors
-                  </h3>
+                </Expandable>
+                <Expandable className="api-convention" summary="Errors" meta="one envelope, a stable code">
                   <p className="api-card__text">
                     Every answer that is not a success is one object, <Mono>{`{"error": {...}}`}</Mono>, with a stable{" "}
                     <Mono>code</Mono> (the table below), a <Mono>message</Mono> that says what to change, the{" "}
@@ -785,14 +834,12 @@ export function ApiPage() {
                       {errorExample === "asking" ? "Asking…" : "Ask this server"}
                     </Button>
                   )}
-                </div>
-                <div className="api-card api-card--wide">
-                  <h3 className="api-card__title">
-                    <span className="panel-letter" aria-hidden="true">
-                      c
-                    </span>
-                    Bounds of this server
-                  </h3>
+                </Expandable>
+                <Expandable
+                  className="api-convention"
+                  summary="Bounds of this server"
+                  meta={limitFields.length ? `${limitFields.length} bounds, GET /api/v1/limits` : "GET /api/v1/limits"}
+                >
                   {limits && limitFields.length ? (
                     <ul className="api-bounds">
                       {limitFields.map((f) => {
@@ -849,14 +896,8 @@ export function ApiPage() {
                     per-client allowances are those <Mono>allowance_fields</Mono> names
                     {allowancesOff ? ", configured but not applied on this server (allowances_enforced is false)" : ""}.
                   </p>
-                </div>
-                <div className="api-card api-card--wide">
-                  <h3 className="api-card__title">
-                    <span className="panel-letter" aria-hidden="true">
-                      d
-                    </span>
-                    Timing
-                  </h3>
+                </Expandable>
+                <Expandable className="api-convention" summary="Timing" meta="Server-Timing on every answer">
                   <p className="api-card__text">
                     Every answer carries <Mono>Server-Timing</Mono>, in milliseconds measured by the server, readable by
                     any page (it is exposed to every origin). Its metrics, in the api&apos;s words (
@@ -880,7 +921,7 @@ export function ApiPage() {
                       {parseServerTiming(timing).length ? null : " (not read)"}
                     </p>
                   ) : null}
-                </div>
+                </Expandable>
               </div>
             </Section>
 
@@ -888,8 +929,8 @@ export function ApiPage() {
 
             <Section
               id="programs"
-              title="For programs and automated clients"
-              aside="How an automated client should use the api."
+              title="For programs and agents"
+              aside="How a program, an agent or another automated client should use the api."
             >
               <ol className="api-rules">
                 <li>
@@ -975,7 +1016,7 @@ export function ApiPage() {
                       <strong>Keep to the bounds of /limits.</strong>
                     </summary>
                     <p>
-                      They are above (Conventions, c): at most{" "}
+                      They are above (Conventions, Bounds of this server): at most{" "}
                       {limits ? <Mono>{limits.identifier_max_length}</Mono> : "the bound of"} characters per identifier,{" "}
                       {limits ? <Mono>{pythonFloat(limits.request_seconds)}</Mono> : "the budget of"} s of search per
                       request (from when its search begins),{" "}
@@ -1052,114 +1093,144 @@ export function ApiPage() {
               ))
             )}
 
-            <Section id="errors" title="Error codes" aside="From /api/v1/vocabulary: every code the api answers.">
-              {errors.length ? (
-                <div className="table-wrap" role="region" aria-label="Table of error codes" tabIndex={0}>
-                  <table className="table table--compact table--cards api-errors">
-                    <thead>
-                      <tr>
-                        <th scope="col">Code</th>
-                        <th scope="col" className="num">
-                          Status
-                        </th>
-                        <th scope="col">Retry</th>
-                        <th scope="col">What it says (each opens to when, and what to change)</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {errors.map(([code, e]) => (
-                        <tr key={code}>
-                          <td data-label="Code">
-                            <Mono strong>{code}</Mono>
-                          </td>
-                          <td data-label="Status" className="num">
-                            <Mono>{e.status}</Mono>
-                          </td>
-                          <td data-label="Retry">
-                            {e.retryable ? (
-                              <>
-                                yes<span className="api-errors__long">, after Retry-After</span>
-                              </>
-                            ) : (
-                              <>
-                                no<span className="api-errors__long">: change the request</span>
-                              </>
-                            )}
-                          </td>
-                          <td data-label="When" className="cell-wrap">
-                            {/* One child: in the cards of a phone, prose with code wraps as one paragraph. */}
-                            <details className="cell-value">
-                              <summary>{e.title}</summary>
-                              <div>
-                                <Prose text={e.meaning} literal />
-                              </div>
-                            </details>
-                          </td>
+            <section className="api-section api-section--folded" id="errors" aria-label="Error codes">
+              <Expandable
+                summary={<span className="api-section__title">Error codes</span>}
+                meta={errors.length ? `${errors.length} codes, from /api/v1/vocabulary` : "from /api/v1/vocabulary"}
+              >
+                {errors.length ? (
+                  <div className="table-wrap" role="region" aria-label="Table of error codes" tabIndex={0}>
+                    <table className="table table--compact table--cards api-errors">
+                      <thead>
+                        <tr>
+                          <th scope="col">Code</th>
+                          <th scope="col" className="num">
+                            Status
+                          </th>
+                          <th scope="col">Retry</th>
+                          <th scope="col">What it says (each opens to when, and what to change)</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              ) : (
-                <p className="muted">
-                  The api&apos;s vocabulary did not answer; the codes are in the OpenAPI document&apos;s answers above.
-                </p>
-              )}
-            </Section>
+                      </thead>
+                      <tbody>
+                        {errors.map(([code, e]) => (
+                          <tr key={code}>
+                            <td data-label="Code">
+                              <Mono strong>{code}</Mono>
+                            </td>
+                            <td data-label="Status" className="num">
+                              <Mono>{e.status}</Mono>
+                            </td>
+                            <td data-label="Retry">
+                              {e.retryable ? (
+                                <>
+                                  yes<span className="api-errors__long">, after Retry-After</span>
+                                </>
+                              ) : (
+                                <>
+                                  no<span className="api-errors__long">: change the request</span>
+                                </>
+                              )}
+                            </td>
+                            <td data-label="When" className="cell-wrap">
+                              {/* One child: in the cards of a phone, prose with code wraps as one paragraph. */}
+                              <details className="cell-value">
+                                <summary>{e.title}</summary>
+                                <div>
+                                  <Prose text={e.meaning} literal />
+                                </div>
+                              </details>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <p className="muted">
+                    The api&apos;s vocabulary did not answer; the codes are in the OpenAPI document&apos;s answers
+                    above.
+                  </p>
+                )}
+              </Expandable>
+            </section>
 
-            <Section id="locally" title="Locally, in Python" aside="The same answers without a server.">
-              <div className="api-local">
-                <p className="api-card__text">
-                  The api answers with idtrack, the Python package (Python 3.12 to 3.15). Installed, it builds an
-                  organism&apos;s graph once from Ensembl and answers offline, with the same results as this server for
-                  the same graph. Its <a href={docsPage()}>documentation</a> has the quickstart, how it answers and its
-                  limitations.
-                </p>
-                <p className="api-card__text" id="harmonizing">
-                  For single-cell and other count matrices, idtrack&apos;s <Mono>HarmonizeFeatures</Mono> converts the
-                  features of several <Mono>.h5ad</Mono> datasets to one Ensembl release and merges them into one
-                  AnnData, with a report of every feature&apos;s conversion, nothing dropped or rewritten silently (
-                  <a href={docsPage("harmonization.html")}>Harmonizing Datasets</a>, where the example makes its own toy
-                  datasets).
-                </p>
-                <CodeBlock code={INSTALL} what="the install commands" label="Install" language="bash" />
-                <CodeChoice
-                  what="Idtrack in Python"
-                  items={[
-                    { key: "convert", label: "Convert (idtrack's README)", code: PYTHON_EXAMPLE, language: "python" },
-                    {
-                      key: "harmonize",
-                      label: "Harmonize (idtrack's documentation)",
-                      code: HARMONIZE_EXAMPLE,
-                      language: "python",
-                    },
-                  ]}
-                />
-              </div>
-            </Section>
-
-            <Section
-              id="pipeline"
-              title="A whole feature list, over HTTP"
-              aside="The list's release, batches, waits and the graph's digest beside the answers."
-            >
-              <p className="api-card__text api-prose">
-                A list of any length in requests of at most this server&apos;s <Mono>batch_max</Mono>, read as it was
-                when it was made: give the Ensembl release of its annotation (<Mono>FROM_RELEASE</Mono>), or let one{" "}
-                <Mono>POST …/source-inference</Mono> find it from the list (its <Mono>from_release</Mono>), sent with
-                every batch. It waits as told on <Mono>429</Mono> and <Mono>503</Mono>, keeps a name and its copies (the
-                name with <Mono>-</Mono>, <Mono>.</Mono> or <Mono>_</Mono> and a number appended, idtrack&apos;s rule)
-                in one request, keeps only the answers in the database asked (<Mono>converted</Mono> and{" "}
-                <Mono>tie</Mono>) with how each was read (<Mono>match</Mono>), the bridges it crossed and the criterion
-                that decided it, and writes above the table the graph every answer came from (
-                <Mono>Idtrack-Graph-Digest</Mono> of each answer, checked to be one) and both releases. A batch&apos;s
-                own table (<Mono>format=tsv</Mono>) names the same with <Mono>provenance=true</Mono>.
-              </p>
-              <CodeChoice
-                what="The pipeline"
+            <Section id="recipes" title="Recipes" aside="The same answers without a server, and a whole feature list.">
+              <Tabs
+                label="Recipes"
+                className="api-recipes"
                 items={[
-                  { key: "python", label: "Python (requests)", code: pipelinePython(base), language: "python" },
-                  { key: "r", label: "R (httr2)", code: pipelineR(base), language: "r" },
+                  {
+                    id: "locally",
+                    label: "Locally, in Python",
+                    panel: () => (
+                      <div className="api-local">
+                        <p className="api-card__text">
+                          The api answers with IDTrack, the Python package (Python 3.12 to 3.15). Installed, it builds
+                          an organism&apos;s graph once from Ensembl and answers offline, with the same results as this
+                          server for the same graph. Its <a href={docsPage()}>documentation</a> has the quickstart, how
+                          it answers and its limitations.
+                        </p>
+                        <p className="api-card__text" id="harmonizing">
+                          For single-cell and other count matrices, IDTrack&apos;s <Mono>HarmonizeFeatures</Mono>{" "}
+                          converts the features of several <Mono>.h5ad</Mono> datasets to one Ensembl release and merges
+                          them into one AnnData, with a report of every feature&apos;s conversion, nothing dropped or
+                          rewritten silently (<a href={docsPage("harmonization.html")}>Harmonizing Datasets</a>, where
+                          the example makes its own toy datasets).
+                        </p>
+                        <CodeBlock code={INSTALL} what="the install commands" label="Install" language="bash" />
+                        <CodeChoice
+                          what="IDTrack in Python"
+                          items={[
+                            {
+                              key: "convert",
+                              label: "Convert (IDTrack's README)",
+                              code: PYTHON_EXAMPLE,
+                              language: "python",
+                            },
+                            {
+                              key: "harmonize",
+                              label: "Harmonize (IDTrack's documentation)",
+                              code: HARMONIZE_EXAMPLE,
+                              language: "python",
+                            },
+                          ]}
+                        />
+                      </div>
+                    ),
+                  },
+                  {
+                    id: "pipeline",
+                    label: "A whole feature list, over HTTP",
+                    panel: () => (
+                      <>
+                        <p className="api-card__text api-prose">
+                          A list of any length in requests of at most this server&apos;s <Mono>batch_max</Mono>, read as
+                          it was when it was made: give the Ensembl release of its annotation (<Mono>FROM_RELEASE</Mono>
+                          ), or let one <Mono>POST …/source-inference</Mono> find it from the list (its{" "}
+                          <Mono>from_release</Mono>), sent with every batch. It waits as told on <Mono>429</Mono> and{" "}
+                          <Mono>503</Mono>, keeps a name and its copies (the name with <Mono>-</Mono>, <Mono>.</Mono> or{" "}
+                          <Mono>_</Mono> and a number appended, IDTrack&apos;s rule) in one request, keeps only the
+                          answers in the database asked (<Mono>converted</Mono> and <Mono>tie</Mono>) with how each was
+                          read (<Mono>match</Mono>), the bridges it crossed and the criterion that decided it, and
+                          writes above the table the graph every answer came from (<Mono>Idtrack-Graph-Digest</Mono> of
+                          each answer, checked to be one) and both releases. A batch&apos;s own table (
+                          <Mono>format=tsv</Mono>) names the same with <Mono>provenance=true</Mono>.
+                        </p>
+                        <CodeChoice
+                          what="The pipeline"
+                          items={[
+                            {
+                              key: "python",
+                              label: "Python (requests)",
+                              code: pipelinePython(base),
+                              language: "python",
+                            },
+                            { key: "r", label: "R (httr2)", code: pipelineR(base), language: "r" },
+                          ]}
+                        />
+                      </>
+                    ),
+                  },
                 ]}
               />
             </Section>

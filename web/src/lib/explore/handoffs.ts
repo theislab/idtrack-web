@@ -1,5 +1,5 @@
 // The assembly changes of a graph (where the assembly that serves the releases changes) and whether Ensembl publishes a
-// mapping of the earlier assembly onto the later one there, as idtrack's documentation states it (its limitation
+// mapping of the earlier assembly onto the later one there, as IDTrack's documentation states it (its limitation
 // "Places across an assembly change", whose two lists src/generated/idtrack_docs.json holds, read at the pinned idtrack
 // commit). A change the documentation names in neither list is said to be unstated, never guessed.
 import type { GraphDescription } from "../../api/types";
@@ -19,7 +19,7 @@ export interface Handoff {
 const named = (list: readonly { from: string; to: string }[], from: string, to: string) =>
   list.some((c) => c.from === from && c.to === to);
 
-/** Whether Ensembl publishes a mapping between two assemblies, by idtrack's documentation. */
+/** Whether Ensembl publishes a mapping between two assemblies, by IDTrack's documentation. */
 export function mappingOf(from: string, to: string): Mapping {
   if (named(docs.assemblyMapping.mapped, from, to)) return "published";
   if (named(docs.assemblyMapping.unmapped, from, to)) return "none";
@@ -42,5 +42,5 @@ export function handoffsOf(
 export const MAPPING_WORDS: Record<Mapping, string> = {
   published: "Ensembl publishes a mapping of the two assemblies: places are compared through it",
   none: "Ensembl publishes no mapping: genes across the change are told apart only by the names of their chromosomes",
-  unstated: "idtrack's documentation does not say whether Ensembl publishes a mapping here",
+  unstated: "IDTrack's documentation does not say whether Ensembl publishes a mapping here",
 };

@@ -127,8 +127,8 @@ export function JourneyUpClose({
             </>
           }
         >
-          Answered once when the server started. Each bar is a gene version over the releases at which the path holds
-          it ({model.genes.length} versions on assemblies {assemblies}); between the versions, {history.length} steps of
+          Answered once when the server started. Each bar is a gene version over the releases at which the path holds it
+          ({model.genes.length} versions on assemblies {assemblies}); between the versions, {history.length} steps of
           Ensembl&apos;s id history (
           {counts.map(([reason, n], i) => (
             <span key={reason}>
@@ -156,8 +156,8 @@ export function JourneyUpClose({
           {scoreMeaning ? lowerFirst(prose(scoreMeaning)) : "its score"}. Replay walks the path step by step and writes
           each step&apos;s score and the product so far (the page&apos;s own product, cut after six decimals: the
           candidate&apos;s score is IDTrack&apos;s). Focus the figure and use the arrow keys for each element&apos;s
-          exact values (on a touch screen, tap a mark). Source: <Mono>GET /api/v1/organisms/{graph.organism}/showcase</Mono>
-          , the answer{" "}
+          exact values (on a touch screen, tap a mark). Source:{" "}
+          <Mono>GET /api/v1/organisms/{graph.organism}/showcase</Mono>, the answer{" "}
           <a href={apiAddress(query)}>
             <Mono>GET {apiAddress(query).replace(/\?.*/, "")}</Mono>
           </a>{" "}

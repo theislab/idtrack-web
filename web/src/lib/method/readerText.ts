@@ -1,5 +1,5 @@
-// idtrack's meanings (the api's vocabulary) read for a person rather than a programmer, by rules about the form of the
-// text, never about a particular code: the full text stays one press away, in idtrack's words.
+// IDTrack's meanings (the api's vocabulary) read for a person rather than a programmer, by rules about the form of the
+// text, never about a particular code: the full text stays one press away, in IDTrack's words.
 //
 // - An aside in parentheses that opens with code and says in words after a colon what it is keeps the words
 //   ("(`gene.display_xref_id`: Ensembl's own name of the gene there)" → "(Ensembl's own name of the gene there)"); one

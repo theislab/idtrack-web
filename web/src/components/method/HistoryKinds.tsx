@@ -1,7 +1,7 @@
 // The kinds of history step, each drawn as what it is (a small schematic in the figure grammar: the genes as bars on
-// lanes, the step's glyph where the old id ends and the new one begins) beside what Ensembl recorded, in idtrack's
+// lanes, the step's glyph where the old id ends and the new one begins) beside what Ensembl recorded, in IDTrack's
 // documentation's words (its table of version events, src/generated/idtrack_docs.json), and the code a result names
-// the step by, with idtrack's meaning of it on request. The schematics draw no real ids: they show the shape of each
+// the step by, with IDTrack's meaning of it on request. The schematics draw no real ids: they show the shape of each
 // kind; the panel's figure above draws a real one.
 import type { ReactNode } from "react";
 import docs from "../../generated/idtrack_docs.json";

@@ -1,5 +1,5 @@
 // The symbols of the Ensembl genes the home names (the journeys' answers, the cases' genes), each at the release it is
-// named at: idtrack's own conversion of the gene into the organism's name authority at that release, one batch per
+// named at: IDTrack's own conversion of the gene into the organism's name authority at that release, one batch per
 // release for the whole page (lib/symbols.ts, held for the page session), never a request per gene. A gene the
 // authority gives no symbol shows none; where they cannot be had, the page shows the ids alone.
 import { useEffect, useState } from "react";

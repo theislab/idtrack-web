@@ -1,7 +1,7 @@
 // Stage e on a real answer: the last step of a path drawn as what it is, at the target release: the identifier read as
-// its gene, then every id of the database asked that idtrack attaches to that gene there, each through the Ensembl
+// its gene, then every id of the database asked that IDTrack attaches to that gene there, each through the Ensembl
 // form that carries it (the gene itself, its transcript, its translation), in columns by form. The best answers are
-// filled squares; where several are best on equal evidence the status says tie, as idtrack's result does. Only the
+// filled squares; where several are best on equal evidence the status says tie, as IDTrack's result does. Only the
 // api's nodes and steps are drawn: the path's `final` steps of every best candidate (`final_path`), and its entry.
 import { useMemo } from "react";
 import type { ConversionResult } from "../../api/types";

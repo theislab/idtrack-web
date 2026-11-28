@@ -3,7 +3,7 @@
 // right answers per organism on the code of the release, with its counts, its undetermined lines, its interval (per
 // line) and its surely weakest part (with the interval clustered by the unit that made the lines), what each family is
 // judged against, and the one source its truth shares with idtrack; (g) the other tools asked the same lines, each
-// beside idtrack on the same logarithmic axis of wrong answers, with their coverage and what the repository's reading of
+// beside IDTrack on the same logarithmic axis of wrong answers, with their coverage and what the repository's reading of
 // their wrong lines found. Every number is the generated file's, which is the repository's; nothing is rounded here but
 // in a drawing's place and in an interval computed from the counts where the published one has no width (said so), and
 // a rate the source rounded to 1 while some answer is wrong is never written as 1.
@@ -100,7 +100,7 @@ function Provenance() {
     <dl className="bench-dl">
       <div>
         <dt>Measured</dt>
-        <dd>idtrack&apos;s code at its release {ANSWERS.release}, whose answers are the release&apos;s</dd>
+        <dd>IDTrack&apos;s code at its release {ANSWERS.release}, whose answers are the release&apos;s</dd>
       </div>
       <div className="bench__graphs">
         <dt>Graphs</dt>
@@ -133,11 +133,11 @@ function Provenance() {
                 Results: idtrack-reproducibility at <Mono>{BENCHMARKS.commit}</Mono>
               </li>
               <li>
-                The code measured: the tree <Mono>{TREE.name}</Mono>, idtrack <Mono>{TREE.commit}</Mono>; in the
+                The code measured: the tree <Mono>{TREE.name}</Mono>, IDTrack <Mono>{TREE.commit}</Mono>; in the
                 repository&apos;s words, <Prose text={TREE.what} />
               </li>
               <li>
-                The release whose answers it has: {ANSWERS.release}, idtrack <Mono>{ANSWERS.commit}</Mono>
+                The release whose answers it has: {ANSWERS.release}, IDTrack <Mono>{ANSWERS.commit}</Mono>
               </li>
               <li>
                 The two judges of B and E, in the repository&apos;s words: <Mono>now</Mono>,{" "}
@@ -458,11 +458,11 @@ export function AccuracyPanel() {
       <PanelHead
         letter="f"
         id="method-evidence"
-        title="How often idtrack agrees with Ensembl's records and the authorities"
+        title="How often IDTrack agrees with Ensembl's records and the authorities"
         href={BENCHMARKS.repository}
       />
       <p className="method-panel__lede bench-lede">
-        idtrack&apos;s answers are measured by the benchmarks of{" "}
+        IDTrack&apos;s answers are measured by the benchmarks of{" "}
         <a href={BENCHMARKS.repository}>idtrack-reproducibility</a>, each family a kind of question asked of every line
         its sets hold. In the repository&apos;s words: <Prose text={BENCHMARKS.truth} />
       </p>
@@ -610,13 +610,13 @@ export function AccuracyPanel() {
 
 const TASKS = Object.entries(BENCHMARKS.tools.tasks);
 
-/** A tool's wrong share beside idtrack's on the same lines, on the logarithmic axis of panel f. */
+/** A tool's wrong share beside IDTrack's on the same lines, on the logarithmic axis of panel f. */
 function ToolStrip({ cell }: { cell: ToolCell }) {
   const tool = toolWrongShare(cell);
   const ours = idtrackWrongShare(cell);
   const at = (share: number) => wrongPosition(share) ?? 0;
   const a = at(tool);
-  // idtrack's share where none is wrong: at the left end; where a published 1 bounds it only, at that bound.
+  // IDTrack's share where none is wrong: at the left end; where a published 1 bounds it only, at that bound.
   const b = ours.share === 0 && ours.bounded ? at(0.5e-4) : at(ours.share);
   const lo = Math.min(a, b);
   const hi = Math.max(a, b);
@@ -662,7 +662,7 @@ function ToolValues({ cell }: { cell: ToolCell }): ReactNode {
           digits={4}
           className="tools__tool-rate"
         />
-        <span className="tools__vs"> · idtrack </span>
+        <span className="tools__vs"> · IDTrack </span>
         <Rate
           published={cell.idtrack}
           counts={{ right: 1, wrong: ours.bounded ? 1 : 0 }}
@@ -673,10 +673,10 @@ function ToolValues({ cell }: { cell: ToolCell }): ReactNode {
       <span className="tools__ratio">
         {ours.share === 0
           ? ours.bounded
-            ? "idtrack's wrong share under 1 in 10 000"
+            ? "IDTrack's wrong share under 1 in 10 000"
             : "idtrack: none wrong"
           : ratio
-            ? `${ratio} idtrack's wrong share`
+            ? `${ratio} IDTrack's wrong share`
             : "the tool: none wrong"}
       </span>
       <Coverage cell={cell} />
@@ -684,7 +684,7 @@ function ToolValues({ cell }: { cell: ToolCell }): ReactNode {
   );
 }
 
-/** A cell that cannot be set beside idtrack's: no kept line has an answer. */
+/** A cell that cannot be set beside IDTrack's: no kept line has an answer. */
 function NotComparable({ cell }: { cell: ToolCell }) {
   return (
     <>
@@ -734,11 +734,11 @@ export function ToolsPanel() {
       <p className="method-panel__lede bench-lede">
         Family G asks the tools people use for the same questions the same lines, judged by the same truth and the same
         scorer as idtrack, from their responses as fetched and stored. Each tool&apos;s wrong share is drawn beside
-        idtrack&apos;s on the same lines (those the tool could be asked and the rule of equal truth kept), by the task
+        IDTrack&apos;s on the same lines (those the tool could be asked and the rule of equal truth kept), by the task
         of the line, on the axis of panel f.
       </p>
       <p className="bench-caveat" role="note">
-        <strong>Not a ranking of the tools.</strong> The lines ask what idtrack answers: a string as the release it was
+        <strong>Not a ranking of the tools.</strong> The lines ask what IDTrack answers: a string as the release it was
         read at named it. Most tools read today&apos;s tables, so many of their wrong lines are questions they do not
         claim to answer; under each tool, the family&apos;s reading of a sample of its wrong lines says how many (
         <a href={benchmarkFile(tools.readingSource)}>the reading of the disagreements</a>).
@@ -759,7 +759,7 @@ export function ToolsPanel() {
           </button>
         ))}
       </div>
-      <TableFrame label="Tools against idtrack on the same lines" className="bench-frame table-frame--cards">
+      <TableFrame label="Tools against IDTrack on the same lines" className="bench-frame table-frame--cards">
         <table className="tools table--cards" aria-describedby={captionId}>
           <thead>
             <tr>
@@ -774,7 +774,7 @@ export function ToolsPanel() {
               <td>
                 <span className="bench__key">
                   <span className="bench__key-line">
-                    <strong>Numbers</strong>: right / judged, the tool&apos;s · idtrack&apos;s
+                    <strong>Numbers</strong>: right / judged, the tool&apos;s · IDTrack&apos;s
                   </span>
                   <span className="bench__key-line">
                     <strong>Marks</strong>: wrong / judged, log scale
@@ -838,20 +838,20 @@ export function ToolsPanel() {
             <WrongAxis />
             <span className="tools__idtrack" style={{ "--at": 0.5 } as CSSProperties} />
           </span>
-          idtrack&apos;s on the same lines (a filled dot)
+          IDTrack&apos;s on the same lines (a filled dot)
         </li>
         <li>
           <span className="bench__track bench__track--legend" aria-hidden="true">
             <WrongAxis />
             <span className="tools__idtrack tools__idtrack--none" style={{ "--at": 0 } as CSSProperties} />
           </span>
-          idtrack with no wrong answer (a ring at the left end); where a published 1 only bounds it, the ring stands at
+          IDTrack with no wrong answer (a ring at the left end); where a published 1 only bounds it, the ring stands at
           that bound
         </li>
       </ul>
       <div className="fig-caption bench-caption" id={captionId}>
         <p>
-          <strong>g</strong> The rate of right answers of each tool and idtrack&apos;s on the same kept lines (the
+          <strong>g</strong> The rate of right answers of each tool and IDTrack&apos;s on the same kept lines (the
           reading of the input <span className="mono">best</span>, the view <span className="mono">all</span>: in the
           document&apos;s words, <Prose text={tools.viewAll} />
           ), from{" "}
@@ -859,11 +859,11 @@ export function ToolsPanel() {
             <span className="mono">{tools.source}</span>
           </a>{" "}
           as the family&apos;s document shows it, every rate to 4 decimals as published; drawn as the wrong share (one
-          minus the rate) on the logarithmic axis of panel f, the tool&apos;s from its counts, idtrack&apos;s from its
+          minus the rate) on the logarithmic axis of panel f, the tool&apos;s from its counts, IDTrack&apos;s from its
           published rate.
         </p>
         <p>
-          Their ratio is the range that half a unit of idtrack&apos;s last decimal leaves, or one value
+          Their ratio is the range that half a unit of IDTrack&apos;s last decimal leaves, or one value
           (&quot;about&quot;) where that range is narrow. Coverage, in the document&apos;s words:{" "}
           <Prose text={tools.coverage} />; a right line may hold no answer where the truth is nothing, so a tool whose
           kept lines hold no answer is not compared. The lines a service did not answer on the dates asked are never

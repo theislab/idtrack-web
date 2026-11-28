@@ -7,7 +7,14 @@ import { useCallback, useId, useLayoutEffect, useRef, useState, type ReactNode }
 import type { GraphDescription } from "../../api/types";
 import { databaseLabel } from "../../lib/databases";
 import { isEnsembl } from "../../lib/home/journeyModel";
-import { bridgesOf, journeyList, journeySets, legendMarks, type Journey, type LegendMark } from "../../lib/home/journeys";
+import {
+  bridgesOf,
+  journeyList,
+  journeySets,
+  legendMarks,
+  type Journey,
+  type LegendMark,
+} from "../../lib/home/journeys";
 import { plural } from "../../lib/home/stepWords";
 import { lazyPart } from "../../lib/lazyPart";
 import { organismName } from "../../lib/organismNames";

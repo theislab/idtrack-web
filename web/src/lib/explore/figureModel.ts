@@ -1,4 +1,4 @@
-// The model of the Convert page's figure: the best answer of one real conversion, as idtrack's explained path gives
+// The model of the Convert page's figure: the best answer of one real conversion, as IDTrack's explained path gives
 // it, laid along the releases. Every node and step is the api's object, kept whole; the model only adds where each sits
 // on the release axis (the releases at which the path holds each gene) and which steps cross assemblies.
 import type { Candidate, ConversionResult, PathNode, PathStep } from "../../api/types";

@@ -286,7 +286,7 @@ function CaseStory({
             "an external id"
           )}{" "}
           to <Gene id={far?.target ?? "—"} symbols={symbols} />
-          {far?.places ? ` (${spaced(far.places)})` : ""}: idtrack&apos;s inference, marked as one.
+          {far?.places ? ` (${spaced(far.places)})` : ""}: IDTrack&apos;s inference, marked as one.
         </>
       );
     }
@@ -337,7 +337,7 @@ function CaseStory({
           {near && far ? (
             <>
               , reached through a bridge (<Mono>{near.target}</Mono>, {near.databases.map(databaseLabel).join(", ")}
-              {far.places ? `; ${spaced(far.places)}` : ""}): idtrack&apos;s inference
+              {far.places ? `; ${spaced(far.places)}` : ""}): IDTrack&apos;s inference
             </>
           ) : null}
           .
@@ -424,7 +424,7 @@ export function CaseGallery({
   level?: 2 | 3;
 }) {
   const vocabulary = useVocabulary();
-  // The organism's name authority at each release (idtrack's symbol databases, the first a conversion can end in).
+  // The organism's name authority at each release (IDTrack's symbol databases, the first a conversion can end in).
   const matrix = useRequest(`databases|${graph.organism}`, (signal, fresh) =>
     api.databases(graph.organism, { signal, fresh }),
   );

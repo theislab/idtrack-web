@@ -1,4 +1,4 @@
-// One journey of the Convert page's first figure: a conversion's best answer as idtrack's explained path gives it,
+// One journey of the Convert page's first figure: a conversion's best answer as IDTrack's explained path gives it,
 // placed on the release axis. The steps are the api's objects, in the order of the best candidate's path; the model
 // adds only where each sits (a history step between the two releases it joins, a cross-reference step at its release)
 // and which crossings leave Ensembl for an external database (the databases the identifier was read through, the

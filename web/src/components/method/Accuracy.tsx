@@ -120,7 +120,11 @@ function OneOrganism() {
         onChange={setOrganism}
         options={BENCHMARK_ORGANISMS.map((o) => ({ value: o, label: capitalised(organismWord(o)) }))}
       />
-      <div className="accuracy__frame" role="region" aria-label={`Right / judged per family, ${organismWord(organism)}`}>
+      <div
+        className="accuracy__frame"
+        role="region"
+        aria-label={`Right / judged per family, ${organismWord(organism)}`}
+      >
         <table className="accuracy__table">
           <thead>
             <tr>

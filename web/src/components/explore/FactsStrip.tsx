@@ -1,6 +1,6 @@
 // What this server holds, summed from its graphs as /organisms describes them: the graphs, the releases they span,
 // their assemblies, and the counts of their builds (identifiers, steps of Ensembl's id history, links to other
-// databases: idtrack's nodes, history edges and cross-reference edges, each said as what idtrack counts, its markers
+// databases: IDTrack's nodes, history edges and cross-reference edges, each said as what IDTrack counts, its markers
 // of an id's creation and retirement included), with the external databases. Each number says
 // in plain words what it counts; the caption under the strip names the endpoint and the field each one sums.
 import { useId } from "react";

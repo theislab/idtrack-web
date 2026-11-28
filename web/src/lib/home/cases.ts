@@ -1,6 +1,6 @@
 // The cases the Convert page shows before a conversion come from the server's showcase of the graph (each a query,
 // the kind of phenomenon its answer shows, and the answer: api/idtrack_web_api/showcase_data/). What is written here
-// is what a kind means, once for every organism: a title and the concept in plain words, after idtrack's documentation
+// is what a kind means, once for every organism: a title and the concept in plain words, after IDTrack's documentation
 // (each links to the section that states it). The facts of each case (its identifier, releases, scores, genes) are
 // read from its answer on the card, never written here.
 import type { CaseKind } from "./caseKinds";
@@ -18,11 +18,11 @@ export interface KindText {
   title: string;
   /** The concept in plain words. */
   concept: string;
-  /** The section of idtrack's documentation that states it. */
+  /** The section of IDTrack's documentation that states it. */
   href: string;
 }
 
-// Pages of idtrack's documentation, resolved where they are drawn (lib/links.ts `docsPage`).
+// Pages of IDTrack's documentation, resolved where they are drawn (lib/links.ts `docsPage`).
 const HISTORY = "concepts.html#concept-history";
 
 export const KIND_TEXT: Record<CaseKind, KindText> = {
@@ -53,7 +53,7 @@ export const KIND_TEXT: Record<CaseKind, KindText> = {
   split: {
     title: "A split",
     concept:
-      "Ensembl recorded one gene becoming several. Every descendant is followed and ranked by idtrack's criteria in their order, among them the product of Ensembl's scores along its path and, where all else is equal, the gene's annotation; the first is the answer, and the others stay listed with their places.",
+      "Ensembl recorded one gene becoming several. Every descendant is followed and ranked by IDTrack's criteria in their order, among them the product of Ensembl's scores along its path and, where all else is equal, the gene's annotation; the first is the answer, and the others stay listed with their places.",
     href: "concepts.html#concept-ranking",
   },
   merge: {
@@ -70,7 +70,7 @@ export const KIND_TEXT: Record<CaseKind, KindText> = {
   bridge: {
     title: "A bridge, marked as one",
     concept:
-      "Where Ensembl's history gives a gene no successor, the walk can pass to another gene that carried the same external id, where idtrack's rules allow it: the two genes overlap, or their places cannot be compared and the id left one gene for the other. No Ensembl record states that step: it is idtrack's inference, and the answer says so.",
+      "Where Ensembl's history gives a gene no successor, the walk can pass to another gene that carried the same external id, where IDTrack's rules allow it: the two genes overlap, or their places cannot be compared and the id left one gene for the other. No Ensembl record states that step: it is IDTrack's inference, and the answer says so.",
     href: "concepts.html#concept-bridges",
   },
   other_release: {
@@ -82,7 +82,7 @@ export const KIND_TEXT: Record<CaseKind, KindText> = {
   tie: {
     title: "A tie, not a guess",
     concept:
-      "When the evidence cannot tell genes apart, all of them are the best answer, in a stated order: idtrack does not pick one.",
+      "When the evidence cannot tell genes apart, all of them are the best answer, in a stated order: IDTrack does not pick one.",
     href: "concepts.html#concept-ties",
   },
   final: {
@@ -93,7 +93,7 @@ export const KIND_TEXT: Record<CaseKind, KindText> = {
   retired: {
     title: "A retired gene",
     concept:
-      "A gene that Ensembl retired without a successor answers no gene at a later release, unless a bridge (idtrack's inference, marked as one) reaches another gene; an answer without a gene says why.",
+      "A gene that Ensembl retired without a successor answers no gene at a later release, unless a bridge (IDTrack's inference, marked as one) reaches another gene; an answer without a gene says why.",
     href: "concepts.html#concept-statuses",
   },
   refused: {

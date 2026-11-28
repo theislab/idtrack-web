@@ -505,7 +505,7 @@ export function JourneysFigure({
           {stepsInWords(m.marks.map((mk) => mk.step))}
           {handoffs ? `; ${plural(handoffs, "step")} across an assembly change` : ""}
           {bridges.length
-            ? `; through ${bridges.length === 1 ? "a bridge" : `${bridges.length} bridges`} (${bridges.map((b) => b.id).join(", ")}), idtrack's inference`
+            ? `; through ${bridges.length === 1 ? "a bridge" : `${bridges.length} bridges`} (${bridges.map((b) => b.id).join(", ")}), IDTrack's inference`
             : ""}
         </p>
         <p className="fig-note__quiet">
@@ -648,7 +648,7 @@ export function JourneysFigure({
                 m
                   ? `${m.result.query_id}, read at release ${m.result.from_release}, to ${answerText(m)} at release ${m.result.to_release}: ${plural(m.marks.length, "step")}${
                       bridges.length
-                        ? `; through ${bridges.length === 1 ? "a bridge" : `${bridges.length} bridges`} (${bridges.map((b) => b.id).join(", ")}), idtrack's inference`
+                        ? `; through ${bridges.length === 1 ? "a bridge" : `${bridges.length} bridges`} (${bridges.map((b) => b.id).join(", ")}), IDTrack's inference`
                         : ""
                     }`
                   : `${entry.identifier}: ${entry.error ? `not answered (${entry.error.message})` : "no best answer to draw"}`

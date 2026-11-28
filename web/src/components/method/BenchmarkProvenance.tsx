@@ -18,7 +18,7 @@ export function BenchmarkProvenance({ organism, digest }: { organism: string; di
       ) : (
         <>The benchmarks asked no graph of this organism. They measured </>
       )}
-      with idtrack&apos;s code at its release {release}, whose answers are the release&apos;s; their results are
+      with IDTrack&apos;s code at its release {release}, whose answers are the release&apos;s; their results are
       published by <a href={`${BENCHMARKS_META.repository}/tree/${BENCHMARKS_META.commit}`}>idtrack-reproducibility</a>.{" "}
       {asked ? <Link to="/method?accuracy=family">How often it agrees with its truth</Link> : null}
     </span>

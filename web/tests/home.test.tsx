@@ -563,8 +563,7 @@ describe("the Method figure", () => {
         if (row.classList.contains("expandable__summary")) fireEvent.click(row);
       text += document.body.textContent;
       const ladder = screen.queryByRole("list", { name: "The criteria, in the order they decide" });
-      if (ladder)
-        order = [...ladder.querySelectorAll(".method-ladder__body .method-code")].map((e) => e.textContent);
+      if (ladder) order = [...ladder.querySelectorAll(".method-ladder__body .method-code")].map((e) => e.textContent);
     }
     const plain = (t: string) => prose(t).replace(/`/g, "");
     for (const [code, meaning] of [

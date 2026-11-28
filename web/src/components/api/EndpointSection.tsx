@@ -1,7 +1,8 @@
-// One endpoint of the api, read from the OpenAPI document: method and path, what it answers, its parameters (each a
-// line, the rest of its text on demand), its body, its answers (folded to one line) with their fields and, for a
-// table, its columns; beside it the request in four languages, a recorded answer and a console that sends it.
-import { useEffect, useId, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
+// One endpoint of the api, read from the OpenAPI document: its method, path and summary, then tabs: Try it (the
+// request in four languages and a console that sends it), Parameters (each a line, the rest of its text on demand,
+// and its body), Response (its answers folded to one line, with their fields and, for a table, its columns) and
+// Examples (the request of this server's example and a recorded answer).
+import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { isAbort, send, type Exchange } from "../../api/client";
 import { announce } from "../../lib/announce";
 import { acceptOf, requestUrl, type RequestSpec } from "../../lib/apiExamples";
@@ -16,6 +17,7 @@ import {
   type Parameter,
 } from "../../lib/openapi";
 import { Button, Mono, Prose } from "../ui";
+import { Tabs } from "../v2/Tabs";
 import { CodeTabs } from "./CodeTabs";
 import { ExchangeView, JsonText, TsvTable } from "./Exchange";
 
@@ -24,26 +26,6 @@ export interface ReleaseRange {
   organism: string;
   first: number;
   last: number;
-}
-
-const PHONE = "(max-width: 640px)";
-
-function onPhoneChange(listener: () => void): () => void {
-  if (typeof window.matchMedia !== "function") return () => undefined;
-  const query = window.matchMedia(PHONE);
-  query.addEventListener("change", listener);
-  return () => {
-    query.removeEventListener("change", listener);
-  };
-}
-
-/** Whether the window is a phone's: there an endpoint's request opens on demand, so the reference reads quickly. */
-function usePhone(): boolean {
-  return useSyncExternalStore(
-    onPhoneChange,
-    () => typeof window.matchMedia === "function" && window.matchMedia(PHONE).matches,
-    () => false,
-  );
 }
 
 /** A count and its noun, singular for one: "1 field", "4 fields". */
@@ -330,13 +312,12 @@ function TryIt({
       announce(`${endpoint.key}: no answer.`);
     }
   }, [state, endpoint.key]);
-  useEffect(() => {
-    // The console opens in place of its button: focus moves to its first control.
-    form.current?.querySelector<HTMLElement>("input, select, textarea, button")?.focus();
-    return () => {
+  useEffect(
+    () => () => {
       controller.current?.abort();
-    };
-  }, []);
+    },
+    [],
+  );
   const url = requestUrl(origin, spec);
   const go = () => {
     controller.current?.abort();
@@ -587,8 +568,8 @@ function Answers({ endpoint }: { endpoint: Endpoint }) {
       </dl>
       {errorSchema ? (
         <p className="answers__note">
-          Every status from 400 is answered with <Mono>{errorSchema}</Mono>, the error envelope (Conventions, b), its{" "}
-          <Mono>code</Mono> one of those listed for the status (their meanings: Error codes, below).
+          Every status from 400 is answered with <Mono>{errorSchema}</Mono>, the error envelope (Conventions, Errors),
+          its <Mono>code</Mono> one of those listed for the status (their meanings: Error codes, below).
         </p>
       ) : null}
     </details>
@@ -618,10 +599,9 @@ export function EndpointSection({
   raw?: string | null;
 }) {
   const [spec, setSpec] = useState(example);
-  const [trying, setTrying] = useState(false);
-  const phone = usePhone();
   const success = endpoint.answers.find((a) => a.status.startsWith("2"));
   const titleId = useId();
+  const recorded = raw !== null ? (success?.media.filter((m) => m.recorded) ?? []) : [];
   return (
     <article className="endpoint" id={endpoint.anchor} aria-labelledby={titleId}>
       <header className="endpoint__head">
@@ -638,161 +618,147 @@ export function EndpointSection({
       <p className="endpoint__summary">
         <Prose literal text={endpoint.summary} />
       </p>
-      {endpoint.description ? (
-        endpoint.description.length > 160 ? (
-          <details className="endpoint__about">
-            <summary>
-              <span className="endpoint__description">
-                <Prose literal text={endpoint.description} />
-              </span>
-              <span className="endpoint__about-more" aria-hidden="true">
-                the whole description
-              </span>
-            </summary>
-          </details>
-        ) : (
-          <p className="endpoint__description">
-            <Prose literal text={endpoint.description} />
-          </p>
-        )
-      ) : null}
-      <div className="endpoint__grid">
-        <div className="endpoint__spec">
-          <h4 className="endpoint__label">
-            Parameters{" "}
-            {endpoint.parameters.length ? (
-              <span className="endpoint__label-aside">each line opens to the rest of its text</span>
-            ) : (
-              <span className="endpoint__label-aside">none</span>
-            )}
-          </h4>
-          {endpoint.parameters.length ? <ParameterRows parameters={endpoint.parameters} releases={releases} /> : null}
-          {endpoint.body?.schema ? (
-            <LazyDetails
-              className="schema__nested schema__nested--top"
-              summary={
-                <>
-                  Body: <Mono strong>{endpoint.body.schema}</Mono>{" "}
-                  <span className="schema__count">
-                    {endpoint.body.contentType}, {counted(fieldsOf(document, endpoint.body.schema).length, "field")}
-                  </span>
-                </>
-              }
-            >
-              {() => {
-                const name = endpoint.body?.schema ?? "";
-                return (
-                  <>
-                    {schemaDescription(document, name) ? (
-                      <p className="schema__about">
-                        <Prose literal text={schemaDescription(document, name)} />
-                      </p>
-                    ) : null}
-                    {batchMax !== null ? (
-                      <p className="params__meta">
-                        This server takes at most <Mono>{batchMax}</Mono> identifiers per request (
-                        <Mono>batch_max</Mono> of <Mono>GET /limits</Mono>).
-                      </p>
-                    ) : null}
-                    <SchemaFields document={document} name={name} />
-                  </>
-                );
-              }}
-            </LazyDetails>
-          ) : null}
-          <Answers endpoint={endpoint} />
-          {success?.media.map((m) =>
-            m.schema ? (
-              <LazyDetails
-                key={m.type}
-                className="schema__nested schema__nested--top"
-                summary={
-                  <>
-                    Fields of the answer: <Mono strong>{m.schema}</Mono>{" "}
-                    <span className="schema__count">{counted(fieldsOf(document, m.schema).length, "field")}</span>
-                  </>
-                }
-              >
-                {() => {
-                  const name = m.schema ?? "";
-                  const about = schemaDescription(document, name).split("\n\n")[0] ?? "";
-                  return (
-                    <>
-                      {about ? (
-                        <p className="schema__about">
-                          <Prose literal text={about} />
-                        </p>
-                      ) : null}
-                      <SchemaFields document={document} name={name} />
-                    </>
-                  );
-                }}
-              </LazyDetails>
-            ) : m.columns.length ? (
-              <LazyDetails
-                key={m.type}
-                className="schema__nested schema__nested--top"
-                summary={
-                  <>
-                    Columns of the table: <Mono strong>{m.type}</Mono>{" "}
-                    <span className="schema__count">{counted(m.columns.length, "column")}</span>
-                  </>
-                }
-              >
-                {() => <TableColumns media={m} />}
-              </LazyDetails>
-            ) : null,
-          )}
-        </div>
-        <div className={`endpoint__run ${trying ? "endpoint__run--console" : ""}`}>
-          <h4 className={`endpoint__label${phone && !trying ? " visually-hidden" : ""}`}>
-            Request{" "}
-            <span className="endpoint__label-aside">{trying ? "as set below" : "an example of this server"}</span>
-          </h4>
-          {phone && !trying ? (
-            <LazyDetails
-              className="schema__nested schema__nested--top"
-              summary={
-                <>
-                  The request <span className="schema__count">curl, Python, R, JavaScript</span>
-                </>
-              }
-            >
-              {() => <CodeTabs origin={origin} spec={spec} what={`${endpoint.key}, the request`} />}
-            </LazyDetails>
-          ) : (
-            <CodeTabs origin={origin} spec={spec} what={`${endpoint.key}, the request`} />
-          )}
-          {trying ? (
-            <TryIt
-              endpoint={endpoint}
-              spec={spec}
-              setSpec={setSpec}
-              reset={() => {
-                setSpec(example);
-              }}
-              origin={origin}
-              organisms={organisms}
-            />
-          ) : (
-            <div className="endpoint__more">
-              <Button
-                className="endpoint__try"
-                onClick={() => {
-                  setTrying(true);
-                }}
-              >
-                Try it<span className="visually-hidden">: {endpoint.key}</span>
-              </Button>
-              {raw !== null
-                ? success?.media
-                    .filter((m) => m.recorded)
-                    .map((m) => <RecordedAnswer key={m.type} raw={raw} endpoint={endpoint} media={m} />)
-                : null}
-            </div>
-          )}
-        </div>
-      </div>
+      <Tabs
+        label={`${endpoint.key}, in detail`}
+        className="endpoint__tabs"
+        items={[
+          {
+            id: "try",
+            label: "Try it",
+            panel: () => (
+              <div className="endpoint__run endpoint__run--console">
+                <CodeTabs origin={origin} spec={spec} what={`${endpoint.key}, the request as set below`} />
+                <TryIt
+                  endpoint={endpoint}
+                  spec={spec}
+                  setSpec={setSpec}
+                  reset={() => {
+                    setSpec(example);
+                  }}
+                  origin={origin}
+                  organisms={organisms}
+                />
+              </div>
+            ),
+          },
+          {
+            id: "parameters",
+            label: "Parameters",
+            count: endpoint.parameters.length + (endpoint.body?.schema ? 1 : 0) || undefined,
+            panel: () => (
+              <div className="endpoint__spec">
+                {endpoint.description ? (
+                  <p className="endpoint__description">
+                    <Prose literal text={endpoint.description} />
+                  </p>
+                ) : null}
+                {endpoint.parameters.length ? (
+                  <ParameterRows parameters={endpoint.parameters} releases={releases} />
+                ) : (
+                  <p className="params__meta">This endpoint takes no parameter.</p>
+                )}
+                {endpoint.body?.schema ? (
+                  <LazyDetails
+                    className="schema__nested schema__nested--top"
+                    summary={
+                      <>
+                        Body: <Mono strong>{endpoint.body.schema}</Mono>{" "}
+                        <span className="schema__count">
+                          {endpoint.body.contentType},{" "}
+                          {counted(fieldsOf(document, endpoint.body.schema).length, "field")}
+                        </span>
+                      </>
+                    }
+                  >
+                    {() => {
+                      const name = endpoint.body?.schema ?? "";
+                      return (
+                        <>
+                          {schemaDescription(document, name) ? (
+                            <p className="schema__about">
+                              <Prose literal text={schemaDescription(document, name)} />
+                            </p>
+                          ) : null}
+                          {batchMax !== null ? (
+                            <p className="params__meta">
+                              This server takes at most <Mono>{batchMax}</Mono> identifiers per request (
+                              <Mono>batch_max</Mono> of <Mono>GET /limits</Mono>).
+                            </p>
+                          ) : null}
+                          <SchemaFields document={document} name={name} />
+                        </>
+                      );
+                    }}
+                  </LazyDetails>
+                ) : null}
+              </div>
+            ),
+          },
+          {
+            id: "response",
+            label: "Response",
+            panel: () => (
+              <div className="endpoint__spec">
+                <Answers endpoint={endpoint} />
+                {success?.media.map((m) =>
+                  m.schema ? (
+                    <LazyDetails
+                      key={m.type}
+                      className="schema__nested schema__nested--top"
+                      summary={
+                        <>
+                          Fields of the answer: <Mono strong>{m.schema}</Mono>{" "}
+                          <span className="schema__count">{counted(fieldsOf(document, m.schema).length, "field")}</span>
+                        </>
+                      }
+                    >
+                      {() => {
+                        const name = m.schema ?? "";
+                        const about = schemaDescription(document, name).split("\n\n")[0] ?? "";
+                        return (
+                          <>
+                            {about ? (
+                              <p className="schema__about">
+                                <Prose literal text={about} />
+                              </p>
+                            ) : null}
+                            <SchemaFields document={document} name={name} />
+                          </>
+                        );
+                      }}
+                    </LazyDetails>
+                  ) : m.columns.length ? (
+                    <LazyDetails
+                      key={m.type}
+                      className="schema__nested schema__nested--top"
+                      summary={
+                        <>
+                          Columns of the table: <Mono strong>{m.type}</Mono>{" "}
+                          <span className="schema__count">{counted(m.columns.length, "column")}</span>
+                        </>
+                      }
+                    >
+                      {() => <TableColumns media={m} />}
+                    </LazyDetails>
+                  ) : null,
+                )}
+              </div>
+            ),
+          },
+          {
+            id: "examples",
+            label: "Examples",
+            panel: () => (
+              <div className="endpoint__run">
+                <CodeTabs origin={origin} spec={example} what={`${endpoint.key}, an example of this server`} />
+                {recorded.map((m) =>
+                  raw !== null ? <RecordedAnswer key={m.type} raw={raw} endpoint={endpoint} media={m} /> : null,
+                )}
+              </div>
+            ),
+          },
+        ]}
+      />
     </article>
   );
 }

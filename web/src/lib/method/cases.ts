@@ -23,9 +23,9 @@ const PIG_115 = "80bda9b3bb224243664e8b35d2ea602255b02b4dd39abb22e982f7aa2aff62d
 export const STAGE_CASES: StageCase[] = [
   { stage: "read", query: { organism: "homo_sapiens", identifier: "tp53" }, checkedOn: HUMAN_115 },
   { stage: "walk", query: { organism: "sus_scrofa", identifier: "ENSSSCG00000038317.1", to: 86 }, checkedOn: PIG_115 },
-  // A bridge whose two genes lie at one place (both on one assembly), idtrack's documented case of a bridge, first; where
+  // A bridge whose two genes lie at one place (both on one assembly), IDTrack's documented case of a bridge, first; where
   // the server holds no human graph of this digest, a bridge across an assembly change Ensembl does not map, whose
-  // places cannot be compared (the panel says so, with idtrack's limitation).
+  // places cannot be compared (the panel says so, with IDTrack's limitation).
   {
     stage: "bridge",
     query: { organism: "homo_sapiens", identifier: "ENSG00000198477", from: 48 },

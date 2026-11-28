@@ -60,7 +60,7 @@ function LimitationItem({ item }: { item: (typeof docs.limitations.items)[number
   );
 }
 
-/** idtrack's limitations, each by its first sentence, linked: the first few, then the rest on request, numbered on. */
+/** IDTrack's limitations, each by its first sentence, linked: the first few, then the rest on request, numbered on. */
 function Limitations() {
   const items = docs.limitations.items;
   return (
@@ -116,7 +116,12 @@ function Cite({ open, onClose }: { open: boolean; onClose: () => void }) {
         .join("; ")}).`
     : null;
   return (
-    <Drawer open={open} onClose={onClose} title="Cite IDTrack" subtitle="Its citation, and a sentence for a methods section">
+    <Drawer
+      open={open}
+      onClose={onClose}
+      title="Cite IDTrack"
+      subtitle="Its citation, and a sentence for a methods section"
+    >
       <div className="method-cite">
         <p>
           IDTrack&apos;s citation, as its documentation gives it (<a href={docs.citation.source}>Citing IDTrack</a>
@@ -241,8 +246,8 @@ function KnownLimitations() {
         <a href={docsPage("_notebooks/05_tutorial_humanization_mouse_pig_to_human.html")}>across species</a>).
       </p>
       <p>
-        IDTrack states the known limitations of the version that answers here, with how often each matters where it
-        can be counted on the five graphs. Each, in the first sentence IDTrack opens it with (its documentation at{" "}
+        IDTrack states the known limitations of the version that answers here, with how often each matters where it can
+        be counted on the five graphs. Each, in the first sentence IDTrack opens it with (its documentation at{" "}
         <Mono>{docs.docsCommit.slice(0, 12)}</Mono>, whose changes since the release{" "}
         <Mono>{docs.commit.slice(0, 7)}</Mono> are to its documentation only), linked to the section that sizes it and
         says what to do instead:
