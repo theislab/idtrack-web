@@ -1,7 +1,9 @@
-// Cases of Ensembl's history in the graph in view, from the server's showcase: each card names the phenomenon, says the
-// concept in plain words (after idtrack's documentation, linked), draws the case's own answer as a small figure, and
-// says the answer in one line with its numbers and its evidence marks (components/Evidence.tsx). Every value on a card
-// is read from the case's answer; a card opens the full answer, where a strip steps through the cases.
+// Cases of Ensembl's history in the graph in view, from the server's showcase. A card is its sketch (the case's own
+// answer as a small figure), the kind's name and one line (the identifier and its releases), and the answer's cautions,
+// which never fold; its concept in plain words (after IDTrack's documentation, linked), the answer in words with its
+// values and every evidence mark (components/Evidence.tsx) are one gesture away, in the card's hover card (its (i):
+// on pointing, focus or a press). Every value is read from the case's answer; a press on the card opens the full
+// answer, where a strip steps through the cases. The key of the sketches is a hover card in the gallery's head.
 import { docsPage } from "../../lib/links";
 import { useEffect, useId, useState, type ReactNode } from "react";
 import type { Candidate, ConversionResult, GraphDescription, PathStep, ShowcaseResponse } from "../../api/types";
@@ -15,6 +17,8 @@ import { prose } from "../../lib/values";
 import { spaced, type Vocabulary } from "../../lib/vocabulary";
 import { useVocabulary } from "../../lib/vocabularyContext";
 import { Evidence } from "../Evidence";
+import { evidenceOf } from "../../lib/evidence";
+import { HoverCard } from "../v2/HoverCard";
 import { useShowcaseSymbols } from "../../lib/explore/useShowcaseSymbols";
 import { api } from "../../api/client";
 import { authorityOf } from "../../lib/symbols";
@@ -409,7 +413,7 @@ const KEY: [KeyMark, ReactNode, string][] = [
 export function CaseGallery({
   graph,
   cases,
-  letter = "d",
+  letter = null,
   level = 2,
 }: {
   graph: GraphDescription;
@@ -473,64 +477,28 @@ export function CaseGallery({
         ) : null}
         <H id={`${id}-title`}>What can happen to a gene id</H>
         <p className="home-section-head__aside">
-          {plural(shown.length, "case")} of this graph, each drawn from its answer (
-          <span className="mono">GET /api/v1/organisms/{graph.organism}/showcase</span>)
+          {plural(shown.length, "case")} of this graph, each drawn from its answer
         </p>
-      </div>
-      <ol className="cases">
-        {shown.map((item, i) => {
-          const text = KIND_TEXT[item.kind];
-          const query = caseQueryOf(graph.organism, item.query);
-          return (
-            <li key={`${item.kind}-${i}`} className="case" data-kind={item.kind}>
-              <CaseSketch
-                result={item.result}
-                graph={graph}
-                label={sketchLabel(item.kind, item.result, lifeOf(item.result))}
-                life={lifeOf(item.result)}
-                symbols={symbols}
-              />
-              <Card className="case__title">
-                <Link
-                  to={caseHref(query)}
-                  className="case__link"
-                  label={`${text.title}: open the answer to ${query.identifier}`}
-                >
-                  {text.title}
-                </Link>
-              </Card>
-              <p className="case__concept">
-                {text.concept}{" "}
-                <a href={docsPage(text.href)} className="case__docs">
-                  idtrack&apos;s documentation<span className="visually-hidden"> on {text.title.toLowerCase()}</span>
-                </a>
-              </p>
-              <p className="case__story">
-                <CaseStory
-                  kind={item.kind}
-                  result={item.result}
-                  graph={graph}
-                  vocabulary={vocabulary}
-                  symbols={symbols}
-                  authority={authorityFor(item.result)}
-                  life={lifeOf(item.result)}
-                />
-              </p>
-              <div className="case__evidence">
-                <Evidence result={item.result} compact max={2} label={`Evidence of ${query.identifier}'s answer`} />
-              </div>
-              <p className="case__open" aria-hidden="true">
-                Open the answer
-              </p>
-            </li>
-          );
-        })}
-        <li className="case case--key">
-          <Card className="case__title">Reading the sketches</Card>
-          <p className="case__concept">
+        <HoverCard
+          className="cases-key"
+          triggerClassName="cases-key__button"
+          label="Key: reading the sketches"
+          trigger={
+            <>
+              <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" focusable="false">
+                <circle cx="8" cy="8" r="6.6" fill="none" stroke="currentColor" strokeWidth="1.3" />
+                <path d="M8 7.2v4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+                <circle cx="8" cy="4.9" r="0.9" fill="currentColor" />
+              </svg>
+              Key
+            </>
+          }
+        >
+          <p className="cases-key__lead">
             Each sketch draws its case&apos;s answer on the stretch of releases it spans, zoomed: the line above it is
             the graph&apos;s whole axis ({graph.releases[0]}–{graph.snapshot_release}, a tick at each change of
-            assembly) with the stretch marked, two hairlines opening from it to the view.
+            assembly) with the stretch marked, two hairlines opening from it to the view. The cards are drawn from{" "}
+            <span className="mono">GET /api/v1/organisms/{graph.organism}/showcase</span>.
           </p>
           <ul className="case-key" aria-label="The marks of the sketches">
             {KEY.filter(([key]) => drawn.has(key)).map(([key, swatch, words]) => (
@@ -540,7 +508,97 @@ export function CaseGallery({
               </li>
             ))}
           </ul>
-        </li>
+        </HoverCard>
+      </div>
+      <ol className="cases">
+        {shown.map((item, i) => {
+          const text = KIND_TEXT[item.kind];
+          const query = caseQueryOf(graph.organism, item.query);
+          const marks = evidenceOf(item.result, vocabulary);
+          const cautions = marks.filter((m) => m.tone === "caution");
+          return (
+            <li key={`${item.kind}-${i}`} className="case" data-kind={item.kind}>
+              <CaseSketch
+                result={item.result}
+                graph={graph}
+                label={sketchLabel(item.kind, item.result, lifeOf(item.result))}
+                life={lifeOf(item.result)}
+                symbols={symbols}
+              />
+              <div className="case__head">
+                <Card className="case__title">
+                  <Link
+                    to={caseHref(query)}
+                    className="case__link"
+                    label={`${text.title}: open the answer to ${query.identifier}`}
+                  >
+                    {text.title}
+                  </Link>
+                </Card>
+                <HoverCard
+                  className="case__about"
+                  triggerClassName="case__about-button"
+                  label={`About this case: ${text.title.toLowerCase()}, ${query.identifier}`}
+                  trigger={
+                    <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false">
+                      <circle cx="8" cy="8" r="6.6" fill="none" stroke="currentColor" strokeWidth="1.3" />
+                      <path d="M8 7.2v4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+                      <circle cx="8" cy="4.9" r="0.9" fill="currentColor" />
+                    </svg>
+                  }
+                >
+                  <p className="case__concept">
+                    {text.concept}{" "}
+                    <a href={docsPage(text.href)} className="case__docs">
+                      IDTrack&apos;s documentation
+                      <span className="visually-hidden"> on {text.title.toLowerCase()}</span>
+                    </a>
+                  </p>
+                  <p className="case__story">
+                    <CaseStory
+                      kind={item.kind}
+                      result={item.result}
+                      graph={graph}
+                      vocabulary={vocabulary}
+                      symbols={symbols}
+                      authority={authorityFor(item.result)}
+                      life={lifeOf(item.result)}
+                    />
+                  </p>
+                  {marks.length ? (
+                    <div className="case__evidence">
+                      <Evidence result={item.result} marks={marks} label={`Evidence of ${query.identifier}'s answer`} />
+                    </div>
+                  ) : null}
+                  <p className="case__open-line">
+                    <Link to={caseHref(query)}>Open the answer</Link>
+                  </p>
+                </HoverCard>
+              </div>
+              <p className="case__line">
+                <Mono>{query.identifier}</Mono>
+                <span className="case__releases">
+                  {" "}
+                  {item.result.from_release ?? "inferred"}
+                  <span aria-hidden="true">→</span>
+                  <span className="visually-hidden"> to </span>
+                  {item.result.to_release}
+                </span>
+              </p>
+              {cautions.length ? (
+                <div className="case__evidence case__evidence--cautions">
+                  <Evidence
+                    result={item.result}
+                    marks={cautions}
+                    compact
+                    max={1}
+                    label={`Cautions of ${query.identifier}'s answer`}
+                  />
+                </div>
+              ) : null}
+            </li>
+          );
+        })}
       </ol>
     </section>
   );

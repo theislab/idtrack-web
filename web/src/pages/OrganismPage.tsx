@@ -5,13 +5,20 @@
 // with whether the benchmarks measured this very graph. Every value is the api's, idtrack's documentation's or the
 // benchmarks' published results'.
 import { docsPage } from "../lib/links";
-import { useEffect, useId, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useId, useMemo, useState } from "react";
 import { api, ApiError, TimeoutError, UnreachableError, type AnyRequestError } from "../api/client";
 import type { AssemblyDescription, GraphDescription, GraphVersion, HistoryResponse } from "../api/types";
 import { AssemblyRows } from "../components/explore/AssemblyRows";
 import { IdHistory } from "../components/explore/IdHistory";
 import { BenchmarkProvenance } from "../components/method/BenchmarkProvenance";
-import { ExploreStories, StoriesOrganism } from "../components/explore/Stories";
+import { chipName, ExploreStories, StoriesOrganism } from "../components/explore/Stories";
+import { CaptionMore } from "../components/home/CaptionMore";
+import { Segmented } from "../components/v2/Segmented";
+import { Tabs } from "../components/v2/Tabs";
+import { Expandable } from "../components/v2/Expandable";
+import { HoverCard } from "../components/v2/HoverCard";
+import { ErrorBoundary } from "../components/ErrorBoundary";
+import { LineageField } from "../components/explore/LineageField";
 import { FactsStrip } from "../components/explore/FactsStrip";
 import {
   caseMarks,
@@ -29,18 +36,7 @@ import { releaseScale } from "../components/figure/releases";
 import { useWidth } from "../components/figure/useWidth";
 import { CountsFigure } from "../components/explore/CountsFigure";
 import { DatabaseMatrix } from "../components/explore/DatabaseMatrix";
-import {
-  Absent,
-  Button,
-  CopyButton,
-  Disclosure,
-  Link,
-  Mono,
-  Prose,
-  Readout,
-  Skeleton,
-  TableFrame,
-} from "../components/ui";
+import { Absent, Button, CopyButton, Link, Mono, Prose, Readout, Skeleton, TableFrame } from "../components/ui";
 import docs from "../generated/idtrack_docs.json";
 import { BENCHMARKS_META } from "../lib/benchmarksMeta";
 import {
@@ -70,13 +66,28 @@ function chronological(assemblies: readonly AssemblyDescription[]): AssemblyDesc
   return [...assemblies].sort((a, b) => start(a) - start(b));
 }
 
-function PanelHead({ letter, id, title, source }: { letter: string; id: string; title: string; source?: string }) {
+function PanelHead({
+  letter,
+  id,
+  title,
+  source,
+  level = 2,
+}: {
+  letter?: string;
+  id: string;
+  title: string;
+  source?: string;
+  level?: 2 | 3;
+}) {
+  const H = level === 2 ? "h2" : "h3";
   return (
-    <div className="explore-head">
-      <span className="panel-letter" aria-hidden="true">
-        {letter}
-      </span>
-      <h2 id={id}>{title}</h2>
+    <div className={`explore-head${letter ? "" : " explore-head--plain"}`}>
+      {letter ? (
+        <span className="panel-letter" aria-hidden="true">
+          {letter}
+        </span>
+      ) : null}
+      <H id={id}>{title}</H>
       {source ? (
         <p className="explore-head__source">
           <span className="mono">GET {source}</span>
@@ -123,24 +134,14 @@ function AssemblyLegend({ held = true, handoffs = false }: { held?: boolean; han
   );
 }
 
-/** An assembly's external databases: a few at display size, whole names, the rest on request. */
-function DatabaseChips({ names, shown = 6 }: { names: readonly string[]; shown?: number }) {
-  const labels = names.map(databaseLabel);
-  const chips = (list: string[]) => (
+/** An assembly's external databases: a wrapping list of whole names. */
+function DatabaseNames({ names }: { names: readonly string[] }) {
+  return (
     <ul className="db-chips">
-      {list.map((n) => (
+      {names.map(databaseLabel).map((n) => (
         <li key={n}>{n}</li>
       ))}
     </ul>
-  );
-  if (labels.length <= shown + 1) return chips(labels);
-  return (
-    <>
-      {chips(labels.slice(0, shown))}
-      <div className="db-more">
-        <Disclosure summary={`and ${labels.length - shown} more`}>{chips(labels.slice(shown))}</Disclosure>
-      </div>
-    </>
   );
 }
 
@@ -300,14 +301,15 @@ function HistoryRow({ graph, releases, share }: { graph: GraphDescription; relea
 }
 
 const MODES = [
-  { value: false, words: "Counts", note: "each graph on its own scale" },
-  { value: true, words: "Share of the gene ids active", note: "every graph on one axis, 0 to 100 %" },
-];
+  { value: "counts", words: "Counts", note: "each graph on its own scale" },
+  { value: "shares", words: "Share of the gene ids active", note: "every graph on one axis, 0 to 100 %" },
+] as const;
 
 function HistoryIndexPanel({ organisms, releases }: { organisms: GraphDescription[]; releases: number[] }) {
   const first = organisms[0]?.organism ?? "";
   const { absent } = useHistory(first);
-  const [share, setShare] = useState(false);
+  const [mode, setMode] = useState<"counts" | "shares">("counts");
+  const share = mode === "shares";
   const { ref, width } = useWidth<HTMLDivElement>(900);
   if (!organisms.length || absent) return null;
   const scale = releaseScale(releases, 4, width - 8);
@@ -319,22 +321,21 @@ function HistoryIndexPanel({ organisms, releases }: { organisms: GraphDescriptio
         title="Ensembl's id history, release by release"
         source="/api/v1/organisms/{organism}/history"
       />
-      <div className="idh-mode" role="radiogroup" aria-label="How the columns are measured">
-        {MODES.map(({ value, words, note }) => (
-          <button
-            key={String(value)}
-            type="button"
-            role="radio"
-            aria-checked={share === value}
-            className={`idh-mode__item${share === value ? " idh-mode__item--on" : ""}`}
-            onClick={() => {
-              setShare(value);
-            }}
-          >
-            {words} <span className="idh-mode__note">{note}</span>
-          </button>
-        ))}
-      </div>
+      <Segmented
+        className="idh-mode"
+        label="How the columns are measured"
+        value={mode}
+        onChange={setMode}
+        options={MODES.map(({ value, words, note }) => ({
+          value,
+          label: (
+            <>
+              {words}
+              <span className="visually-hidden">: {note}</span>
+            </>
+          ),
+        }))}
+      />
       <ul className="idh-rows">
         {organisms.map((o) => (
           <HistoryRow key={o.organism} graph={o} releases={releases} share={share} />
@@ -347,19 +348,28 @@ function HistoryIndexPanel({ organisms, releases }: { organisms: GraphDescriptio
       </div>
       <HistoryLegend genes={false} kept={false} />
       <p className="fig-caption">
-        <strong>b</strong> For each graph, on the axis of panel a (drawn once, under the rows), what Ensembl&apos;s
-        stable id history of genes did at each release, as the server counted it from the graph when it started: above
-        the line, the history edges that end at the release and change or retire an id (a version followed by another
-        version of its id, by a version of another id, or an id retired); below it, the ids created there; under them,
-        the fan of Ensembl&apos;s mapping: the gene versions it maps to two or more (a split, upward) and those that two
-        or more are mapped to (a merge, downward).{" "}
-        {share
-          ? "As shares: what changed into a release over the gene ids active at the release before it, and the ids created over those active at the release, every graph on one axis from 0 to 100 % (the splits and merges on 0 to 10 %)."
-          : "As counts: each row has its own scale, its largest values written at the left."}{" "}
-        The edges that keep an id and its version (a re-mapping to itself) are counted in each release&apos;s note and
-        drawn on each graph&apos;s page. The ids of a graph&apos;s first release are where the graph begins and are not
-        drawn. The tallest columns are not all changes of assembly: each graph&apos;s page names its tallest and says
-        which are. Focus a row and use the arrow keys for each release&apos;s exact counts.
+        <CaptionMore
+          lead={
+            <>
+              <strong>b</strong> For each graph, what Ensembl&apos;s stable id history of genes did at each release:
+              above the line, the edges that change or retire an id; below it, the ids created; under them, the splits
+              and merges of Ensembl&apos;s mapping.
+            </>
+          }
+        >
+          On the axis of panel a (drawn once, under the rows), as the server counted it from the graph when it started:
+          above the line, the history edges that end at the release and change or retire an id (a version followed by
+          another version of its id, by a version of another id, or an id retired); below it, the ids created there;
+          under them, the fan of Ensembl&apos;s mapping: the gene versions it maps to two or more (a split, upward) and
+          those that two or more are mapped to (a merge, downward).{" "}
+          {share
+            ? "As shares: what changed into a release over the gene ids active at the release before it, and the ids created over those active at the release, every graph on one axis from 0 to 100 % (the splits and merges on 0 to 10 %)."
+            : "As counts: each row has its own scale, its largest values written at the left."}{" "}
+          The edges that keep an id and its version (a re-mapping to itself) are counted in each release&apos;s note and
+          drawn on each graph&apos;s page. The ids of a graph&apos;s first release are where the graph begins and are
+          not drawn. The tallest columns are not all changes of assembly: each graph&apos;s page names its tallest and
+          says which are. Focus a row and use the arrow keys for each release&apos;s exact counts.
+        </CaptionMore>
       </p>
     </section>
   );
@@ -367,22 +377,50 @@ function HistoryIndexPanel({ organisms, releases }: { organisms: GraphDescriptio
 
 /** The page's head: the same in every state, and drawn into the page the server sends before the code runs
  *  (scripts/prerender.ts). */
-export function ExploreHead({ children }: { children?: ReactNode }) {
+export function ExploreHead() {
   return (
     <header className="page-head">
-      <p className="eyebrow">Explore</p>
       <h1>Stories from Ensembl&apos;s history</h1>
-      <p className="lede">
-        What can happen to a gene id, told by real identifiers this server answered; then every graph it holds, side by
-        side, release by release. A conversion stays within one organism.
-      </p>
-      {children}
+      <p className="lede">What can happen to a gene id, told by real identifiers this server answered.</p>
     </header>
   );
 }
 
 export function OrganismsIndex() {
   const { organisms } = useOrganisms();
+  return (
+    <div className="page page--explore">
+      <ExploreHead />
+      <Tabs
+        label="Explore"
+        param="tab"
+        className="explore-tabs"
+        items={[
+          {
+            id: "stories",
+            label: "Stories",
+            panel: () => (
+              <>
+                <StoriesOrganism />
+                <ExploreStories />
+              </>
+            ),
+          },
+          {
+            id: "graphs",
+            label: "The graphs",
+            count: organisms.length || undefined,
+            panel: () => <TheGraphs organisms={organisms} />,
+          },
+        ]}
+      />
+    </div>
+  );
+}
+
+/** Every graph of the server side by side: the sums of their builds, their releases and assemblies on one axis,
+ *  Ensembl's id history of each, and their builds' counts. */
+function TheGraphs({ organisms }: { organisms: GraphDescription[] }) {
   const releases = releasesOf(organisms);
   const first = releases[0] ?? 0;
   const last = releases[releases.length - 1] ?? 0;
@@ -394,21 +432,13 @@ export function OrganismsIndex() {
   ];
   const maxDatabases = Math.max(1, ...organisms.map((o) => o.external_databases.length));
   return (
-    <div className="page page--explore">
-      <ExploreHead>
-        <StoriesOrganism />
-      </ExploreHead>
-
-      <ExploreStories />
-
+    <>
       <section className="explore-graphs" aria-labelledby="graphs">
         <div className="explore-graphs__head">
           <h2 id="graphs">The graphs this server holds</h2>
           <p className="explore-graphs__lede">
-            Each organism is one graph of Ensembl&apos;s releases, built by idtrack from Ensembl&apos;s own tables and
-            verified by its checksum when the server started; idtrack does not map identifiers between species. Each
-            graph&apos;s page draws its assemblies, its id history, the composition of its build and the databases a
-            conversion to each release can end in.
+            Each organism is one graph of Ensembl&apos;s releases, built by IDTrack from Ensembl&apos;s own tables and
+            verified by its checksum when the server started; a conversion stays within one organism.
           </p>
         </div>
         <FactsStrip organisms={organisms} letter={null} level={3} heading={false} />
@@ -442,15 +472,23 @@ export function OrganismsIndex() {
         />
         <AssemblyLegend held={false} handoffs />
         <p className="fig-caption">
-          <strong>a</strong> Every graph of this server on one axis of Ensembl releases ({releaseRanges(releases)}). In
-          each row, the assemblies of the organism in the order they serve releases, each a bar over the releases it
-          serves (the assembly whose annotation counts at the release). An earlier assembly can be held beside the one
-          that serves, so that its identifiers convert from it: each graph&apos;s page draws the releases at which it
-          holds data of each assembly. A diamond marks each change of assembly: filled where Ensembl publishes a mapping
-          of the two assemblies, through which idtrack compares the places of genes across the change; open where it
-          publishes none, and genes across the change are told apart only by the names of their chromosomes, as
-          idtrack&apos;s documentation states (<a href={docs.assemblyMapping.source}>{docs.assemblyMapping.title}</a>).
-          Focus the figure and use the arrow keys for each assembly&apos;s exact releases and databases.
+          <CaptionMore
+            lead={
+              <>
+                <strong>a</strong> Every graph of this server on one axis of Ensembl releases ({releaseRanges(releases)}
+                ), each assembly a bar over the releases it serves, a diamond at each change of assembly.
+              </>
+            }
+          >
+            In each row, the assemblies of the organism in the order they serve releases (the assembly whose annotation
+            counts at the release). An earlier assembly can be held beside the one that serves, so that its identifiers
+            convert from it: each graph&apos;s page draws the releases at which it holds data of each assembly. A diamond
+            is filled where Ensembl publishes a mapping of the two assemblies, through which IDTrack compares the places
+            of genes across the change; open where it publishes none, and genes across the change are told apart only by
+            the names of their chromosomes, as IDTrack&apos;s documentation states (
+            <a href={docs.assemblyMapping.source}>{docs.assemblyMapping.title}</a>). Focus the figure and use the arrow
+            keys for each assembly&apos;s exact releases and databases.
+          </CaptionMore>
         </p>
       </section>
 
@@ -529,13 +567,22 @@ export function OrganismsIndex() {
           </table>
         </TableFrame>
         <p className="fig-caption">
-          <strong>c</strong> The counts each graph file records of its build (<span className="mono">counts</span>, by
-          idtrack&apos;s names: <span className="mono">nodes</span>, <span className="mono">history_edges</span>,{" "}
-          <span className="mono">cross_reference_edges</span>), the number of its assemblies and of its external
-          databases. Each bar is the value&apos;s share of the largest in its column (a linear scale from zero).
+          <CaptionMore
+            lead={
+              <>
+                <strong>c</strong> The counts each graph file records of its build, the number of its assemblies and of
+                its external databases.
+              </>
+            }
+          >
+            The counts are <span className="mono">counts</span> of the file, by IDTrack&apos;s names:{" "}
+            <span className="mono">nodes</span>, <span className="mono">history_edges</span>,{" "}
+            <span className="mono">cross_reference_edges</span>. Each bar is the value&apos;s share of the largest in its
+            column (a linear scale from zero).
+          </CaptionMore>
         </p>
       </section>
-    </div>
+    </>
   );
 }
 
@@ -568,12 +615,6 @@ function UnknownOrganism({ asked, organisms }: { asked: string; organisms: Graph
   return (
     <div className="page page--organism">
       <header className="page-head">
-        <p className="eyebrow">
-          <Link to="/organisms" className="eyebrow__link">
-            Explore
-          </Link>{" "}
-          · not found
-        </p>
         <h1>
           No graph named <Mono>{asked}</Mono> here
         </h1>
@@ -600,9 +641,8 @@ function MatrixPanel({ description: d }: { description: GraphDescription }) {
   const matrix = useRequest(`matrix|${d.organism}`, (signal) => loadDatabaseMatrix(d.organism, signal));
   const rows = matrix.state === "done" ? matrix.answer.data.databases.length : d.final_databases.length + 4;
   return (
-    <section className="panel explore-panel" aria-labelledby="matrix" aria-busy={matrix.state === "loading"}>
+    <section className="explore-panel" aria-labelledby="matrix" aria-busy={matrix.state === "loading"}>
       <PanelHead
-        letter="d"
         id="matrix"
         title="What a conversion to each release can end in"
         source={`/api/v1/organisms/${d.organism}/databases`}
@@ -629,13 +669,20 @@ function MatrixPanel({ description: d }: { description: GraphDescription }) {
         </li>
       </ul>
       <p className="fig-caption">
-        <strong>d</strong> For each release of the graph (columns), the databases a conversion to that release can end
-        in (rows; <span className="mono">final_database</span> takes these names), as idtrack&apos;s{" "}
-        <span className="mono">API.final_databases(to_release)</span> gives them: the external databases of the assembly
-        that serves the release, and Ensembl&apos;s own gene ids with and without version; the external databases of
-        each assembly are listed in panel a. The rows a conversion can end in at some releases only come first, by their
-        first release, above a rule; those of every release after it. Focus the matrix and use the arrow keys for each
-        cell. Below, what each name holds, in idtrack&apos;s words.
+        <CaptionMore
+          lead={
+            <>
+              For each release of the graph (columns), the databases a conversion to that release can end in (rows; the
+              names <span className="mono">final_database</span> takes).
+            </>
+          }
+        >
+          As IDTrack&apos;s <span className="mono">API.final_databases(to_release)</span> gives them: the external
+          databases of the assembly that serves the release, and Ensembl&apos;s own gene ids with and without version;
+          the external databases of each assembly are listed with the assemblies above. The rows a conversion can end in
+          at some releases only come first, by their first release, above a rule; those of every release after it.
+          Focus the matrix and use the arrow keys for each cell. Below, what each name holds, in IDTrack&apos;s words.
+        </CaptionMore>
       </p>
       {matrix.state === "done" ? <DatabaseMeanings matrix={matrix.answer.data} organism={d.organism} /> : null}
     </section>
@@ -651,7 +698,7 @@ function DatabaseMeanings({ matrix, organism }: { matrix: DatabaseMatrixData; or
   const said = rows.filter(({ d }) => d.meaning !== null || d.symbols !== null);
   const unsaid = rows.filter(({ d }) => d.meaning === null && d.symbols === null);
   return (
-    <Disclosure summary={`What each of the ${rows.length} database names holds`}>
+    <Expandable summary="What each database name holds" meta={`${rows.length} names`}>
       <p className="small muted db-meanings__lead">
         In idtrack&apos;s words (<a href={DATABASE_MEANINGS_SOURCE}>The names a graph lists</a>; {said.length} of{" "}
         {rows.length} names described there), for this graph: its name authority is{" "}
@@ -701,7 +748,7 @@ function DatabaseMeanings({ matrix, organism }: { matrix: DatabaseMatrixData; or
           .
         </p>
       ) : null}
-    </Disclosure>
+    </Expandable>
   );
 }
 
@@ -769,22 +816,50 @@ function DatabaseHolds({ d }: { d: DatabaseDescription }) {
 
 const capitalized = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
 
-function HistoryPanel({ description: d }: { description: GraphDescription }) {
+/** The History tab: the lineage field (every id a line) or the counts per release, one at a time; an address that
+ *  names a release (`?release=`) opens on the counts, focused there. */
+function HistoryTab({ description: d }: { description: GraphDescription }) {
+  const asked = useLocation().search.get("release");
+  const [view, setView] = useState<"lineages" | "counts">(asked ? "counts" : "lineages");
+  return (
+    <div className="history-tab" id="history">
+      <Segmented
+        className="history-tab__views"
+        label="How the history is drawn"
+        value={view}
+        onChange={setView}
+        options={[
+          { value: "lineages", label: "Every id, a line" },
+          { value: "counts", label: "Counts per release" },
+        ]}
+      />
+      {view === "lineages" ? (
+        <ErrorBoundary part="The lineage field" resetKey={d.organism}>
+          <LineageField description={d} />
+        </ErrorBoundary>
+      ) : (
+        <HistoryCounts description={d} />
+      )}
+    </div>
+  );
+}
+
+function HistoryCounts({ description: d }: { description: GraphDescription }) {
   const { answer, absent } = useHistory(d.organism);
-  // `?release=76`: a link that names a release of this history (the hero's notes of a release-wide event) shows it.
+  // `?release=76`: a link that names a release of this history (a release-wide event of the journeys) shows it.
   const asked = Number(useLocation().search.get("release") ?? "");
   const focusRelease = Number.isInteger(asked) && d.releases.includes(asked) ? asked : null;
   const showcase = useRequest(`showcase|${d.organism}`, (signal) => api.showcase(d.organism, { signal }));
   const marks = useMemo(() => (showcase.state === "done" ? caseMarks(showcase.answer.data.cases) : []), [showcase]);
-  if (absent) return null;
+  if (absent) return <p className="muted">This server does not count the history of its graphs.</p>;
   const data: HistoryResponse | null = answer.state === "done" ? answer.answer.data : null;
   const top = data ? tallest(historyColumns(data), d.serving_assembly) : [];
   const fan = data ? largestFan(historyColumns(data)) : null;
   return (
-    <section className="panel explore-panel" aria-labelledby="history" aria-busy={answer.state === "loading"}>
+    <section className="explore-panel" aria-labelledby="history-counts" aria-busy={answer.state === "loading"}>
       <PanelHead
-        letter="b"
-        id="history"
+        id="history-counts"
+        level={3}
         title="Ensembl's id history, release by release"
         source={`/api/v1/organisms/${d.organism}/history`}
       />
@@ -809,52 +884,58 @@ function HistoryPanel({ description: d }: { description: GraphDescription }) {
         fans={data ? fansCounted(historyColumns(data)) : true}
       />
       <p className="fig-caption">
-        <strong>b</strong> What Ensembl&apos;s stable id history of genes did at each release of the graph, as the
-        server counted it from the graph when it started (in{" "}
-        {data ? <Mono>{String(data.compute_seconds)}</Mono> : "some"} seconds). From the top: the gene ids with a
-        version active at the release (every assembly and region the graph holds); the history edges that end at the
-        release and change or retire an id (a version followed by another version of its id, by a version of another id,
-        or an id retired); below that axis, the ids created there (those of the first release are where the graph begins
-        and are not drawn); the fan of Ensembl&apos;s mapping, the gene versions it maps to two or more (a split, above
-        its line) and those that two or more are mapped to (a merge, below); and the edges that keep an id and its
-        version with Ensembl&apos;s score (a re-mapping to itself). Each part has its own linear scale, from 0 to the
-        value written at its left.
-        {top.length ? (
-          <>
-            {" "}
-            The tallest columns of changed or retired ids:{" "}
-            {top.map((t, i) => (
-              <span key={t.release}>
-                {i ? ", " : ""}
-                <Mono>{t.release}</Mono> (<Mono>{groupedInteger(t.changed)}</Mono>
-                {t.newAssembly ? ", the first release of a new assembly" : ""})
-              </span>
-            ))}
-            {top.every((t) => t.newAssembly)
-              ? "."
-              : `; ${top
-                  .filter((t) => !t.newAssembly)
-                  .map((t) => t.release)
-                  .join(
-                    ", ",
-                  )} ${top.filter((t) => !t.newAssembly).length === 1 ? "is a release" : "are releases"} within one assembly.`}
-          </>
-        ) : null}
-        {fan ? (
-          <>
-            {" "}
-            The largest fan is at release <Mono>{fan.release}</Mono>: <Mono>{groupedInteger(fan.fanOut ?? 0)}</Mono>{" "}
-            versions mapped to two or more, <Mono>{groupedInteger(fan.fanIn ?? 0)}</Mono> two or more mapped to one.
-          </>
-        ) : null}{" "}
-        These are plain facts of Ensembl&apos;s records, counted from the ends of its edges, not idtrack&apos;s reading
-        of them: a conversion&apos;s path names its own steps a split or a merge by idtrack&apos;s rules. Focus the
-        figure and use the arrow keys for each release&apos;s exact counts, the pairs of releases its edges join and the
-        conversions of this server through it.
+        <CaptionMore
+          lead={
+            <>
+              What Ensembl&apos;s stable id history of genes did at each release of the graph, as the server counted it
+              when it started.
+            </>
+          }
+        >
+          Counted in {data ? <Mono>{String(data.compute_seconds)}</Mono> : "some"} seconds. From the top: the gene ids
+          with a version active at the release (every assembly and region the graph holds); the history edges that end
+          at the release and change or retire an id (a version followed by another version of its id, by a version of
+          another id, or an id retired); below that axis, the ids created there (those of the first release are where
+          the graph begins and are not drawn); the fan of Ensembl&apos;s mapping, the gene versions it maps to two or
+          more (a split, above its line) and those that two or more are mapped to (a merge, below); and the edges that
+          keep an id and its version with Ensembl&apos;s score (a re-mapping to itself). Each part has its own linear
+          scale, from 0 to the value written at its left.
+          {top.length ? (
+            <>
+              {" "}
+              The tallest columns of changed or retired ids:{" "}
+              {top.map((t, i) => (
+                <span key={t.release}>
+                  {i ? ", " : ""}
+                  <Mono>{t.release}</Mono> (<Mono>{groupedInteger(t.changed)}</Mono>
+                  {t.newAssembly ? ", the first release of a new assembly" : ""})
+                </span>
+              ))}
+              {top.every((t) => t.newAssembly)
+                ? "."
+                : `; ${top
+                    .filter((t) => !t.newAssembly)
+                    .map((t) => t.release)
+                    .join(
+                      ", ",
+                    )} ${top.filter((t) => !t.newAssembly).length === 1 ? "is a release" : "are releases"} within one assembly.`}
+            </>
+          ) : null}
+          {fan ? (
+            <>
+              {" "}
+              The largest fan is at release <Mono>{fan.release}</Mono>: <Mono>{groupedInteger(fan.fanOut ?? 0)}</Mono>{" "}
+              versions mapped to two or more, <Mono>{groupedInteger(fan.fanIn ?? 0)}</Mono> two or more mapped to one.
+            </>
+          ) : null}{" "}
+          These are plain facts of Ensembl&apos;s records, counted from the ends of its edges, not IDTrack&apos;s
+          reading of them: a conversion&apos;s path names its own steps a split or a merge by IDTrack&apos;s rules. Focus
+          the figure and use the arrow keys for each release&apos;s exact counts, the pairs of releases its edges join
+          and the conversions of this server through it.
+        </CaptionMore>
       </p>
       {marks.length ? (
-        <>
-          <h3 className="method-sub">Conversions of this server through this history</h3>
+        <Expandable summary="Conversions of this server through this history" meta={`${marks.length}`}>
           <ol className="idh-cases">
             {marks.map((m) => (
               <li key={m.number}>
@@ -878,7 +959,7 @@ function HistoryPanel({ description: d }: { description: GraphDescription }) {
               </li>
             ))}
           </ol>
-        </>
+        </Expandable>
       ) : null}
     </section>
   );
@@ -901,6 +982,81 @@ function VersionWords({ text }: { text: string }) {
   );
 }
 
+/** An assembly as an expandable row: its name and what it serves on one line, the rest on a press. */
+function AssemblyRow({
+  a,
+  d,
+  handoffs,
+}: {
+  a: AssemblyDescription;
+  d: GraphDescription;
+  handoffs: ReturnType<typeof handoffsOf>;
+}) {
+  const h = handoffs.find((x) => x.to.assembly === a.assembly);
+  return (
+    <Expandable
+      className="assembly-row"
+      summary={
+        <>
+          {a.name ?? <Absent meaning="The graph names no assembly here" />}{" "}
+          {a.assembly === d.primary_assembly ? <span className="tag">primary</span> : null}
+        </>
+      }
+      meta={
+        <>
+          {a.serves.length ? (
+            <>
+              serves <Mono>{releaseRanges(a.serves)}</Mono>
+            </>
+          ) : (
+            "serves no release"
+          )}{" "}
+          · {a.external_databases.length} external database{a.external_databases.length === 1 ? "" : "s"}
+        </>
+      }
+    >
+      <dl className="assembly-row__facts">
+        <div>
+          <dt>Key in IDTrack&apos;s organism table</dt>
+          <dd>
+            <Mono>{a.assembly}</Mono>
+          </dd>
+        </div>
+        <div>
+          <dt>Serves releases</dt>
+          <dd>
+            {a.serves.length ? <Mono>{releaseRanges(a.serves)}</Mono> : <Absent meaning="It serves no release" />}
+          </dd>
+        </div>
+        <div>
+          <dt>Holds data at</dt>
+          <dd>
+            <Mono>{releaseRanges(a.releases)}</Mono>
+          </dd>
+        </div>
+        <div>
+          <dt>From the assembly before</dt>
+          <dd>
+            {h ? (
+              <>
+                {h.from.name} at release <Mono>{h.release}</Mono>: {MAPPING_WORDS[h.mapping]}
+              </>
+            ) : (
+              <Absent meaning="It serves the graph's first releases, or no release" />
+            )}
+          </dd>
+        </div>
+        <div className="assembly-row__wide">
+          <dt>External databases ({a.external_databases.length})</dt>
+          <dd>
+            <DatabaseNames names={a.external_databases} />
+          </dd>
+        </div>
+      </dl>
+    </Expandable>
+  );
+}
+
 function OrganismDetail({
   description: d,
   file,
@@ -914,34 +1070,30 @@ function OrganismDetail({
   const last = d.releases[d.releases.length - 1] ?? 0;
   const primary = d.assemblies.find((a) => a.assembly === d.primary_assembly);
   const handoffs = handoffsOf(d);
+  // An address that names a release of the history (`?release=`) opens on the History tab.
+  const location = useLocation();
+  const initial = location.search.get("release") && !location.search.get("tab") ? "history" : undefined;
   return (
     <div className="page page--organism">
       <header className="page-head">
-        <p className="eyebrow">
-          <Link to="/organisms" className="eyebrow__link">
-            Explore
-          </Link>{" "}
-          · {commonName(d.organism) ? `the ${commonName(d.organism) ?? ""} graph` : "a graph"}
-        </p>
         <h1>
           <em>{organismName(d.organism)}</em>, release by release
         </h1>
         <p className="lede">
-          Ensembl releases <Mono>{releaseRanges(d.releases)}</Mono> over {d.assemblies.length} assemblies, up to the
-          snapshot <Mono>{d.snapshot_release}</Mono> on {primary?.name ?? <Mono>{d.primary_assembly}</Mono>}: their id
-          history, what the graph holds, and what a conversion to each release can end in.{" "}
-          <Link to={href("/convert", { organism: d.organism })}>Convert an identifier of this graph</Link>.
+          Ensembl releases <Mono>{releaseRanges(d.releases)}</Mono> over {d.assemblies.length} assemblies, up to{" "}
+          <Mono>{d.snapshot_release}</Mono> on {primary?.name ?? <Mono>{d.primary_assembly}</Mono>};{" "}
+          <Link to={href("/convert", { organism: d.organism })}>convert an identifier of this graph</Link>.
         </p>
         {others.length > 1 ? (
           <nav className="organism-switch" aria-label="Other graphs">
             {others.map((o) =>
               o.organism === d.organism ? (
                 <span key={o.organism} className="organism-switch__item organism-switch__item--on" aria-current="page">
-                  {commonName(o.organism) ?? organismName(o.organism)}
+                  {chipName(o.organism)}
                 </span>
               ) : (
                 <Link key={o.organism} to={href(`/organisms/${o.organism}`)} className="organism-switch__item">
-                  {commonName(o.organism) ?? organismName(o.organism)}
+                  {chipName(o.organism)}
                 </Link>
               ),
             )}
@@ -949,13 +1101,8 @@ function OrganismDetail({
         ) : null}
       </header>
 
-      <section className="panel explore-panel" aria-labelledby="releases">
-        <PanelHead
-          letter="a"
-          id="releases"
-          title="Releases and assemblies"
-          source={`/api/v1/organisms/${d.organism}`}
-        />
+      <section className="explore-panel organism-figure" aria-labelledby="releases">
+        <PanelHead id="releases" title="Releases and assemblies" source={`/api/v1/organisms/${d.organism}`} />
         <AssemblyRows
           label={`The assemblies of the ${organismName(d.organism)} graph over releases ${first} to ${last}. Arrow keys move between them.`}
           first={first}
@@ -973,164 +1120,170 @@ function OrganismDetail({
           }))}
         />
         <AssemblyLegend />
-        <TableFrame label="Assemblies" className="table-frame--cards">
-          <table className="table table--cards">
-            <thead>
-              <tr>
-                <th scope="col">Assembly</th>
-                <th scope="col">Key</th>
-                <th scope="col">Serves releases</th>
-                <th scope="col">Holds data at</th>
-                <th scope="col">From the assembly before</th>
-                <th scope="col">External databases</th>
-              </tr>
-            </thead>
-            <tbody>
-              {d.assemblies.map((a) => (
-                <tr key={a.assembly}>
-                  <td data-label="Assembly">
-                    <strong>{a.name ?? <Absent meaning="The graph names no assembly here" />}</strong>
-                    {a.assembly === d.primary_assembly ? <span className="tag">primary</span> : null}
-                  </td>
-                  <td data-label="Key" className="num">
-                    <Mono>{a.assembly}</Mono>
-                  </td>
-                  <td data-label="Serves" className="cell-ranges">
-                    {a.serves.length ? (
-                      <Mono>{releaseRanges(a.serves)}</Mono>
-                    ) : (
-                      <Absent meaning="It serves no release" />
-                    )}
-                  </td>
-                  <td data-label="Data at" className="cell-ranges">
-                    <Mono>{releaseRanges(a.releases)}</Mono>
-                  </td>
-                  <td data-label="Change" className="cell-wrap">
-                    {(() => {
-                      const h = handoffs.find((x) => x.to.assembly === a.assembly);
-                      return h ? (
-                        <>
-                          {h.from.name} at release <Mono>{h.release}</Mono>: {MAPPING_WORDS[h.mapping]}
-                        </>
-                      ) : (
-                        <Absent meaning="It serves the graph's first releases, or no release" />
-                      );
-                    })()}
-                  </td>
-                  <td data-label="Databases" className="cell-wrap cell-chips">
-                    <DatabaseChips names={a.external_databases} />
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </TableFrame>
         <p className="fig-caption">
-          <strong>a</strong> The assemblies of the graph, in the order they serve releases, by idtrack&apos;s organism
-          table (the key) and Ensembl&apos;s name: the solid bar the releases an assembly serves (the assembly whose
-          annotation counts at the release), the thin line the releases at which the graph holds data of it. An
-          identifier exists at a release only on the assembly that serves it; an identifier of an earlier assembly
-          converts to the gene of the assembly that serves the target release, through Ensembl&apos;s history across the
-          assembly change (
-          <a href={docsPage("concepts.html#concept-releases-assemblies")}>idtrack&apos;s documentation</a>
-          ). Where Ensembl&apos;s history ends, a bridge between two genes compares their places across a change only
-          where Ensembl publishes a mapping of the two assemblies (the table&apos;s column &quot;From the assembly
-          before&quot;); in idtrack&apos;s words: <Prose text={docs.assemblyMapping.lead} />{" "}
-          <a href={docs.assemblyMapping.source}>{docs.assemblyMapping.title}</a>
-        </p>
-      </section>
-
-      <HistoryPanel description={d} />
-
-      <section className="panel explore-panel" aria-labelledby="composition">
-        <PanelHead
-          letter="c"
-          id="composition"
-          title="Composition of the graph"
-          source={`/api/v1/organisms/${d.organism}`}
-        />
-        <CountsFigure counts={d.counts} />
-        <p className="fig-caption">
-          <strong>c</strong> The counts of the build, as the graph file records them (
-          <span className="mono">counts</span>
-          ), by idtrack&apos;s names, largest first, each as a bar on a logarithmic axis beside its exact value. Under
-          each name, what idtrack says the counted things are: its page of concepts for the nodes and the two kinds of
-          edge (<a href={docs.counts.concepts}>The graph</a>), the description its code gives of the part of the graph
-          of the same name for the others (<a href={docs.counts.source}>where the build counts them</a>); a count it
-          says no more of is said to be named only.
-        </p>
-      </section>
-
-      <MatrixPanel description={d} />
-
-      <section className="panel explore-panel" aria-labelledby="build">
-        <PanelHead letter="e" id="build" title="The graph and its build" source="/api/v1/version" />
-        <dl className="readouts">
-          <Readout label="Content digest" wide>
-            {d.content_digest ? <Mono>{d.content_digest}</Mono> : <Absent meaning="Not recorded in the graph file" />}{" "}
-            {d.content_digest ? <CopyButton text={d.content_digest} what="content digest" /> : null}
-          </Readout>
-          <Readout label="Built">
-            {d.build_date ? <Mono>{d.build_date}</Mono> : <Absent meaning="Not recorded in the graph file" />}
-          </Readout>
-          <Readout label="Built by idtrack" wide>
-            {d.package_commit ? (
+          <CaptionMore
+            lead={
               <>
-                commit <Mono>{d.package_commit}</Mono>
+                The assemblies of the graph in the order they serve releases: the solid bar the releases an assembly
+                serves, the thin line the releases at which the graph holds data of it.
               </>
-            ) : (
-              <span className="muted">commit not recorded</span>
-            )}
-            {d.package_version ? (
-              <span className="readout__sub">
-                <VersionWords text={d.package_version} />
-              </span>
-            ) : null}
-          </Readout>
-          <Readout label="Measured by the benchmarks" wide>
-            <BenchmarkProvenance organism={d.organism} digest={d.content_digest} />
-          </Readout>
-          <Readout label="Check a graph file of yours" wide>
-            <span className="cli">
-              <code>idtrack verify &lt;graph file&gt;</code>
-            </span>{" "}
-            recomputes the content digest from the file&apos;s content and compares it with the one the file records;
-            this graph&apos;s is the digest above (idtrack&apos;s command line,{" "}
-            <a href={docsPage("cli.html")}>its documentation</a>).
-          </Readout>
-          <Readout label="File format">
-            {d.format_version === null ? (
-              <Absent meaning="A graph made in memory, not read from a file" />
-            ) : (
-              <Mono>{d.format_version}</Mono>
-            )}
-          </Readout>
-          <Readout label="Ensembl forms">{d.forms.join(", ")}</Readout>
-          {file ? (
+            }
+          >
+            Each assembly is named by IDTrack&apos;s organism table (the key) and Ensembl&apos;s name; the assembly that
+            serves a release is the one whose annotation counts there. An identifier exists at a release only on the
+            assembly that serves it; an identifier of an earlier assembly converts to the gene of the assembly that
+            serves the target release, through Ensembl&apos;s history across the assembly change (
+            <a href={docsPage("concepts.html#concept-releases-assemblies")}>IDTrack&apos;s documentation</a>). Where
+            Ensembl&apos;s history ends, a bridge between two genes compares their places across a change only where
+            Ensembl publishes a mapping of the two assemblies (each assembly&apos;s row below says it, &quot;From the
+            assembly before&quot;); in IDTrack&apos;s words: <Prose text={docs.assemblyMapping.lead} />{" "}
+            <a href={docs.assemblyMapping.source}>{docs.assemblyMapping.title}</a>
+          </CaptionMore>
+        </p>
+        <div className="assembly-rows" role="region" aria-label="Assemblies">
+          {chronological(d.assemblies).map((a) => (
+            <AssemblyRow key={a.assembly} a={a} d={d} handoffs={handoffs} />
+          ))}
+        </div>
+      </section>
+
+      <Tabs
+        label={`The ${organismName(d.organism)} graph in detail`}
+        param="tab"
+        {...(initial ? { initial } : {})}
+        className="organism-tabs"
+        items={[
+          {
+            id: "composition",
+            label: "Composition",
+            panel: () => (
+              <section className="explore-panel" aria-labelledby="composition">
+                <PanelHead
+                  id="composition"
+                  level={3}
+                  title="Composition of the graph"
+                  source={`/api/v1/organisms/${d.organism}`}
+                />
+                <CountsFigure counts={d.counts} />
+                <p className="fig-caption">
+                  <CaptionMore
+                    lead={
+                      <>
+                        The counts of the build, as the graph file records them, largest first, each on a logarithmic
+                        axis beside its exact value.
+                      </>
+                    }
+                  >
+                    The counts are <span className="mono">counts</span> of the file, by IDTrack&apos;s names. Under each
+                    name, what IDTrack says the counted things are: its page of concepts for the nodes and the two kinds
+                    of edge (<a href={docs.counts.concepts}>The graph</a>), the description its code gives of the part of
+                    the graph of the same name for the others (<a href={docs.counts.source}>where the build counts them</a>
+                    ); a count it says no more of is said to be named only.
+                  </CaptionMore>
+                </p>
+              </section>
+            ),
+          },
+          { id: "build", label: "Build", panel: () => <BuildPanel description={d} file={file} /> },
+          { id: "databases", label: "Databases by release", panel: () => <MatrixPanel description={d} /> },
+          { id: "history", label: "History", panel: () => <HistoryTab description={d} /> },
+        ]}
+      />
+    </div>
+  );
+}
+
+/** The record of the graph and its build: what the file records of itself and what the server checked. */
+function BuildPanel({ description: d, file }: { description: GraphDescription; file: GraphVersion | null }) {
+  return (
+    <section className="explore-panel" aria-labelledby="build">
+      <PanelHead id="build" level={3} title="The graph and its build" source="/api/v1/version" />
+      <dl className="readouts">
+        <Readout label="Content digest" wide>
+          {d.content_digest ? (
+            <HoverCard
+              hover={false}
+              className="digest"
+              triggerClassName="digest__short mono"
+              label={`Content digest ${d.content_digest.slice(0, 12)}…: the whole digest`}
+              trigger={<>{d.content_digest.slice(0, 12)}…</>}
+            >
+              <p className="digest__whole">
+                <Mono>{d.content_digest}</Mono>
+              </p>
+              <CopyButton text={d.content_digest} what="content digest" />
+            </HoverCard>
+          ) : (
+            <Absent meaning="Not recorded in the graph file" />
+          )}
+        </Readout>
+        <Readout label="Built">
+          {d.build_date ? <Mono>{d.build_date}</Mono> : <Absent meaning="Not recorded in the graph file" />}
+        </Readout>
+        <Readout label="Built by IDTrack" wide>
+          {d.package_commit ? (
             <>
-              <Readout label="File" wide>
-                <Mono>{file.file.key}</Mono>
-              </Readout>
-              <Readout label="SHA-256, verified at start" wide>
-                <Mono>{file.file.sha256}</Mono> <CopyButton text={file.file.sha256} what="SHA-256" />
-              </Readout>
-              <Readout label="Size">
-                <Mono>{groupedInteger(file.file.size)}</Mono> bytes{" "}
-                <span className="muted">({byteSize(file.file.size)})</span>
-              </Readout>
+              commit <Mono>{d.package_commit}</Mono>
             </>
+          ) : (
+            <span className="muted">commit not recorded</span>
+          )}
+          {d.package_version ? (
+            <span className="readout__sub">
+              <VersionWords text={d.package_version} />
+            </span>
           ) : null}
-        </dl>
-        <p className="fig-caption">
-          <strong>e</strong> What the graph file records of itself (
-          <span className="mono">/api/v1/organisms/{d.organism}</span>) and what the server checked when it loaded it (
-          <span className="mono">/api/v1/version</span>): the digest of the graph&apos;s content, the idtrack that built
+        </Readout>
+        <Readout label="Measured by the benchmarks" wide>
+          <BenchmarkProvenance organism={d.organism} digest={d.content_digest} />
+        </Readout>
+        <Readout label="Check a graph file of yours" wide>
+          <span className="cli">
+            <code>idtrack verify &lt;graph file&gt;</code>
+          </span>{" "}
+          recomputes the content digest from the file&apos;s content and compares it with the one the file records;
+          this graph&apos;s is the digest above (IDTrack&apos;s command line,{" "}
+          <a href={docsPage("cli.html")}>its documentation</a>).
+        </Readout>
+        <Readout label="File format">
+          {d.format_version === null ? (
+            <Absent meaning="A graph made in memory, not read from a file" />
+          ) : (
+            <Mono>{d.format_version}</Mono>
+          )}
+        </Readout>
+        <Readout label="Ensembl forms">{d.forms.join(", ")}</Readout>
+        {file ? (
+          <>
+            <Readout label="File" wide>
+              <Mono>{file.file.key}</Mono>
+            </Readout>
+            <Readout label="SHA-256, verified at start" wide>
+              <Mono>{file.file.sha256}</Mono> <CopyButton text={file.file.sha256} what="SHA-256" />
+            </Readout>
+            <Readout label="Size">
+              <Mono>{groupedInteger(file.file.size)}</Mono> bytes{" "}
+              <span className="muted">({byteSize(file.file.size)})</span>
+            </Readout>
+          </>
+        ) : null}
+      </dl>
+      <p className="fig-caption">
+        <CaptionMore
+          lead={
+            <>
+              What the graph file records of itself and what the server checked when it loaded it; the content digest
+              names the graph: two files of the same digest answer alike.
+            </>
+          }
+        >
+          From <span className="mono">/api/v1/organisms/{d.organism}</span> and{" "}
+          <span className="mono">/api/v1/version</span>: the digest of the graph&apos;s content, the IDTrack that built
           it (its commit, and the version as the file records it), and the file&apos;s SHA-256, verified at start; and
           whether the benchmarks measured a graph of the same content digest (their published results at{" "}
-          <Mono>{BENCHMARKS_META.commit.slice(0, 12)}</Mono>). The content digest names the graph: two files of the same
-          digest answer alike.
-        </p>
-      </section>
-    </div>
+          <Mono>{BENCHMARKS_META.commit.slice(0, 12)}</Mono>).
+        </CaptionMore>
+      </p>
+    </section>
   );
 }

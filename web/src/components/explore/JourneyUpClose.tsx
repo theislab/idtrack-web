@@ -13,6 +13,7 @@ import { prose } from "../../lib/values";
 import { spaced } from "../../lib/vocabulary";
 import { useVocabulary } from "../../lib/vocabularyContext";
 import { FigureLegend } from "../figure/Legend";
+import { CaptionMore } from "../home/CaptionMore";
 import { FigureReserve } from "./FigureReserve";
 import { Link, Mono } from "../ui";
 
@@ -115,43 +116,53 @@ export function JourneyUpClose({
         ]}
       />
       <figcaption id={captionId} className="fig-caption">
-        {letter ? <strong>{letter}</strong> : null} The best answer of this server (answered once when it started) to{" "}
-        <Mono>{result.query_id}</Mono> read at release {result.from_release} of the{" "}
-        <em>{organismName(graph.organism)}</em> graph and converted to release {result.to_release}:{" "}
-        <Mono>{model.answer.target}</Mono>. Each bar is a gene version over the releases at which the path holds it (
-        {model.genes.length} versions on assemblies {assemblies}); between the versions, {history.length} steps of
-        Ensembl's id history (
-        {counts.map(([reason, n], i) => (
-          <span key={reason}>
-            {i ? ", " : ""}
-            {n} {spaced(reason)}
-          </span>
-        ))}
-        ), {handoffs === 0 ? "none" : handoffs} of them across an assembly change, drawn over the bands of the
-        assemblies that serve each release
-        {reading.length ? (
-          <>
-            ; before and after them, {plural(reading.length, "step")} of reading (
-            {readingCounts.map(([reason, n], i) => (
-              <span key={reason}>
-                {i ? ", " : ""}
-                {n} {spaced(reason)}
-              </span>
-            ))}
-            ), which are not Ensembl&apos;s history
-          </>
-        ) : null}
-        . Below, Ensembl's mapping score of each step, on an axis from {pythonFloat(1)} down to the value marked; under
-        it, the product of the scores so far, stepping down at each scored step to the candidate's score,{" "}
-        <Mono>{pythonFloat(model.answer.score)}</Mono>, which is{" "}
-        {scoreMeaning ? lowerFirst(prose(scoreMeaning)) : "its score"}. Replay walks the path step by step and writes
-        each step's score and the product so far (the page's own product, cut after six decimals: the candidate's score
-        is idtrack's). Focus the figure and use the arrow keys for each element's exact values (on a touch screen, tap a
-        mark). Source: <Mono>GET /api/v1/organisms/{graph.organism}/showcase</Mono>, the answer{" "}
-        <a href={apiAddress(query)}>
-          <Mono>GET {apiAddress(query).replace(/\?.*/, "")}</Mono>
-        </a>{" "}
-        gives.
+        <CaptionMore
+          lead={
+            <>
+              {letter ? <strong>{letter}</strong> : null} The best answer of this server to{" "}
+              <Mono>{result.query_id}</Mono> read at release {result.from_release} of the{" "}
+              <em>{organismName(graph.organism)}</em> graph and converted to release {result.to_release}:{" "}
+              <Mono>{model.answer.target}</Mono>, each gene version over the releases the path holds it, Ensembl&apos;s
+              score of each step under them.
+            </>
+          }
+        >
+          Answered once when the server started. Each bar is a gene version over the releases at which the path holds
+          it ({model.genes.length} versions on assemblies {assemblies}); between the versions, {history.length} steps of
+          Ensembl&apos;s id history (
+          {counts.map(([reason, n], i) => (
+            <span key={reason}>
+              {i ? ", " : ""}
+              {n} {spaced(reason)}
+            </span>
+          ))}
+          ), {handoffs === 0 ? "none" : handoffs} of them across an assembly change, drawn over the bands of the
+          assemblies that serve each release
+          {reading.length ? (
+            <>
+              ; before and after them, {plural(reading.length, "step")} of reading (
+              {readingCounts.map(([reason, n], i) => (
+                <span key={reason}>
+                  {i ? ", " : ""}
+                  {n} {spaced(reason)}
+                </span>
+              ))}
+              ), which are not Ensembl&apos;s history
+            </>
+          ) : null}
+          . Below, Ensembl&apos;s mapping score of each step, on an axis from {pythonFloat(1)} down to the value marked;
+          under it, the product of the scores so far, stepping down at each scored step to the candidate&apos;s score,{" "}
+          <Mono>{pythonFloat(model.answer.score)}</Mono>, which is{" "}
+          {scoreMeaning ? lowerFirst(prose(scoreMeaning)) : "its score"}. Replay walks the path step by step and writes
+          each step&apos;s score and the product so far (the page&apos;s own product, cut after six decimals: the
+          candidate&apos;s score is IDTrack&apos;s). Focus the figure and use the arrow keys for each element&apos;s
+          exact values (on a touch screen, tap a mark). Source: <Mono>GET /api/v1/organisms/{graph.organism}/showcase</Mono>
+          , the answer{" "}
+          <a href={apiAddress(query)}>
+            <Mono>GET {apiAddress(query).replace(/\?.*/, "")}</Mono>
+          </a>{" "}
+          gives.
+        </CaptionMore>
       </figcaption>
     </figure>
   );

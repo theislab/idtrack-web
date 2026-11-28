@@ -1,11 +1,11 @@
-// The Convert page's first figure: real conversions of one graph, answered by this server once when it started (its
+// The first figure of Explore's stories: real conversions of one graph, answered by this server once when it started (its
 // showcase), drawn together on one release axis over the assembly bands, in the figure grammar (components/figure/).
 // Each row is one identifier's journey: its best answer's path as a thin gene bar with Ensembl's history steps marked by
 // their glyphs (a journey back in time carries chevrons pointing back). Every mark is local to its row: where the
 // identifier is read through an external database its start is an open square, an answer in an external database is a
 // filled square, a bridge is the square with a dot on the row itself, dashed to where it lands; no line leaves a row.
 //
-// The figure fills the room the hero gives it and always names its rows: where the room cannot hold every journey at a
+// The figure fills the room it is given and always names its rows: where the room cannot hold every journey at a
 // named pitch, it draws fewer, chosen by one rule (lib/home/useJourneys.ts `chooseJourneys`), and says how many. The
 // assembly bands run from their names to the axis; each set of journeys stands in them under its words. The rare
 // events are the figure's accents (a split or merge, a step across an assembly change, a crossing into another
@@ -764,9 +764,9 @@ export function JourneysFigure({
           ))}
           {notes.map((n) => {
             const words = n.lines.join(" ");
-            // Each release-wide event leads to the graph's own page, where Ensembl's id history of every gene is drawn
-            // release by release, opened on the release the event leads into (its exact counts there).
-            const at = href(`/organisms/${graph.organism}`, { release: n.e.new });
+            // Each release-wide event leads to the graph's own page, its History tab, where Ensembl's id history of
+            // every gene is drawn release by release, opened on the release the event leads into (its exact counts).
+            const at = href(`/organisms/${graph.organism}`, { tab: "history", release: n.e.new });
             return (
               <a
                 key={`${n.e.kind}-${n.e.old}-${n.e.reason ?? ""}`}
