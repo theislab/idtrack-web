@@ -935,12 +935,9 @@ function Examples({
               <span className="convert-example__id mono">
                 <bdi>{e.query.identifier}</bdi>
               </span>
-              <span className="convert-example__at mono">
-                <span className="visually-hidden">, read at release </span>
-                {e.from}
-                <span aria-hidden="true">→</span>
-                <span className="visually-hidden">, to release </span>
-                {e.to}
+              <span className="visually-hidden">{`, read at release ${e.from}, to release ${e.to}`}</span>
+              <span className="convert-example__at mono" aria-hidden="true">
+                {e.from}→{e.to}
               </span>
               <span className="convert-example__kind">
                 <span className="visually-hidden">: </span>

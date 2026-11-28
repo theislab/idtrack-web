@@ -2858,3 +2858,24 @@ th.cand__path {
   color: var(--ink-3);
   font-size: var(--text-xs);
 }
+
+/* The candidates' head and the best answer's row are each one band (on the row, not on every cell). */
+@media (min-width: 641px) {
+  .table--candidates thead {
+    background: var(--surface-sunk);
+  }
+
+  .table--candidates thead th,
+  .table--candidates tr.is-best td {
+    background: none;
+  }
+
+  .table--candidates tr.is-best {
+    background: var(--surface-sunk);
+  }
+}
+
+.table--candidates tr td.is-decided,
+.table--candidates tr th.is-decided {
+  background: color-mix(in srgb, var(--ink-1) 4%, transparent);
+}

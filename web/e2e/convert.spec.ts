@@ -119,7 +119,10 @@ test("zoom and pan along the releases", async ({ page }, info) => {
   await expect(page.getByRole("button", { name: /^View/ })).toBeFocused();
   await expect.poll(shown).not.toBe("");
   const all = await shown();
+  // The zoom is in the same popover, two matching icons.
+  await page.getByRole("button", { name: /^View/ }).click();
   await page.getByRole("button", { name: "Zoom in" }).click();
+  await page.keyboard.press("Escape");
   await expect.poll(shown).not.toBe(all);
   const zoomed = await shown();
   const svg = page.getByRole("group", { name: /^Path of/ });
@@ -141,6 +144,8 @@ test("the phone's vertical timeline", async ({ page }, info) => {
   const drawing = page.getByRole("group", { name: /as a timeline from top to bottom/ });
   await expect(drawing).toBeVisible();
   const height = (await drawing.boundingBox())?.height ?? 0;
+  // The timeline's scale is in its toolbar's popover, "View".
+  await page.getByRole("button", { name: /^View/ }).click();
   await page.getByRole("button", { name: "Spread the releases" }).click();
   await expect.poll(async () => (await drawing.boundingBox())?.height ?? 0).toBeGreaterThan(height);
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
@@ -335,8 +340,13 @@ test("the conversion's address holds every option and reloads", async ({ page })
   await page.goto(`/convert?organism=${data.organism}&id=${data.long.identifier}&bridges=false&explain=false`);
   await waitForResult(page);
   await expect(page.getByText("The path was not asked for", { exact: false })).toBeVisible();
-  // The options away from their defaults open "More options" by themselves.
-  await expect(page.locator("details.convert-form__advanced")).toHaveAttribute("open", "");
+  // The verdict's query says the options away from their defaults; Edit unfolds the form, whose one line says every
+  // setting and opens on a press to all their fields.
+  await expect(page.locator(".answer__asked")).toContainText("bridges not allowed · no path asked");
+  await page.getByRole("button", { name: "Edit the conversion" }).click();
+  const fold = page.getByRole("button", { name: /^Settings/ });
+  await expect(fold).toContainText("bridges not allowed · no path");
+  await fold.click();
   await expect(page.getByRole("switch", { name: "Allow bridges" })).not.toBeChecked();
   await expect(page.getByRole("switch", { name: "Show the path" })).not.toBeChecked();
   await page.goBack();

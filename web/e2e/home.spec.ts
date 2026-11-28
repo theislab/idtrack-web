@@ -194,30 +194,27 @@ test("a conversion from the hero: the hero gives way to the answer under the for
   await page.goto(`/convert?organism=${data.organism}`);
   const form = page.getByRole("form", { name: "Conversion" });
   await form.getByLabel("Identifier").fill(data.symbol.identifier);
-  // The releases and the database are folded in one line that says them, and open on a press.
-  const fold = form.getByRole("button", { name: /releases and database/i });
+  // Every setting is folded in one line that says them, and opens on a press.
+  const fold = form.getByRole("button", { name: /^Settings/ });
   await expect(fold).toHaveAttribute("aria-expanded", "false");
   await fold.click();
   await expect(form.getByLabel("To release")).toBeVisible();
   await form.getByRole("button", { name: "Convert" }).click();
   await waitForResult(page);
   await expect(page.locator(".convert-landing")).toHaveCount(0);
-  // No page intro over the answer: the page's name, the form folded in one row, then the answer, on the first screen.
+  // No page intro over the answer: the page's name, the form folded into the verdict's query (its settings and Edit),
+  // then the answer, on the first screen.
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Convert");
   await expect(page.locator(".page--convert .lede")).toHaveCount(0);
-  const compact = page.locator(".convert-form--compact");
-  await expect(compact).toBeVisible();
-  await expect(compact.getByRole("button", { name: /releases and database/i })).toHaveAttribute(
-    "aria-expanded",
-    "false",
-  );
+  await expect(page.locator(".convert-form--compact")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Edit the conversion" })).toHaveAttribute("aria-expanded", "false");
   await expect(page.locator("[data-result] h2").first()).toBeFocused();
   const { top, height } = await answerTop(page);
   expect(top).toBeLessThan(height * 0.6);
   await shot(page, info, "03-hero-gave-way");
 });
 
-test("a link to an answer opens on the answer: the form in one row above it", async ({ page }, info) => {
+test("a link to an answer opens on the answer: the form folded into its query", async ({ page }, info) => {
   await page.goto(convertUrl(data.symbol));
   await waitForResult(page);
   const { top, height } = await answerTop(page);
@@ -230,7 +227,7 @@ test("the examples are journeys of the showcase that travel, each named by what 
   const showcase = await showcaseOf(page, data.organism);
   const examples = examplesOf(showcase, data.organism);
   await page.goto(`/convert?organism=${data.organism}`);
-  const group = page.getByRole("group", { name: "Examples from this graph's showcase" });
+  const group = page.getByRole("group", { name: /^Examples from this graph's showcase, the most convoluted first/ });
   if (!examples.length) {
     await expect(group).toHaveCount(0);
     return;
@@ -241,7 +238,10 @@ test("the examples are journeys of the showcase that travel, each named by what 
     expect(e.from).not.toBe(e.to);
     await expect(buttons.nth(k)).toContainText(e.query.identifier);
     await expect(buttons.nth(k)).toContainText(e.title);
-    await expect(buttons.nth(k)).toContainText(`${e.from}→${e.to}`);
+    for (const fact of e.facts) await expect(buttons.nth(k)).toContainText(fact);
+    // The releases on a wide screen; on a phone the sketch shows the travel.
+    if (isPhone(info)) await expect(buttons.nth(k).locator(".convert-example__at")).toBeHidden();
+    else await expect(buttons.nth(k)).toContainText(`${e.from}→${e.to}`);
   }
   // The examples stand on one line each, inside the form's column.
   const boxes = await buttons.evaluateAll((bs) => bs.map((b) => b.getBoundingClientRect().top));
@@ -259,9 +259,9 @@ test("the examples are journeys of the showcase that travel, each named by what 
 
 test("a case's answer: the strip above it names the case and steps to the next", async ({ page }) => {
   const showcase = await showcaseOf(page, data.organism);
+  // Every case of the showcase is in the tour, whatever its kind.
   const cases = showcase.cases.filter(
-    (c): c is (typeof showcase.cases)[number] & { result: ConversionResult } =>
-      c.kind !== "lineage" && c.result !== null && isCaseKind(c.kind),
+    (c): c is (typeof showcase.cases)[number] & { result: ConversionResult } => c.result !== null && isCaseKind(c.kind),
   );
   test.skip(cases.length === 0, "the server holds no cases for this graph (another graph than they were checked on)");
   const first = cases[0];

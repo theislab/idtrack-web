@@ -28,9 +28,11 @@ export function CaseTour({ place }: { place: CaseTourPlace }) {
   return (
     <nav className="case-tour" aria-label="The cases of this graph">
       <p className="case-tour__here">
+        {/* On a phone the count is said to a screen reader only (the kinds of the cases name the way). */}
         <span className="case-tour__count">
           Case <span className="mono">{at + 1}</span> of <span className="mono">{cases.length}</span> ·{" "}
         </span>
+        <span className="case-tour__count-narrow visually-hidden">{`Case ${at + 1} of ${cases.length}: `}</span>
         <strong>{KIND_TEXT[here.kind].title}</strong>
       </p>
       {link(at - 1, "prev")}

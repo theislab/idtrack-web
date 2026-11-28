@@ -571,6 +571,28 @@ function OtherMeanings({
 function EventsClause({ model, own = false }: { model: PathModel; own?: boolean }) {
   const events = pathEvents(model);
   if (!events.length) return null;
+  // Several events are said by their kinds and the releases they span (each one is in the path in words); one is
+  // said with the releases it joins.
+  const count = events.reduce((n, e) => n + e.releases.length, 0);
+  if (count > 1) {
+    const releases = events.flatMap((e) => e.releases.flatMap((r) => r.split(" → ").map(Number)));
+    const reasons = new Set(events.map((e) => e.reason));
+    const kinds = [
+      reasons.has("split") || reasons.has("split_and_merge") ? "splits" : null,
+      reasons.has("merge") || reasons.has("split_and_merge") ? "merges" : null,
+      reasons.has("replaced") ? "replacements" : null,
+    ].filter((k): k is string => k !== null);
+    return (
+      <>
+        {own ? " Its" : "; its"} path holds <Mono>{count}</Mono> of Ensembl&apos;s{" "}
+        {kinds.length > 2
+          ? `${kinds.slice(0, -1).join(", ")} and ${kinds[kinds.length - 1] ?? ""}`
+          : kinds.join(" and ")}
+        , from release <Mono>{Math.min(...releases)}</Mono> to <Mono>{Math.max(...releases)}</Mono>
+        {own ? "." : null}
+      </>
+    );
+  }
   return (
     <>
       {own ? " Its" : "; its"} path holds Ensembl&apos;s{" "}

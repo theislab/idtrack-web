@@ -426,15 +426,18 @@
   unicode-bidi: isolate;
 }
 
+/* On a phone the case line keeps the kinds of the cases; its count is said to a screen reader only. */
+.case-tour__count-narrow {
+  display: none;
+}
+
 @media (max-width: 640px) {
-  /* On a phone the case line keeps the kinds of the previous and the next case as arrows. */
   .case-tour__count {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip-path: inset(50%);
-    white-space: nowrap;
+    display: none;
+  }
+
+  .case-tour__count-narrow {
+    display: inline;
   }
 }
 

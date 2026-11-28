@@ -97,20 +97,18 @@ describe("a reading at other releases", () => {
 });
 
 describe("the verdict's sentence", () => {
-  it("states Ensembl's events on the path of an answer of one candidate, in Ensembl's direction", () => {
+  it("states Ensembl's events on the path of an answer of one candidate: several by kind, count and span", () => {
     const result = show("convert_showcase_merge");
     expect(result.candidates).toHaveLength(1);
-    const sentence = text(".answer__sentence");
-    expect(sentence).toContain("One answer, the only candidate; its path holds Ensembl's");
-    // Every event of the best path is named with the releases it joins, the earlier first.
-    for (const event of pathEvents(buildModel(result)))
-      for (const releases of event.releases) {
-        expect(sentence).toContain(releases);
-        const [a, b] = releases.split(" → ").map(Number);
-        expect(a).toBeLessThan(b ?? 0);
-      }
-    expect(pathEvents(buildModel(result)).map((e) => e.reason)).toEqual(
-      expect.arrayContaining(["split", "merge", "split_and_merge"]),
+    const events = pathEvents(buildModel(result));
+    expect(events.map((e) => e.reason)).toEqual(expect.arrayContaining(["split", "merge", "split_and_merge"]));
+    // Every event in Ensembl's direction, the earlier release first.
+    const releases = events.flatMap((e) => e.releases.map((r) => r.split(" → ").map(Number)));
+    for (const [a, b] of releases) expect(a).toBeLessThan(b ?? 0);
+    const count = releases.length;
+    const ends = releases.flat();
+    expect(text(".answer__sentence")).toBe(
+      `One answer, the only candidate; its path holds ${count} of Ensembl's splits and merges, from release ${Math.min(...ends)} to ${Math.max(...ends)}.`,
     );
   });
 

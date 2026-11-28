@@ -41,11 +41,13 @@ test("every convoluted case: the verdict, its cautions, the tabs, the toolbar an
     const box = await answer.boundingBox();
     expect(box && box.y < (page.viewportSize()?.height ?? 0), where).toBe(true);
     expect(await fitsTheWindow(page), where).toBe(true);
-    // Each caution on its line; its triangle opens the card of what it rests on, and Escape closes it.
-    const marks = page.getByRole("list", { name: "Cautions to weigh" }).getByRole("button", { name: /^Caution:/ });
+    // Each caution on its line, a sentence; its (i) opens the card of what it rests on, and Escape closes it.
+    const marks = page
+      .getByRole("list", { name: "Cautions to weigh" })
+      .getByRole("button", { name: /^What .* rests on$/ });
     if (await marks.count()) {
       await marks.first().click();
-      await expect(page.locator(".answer__caution-card .hovercard__card"), where).toContainText("Caution");
+      await expect(page.locator(".answer__caution-card .hovercard__card"), where).toContainText("Why this is flagged");
       await page.keyboard.press("Escape");
       await expect(page.locator(".answer__caution-card .hovercard__card")).toHaveCount(0);
     }
@@ -69,9 +71,9 @@ test("every convoluted case: the verdict, its cautions, the tabs, the toolbar an
       await expect(page.getByRole("tabpanel")).toBeVisible();
       expect(await fitsTheWindow(page), `${where}, tab ${t + 1}`).toBe(true);
     }
-    // More opens its list; Cite's drawer opens with its title focused and gives the focus back to Cite.
-    await page.getByRole("button", { name: /^More: / }).click();
-    await expect(page.getByRole("button", { name: /Download JSON/ })).toBeVisible();
+    // Copy opens its menu; Cite's drawer opens with its title focused and gives the focus back to Cite.
+    await page.getByRole("button", { name: /^Copy: / }).click();
+    await expect(page.getByRole("button", { name: /^Save the answer/ })).toBeVisible();
     await page.keyboard.press("Escape");
     const cite = page.getByRole("button", { name: /^Cite/ });
     await cite.click();

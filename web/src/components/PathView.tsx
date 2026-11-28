@@ -502,7 +502,9 @@ function Tooltip({
       </dl>
       <p className="pv-tip__hint">
         {coarse
-          ? "Tap another mark to read it, or the page to close"
+          ? pinned
+            ? "Pinned · tap the page to close"
+            : "Tap a mark to read it"
           : pinned
             ? "Pinned · Esc to close"
             : "Enter pins · the arrows follow the path · Esc hides"}
