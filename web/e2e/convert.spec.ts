@@ -319,6 +319,8 @@ test("the candidate chosen in the decision is the one the path draws strong", as
   await waitForResult(page);
   await page.getByRole("tab", { name: /^Decision/ }).click();
   const rows = page.getByRole("region", { name: "Candidates, ranked" }).locator("tbody tr.cand__row");
+  // The panel follows the tab a moment later.
+  await expect(rows.nth(1)).toBeVisible();
   expect(await rows.count()).toBeGreaterThan(1);
   // Pointing at a row marks it; its "On the path" opens the Path tab with that candidate alone drawn strong.
   await rows.nth(1).hover();

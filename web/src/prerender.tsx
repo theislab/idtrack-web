@@ -154,6 +154,9 @@ export function frameMeta(frame: Frame): string {
 export function frameHtml(frame: Frame): string {
   return renderToString(
     <OrganismsProvider>
+      <a className="skip" href="#main">
+        Skip to the content
+      </a>
       <Masthead />
       <main id="main" tabIndex={-1}>
         <ConvertSections />

@@ -131,6 +131,7 @@ test("Method: the benchmarks' rates as published, and whether this server's grap
   await page.getByRole("tab", { name: "One organism" }).click();
   const one = page.locator(".accuracy__one");
   const chips = one.getByRole("radiogroup", { name: "The organism measured" }).getByRole("radio");
+  await expect(chips.first()).toBeVisible();
   for (let k = 0; k < (await chips.count()); k++) {
     await chips.nth(k).click();
     for (const family of BENCHMARKS.families) await expect(one).toContainText(family.title);

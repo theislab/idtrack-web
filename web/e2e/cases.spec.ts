@@ -129,6 +129,8 @@ for (const item of cases) {
     // first, the refused on a press, every list bounded and opened whole on a press (the Reading tab, each topic a row
     // opened on a press).
     await page.getByRole("tab", { name: /^Reading/ }).click();
+    // The panel follows the tab a moment later.
+    await expect(page.getByRole("tabpanel", { name: /^Reading/ })).toBeVisible();
     for (const topic of [/^The bridges the search considered/, /^Steps not followed/]) {
       const row = page.getByRole("button", { name: topic });
       if (await row.count()) await row.click();
