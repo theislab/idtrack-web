@@ -47,8 +47,14 @@ test("a batch under way goes on when the organism is switched, and is there on i
   await page.getByLabel("Identifiers", { exact: true }).fill(list());
   await page.getByRole("button", { name: /^Convert/ }).click();
   await expect(page.locator(".batch-loading")).toBeVisible();
-  // The organism switched in the page's own picker (a new page load would end every script of the page).
-  await page.getByRole("combobox", { name: "Organism" }).selectOption(other ?? "");
+  // The organism switched in the masthead's chip (a new page load would end every script of the page).
+  await page.locator(".org-chip__button").click();
+  await page
+    .locator(".org-chip__option", {
+      hasText: (other ?? "").replace(/_/g, " ").replace(/^./, (c) => c.toUpperCase()),
+    })
+    .click();
+  await expect(page).toHaveURL(new RegExp(`organism=${other ?? ""}`));
   await expect(page.locator(".batch-elsewhere")).toContainText("is being converted");
   release();
   await expect(page.locator(".batch-elsewhere")).toContainText("is done");

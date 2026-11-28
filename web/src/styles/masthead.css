@@ -310,6 +310,20 @@
   }
 }
 
+/* The narrowest phones (320 px): the tools a little tighter, so that the organism's whole name, the server's dot, the
+   palette, the theme and the menu stand inside the page's 16 px edges (each still a target of 36 px). */
+@media (max-width: 360px) {
+  .org-chip__button {
+    padding: 0 var(--space-2);
+  }
+
+  .mast__palette,
+  .mast__menu {
+    width: 36px;
+    height: 36px;
+  }
+}
+
 /* Convert's tabs, under the masthead on its three pages. */
 .sections {
   border-bottom: 1px solid var(--line);

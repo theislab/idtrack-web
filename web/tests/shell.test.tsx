@@ -382,11 +382,18 @@ describe("a read that failed", () => {
     const load = vi.fn().mockRejectedValueOnce(new UnreachableError("down")).mockResolvedValue({ data: 1, raw: "1" });
     render(<Reader load={load} />);
     expect(await screen.findByText("failed")).toBeTruthy();
+    // The failure's effects (the listeners that wait for the connection) are in place before the browser is online
+    // again; under a loaded machine the answer may then take longer than a second to be drawn.
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(load).toHaveBeenCalledTimes(1);
     await act(async () => {
       window.dispatchEvent(new Event("online"));
       await Promise.resolve();
     });
-    expect(await screen.findByText("done")).toBeTruthy();
+    expect(await screen.findByText("done", undefined, { timeout: 5000 })).toBeTruthy();
+    expect(load).toHaveBeenCalledTimes(2);
     expect(load).toHaveBeenLastCalledWith(expect.anything(), true);
   });
 
