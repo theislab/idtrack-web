@@ -920,15 +920,17 @@
 
 .code-tabs__bar {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: var(--space-2);
+  gap: 0 var(--space-2);
   border-bottom: 1px solid var(--line);
   padding: 0 var(--space-1) 0 var(--space-2);
 }
 
 .code-tabs__list {
   display: flex;
+  min-width: 0;
   overflow-x: auto;
   scrollbar-width: none;
 }

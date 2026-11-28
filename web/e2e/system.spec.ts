@@ -26,6 +26,14 @@ const PAGES: [string, string, (page: Page) => Promise<void>][] = [
     "explore",
     "/organisms",
     async (page) => {
+      await expect(page.locator(".journeys-story__figure")).toBeVisible();
+      await expect(page.locator(".journeys-story__caption")).not.toContainText("drawn when they arrive");
+    },
+  ],
+  [
+    "explore, the graphs",
+    "/organisms?tab=graphs",
+    async (page) => {
       await expect(page.locator(".arows svg")).toBeVisible();
     },
   ],
@@ -33,12 +41,26 @@ const PAGES: [string, string, (page: Page) => Promise<void>][] = [
     "organism",
     `/organisms/${data.organism}`,
     async (page) => {
+      await expect(page.locator(".arows svg")).toBeVisible();
+    },
+  ],
+  [
+    "organism, databases by release",
+    `/organisms/${data.organism}?tab=databases`,
+    async (page) => {
       await expect(page.locator(".dbm svg")).toBeVisible();
     },
   ],
   [
     "method",
     "/method",
+    async (page) => {
+      await expect(page.locator(".method-panel").first()).toBeVisible();
+    },
+  ],
+  [
+    "method, each family whole",
+    "/method?accuracy=family",
     async (page) => {
       await expect(page.locator(".bench").first()).toBeVisible();
     },
