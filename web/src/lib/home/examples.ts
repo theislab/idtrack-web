@@ -1,31 +1,16 @@
 // The examples the Convert page offers: conversions of the server's showcase of the graph in view, the most
-// convoluted first by a stated measure, each labelled by what its answer shows, with a small sketch of its path and a
+// convoluted first by the one stated measure (lib/path/steps.ts `convolution`, `CONVOLUTION_WORDS`), each labelled by what its answer shows, with a small sketch of its path and a
 // line of facts read from the answer's own fields. Nothing is typed here per organism: the cases are the api's data
 // (api/idtrack_web_api/showcase_data/), each with the kind its answer shows, and the rules below pick among them.
 import type { ConversionResult, PathStep, ShowcaseResponse } from "../../api/types";
 import { stableId } from "../pathReading";
-import { bestSteps, isCaseKind, isHandoff, type CaseKind } from "./caseKinds";
+import { convolution } from "../path/steps";
+import { bestSteps, isCaseKind, type CaseKind } from "./caseKinds";
 import { KIND_TEXT, type CaseQuery } from "./cases";
 import { caseQueryOf } from "./links";
 
-/** How the measure of convolution is stated where it is used (the examples' hover card, DESIGN.md). */
-export const MEASURE_WORDS =
-  "the turns of the best answer's path: its changes of stable id, Ensembl's splits and merges on it, its steps across a genome assembly and its bridges";
-
 /** A history step that is one of Ensembl's events with other ids (a split or a merge of the record). */
 const isFan = (step: PathStep) => step.kind === "history" && (step.splits > 0 || step.merges > 0);
-
-/** The convolution of an answer, by the measure stated above: over the path of its first best answer, the steps
- *  between two stable ids, the steps that are Ensembl's splits or merges, the steps between two assemblies, and the
- *  bridges, added up (each step counted once per property it has). */
-export function convolution(result: ConversionResult): number {
-  const steps = bestSteps(result);
-  const best = result.candidates.find((c) => c.best);
-  const changes = steps.filter(
-    (s) => s.kind === "history" && s.source !== null && stableId(s.source) !== stableId(s.target),
-  ).length;
-  return changes + steps.filter(isFan).length + steps.filter(isHandoff).length + (best?.bridges ?? 0);
-}
 
 /** What an answer's own fields say a reader should know before reading it as a plain line, in a few words each:
  *  walked backward (an earlier release asked than read), through a bridge (IDTrack's inference, no record of Ensembl),
@@ -50,7 +35,7 @@ export interface Example {
   /** The release the identifier is read at and the release answered, as the server's answer gives them. */
   from: number;
   to: number;
-  /** The convolution of its answer (`convolution`). */
+  /** How convoluted its answer is (lib/path/steps.ts `convolution`, the one measure of every page). */
   turns: number;
   /** The facts its answer's fields state (`answerFacts`). */
   facts: string[];
@@ -59,7 +44,8 @@ export interface Example {
 }
 
 /** Up to `n` examples from the showcase's cases: answered cases that travel (read at another release than the one
- *  answered), the most convoluted first by `convolution` (in the showcase's order where equal), one of each kind; so
+ *  answered), the most convoluted first by the one measure (lib/path/steps.ts `convolution`; in the showcase's order
+ *  where equal), one of each kind; so
  *  a kind's plain case is offered only where the graph holds no deeper case of another kind. */
 export function examplesOf(showcase: ShowcaseResponse | null, organism: string, n = 3): Example[] {
   if (!showcase) return [];
@@ -75,7 +61,7 @@ export function examplesOf(showcase: ShowcaseResponse | null, organism: string, 
       query: caseQueryOf(organism, c.query),
       from,
       to: result.to_release,
-      turns: convolution(result),
+      turns: convolution(result).total,
       facts: answerFacts(result),
       result,
     });

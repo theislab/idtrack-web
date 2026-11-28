@@ -15,7 +15,8 @@ import { meaningAdds, standingClaim, verdictOrder } from "../src/lib/evidenceWor
 import docs from "../src/generated/idtrack_docs.json";
 import { outcomeWords, referenceRis, referenceText } from "../src/lib/answerProvenance";
 import { evidenceOf } from "../src/lib/evidence";
-import { answerFacts, convolution, examplesOf, pathSketch, placeholderOf } from "../src/lib/home/examples";
+import { answerFacts, examplesOf, pathSketch, placeholderOf } from "../src/lib/home/examples";
+import { convolution } from "../src/lib/path/steps";
 import { HORIZONTAL_METRICS, layoutPath } from "../src/lib/pathLayout";
 import { buildModel } from "../src/lib/pathModel";
 import { readVocabulary } from "../src/lib/vocabulary";
@@ -287,9 +288,9 @@ describe("the examples of Convert", () => {
     const turns = examples.map((e) => e.turns);
     expect([...turns].sort((a, b) => b - a)).toEqual(turns);
     expect(examples[0]?.kind).toBe("merge");
-    expect(examples[0]?.turns).toBe(convolution(load("convert_showcase_merge")));
+    expect(examples[0]?.turns).toBe(convolution(load("convert_showcase_merge")).total);
     // The least convoluted kind is left out where three deeper ones stand.
-    const all = showcase().cases.flatMap((c) => (c.result ? [convolution(c.result)] : []));
+    const all = showcase().cases.flatMap((c) => (c.result ? [convolution(c.result).total] : []));
     expect(Math.min(...turns)).toBeGreaterThanOrEqual([...all].sort((a, b) => b - a)[2] ?? 0);
     expect(placeholderOf(examples)).toBe("e.g. ENSG00000258574");
     expect(placeholderOf([])).toBe("a gene id, symbol or accession");

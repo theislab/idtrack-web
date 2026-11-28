@@ -32,7 +32,8 @@ import { href, navigate, useLocation } from "../lib/router";
 import { setTitleDetail } from "../lib/title";
 import { useRequest } from "../lib/useRequest";
 import { useLimits } from "../lib/vocabularyContext";
-import { examplesOf, MEASURE_WORDS, pathSketch, placeholderOf, type Example } from "../lib/home/examples";
+import { examplesOf, pathSketch, placeholderOf, type Example } from "../lib/home/examples";
+import { CONVOLUTION_WORDS } from "../lib/path/steps";
 import { useShowcase } from "../lib/showcase";
 import "../styles/convert.css";
 
@@ -916,7 +917,7 @@ function Examples({
     <div
       className={`convert-examples${examples.length ? "" : " convert-examples--waiting"}`}
       role="group"
-      aria-label={`Examples from this graph's showcase, the most convoluted first by ${MEASURE_WORDS}`}
+      aria-label={`Examples from this graph's showcase, the most convoluted first: ${CONVOLUTION_WORDS}`}
     >
       <span className="convert-examples__label" aria-hidden="true">
         Try

@@ -6,7 +6,7 @@
 import { memo, useEffect, useId, useMemo, useState, useTransition, type ReactNode } from "react";
 import type { ConversionResult, GraphDescription } from "../api/types";
 import { anatomyOf } from "../lib/anatomy";
-import { bestSteps } from "../lib/home/caseKinds";
+import { allStepsText, journeySteps, journeyStepsText } from "../lib/path/steps";
 import { evidenceHrefs, evidenceOf, type EvidenceAsk, type EvidenceMark } from "../lib/evidence";
 import { createHighlight } from "../lib/highlight";
 import { indentJson } from "../lib/jsonView";
@@ -249,10 +249,9 @@ export const ResultView = memo(function ResultView({
   const [view, setView] = useState<"drawing" | "words">("drawing");
   const id = (panel: string) => `${base}-${panel}`;
   const readingId = id("words");
-  // The Path tab counts the journey's steps: the best answer's path as "In words" lists it (lib/home/caseKinds.ts
-  // `bestSteps`), the one count of a journey on every page; without a best answer, every step drawn.
-  const journey = bestSteps(result).length;
-  const steps = journey || model.steps.length;
+  // The Path tab counts the journey's steps, the one count of a journey on every page (lib/path/steps.ts): the best
+  // answer's path as "In words" lists it; without a best answer, every step drawn, named over the candidates.
+  const stepsText = journeySteps(result).length ? journeyStepsText(result) : allStepsText(result);
   const { askHref, readAtHref } = evidenceHrefs(description.organism, result, requestedDatabase);
 
   const viewChoice = (
@@ -271,7 +270,7 @@ export const ResultView = memo(function ResultView({
     items.push({
       id: "path",
       label: "Path",
-      count: `${groupedInteger(steps)} step${steps === 1 ? "" : "s"}`,
+      count: stepsText,
       panel: () => (
         <FigurePanel
           title={oneRelease !== null ? `The reading at release ${oneRelease}` : "The path through the releases"}
