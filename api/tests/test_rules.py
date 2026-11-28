@@ -221,6 +221,11 @@ def test_a_saved_table_names_what_made_it(client: TestClient) -> None:
     assert header.startswith("input_index\t")
     assert response.headers["content-disposition"].startswith('attachment; filename="idtrack_sus_scrofa_100_')
     assert not client.post(f"{BATCH}?format=tsv", json={"identifiers": [GENE]}).text.startswith("#")
+    # The releases as read: the target the server resolved where none was sent, and a source release not sent said.
+    snapshot = client.get(f"{P}/organisms/pig").json()["snapshot_release"]
+    unsent = client.post(f"{BATCH}?format=tsv&provenance=true", json={"identifiers": [GENE]}).text.splitlines()[0]
+    assert f"to_release {snapshot} (the snapshot release)" in unsent and "to_release null" not in unsent
+    assert "from_release null (each identifier read at its own release)" in unsent
     refused = error_of(client.post(f"{BATCH}?provenance=true", json={"identifiers": [GENE]}))
     assert (refused["code"], refused["argument"]) == ("invalid_argument", "provenance")
 
