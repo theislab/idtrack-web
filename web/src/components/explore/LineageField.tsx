@@ -28,7 +28,8 @@ import { organismName } from "../../lib/organismNames";
 import { navigate } from "../../lib/router";
 import { usePhone } from "../../lib/usePhone";
 import { useRequest } from "../../lib/useRequest";
-import { createField, fieldAt, placeOf, type Field, type FieldColours, type FieldFrame } from "../hero/field";
+import { readInks, reducedMotion, watchTheme, watchVisible, type Inks, type Rgb } from "../hero/canvas";
+import { createField, fieldAt, placeOf, type Field, type FieldFrame } from "../hero/field";
 import { textWidth } from "../figure/labels";
 import { assemblyBands } from "../figure/releases";
 import { ErrorPanel } from "../ErrorPanel";
@@ -39,35 +40,13 @@ import { Button, Link, Mono, Skeleton } from "../ui";
 const WIDE_LIMIT = 4_000;
 const NARROW_LIMIT = 1_500;
 
-/** The theme's inks, read from the element's computed style. */
-function inks(element: Element): FieldColours {
-  const style = getComputedStyle(element);
-  const probe = document.createElement("canvas").getContext("2d");
-  const rgb = (name: string): [number, number, number] => {
-    if (!probe) return [0, 0, 0];
-    probe.fillStyle = style.getPropertyValue(name).trim() || "#000";
-    const hex = probe.fillStyle;
-    if (hex.startsWith("#") && hex.length === 7)
-      return [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255) as [number, number, number];
-    const parts = /(\d+(?:\.\d+)?)\D+(\d+(?:\.\d+)?)\D+(\d+(?:\.\d+)?)/.exec(hex);
-    return parts ? [Number(parts[1]) / 255, Number(parts[2]) / 255, Number(parts[3]) / 255] : [0, 0, 0];
-  };
-  const theme = document.documentElement.getAttribute("data-theme");
-  const dark =
-    theme === "dark" ||
-    (theme === "system" &&
-      typeof window.matchMedia === "function" &&
-      window.matchMedia("(prefers-color-scheme: dark)").matches);
-  // In the light theme the version dots (the history hue) are set lighter, a step toward the paper, so that the
-  // columns of dots of a busy release do not read as a grid over the lines.
-  const history = rgb("--hue-history");
-  const paper = rgb("--paper");
-  const lighter = dark ? history : (history.map((c, i) => c + ((paper[i] ?? 1) - c) * 0.35) as typeof history);
-  return { ink: rgb("--ink-1"), history: lighter, event: rgb("--hue-event"), dark };
+/** The theme's inks (components/hero/canvas.ts); in the light theme the version grains (the history hue) are set a
+ *  step toward the paper, so that the columns of grains of a busy release do not read as a grid over the lines. */
+function inks(element: Element): Inks {
+  const read = readInks(element);
+  if (read.dark) return read;
+  return { ...read, history: read.history.map((c, i) => c + ((read.paper[i] ?? 1) - c) * 0.35) as Rgb };
 }
-
-const reducedMotion = () =>
-  typeof window.matchMedia === "function" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 export function LineageField({
   description,
@@ -163,8 +142,16 @@ function FieldView({
     canvas.className = "lineage-field__canvas";
     canvas.setAttribute("aria-hidden", "true");
     element.prepend(canvas);
-    const f = createField(canvas, layout, reducedMotion());
-    // The renderer may draw on a canvas of its own in this one's place (without a GPU).
+    // The renderer says when its mode or canvas changes (its programs compiled, or WebGL given up); the canvas it draws
+    // on may then be one of its own in this one's place.
+    let made: Field | null = null;
+    const changed = () => {
+      if (!made) return;
+      made.element.setAttribute("aria-hidden", "true");
+      setMode(made.mode);
+    };
+    const f = createField(canvas, layout, { reduced: reducedMotion(), changed });
+    made = f;
     f.element.setAttribute("aria-hidden", "true");
     field.current = f;
     setMode(f.mode);
@@ -176,36 +163,16 @@ function FieldView({
     measure();
     const resize = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(measure);
     resize?.observe(element);
-    // It draws only while on screen and while the page is shown.
-    let onScreen = true;
-    const apply = () => {
-      f.setRunning(onScreen && document.visibilityState === "visible");
-    };
-    const seen =
-      typeof IntersectionObserver === "undefined"
-        ? null
-        : new IntersectionObserver((entries) => {
-            onScreen = entries.some((e) => e.isIntersecting);
-            apply();
-          });
-    seen?.observe(element);
-    document.addEventListener("visibilitychange", apply);
-    apply();
-    // A change of theme redraws it in the theme's inks.
-    const recolour = () => {
+    // It draws only while on screen and while the page is shown; a change of theme redraws it in the theme's inks.
+    const stopVisible = watchVisible(element, (on) => {
+      f.setRunning(on);
+    });
+    const stopTheme = watchTheme(() => {
       f.setColours(inks(element));
-    };
-    const themes = new MutationObserver(recolour);
-    themes.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
-    const scheme = typeof window.matchMedia === "function" ? window.matchMedia("(prefers-color-scheme: dark)") : null;
-    scheme?.addEventListener("change", recolour);
-    window.addEventListener("idtrack:recolour", recolour);
+    });
     return () => {
-      window.removeEventListener("idtrack:recolour", recolour);
-      scheme?.removeEventListener("change", recolour);
-      themes.disconnect();
-      document.removeEventListener("visibilitychange", apply);
-      seen?.disconnect();
+      stopTheme();
+      stopVisible();
       resize?.disconnect();
       f.destroy();
       f.element.remove();

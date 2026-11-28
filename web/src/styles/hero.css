@@ -1,8 +1,14 @@
-/* The home (DIRECTION.md, "The home: the hero"): one screen, full-bleed. The lineage field fills it; the words stand
-   in its upper left on a soft veil of the paper; the caption and the release axis at its foot. Nothing here is a
-   control but the two calls to action. */
+/* The home (DIRECTION.md, "The home: the hero"): one screen. The words stand in its upper left, in the content column;
+   the picture is drawn in the room they and the caption leave (components/hero/HeroField.tsx measures their boxes),
+   never under a word; the caption at the foot, in one quiet line. Nothing here is a control but the two calls to
+   action. */
 
 .hero2 {
+  /* A halo of the paper about a label set on the picture: the lines run on behind it, the label reads over them. */
+  --hero-halo:
+    0 0 1px var(--paper), 0 0 1px var(--paper), 0 0 2px var(--paper), 0 0 2px var(--paper), 0 0 3px var(--paper),
+    0 0 5px var(--paper);
+
   position: relative;
   isolation: isolate;
   min-height: calc(100svh - var(--masthead-height));
@@ -12,10 +18,17 @@
   background: radial-gradient(120% 80% at 70% 62%, var(--surface) 0%, transparent 60%), var(--paper);
 }
 
+/* The picture and its caption: behind the words, filling the hero (the words come first in the reading order). */
 .hero2__stage {
   position: absolute;
   inset: 0;
   z-index: 0;
+}
+
+.hero2__figure {
+  position: absolute;
+  inset: 0;
+  margin: 0;
 }
 
 .hero2__field {
@@ -34,69 +47,13 @@
   pointer-events: none;
 }
 
-/* Where a picture passes under the words it dissolves into the paper (a mask, not a veil). */
-.hero2__field .hero2__canvas {
-  mask-image: radial-gradient(ellipse 44% 40% at 19% 33%, transparent 35%, black 100%);
-}
-
-/* The constellation is composed in the room beside or under the words, so it needs no mask. */
-.hero2__field[data-picture="constellation"] .hero2__canvas {
-  mask-image: none;
-}
-
-/* The constellation's labels: the id of the journey turned toward the viewer, and the releases at the axis's ends. */
-.hero2__stars {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-}
-
-.hero2__star-id,
-.hero2__axis-end {
-  position: absolute;
-  top: 0;
-  left: 0;
-  white-space: nowrap;
-  will-change: transform, opacity;
-}
-
-.hero2__star-id {
-  margin: -22px 0 0 12px;
-  font-size: var(--text-2xs);
-  letter-spacing: 0.02em;
-  color: var(--ink-2);
-  text-shadow:
-    0 0 2px var(--paper),
-    0 0 6px var(--paper),
-    0 0 12px var(--paper);
-  visibility: hidden;
-  transition: none;
-}
-
-.hero2__star-id--left {
-  translate: calc(-100% - 24px) 0;
-}
-
-.hero2__axis-end {
-  translate: -50% -50%;
-  font-size: var(--text-2xs);
-  color: var(--ink-3);
-  text-shadow: 0 0 6px var(--paper);
-  opacity: 0;
-}
-
-/* The lineages lie clear of the words (their plane is placed so: components/hero/HeroField.tsx, frameOf). */
-.hero2__field[data-picture="lineages"] .hero2__canvas {
-  mask-image: none;
-}
-
 @keyframes hero2-in {
   to {
     opacity: 1;
   }
 }
 
-/* The words: aligned with the content's left edge, on a veil of the paper that keeps them at 7:1 over the field. */
+/* The words: aligned with the content's left edge. */
 .hero2__words {
   position: relative;
   z-index: 2;
@@ -121,12 +78,12 @@
   gap: var(--space-3);
 }
 
+/* A hairline in the quiet ink: colour in the hero means data only. */
 .hero2__kicker::before {
   content: "";
   width: 28px;
-  height: 2px;
-  border-radius: 2px;
-  background: linear-gradient(90deg, var(--hue-history), var(--hue-event));
+  height: 1px;
+  background: var(--ink-3);
 }
 
 .hero2__title {
@@ -195,42 +152,57 @@
   }
 }
 
-/* The release axis under the field, the assembly changes as faint rules through it (from the graph's description). */
+/* The release axis under the lineages: a release on its line, the names on one or two rows under it (placed by
+   HeroField.tsx, Axis), the assembly changes as faint rules through the field. */
 .hero2__axis {
   position: absolute;
   left: 0;
   right: 0;
-  height: 32px;
+  height: 48px;
   pointer-events: none;
 }
 
 .hero2__tick {
   position: absolute;
-  display: grid;
-  gap: 2px;
   transform: translateX(-50%);
-  text-align: center;
   font-size: var(--text-2xs);
+  line-height: 14px;
   color: var(--ink-3);
   white-space: nowrap;
 }
 
 .hero2__tick--first {
   transform: none;
-  text-align: left;
 }
 
 .hero2__tick--last {
   transform: translateX(-100%);
-  text-align: right;
+}
+
+.hero2__tick-release {
+  display: block;
 }
 
 .hero2__tick-name {
-  font-size: var(--text-2xs);
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
   letter-spacing: 0.02em;
 }
 
-/* An assembly change: a hairline through the field at its first release, fading upward. */
+.hero2__tick--first .hero2__tick-name {
+  left: 0;
+  transform: none;
+}
+
+.hero2__tick--last .hero2__tick-name {
+  left: auto;
+  right: 0;
+  transform: none;
+}
+
+/* An assembly change: a hairline through the field at its first release, fading upward; the release of the most new
+   ids, a hairline of the quiet ink. */
 .hero2__change {
   position: absolute;
   width: 1px;
@@ -247,16 +219,26 @@
   animation: hero2-in var(--dur-4) var(--ease-out) 1.4s forwards;
 }
 
-/* The lifted line's words, beside the pointer. */
+.hero2__change--late {
+  background: linear-gradient(
+    to top,
+    color-mix(in srgb, var(--ink-3) 70%, transparent),
+    color-mix(in srgb, var(--ink-3) 20%, transparent) 70%,
+    transparent
+  );
+}
+
+/* The words beside the pointer: an opaque card (no glass in the hero), beside the point; over the cable, centred above
+   or below it, outside it. */
 .hero2__lift {
   position: absolute;
   z-index: 3;
   display: grid;
   gap: 2px;
   padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--line);
   border-radius: var(--radius-lg);
-  background: var(--glass);
-  backdrop-filter: blur(12px) saturate(1.4);
+  background: var(--surface);
   box-shadow: var(--elev-2);
   transform: translate(16px, -120%);
   font-size: var(--text-xs);
@@ -268,6 +250,14 @@
 
 .hero2__lift--left {
   transform: translate(calc(-100% - 16px), -120%);
+}
+
+.hero2__lift--above {
+  transform: translate(-50%, -100%);
+}
+
+.hero2__lift--below {
+  transform: translate(-50%, 0);
 }
 
 .hero2__lift-id {
@@ -282,11 +272,83 @@
   }
 }
 
-/* The caption: what is drawn and where it comes from, in one quiet line at the foot. */
+/* The rings' labels, each on its ring, on a scrap of the paper as wide as its text: the rings run on unbroken beside
+   it (no plate across them). Each appears as its ring grows in (rings.ts sets its opacity on the picture's own
+   clock). */
+.hero2__ring-labels {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.hero2__ring-label {
+  position: absolute;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 1px 3px;
+  border-radius: 3px;
+  background: var(--paper);
+  font-size: var(--text-2xs);
+  line-height: 1;
+  color: var(--ink-1);
+  white-space: nowrap;
+  transform: translate(3px, -50%);
+  opacity: 0;
+}
+
+.hero2__ring-label--under {
+  transform: translate(-50%, -50%);
+}
+
+.hero2__ring-name {
+  letter-spacing: 0.02em;
+}
+
+/* The cable's words: its first and last release beyond the ends of the axis, a tick at every tenth release, each
+   change of assembly named under the cable (constellation.ts places them). */
+.hero2__cable {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.hero2__axis-end,
+.hero2__axis-tick,
+.hero2__axis-change {
+  position: absolute;
+  top: 0;
+  left: 0;
+  white-space: nowrap;
+  will-change: transform, opacity;
+  opacity: 0;
+}
+
+.hero2__axis-end {
+  translate: -50% -50%;
+  font-size: var(--text-2xs);
+  color: var(--ink-1);
+  text-shadow: var(--hero-halo);
+}
+
+.hero2__axis-tick {
+  width: 1px;
+  height: 7px;
+  translate: -0.5px -3.5px;
+  background: var(--ink-3);
+}
+
+.hero2__axis-change {
+  translate: -50% 0;
+  font-size: var(--text-2xs);
+  color: var(--ink-2);
+  text-shadow: var(--hero-halo);
+}
+
+/* The caption: what is drawn, its key and where it comes from, in one quiet line at the foot; before it, in words,
+   what keeps a picture away (it is on its way, or what failed). */
 .hero2__caption {
   position: absolute;
-  min-height: 2.6em;
-  align-content: end;
   z-index: 2;
   left: 50%;
   bottom: var(--space-4);
@@ -299,13 +361,27 @@
   align-items: center;
   gap: var(--space-1) var(--space-4);
   font-size: var(--text-xs);
-  color: var(--ink-3);
+  line-height: 1.5;
+  color: var(--ink-2);
+}
+
+.hero2__state {
+  color: var(--ink-2);
+}
+
+.hero2__state:empty {
+  margin-right: calc(-1 * var(--space-4));
+}
+
+.hero2__claim {
+  color: var(--ink-2);
 }
 
 .hero2__key {
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  color: var(--ink-3);
 }
 
 .hero2__key-dot {
@@ -318,10 +394,14 @@
 .hero2__key-curve {
   width: 16px;
   height: 8px;
-  border: 1.5px solid var(--hue-event);
-  border-color: var(--hue-event) transparent transparent;
+  border: 1.5px solid var(--hue-history);
+  border-color: var(--hue-history) transparent transparent;
   border-radius: 50% 50% 0 0;
   transform: translateY(2px);
+}
+
+.hero2__key-curve--event {
+  border-color: var(--hue-event) transparent transparent;
 }
 
 .hero2__key-star {
@@ -332,15 +412,12 @@
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--ink-1) 14%, transparent);
 }
 
-.hero2__key-answer {
-  width: 6px;
-  height: 6px;
+.hero2__key-knot {
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
-  background: var(--ink-1);
-  box-shadow:
-    0 0 0 2px var(--paper),
-    0 0 0 3px var(--ink-1);
-  margin: 0 2px;
+  background: var(--hue-event);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--hue-event) 22%, transparent);
 }
 
 /* Keys of 2 px: at 1.5 px a screen of one device pixel to the CSS pixel draws them 1 px wide, too thin for their hue. */
@@ -358,9 +435,31 @@
   border-color: var(--hue-external);
 }
 
+.hero2__key-tick {
+  width: 2px;
+  height: 9px;
+  background: var(--ink-3);
+}
+
+.hero2__key-tick--out {
+  background: var(--hue-history);
+}
+
 .hero2__source {
   margin-left: auto;
   font-size: var(--text-2xs);
+  color: var(--ink-3);
+}
+
+/* A picture whose code failed: its statement where the caption stands. */
+.hero2__stage > .boundary-inline {
+  position: absolute;
+  left: 50%;
+  bottom: var(--space-4);
+  transform: translateX(-50%);
+  width: min(100%, var(--content));
+  padding: 0 var(--space-5);
+  font-size: var(--text-xs);
 }
 
 @media (max-width: 899px) {
@@ -383,11 +482,48 @@
   }
 }
 
-@media (max-width: 719px) {
-  .hero2 {
-    min-height: calc(100svh - var(--masthead-height));
+/* A short, wide window (a laptop at 200 % zoom, a phone held sideways): two columns, the words in the left 55 % and
+   the picture in the room to their right. */
+@media (max-height: 559px) and (min-width: 640px) {
+  .hero2__words {
+    padding-top: clamp(12px, 5vh, 32px);
   }
 
+  .hero2__words > * {
+    max-width: min(38rem, 55%);
+  }
+
+  .hero2__title {
+    font-size: clamp(1.75rem, 9vh, 2.75rem);
+  }
+
+  .hero2__lede {
+    margin-top: var(--space-3);
+    font-size: var(--text-md);
+    line-height: 1.45;
+  }
+
+  .hero2__actions {
+    margin-top: var(--space-4);
+    gap: var(--space-2) var(--space-5);
+  }
+
+  .hero2__primary,
+  .hero2__secondary {
+    min-height: 44px;
+  }
+
+  .hero2__caption {
+    bottom: var(--space-2);
+  }
+
+  /* The caption in one line: its claim and its key (the endpoint is in the sentence for screen readers). */
+  .hero2__source {
+    display: none;
+  }
+}
+
+@media (max-width: 719px) {
   .hero2__words {
     padding: var(--space-6) var(--space-4) 0;
   }
@@ -411,23 +547,55 @@
   }
 
   .hero2__caption {
-    min-height: 6.2em;
     padding: 0 var(--space-4);
     gap: 2px var(--space-3);
   }
 
-  .hero2__source {
-    margin-left: 0;
-  }
-
-  /* On a phone the constellation's caption says less (its sentence for screen readers says all), and the releases at
-     the axis's ends are left to the caption. */
-  .hero2__wide,
-  .hero2__axis-end {
+  /* On a phone the caption says its claim, in fewer words, and its key; the endpoint is in the sentence for screen
+     readers. */
+  .hero2__source,
+  .hero2__wide {
     display: none;
   }
 
-  .hero2__tick-name {
+  .hero2__tick-name,
+  .hero2__axis-change {
+    display: none;
+  }
+}
+
+/* A small phone (320 × 568): the words close up further, so that the picture has a room under them. */
+@media (max-width: 719px) and (max-height: 700px) {
+  .hero2__words {
+    padding-top: var(--space-4);
+  }
+
+  .hero2__title {
+    font-size: 2.125rem;
+  }
+
+  .hero2__lede {
+    margin-top: var(--space-3);
+    font-size: var(--text-sm);
+    line-height: 1.45;
+  }
+
+  .hero2__actions {
+    margin-top: var(--space-4);
+    gap: var(--space-1);
+  }
+
+  .hero2__primary,
+  .hero2__secondary {
+    min-height: 44px;
+  }
+
+  .hero2__caption {
+    bottom: var(--space-2);
+  }
+
+  /* Only the claim: the key is in the sentence for screen readers. */
+  .hero2__key {
     display: none;
   }
 }
@@ -439,57 +607,7 @@
     opacity: 1;
   }
 
-  .hero2__lift,
-  .hero2__ring-label {
+  .hero2__lift {
     animation: none;
   }
-}
-
-.hero2__key-tick {
-  width: 2px;
-  height: 9px;
-  background: var(--ink-3);
-}
-
-.hero2__key-tick--out {
-  background: var(--hue-history);
-}
-
-/* The rings stand clear of the words by their place (components/hero/rings.ts, ringsPlace): no mask under the words. */
-.hero2__field[data-picture="rings"] .hero2__canvas {
-  mask-image: none;
-}
-
-/* The labels of the rings' slot (or of the horizon of a disc rising from the foot): a release, and an assembly. */
-.hero2__ring-label {
-  position: absolute;
-  display: inline-flex;
-  align-items: baseline;
-  gap: 6px;
-  font-size: var(--text-2xs);
-  line-height: 1;
-  color: var(--ink-3);
-  white-space: nowrap;
-  pointer-events: none;
-  transform: translate(3px, -50%);
-  animation: hero2-ring-label var(--dur-3) var(--ease-out) backwards;
-}
-
-@keyframes hero2-ring-label {
-  from {
-    opacity: 0;
-  }
-}
-
-.hero2__ring-label--before {
-  flex-direction: row-reverse;
-  transform: translate(calc(-100% - 3px), -50%);
-}
-
-.hero2__ring-label--under {
-  transform: translate(-50%, -50%);
-}
-
-.hero2__ring-name {
-  letter-spacing: 0.02em;
 }

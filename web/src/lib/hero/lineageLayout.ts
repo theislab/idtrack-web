@@ -10,8 +10,13 @@ import type { LineagesResponse } from "../../api/types";
  *  the era of the id (the assembly that served the release it began at, 0 the first), the fraction its phase (from
  *  its index). */
 export const SEGMENT_FLOATS = 6;
-/** An edge's floats: x0, y0, x1, y1, its kind (0 one to one, 1 a fan of Ensembl's mapping), unused. */
+/** An edge's floats: x0, y0, x1, y1, its kind (0 one to one, 1 a fan of Ensembl's mapping), and the era plus phase of
+ *  the id it leaves (so that light travelling along that id's line follows the edge to the other id). */
 export const EDGE_FLOATS = 6;
+/** A dot's floats: x, y, and the era plus phase of its id's line. */
+export const DOT_FLOATS = 3;
+/** The rows of the grid in which the crowding of the edges is counted (one column per release). */
+const CROWD_ROWS = 128;
 
 export interface LineageLayout {
   releases: number[];
@@ -33,8 +38,12 @@ export interface LineageLayout {
   edges: Float32Array;
   /** Per id, its first edge (edges stand with their family, the family's from its first id); length ids + 1. */
   edgeStart: Int32Array;
-  /** The new versions: x, y per dot. */
+  /** The new versions: x, y and the line's era plus phase per dot (`DOT_FLOATS`). */
   dots: Float32Array;
+  /** The crowding of the edges: of the cells of a grid of the field (a column per release, `CROWD_ROWS` rows) that an
+   *  edge passes, the 99th percentile of the edges passing one (the renderer lightens edges by it, so that where
+   *  hundreds of fans meet they stay curves, never a slab). */
+  edgeCrowd: number;
   /** Per id, its family's first and last id (inclusive). */
   familyOf: Int32Array;
   familyStarts: number[];
@@ -43,15 +52,26 @@ export interface LineageLayout {
   /** The eras the ids began in (the graph's assemblies). */
   eras: number;
   /** Counts of what is drawn, for the caption and the text alternative. */
-  counts: { versions: number; edges: number; fans: number; families: number };
+  counts: { versions: number; edges: number; fans: number; families: number; singles: number };
   ids: string[];
   /** Per id, its runs of active releases, flat (`first, last` pairs), from `runStart[id]` to `runStart[id + 1]`. */
   runs: Int32Array;
   runStart: Int32Array;
   versionCounts: Int32Array;
   /** What the renderer draws: every id's line, the showcase's journeys' lines (drawn stronger) and the lines that
-   *  carry the travelling light, simplified (`simplified`). */
+   *  carry the travelling light, simplified (`simplified`); the edges and the dots that light reaches on them. */
   lines: { all: Lines; focal: Lines; pulses: Lines };
+  pulseEdges: Float32Array;
+  pulseDots: Float32Array;
+  /** The tolerance of `simplified` for this layout (a quarter of the gap between two lines). */
+  tolerance: number;
+}
+
+/** What the page asks of its worker (./lineageWorker.ts): the api's answer as sent, and the first releases of the
+ *  graph's later assemblies. */
+export interface LayoutAsk {
+  raw: string;
+  eras: number[];
 }
 
 /** Segments to draw: those drawn as straight lines (two vertices each) and those drawn as curves. */
@@ -206,11 +226,15 @@ export function layoutLineages(body: LineagesResponse, eras: readonly number[] =
   const segments: number[] = [];
   const segmentStart = new Int32Array(count + 1);
   const half = n > 1 ? 0.5 / (n - 1) : 0;
+  const metaOf = new Float32Array(count);
   for (let i = 0; i < count; i++) {
-    segmentStart[i] = segments.length / SEGMENT_FLOATS;
     const firstRelease = releases[birth[i] ?? 0] ?? 0;
     const era = eras.filter((e) => firstRelease >= e).length;
-    const phase = era + ((((i * 0.6180339887) % 1) + 1) % 1) * 0.999;
+    metaOf[i] = era + ((((i * 0.6180339887) % 1) + 1) % 1) * 0.999;
+  }
+  for (let i = 0; i < count; i++) {
+    segmentStart[i] = segments.length / SEGMENT_FLOATS;
+    const phase = metaOf[i] ?? 0;
     for (let k = 0; k < n; k++) {
       if (!on[i * n + k]) continue;
       const yk = y[i * n + k] ?? 0;
@@ -238,6 +262,7 @@ export function layoutLineages(body: LineagesResponse, eras: readonly number[] =
       familyOf[2 * i + 1] = (starts[f + 1] ?? 1) - 1;
     }
   const edges: number[] = [];
+  const edgeSources: number[] = [];
   const edgeStart = new Int32Array(count + 1);
   let fans = 0;
   let drawnEdges = 0;
@@ -259,11 +284,13 @@ export function layoutLineages(body: LineagesResponse, eras: readonly number[] =
       const fan = (outs.get(`${a}|${old}|${now}`) ?? 0) > 1 || (ins.get(`${b}|${old}|${now}`) ?? 0) > 1;
       if (fan) fans++;
       drawnEdges++;
-      edges.push(xOf(ka, n), ya, xOf(kb, n), yb, fan ? 1 : 0, 0);
+      edges.push(xOf(ka, n), ya, xOf(kb, n), yb, fan ? 1 : 0, metaOf[a] ?? 0);
+      edgeSources.push(a);
     }
   }
   edgeStart[count] = edges.length / EDGE_FLOATS;
   const dots: number[] = [];
+  const dotOwners: number[] = [];
   const versionCounts = new Int32Array(count);
   body.versions.forEach((list, i) => {
     versionCounts[i] = list.length;
@@ -272,7 +299,8 @@ export function layoutLineages(body: LineagesResponse, eras: readonly number[] =
       if (k === undefined) continue;
       const yk = y[i * n + k];
       if (yk === undefined || Number.isNaN(yk)) continue;
-      dots.push(xOf(k, n), yk);
+      dots.push(xOf(k, n), yk, metaOf[i] ?? 0);
+      dotOwners.push(i);
     }
   });
   // Within a quarter of the gap between two lines, a run is drawn straight.
@@ -280,15 +308,19 @@ export function layoutLineages(body: LineagesResponse, eras: readonly number[] =
   const range = (from: number, to: number) => Array.from({ length: Math.max(0, to - from) }, (_, i) => from + i);
   const focusIds = body.family_starts[body.focus_families] ?? count;
   const drawing = { segments: Float32Array.from(segments), segmentStart };
+  const lit = pulseIds({ focusIds, familyStarts: body.family_starts, shown: count }, count > 2500 ? 420 : 200);
   const lines = {
     all: simplified(drawing, range(0, count), tolerance),
     focal: simplified(drawing, range(0, focusIds), tolerance),
-    pulses: simplified(
-      drawing,
-      pulseIds({ focusIds, familyStarts: body.family_starts, shown: count }, count > 2500 ? 420 : 200),
-      tolerance,
-    ),
+    pulses: simplified(drawing, lit, tolerance),
   };
+  const litSet = new Set(lit);
+  const edgeArray = Float32Array.from(edges);
+  const dotArray = Float32Array.from(dots);
+  const singles = [...body.family_starts, count].reduce(
+    (sum, start, f, all) => sum + (f > 0 && start - (all[f - 1] ?? 0) === 1 ? 1 : 0),
+    0,
+  );
   return {
     releases,
     shown: count,
@@ -299,19 +331,64 @@ export function layoutLineages(body: LineagesResponse, eras: readonly number[] =
     y,
     segments: drawing.segments,
     segmentStart,
-    edges: Float32Array.from(edges),
+    edges: edgeArray,
     edgeStart,
-    dots: Float32Array.from(dots),
+    dots: dotArray,
+    edgeCrowd: crowdOf(edgeArray, n),
     familyOf,
     familyStarts: body.family_starts,
     focusIds,
     eras: eras.length + 1,
-    counts: { versions: dots.length / 2, edges: drawnEdges, fans, families: body.family_starts.length },
+    counts: {
+      versions: dots.length / DOT_FLOATS,
+      edges: drawnEdges,
+      fans,
+      families: body.family_starts.length,
+      singles,
+    },
     ids: body.ids,
     ...flatRuns(body.active),
     versionCounts,
     lines,
+    pulseEdges: rowsOf(edgeArray, EDGE_FLOATS, (row) => litSet.has(edgeSources[row] ?? -1)),
+    pulseDots: rowsOf(dotArray, DOT_FLOATS, (row) => litSet.has(dotOwners[row] ?? -1)),
+    tolerance,
   };
+}
+
+/** The rows of a flat array (`stride` floats each) that `keep` keeps. */
+function rowsOf(data: Float32Array, stride: number, keep: (row: number) => boolean): Float32Array {
+  const out: number[] = [];
+  for (let r = 0; r < data.length / stride; r++) if (keep(r)) out.push(...data.subarray(r * stride, (r + 1) * stride));
+  return Float32Array.from(out);
+}
+
+/** The 99th percentile of the edges passing one cell of a grid of the field (a column per release, `CROWD_ROWS`
+ *  rows), over the cells an edge passes; 1 where there is no edge. Each edge is followed along its curve as the
+ *  renderer draws it (x along, y by a smooth step) and counted once in each cell it passes. */
+function crowdOf(edges: Float32Array, n: number): number {
+  const columns = Math.max(1, n);
+  const cells = new Map<number, number>();
+  for (let e = 0; e < edges.length / EDGE_FLOATS; e++) {
+    const o = e * EDGE_FLOATS;
+    const x0 = edges[o] ?? 0;
+    const y0 = edges[o + 1] ?? 0;
+    const x1 = edges[o + 2] ?? 0;
+    const y1 = edges[o + 3] ?? 0;
+    const seen = new Set<number>();
+    for (let i = 0; i <= 10; i++) {
+      const t = i / 10;
+      const x = x0 + (x1 - x0) * t;
+      const y = y0 + (y1 - y0) * t * t * (3 - 2 * t);
+      const cx = Math.min(columns - 1, Math.max(0, Math.round(x * (columns - 1))));
+      const cy = Math.min(CROWD_ROWS - 1, Math.max(0, Math.floor((y + 0.5) * CROWD_ROWS)));
+      seen.add(cx * CROWD_ROWS + cy);
+    }
+    for (const cell of seen) cells.set(cell, (cells.get(cell) ?? 0) + 1);
+  }
+  if (!cells.size) return 1;
+  const counts = [...cells.values()].sort((a, b) => a - b);
+  return counts[Math.min(counts.length - 1, Math.floor(counts.length * 0.99))] ?? 1;
 }
 
 /** The id under a point of the field (fractions as above), or -1: the nearest release, then the id whose line there

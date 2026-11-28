@@ -1,36 +1,36 @@
-/// <reference types="vite/client" />
-// The lineages of a graph laid out off the page's thread: the page's one worker (lib/hero/lineageWorker.ts) asks
-// `GET /organisms/{organism}/lineages` and lays the answer out (lib/hero/lineageLayout.ts), sending the layout back
-// with its typed arrays moved, not copied. Its address passes through the page's one Trusted Types policy of its own
-// (`idtrack-worker`, the server's Content-Security-Policy), made once for the page. Where the browser runs no worker,
-// or the worker fails, the layout is made here, from the api client's answer (whose refusals the page states).
-import { api, API_BASE, type Answer } from "../../api/client";
+// The lineages of a graph laid out, for the home's picture and the History tab's field alike: the api client asks
+// `GET /organisms/{organism}/lineages` (its checks of the answer's form, its refusals stated, its answers shared for
+// the page session), and the page's one worker (./lineageWorker.ts) reads the text the api sent and lays it out
+// (./lineageLayout.ts), sending the layout back with its typed arrays moved, not copied, so that a slow phone's thread
+// stays free. The worker's address passes through the page's one Trusted Types policy of its own (`idtrack-worker`,
+// the server's Content-Security-Policy), made once for the page. Where the browser runs no worker, or the worker
+// fails to load or to lay them out, the layout is made here, by the same function.
+import { api, type Answer } from "../../api/client";
+import type { LineagesResponse } from "../../api/types";
 import lineageWorkerUrl from "./lineageWorker.ts?worker&url";
-import { layoutLineages, type LineageLayout } from "./lineageLayout";
+import { layoutLineages, type LayoutAsk, type LineageLayout } from "./lineageLayout";
 
 const WORKER_URL = new URL(lineageWorkerUrl, window.location.href).href;
-let workerPolicy: { createScriptURL: (url: string) => unknown } | null | undefined;
+let workerPolicy: TrustedTypePolicy | undefined;
 
 /** The address of the page's worker, as the Worker constructor takes it under the page's Trusted Types. */
-export function workerScript(): string | URL {
-  const types = (
-    window as unknown as {
-      trustedTypes?: { createPolicy: (name: string, rules: { createScriptURL: (url: string) => string }) => unknown };
-    }
-  ).trustedTypes;
+function workerScript(): string | URL {
+  const types = window.trustedTypes;
   if (!types) return WORKER_URL;
   workerPolicy ??= types.createPolicy("idtrack-worker", {
     createScriptURL: (url: string) => {
       if (url !== WORKER_URL) throw new TypeError("Not the page's worker.");
       return url;
     },
-  }) as { createScriptURL: (url: string) => unknown };
-  // A TrustedScriptURL, which the Worker constructor takes where a string is refused.
-  return workerPolicy.createScriptURL(WORKER_URL) as string;
+  });
+  // A TrustedScriptURL, which the Worker constructor takes where the policy enforces it (TypeScript's DOM types do
+  // not name it among the constructor's arguments yet).
+  return workerPolicy.createScriptURL(WORKER_URL) as unknown as string;
 }
 
-/** The layout made by the worker, or null where it could not make it (no worker, or the worker failed). */
-function inWorker(organism: string, limit: number, eras: readonly number[], signal: AbortSignal) {
+/** The layout of an answer made by the worker, or null where it could not make it (no worker, or the worker failed
+ *  to load or to lay it out). */
+function inWorker(answer: Answer<LineagesResponse>, eras: readonly number[], signal: AbortSignal) {
   return new Promise<LineageLayout | null>((resolve) => {
     let worker: Worker;
     try {
@@ -44,7 +44,8 @@ function inWorker(organism: string, limit: number, eras: readonly number[], sign
       worker.terminate();
       resolve(layout);
     };
-    const stop = () => {
+    const stop = (event?: Event) => {
+      event?.preventDefault();
       done(null);
     };
     signal.addEventListener("abort", stop);
@@ -54,14 +55,13 @@ function inWorker(organism: string, limit: number, eras: readonly number[], sign
     });
     worker.addEventListener("error", stop);
     worker.addEventListener("messageerror", stop);
-    worker.postMessage({
-      url: `${API_BASE}/organisms/${encodeURIComponent(organism)}/lineages?limit=${limit}`,
-      eras: [...eras],
-    });
+    const ask: LayoutAsk = { raw: answer.raw, eras: [...eras] };
+    worker.postMessage(ask);
   });
 }
 
-/** The lineages of a graph laid out, as an answer of a request (lib/useRequest.ts): by the worker, else here. */
+/** The lineages of a graph laid out, as an answer of a request (lib/useRequest.ts): read by the api client, laid out
+ *  by the worker, else here. */
 export async function loadLineageLayout(
   organism: string,
   limit: number,
@@ -69,9 +69,8 @@ export async function loadLineageLayout(
   signal: AbortSignal,
   fresh: boolean,
 ): Promise<Answer<LineageLayout>> {
-  const laid = fresh ? null : await inWorker(organism, limit, eras, signal);
-  if (signal.aborted) throw new DOMException("Aborted", "AbortError");
-  if (laid) return { data: laid, raw: "", requestId: null, serverTiming: null };
   const answer = await api.lineages(organism, limit, { signal, fresh });
-  return { ...answer, data: layoutLineages(answer.data, eras) };
+  const laid = await inWorker(answer, eras, signal);
+  if (signal.aborted) throw new DOMException("The layout was not wanted any more.", "AbortError");
+  return { ...answer, raw: "", data: laid ?? layoutLineages(answer.data, eras) };
 }

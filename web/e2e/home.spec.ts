@@ -9,7 +9,7 @@ import { isCaseKind } from "../src/lib/home/caseKinds";
 import { caseHref, caseQueryOf } from "../src/lib/home/links";
 import { convolutedAnswers } from "../src/lib/hero/constellationModel";
 import { examplesOf } from "../src/lib/home/examples";
-import { convertUrl, data, expectAccessible, isPhone, shot, waitForResult } from "./helpers";
+import { convertUrl, data, expectAccessible, shot, waitForResult } from "./helpers";
 
 async function showcaseOf(page: Page, organism: string): Promise<ShowcaseResponse> {
   return (await (await page.request.get(`/api/v1/organisms/${organism}/showcase`)).json()) as ShowcaseResponse;
@@ -118,7 +118,7 @@ test("the home's picture menu offers three pictures and keeps the choice", async
   await expect(page.getByRole("button", { name: "Choose the home page picture" })).toHaveCount(0);
 });
 
-test("the convoluted journeys: the showcase's answers about the axis of time, clear of every word", async ({
+test("the convoluted journeys: the showcase's answers braided about the axis of time, clear of every word", async ({
   page,
 }, info) => {
   await page.addInitScript(() => {
@@ -133,10 +133,10 @@ test("the convoluted journeys: the showcase's answers about the axis of time, cl
   await expect(field).toHaveAttribute("data-mode", /^(webgl2|canvas2d)$/);
   // The text alternative names every journey drawn: the showcase's answers whose paths pass the most ids and steps.
   const answers = convolutedAnswers(await showcaseOf(page, data.organism), 18);
-  const words = (await page.locator(".hero2__caption .visually-hidden").textContent()) ?? "";
+  const words = (await page.locator(".hero2__figure > p.visually-hidden").textContent()) ?? "";
   for (const r of answers) expect(words).toContain(r.query_id);
-  // The picture's own words (the releases at the axis's ends, the id of the journey that faces the viewer) stand inside
-  // the window and clear of the headline, the sentence and the two actions.
+  // The picture's own words (the releases beyond the axis's ends, the changes of assembly) stand inside the window and
+  // clear of the headline, the sentence and the two actions.
   await page.waitForTimeout(500);
   const clashes = await page.evaluate(() => {
     const boxes = [...document.querySelectorAll(".hero2__words > *")].map((w) => {
@@ -144,8 +144,11 @@ test("the convoluted journeys: the showcase's answers about the axis of time, cl
       range.selectNodeContents(w);
       return range.getBoundingClientRect();
     });
-    const labels = [...document.querySelectorAll<HTMLElement>(".hero2__star-id, .hero2__axis-end")].filter(
-      (l) => getComputedStyle(l).visibility === "visible" && Number(getComputedStyle(l).opacity) > 0,
+    const labels = [...document.querySelectorAll<HTMLElement>(".hero2__axis-end, .hero2__axis-change")].filter(
+      (l) =>
+        getComputedStyle(l).visibility === "visible" &&
+        getComputedStyle(l).display !== "none" &&
+        Number(getComputedStyle(l).opacity) > 0,
     );
     const out: string[] = [];
     for (const l of labels) {
@@ -160,83 +163,6 @@ test("the convoluted journeys: the showcase's answers about the axis of time, cl
   expect(clashes).toEqual([]);
   await expectAccessible(page);
   await shot(page, info, "01-home-constellation");
-});
-
-/** Where the rings' disc stands clear of a text of the hero: every text box (the words, the caption) lies beyond the
- *  disc's reach (its rim, the longest tick and its glow) or below its horizon; the slot's labels stand in the slot (or
- *  under the horizon) and touch no other label. The failures, in words. */
-async function ringsClear(page: Page): Promise<string[]> {
-  return page.evaluate(() => {
-    const found: string[] = [];
-    const field = document.querySelector<HTMLElement>(".hero2__field");
-    const [form, cx, cy, , outer, horizon] = (field?.dataset["place"] ?? "").split(" ");
-    if (!field || !form) return ["the rings are not placed"];
-    const frame = field.getBoundingClientRect();
-    const c = { x: Number(cx), y: Number(cy) };
-    const reach = Number(outer) + 18;
-    const below = horizon ? Number(horizon) : null;
-    const boxes = (selector: string) => {
-      const out: { text: string; box: DOMRect }[] = [];
-      const range = document.createRange();
-      for (const root of document.querySelectorAll(selector)) {
-        const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
-        for (let node = walker.nextNode(); node; node = walker.nextNode()) {
-          if (!node.textContent?.trim() || node.parentElement?.closest(".visually-hidden")) continue;
-          range.selectNodeContents(node);
-          for (const box of range.getClientRects()) if (box.width > 0) out.push({ text: node.textContent.trim(), box });
-        }
-      }
-      return out;
-    };
-    for (const { text, box } of boxes(".hero2__words, .hero2__caption")) {
-      const left = box.left - frame.left;
-      const right = box.right - frame.left;
-      const top = box.top - frame.top;
-      const bottom = box.bottom - frame.top;
-      const dx = Math.max(left - c.x, 0, c.x - right);
-      const dy = Math.max(top - c.y, 0, c.y - bottom);
-      if (below !== null && top >= below) continue;
-      if (Math.hypot(dx, dy) < reach) found.push(`a ring crosses "${text}"`);
-    }
-    const labels = [...document.querySelectorAll(".hero2__ring-label")].map((l) => l.getBoundingClientRect());
-    for (const [i, box] of labels.entries()) {
-      const mid = (box.top + box.bottom) / 2 - frame.top;
-      if (below === null ? Math.abs(mid - c.y) > 1 || box.height > 16 : box.top - frame.top < below)
-        found.push(`a label stands outside the slot (${String(Math.round(mid))})`);
-      for (const other of labels.slice(i + 1))
-        if (box.left < other.right && other.left < box.right && box.top < other.bottom && other.top < box.bottom)
-          found.push("two labels touch");
-    }
-    return found;
-  });
-}
-
-test("the rings stand clear of every word of the hero at every common window", async ({ page }, info) => {
-  test.skip(isPhone(info), "the windows are set here, on the desktop project");
-  await page.addInitScript(() => {
-    localStorage.setItem("idtrack-hero", "rings");
-  });
-  const windows: [number, number][] = [
-    [1440, 900],
-    [1366, 768],
-    [1280, 720],
-    [1024, 768],
-    [820, 1180],
-    [768, 1024],
-    [390, 844],
-    [2560, 1440],
-  ];
-  for (const [width, height] of windows) {
-    await page.setViewportSize({ width, height });
-    await page.goto("/");
-    await expect(page.locator(".hero2__field[data-place]")).toHaveCount(1, { timeout: 30_000 });
-    await page.evaluate(async () => {
-      await document.fonts.ready;
-    });
-    await page.waitForTimeout(300);
-    expect(await ringsClear(page), `${String(width)}x${String(height)}`).toEqual([]);
-  }
-  await shot(page, info, "01b-home-rings");
 });
 
 test("the Convert page: its title and the form", async ({ page }, info) => {

@@ -35,6 +35,20 @@ export const STORED: Stored[] = [
     },
   },
   {
+    key: "idtrack-visit",
+    where: "local",
+    en: {
+      holds:
+        "How many times the home page was opened in this browser, so that its picture follows another of the showcase's journeys at each visit.",
+      when: "Each time the home page's picture is drawn; until you clear the site's data.",
+    },
+    de: {
+      holds:
+        "Wie oft die Startseite in diesem Browser geöffnet wurde, damit ihr Bild bei jedem Besuch einer anderen Reise des Showcase folgt.",
+      when: "Jedes Mal, wenn das Bild der Startseite gezeichnet wird; bis Sie die Daten der Website löschen.",
+    },
+  },
+  {
     key: "idtrack-consent",
     where: "local",
     en: {

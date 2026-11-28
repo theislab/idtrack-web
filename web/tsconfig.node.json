@@ -11,5 +11,13 @@
     "allowJs": true,
     "checkJs": true
   },
-  "include": ["vite.config.ts", "playwright.config.ts", "eslint.config.js", "stylelint.config.js", "tests", "e2e"]
+  "include": [
+    "vite.config.ts",
+    "playwright.config.ts",
+    "eslint.config.js",
+    "stylelint.config.js",
+    "tests",
+    "e2e",
+    "src/window.d.ts"
+  ]
 }

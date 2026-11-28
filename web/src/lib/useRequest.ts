@@ -15,7 +15,7 @@ import {
 } from "../api/client";
 
 /** The longest wait of `Retry-After` after which a read is asked again by itself (longer: the person decides). */
-const AUTO_RETRY_MAX_SECONDS = 120;
+export const AUTO_RETRY_MAX_SECONDS = 120;
 
 /** A refusal the api asks to repeat after a wait it names. */
 export function waitsToRetry(error: AnyRequestError): error is ApiError {

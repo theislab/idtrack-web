@@ -1,14 +1,15 @@
-/// <reference types="vite/client" />
-// The home's third picture: the showcase's most convoluted journeys as a sculpture of light that turns slowly about
-// the axis of time (the model, its layout and its projection: lib/hero/constellationModel.ts). Each id is a star where
-// it begins and a thread over the releases at which it is active; each step of an answer's path a luminous curve in the
-// hue of its kind, the fans of a split or merge the brightest. Depth is real: perspective, a fog that lets the far side
-// recede, and a depth of field held small (what stands off the axis softens, keeping its light). A light travels each
-// journey from the id asked for to its answer; the id of the journey that turns to face the viewer appears beside it.
-// The pointer tilts the whole toward it and lifts the journey under it (visual only: the picture is hidden from
-// assistive technology and never focused). WebGL2 draws it; where there is none, or WebGL runs in software (no GPU),
-// one still drawing on a 2D canvas, drawn in slices so no long task holds the page; under reduced motion one still frame.
+// The home's third picture: the showcase's most convoluted journeys as a braided cable about a horizontal axis of time
+// (the model, its layout and its projection: lib/hero/constellationModel.ts), turning slowly about that axis. Each id
+// is a star where it begins and a thread over the releases at which it is active; each step of an answer's path a
+// curve in the hue of its kind; where a path splits or merges, a knot of the event hue. Depth is real: perspective, a
+// fog that lets the far side of the cable recede, and a depth of field held small (what stands off the axis softens,
+// keeping its light). A light travels each journey from the id asked for to its answer. The axis is drawn, with a
+// tick at every tenth release, a ring at each change of assembly (named), and the first and the last release beyond
+// its ends. The pointer tilts the whole toward it and lifts the journey nearest it (its threads in full ink, its stars
+// ringed; the page names it beside the cable). WebGL2 draws it; without it, or where WebGL draws in software, one
+// still drawing on a 2D canvas, drawn in slices so no long task holds the page; under reduced motion one still frame.
 import {
+  bandOf,
   fitPose,
   KIND,
   project,
@@ -21,35 +22,28 @@ import {
   type Pose,
   type Rect,
 } from "../../lib/hero/constellationModel";
-import { drawsInSoftware } from "./field";
+import {
+  devicePixels,
+  stillContext,
+  hostPicture,
+  programsDone,
+  startProgram,
+  uniformsOf,
+  type Inks,
+  type Picture,
+  type Rgb,
+} from "./canvas";
 
-type Rgb = [number, number, number];
-
-interface ConstellationColours {
-  ink: Rgb;
-  history: Rgb;
-  event: Rgb;
-  handoff: Rgb;
-  external: Rgb;
-  dark: boolean;
+/** What the cable is placed by: the boxes of the words' blocks and the caption's box, in the field's pixels. */
+export interface CablePlace {
+  words: Rect[];
+  caption: Rect | null;
 }
 
-export interface ConstellationView {
-  mode: "webgl2" | "canvas2d";
-  /** The canvas drawn on (a fresh one where WebGL was given up). */
-  element: HTMLCanvasElement;
-  /** The field's size (CSS px) and the boxes of the hero's words and caption in it: the room the picture fills. */
-  resize(width: number, height: number, words: Rect | null, caption: Rect | null): void;
-  setColours(colours: ConstellationColours): void;
-  /** The pointer (CSS px of the field) or null; returns the journey whose star is nearest it, or -1. */
-  setPointer(point: { x: number; y: number } | null): number;
-  setRunning(running: boolean): void;
-  stats(): { frames: number; meanFrameMs: number; meanDrawMs: number };
-  destroy(): void;
-}
+/** The cable's renderer; `band` is its extent on the screen at rest (null where it is not drawn), so that the page
+ *  names a lifted journey outside it, never over a strand. */
+export type ConstellationView = Picture<CablePlace> & { band(): Rect | null };
 
-/** How far beyond each end of the axis its release is written (CSS px, to the label's centre). */
-const AXIS_LABEL_PX = 18;
 /** A star's radius (CSS px) before its size, role and depth. */
 const STAR_RADIUS = 1.7;
 /** A full turn about the axis of time, in seconds. */
@@ -58,36 +52,46 @@ const TURN_SECONDS = 120;
 const REVEAL_SECONDS = 2.6;
 /** Seconds of one journey's travelling light. */
 const PULSE_SECONDS = 14;
-/** Room kept free round the picture (CSS px): across, for the release at each end of the axis; up and down. */
-const MARGIN = { x: 24, y: 16 } as const;
-/** How the axis of time is seen: rolled a little on a wide screen (rising toward the present), and turned so that
- *  the last release stands toward the viewer and the first recedes. */
-const VIEW = { roll: 0.1, yaw: 0.72 } as const;
-/** How far short of facing the viewer the most convoluted journey stands when the picture is first seen. */
-const FIRST_TURN = 0.22;
+/** Room kept free round the cable (CSS px): across, for the release written beyond each end of the axis; up and down,
+ *  for the stars' light. */
+const MARGIN = { x: 40, y: 14 } as const;
+/** How far beyond the strands at each end of the axis its release is written (CSS px, to the label's centre). */
+const AXIS_LABEL_PX = 14;
+/** The axis is seen turned a little: the last release toward the viewer. */
+const YAW = 0.16;
+/** How far short of facing the viewer the journey this visit follows stands when the picture is first seen. */
+const FIRST_TURN = 0.18;
 
 /** The look of each theme: the thread's core width, the halo (dark: light glows), the softening per unit of depth (CSS
  *  px), the far side's share of light, the alphas of an id's thread, a step, the axis, and the travelling light. */
 const LOOK = {
-  dark: { core: 1.1, halo: 3.2, haloStrength: 0.16, blur: 2.4, far: 0.2, run: 0.36, step: 0.6, axis: 0.24, pulse: 1.6 },
-  light: { core: 1, halo: 0, haloStrength: 0, blur: 1.6, far: 0.2, run: 0.42, step: 0.66, axis: 0.24, pulse: 1 },
+  dark: {
+    core: 1.1,
+    halo: 3.2,
+    haloStrength: 0.16,
+    blur: 2.4,
+    far: 0.22,
+    run: 0.36,
+    step: 0.62,
+    axis: 0.55,
+    pulse: 1.6,
+  },
+  light: { core: 1.15, halo: 0, haloStrength: 0, blur: 1.4, far: 0.24, run: 0.62, step: 0.86, axis: 0.62, pulse: 1 },
 } as const;
 
 const PLACE = `
 uniform vec2 u_res;
-uniform vec3 u_pose;  // turn, yaw, roll
+uniform vec2 u_pose;  // turn, yaw
 uniform vec4 u_place; // centre x, centre y, scale (device px), the camera's distance
+uniform float u_girth;
 // A point on the screen (device px), its depth (negative toward the viewer) and its perspective.
 vec4 place(vec3 p) {
   float c = cos(u_pose.x), s = sin(u_pose.x);
-  vec3 q = vec3(p.x, c * p.y - s * p.z, s * p.y + c * p.z);
+  vec3 q = vec3(p.x, (c * p.y - s * p.z) * u_girth, (s * p.y + c * p.z) * u_girth);
   float cy = cos(u_pose.y), sy = sin(u_pose.y);
   q = vec3(cy * q.x + sy * q.z, q.y, -sy * q.x + cy * q.z);
   float k = u_place.w / (u_place.w + q.z);
-  vec2 v = q.xy * k;
-  float cr = cos(u_pose.z), sr = sin(u_pose.z);
-  v = vec2(cr * v.x - sr * v.y, sr * v.x + cr * v.y);
-  return vec4(u_place.xy + vec2(v.x, -v.y) * u_place.z, q.z, k);
+  return vec4(u_place.xy + vec2(q.x, -q.y) * k * u_place.z, q.z, k);
 }
 float hash(float j) { return fract(sin(j * 12.9898 + 4.1) * 43758.5453); }
 `;
@@ -102,7 +106,7 @@ uniform float u_dpr;
 uniform float u_time;
 uniform float u_reveal;
 uniform float u_focus;
-uniform vec3 u_hues[6];
+uniform vec3 u_hues[7];
 uniform vec4 u_look;   // core (CSS px), halo (CSS px), softening per unit of depth (CSS px), the far side's light
 uniform vec4 u_alphas; // an id's thread, a step, the axis, the travelling light
 ${PLACE}
@@ -117,11 +121,12 @@ void main() {
   float along = a_corner.x;
   vec4 s = mix(s0, s1, along);
   int kind = int(a_meta.x + 0.5);
-  float blur = abs(s.z) * u_look.z * u_dpr;
-  float weight = kind == 0 ? 0.75 : kind == 2 ? 1.15 : kind == 5 ? 0.7 : 1.0;
-  float core = u_look.x * u_dpr * s.w * weight;
+  bool still = kind >= 5;
+  float blur = still ? 0.0 : abs(s.z) * u_look.z * u_dpr;
+  float weight = kind == 0 ? 0.75 : kind == 2 ? 1.2 : kind == 5 ? 1.3 : kind == 6 ? 1.0 : 1.0;
+  float core = u_look.x * u_dpr * (still ? 1.0 : s.w) * weight;
   float sigma = max(0.45 * u_dpr, 0.5 * core + 0.5 * blur);
-  float halo = u_look.y * u_dpr * s.w;
+  float halo = still ? 0.0 : u_look.y * u_dpr * s.w;
   float reach = 3.0 * sigma + 3.0 * halo + 1.0;
   vec2 d = s1.xy - s0.xy;
   float len = length(d);
@@ -134,19 +139,20 @@ void main() {
   v_sigma = sigma;
   v_halo = halo;
   // Steps through other databases gather where an answer bridges many ids at once: a lighter hand there.
-  float base = kind == 0 ? u_alphas.x : kind == 5 ? u_alphas.z : kind == 4 ? 0.75 * u_alphas.y : u_alphas.y;
+  float base = kind == 0 ? u_alphas.x : still ? u_alphas.z : kind == 4 ? 0.75 * u_alphas.y : u_alphas.y;
   // Softened by depth, a thread keeps its light (spread wider, dimmer); the far side recedes into the paper.
   float energy = (0.5 * core + 0.45 * u_dpr) / sigma;
-  float fog = mix(1.0, u_look.w, smoothstep(-0.3, 0.55, s.z));
+  float fog = still ? 1.0 : mix(1.0, u_look.w, smoothstep(-0.3, 0.55, s.z));
   float x = mix(a_p0.x, a_p1.x, along);
   float front = -1.2 + 2.4 * u_reveal;
   float shown = 1.0 - smoothstep(front - 0.18, front, x);
-  bool mine = u_focus < 0.0 || abs(a_meta.y - u_focus) < 0.5 || kind == 5;
+  bool mine = u_focus < 0.0 || abs(a_meta.y - u_focus) < 0.5 || still;
+  bool lifted = u_focus >= 0.0 && abs(a_meta.y - u_focus) < 0.5;
   float t = mix(a_meta.z, a_meta.w, along);
   float head = fract(u_time / ${PULSE_SECONDS.toFixed(1)} + hash(a_meta.y)) * 1.7 - 0.35;
-  float pulse = kind == 5 ? 0.0 : exp(-pow((t - head) / 0.07, 2.0)) * u_alphas.w;
+  float pulse = still ? 0.0 : exp(-pow((t - head) / 0.07, 2.0)) * u_alphas.w;
   v_rgb = u_hues[kind];
-  v_alpha = base * energy * fog * shown * (mine ? 1.0 : 0.2) * (1.0 + pulse * (mine ? 1.0 : 0.3));
+  v_alpha = base * energy * fog * shown * (mine ? 1.0 : 0.18) * (lifted ? 1.7 : 1.0) * (1.0 + pulse * (mine ? 1.0 : 0.3));
 }`;
 
 const SEGMENT_FRAGMENT = `#version 300 es
@@ -199,37 +205,39 @@ precision highp float;
 in vec3 a_pos;
 in vec4 a_meta; // journey, size, place in the path, role
 uniform float u_dpr;
-uniform float u_time;
 uniform float u_reveal;
 uniform float u_focus;
 uniform float u_star;
 uniform vec4 u_look;
 uniform float u_dark;
-uniform vec3 u_inks[4]; // an id, the id asked for, an answer, an id of another database
+uniform vec3 u_inks[5]; // an id, the id asked for, an answer, an id of another database, a knot
 ${PLACE}
 out vec3 v_rgb;
 out float v_alpha;
 out float v_core;
 out float v_knock;
+out float v_ring;
 flat out int v_role;
 void main() {
   vec4 s = place(a_pos);
   gl_Position = vec4((s.xy / u_res * 2.0 - 1.0) * vec2(1.0, -1.0), 0.0, 1.0);
   int role = int(a_meta.w + 0.5);
   float blur = abs(s.z) * u_look.z * u_dpr;
-  float r = u_star * u_dpr * s.w * (0.8 + 0.25 * (a_meta.y - 1.0)) * (role == 2 ? 1.5 : role == 3 ? 0.8 : 1.0);
+  float r = u_star * u_dpr * s.w * (0.8 + 0.25 * (a_meta.y - 1.0)) * (role == 2 ? 1.5 : role == 4 ? 1.35 : role == 3 ? 0.8 : 1.0);
   float total = r + 0.6 * blur;
-  float sprite = min(160.0, 2.0 * total * (role == 2 ? 6.0 : role == 1 ? 3.6 : 3.0) + 2.0);
+  bool lifted = u_focus >= 0.0 && abs(a_meta.x - u_focus) < 0.5;
+  float sprite = min(160.0, 2.0 * total * (role == 2 || role == 4 || lifted ? 6.0 : role == 1 ? 3.6 : 3.0) + 2.0);
   gl_PointSize = sprite;
   v_core = total / (0.5 * sprite);
   float shown = 1.0 - smoothstep(-1.2 + 2.4 * u_reveal - 0.18, -1.2 + 2.4 * u_reveal, a_pos.x);
   float fog = mix(1.0, u_look.w, smoothstep(-0.3, 0.55, s.z));
-  bool mine = u_focus < 0.0 || abs(a_meta.x - u_focus) < 0.5;
-  // Brighter along the path toward its answer; the answer brightest.
-  float bright = role == 2 ? 1.0 : role == 1 ? 0.95 : 0.5 + 0.45 * a_meta.z;
-  v_alpha = bright * fog * shown * (mine ? 1.0 : 0.2) * (r * r) / (total * total);
-  v_knock = (1.0 - u_dark) * (1.0 - smoothstep(-0.1, 0.35, s.z)) * shown * (mine ? 1.0 : 0.2);
+  bool mine = u_focus < 0.0 || lifted;
+  // Brighter along the path toward its answer; the answer and the knots brightest.
+  float bright = role == 2 || role == 4 ? 1.0 : role == 1 ? 0.95 : 0.5 + 0.45 * a_meta.z;
+  v_alpha = (lifted ? 1.0 : bright * fog) * shown * (mine ? 1.0 : 0.18) * (r * r) / (total * total);
+  v_knock = (1.0 - u_dark) * (1.0 - smoothstep(-0.1, 0.35, s.z)) * shown * (mine ? 1.0 : 0.18);
   v_rgb = u_inks[role];
+  v_ring = lifted ? 1.0 : 0.0;
   v_role = role;
 }`;
 
@@ -239,6 +247,7 @@ in vec3 v_rgb;
 in float v_alpha;
 in float v_core;
 in float v_knock;
+in float v_ring;
 flat in int v_role;
 uniform float u_dark;
 uniform vec3 u_paper;
@@ -247,16 +256,16 @@ void main() {
   vec2 c = gl_PointCoord * 2.0 - 1.0;
   float d = length(c);
   float core = exp(-0.5 * pow(d / (0.55 * v_core), 2.0));
-  float halo = u_dark * exp(-d / (0.9 * v_core)) * 0.32;
+  float halo = (v_role == 4 ? 1.0 : u_dark) * exp(-d / (0.9 * v_core)) * (v_role == 4 ? 0.45 : 0.32);
   float mark = 0.0;
   if (v_role == 2) {
     // An answer: a fine cross of light (dark), a ring of ink (light).
     float glint = exp(-abs(c.x) / 0.018) * exp(-abs(c.y) / 0.42) + exp(-abs(c.y) / 0.018) * exp(-abs(c.x) / 0.42);
     float ring = exp(-pow((d - 1.9 * v_core) / (0.16 * v_core), 2.0));
     mark = mix(ring * 0.6, glint * 0.7, u_dark);
-  } else if (v_role == 1) {
-    // The id asked for: a ring about it.
-    mark = exp(-pow((d - 1.7 * v_core) / (0.14 * v_core), 2.0)) * mix(0.55, 0.85, u_dark);
+  } else if (v_role == 1 || v_ring > 0.5) {
+    // The id asked for, and every id of the journey lifted: a ring about it.
+    mark = exp(-pow((d - 1.7 * v_core) / (0.14 * v_core), 2.0)) * mix(0.6, 0.85, u_dark);
   }
   float ink = clamp((core + halo + mark) * v_alpha, 0.0, 1.0);
   float knock = v_knock * (1.0 - smoothstep(1.15 * v_core, 1.45 * v_core, d)) * 0.9;
@@ -264,47 +273,30 @@ void main() {
   colour = vec4(v_rgb * ink + u_paper * knock * (1.0 - ink), a);
 }`;
 
-/** Development only (none of it is in the production bundle): `?heroclock=<seconds>` draws the moving picture at that
- *  moment, even where WebGL runs in software and under reduced motion, and `window.idtrackHeroClock(seconds)` draws
- *  another moment: frame sequences of the motion without a GPU, at fixed steps of time. */
-function devClock(): number | null {
-  const asked = new URLSearchParams(window.location.search).get("heroclock");
-  return asked === null ? null : Number(asked) || 0;
-}
-
-function parseColour(value: string): Rgb {
-  const probe = document.createElement("canvas").getContext("2d");
-  if (!probe) return [1, 1, 1];
-  probe.fillStyle = value.trim() || "#fff";
-  const hex = probe.fillStyle;
-  if (hex.startsWith("#") && hex.length === 7)
-    return [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255) as Rgb;
-  const parts = /(\d+(?:\.\d+)?)\D+(\d+(?:\.\d+)?)\D+(\d+(?:\.\d+)?)/.exec(hex);
-  return parts ? [Number(parts[1]) / 255, Number(parts[2]) / 255, Number(parts[3]) / 255] : [1, 1, 1];
-}
-
 const mixRgb = (a: Rgb, b: Rgb, f: number): Rgb => [0, 1, 2].map((i) => (a[i] ?? 0) * (1 - f) + (b[i] ?? 0) * f) as Rgb;
 
-/** The hues of the segments' kinds and the inks of the stars' roles, in a theme. */
-function palette(c: ConstellationColours) {
+/** The hues of the segments' kinds and the inks of the stars' roles, in a theme: in the light theme the threads in
+ *  ink weight (the history hue drawn toward the ink), in the dark light. */
+function palette(c: Inks) {
   const white: Rgb = [1, 1, 1];
   const light = (rgb: Rgb) => (c.dark ? mixRgb(rgb, white, 0.18) : rgb);
   const hues: Rgb[] = [
-    c.dark ? mixRgb(c.history, white, 0.35) : mixRgb(c.history, c.ink, 0.2),
+    c.dark ? mixRgb(c.history, white, 0.35) : mixRgb(c.history, c.ink, 0.45),
     light(c.history),
     light(c.event),
     light(c.handoff),
     light(c.external),
-    c.dark ? [0.75, 0.8, 0.9] : c.ink,
+    c.dark ? [0.78, 0.82, 0.92] : c.ink,
+    light(c.handoff),
   ];
   const inks: Rgb[] = c.dark
-    ? [[0.86, 0.9, 1], mixRgb(c.history, white, 0.5), [1, 0.96, 0.88], mixRgb(c.external, white, 0.35)]
-    : [c.ink, c.history, c.ink, c.external];
+    ? [[0.86, 0.9, 1], mixRgb(c.history, white, 0.5), [1, 0.96, 0.88], mixRgb(c.external, white, 0.35), light(c.event)]
+    : [c.ink, c.history, c.ink, c.external, c.event];
   return { hues, inks };
 }
 
 /** The scale of threads and stars with the picture's own (a picture drawn small keeps fine lines and small stars). */
-const sizeOf = (pose: Pose) => Math.max(0.6, Math.min(1.2, pose.scale / 300));
+const sizeOf = (pose: Pose) => Math.max(0.6, Math.min(1.2, pose.scale / 400));
 
 /** How far the reveal along time has drawn the picture at time x (0 not yet, 1 drawn), as the shaders draw it. */
 function revealed(x: number, reveal: number): number {
@@ -313,81 +305,48 @@ function revealed(x: number, reveal: number): number {
   return 1 - f * f * (3 - 2 * f);
 }
 
-/** The labels of the picture (hidden from assistive technology with the field): each journey's id, shown as its
- *  strand turns to face the viewer, and the first and last release at the ends of the axis. */
-function createLabels(layer: HTMLElement, model: Constellation) {
+/** The words of the picture (hidden from assistive technology with the field): the first and the last release beyond
+ *  the axis's ends, a tick at every tenth release, and each change of assembly named over the cable. */
+function createLabels(layer: HTMLElement, model: Constellation, names: ReadonlyMap<number, string>) {
   const box = document.createElement("div");
-  box.className = "hero2__stars";
-  const ids = model.journeys.map((j) => {
+  box.className = "hero2__cable";
+  const make = (className: string, text: string) => {
     const span = document.createElement("span");
-    span.className = "hero2__star-id mono";
-    span.textContent = j.identifier;
+    span.className = className;
+    span.textContent = text;
     box.append(span);
     return span;
-  });
-  const ends = [model.first, model.last].map((release) => {
-    const span = document.createElement("span");
-    span.className = "hero2__axis-end mono";
-    span.textContent = String(release);
-    box.append(span);
-    return span;
-  });
+  };
+  const ends = [model.first, model.last].map((r) => make("hero2__axis-end mono", String(r)));
+  const ticks = model.ticks.map((r) => ({ r, span: make("hero2__axis-tick", "") }));
+  const changes = model.changes.map((r) => ({
+    r,
+    span: make("hero2__axis-change", `${String(r)} ${names.get(r) ?? ""}`.trim()),
+  }));
   layer.append(box);
-  const shown = new Array<number>(ids.length).fill(-1);
+  const xOf = (release: number) =>
+    model.last > model.first ? ((release - model.first) / (model.last - model.first)) * 2 - 1 : 0;
   return {
-    place(pose: Pose, room: Rect, focus: number, reveal: number) {
-      // One id at a time: the journey whose strand most squarely faces the viewer (1: straight at them), as it does.
-      let facing = 0.93;
-      let face = -1;
-      model.journeys.forEach((j, i) => {
-        const f = -Math.sin(j.angle + pose.turn);
-        if (f > facing) {
-          facing = f;
-          face = i;
-        }
-      });
-      // Each release a little beyond its end of the axis, along the axis as it is seen.
+    place(pose: Pose, reveal: number, band: Rect) {
       const a = project(pose, -1, 0, 0);
       const b = project(pose, 1, 0, 0);
-      const length = Math.max(1, Math.hypot(b.x - a.x, b.y - a.y));
-      const along = { x: (b.x - a.x) / length, y: (b.y - a.y) / length };
-      // An end of the axis near the id shown steps back for it.
-      let crowded = -1;
-      model.journeys.forEach((j, i) => {
-        const span = ids[i];
-        if (!span) return;
-        const o = j.anchor * STAR;
-        const x = model.stars[o] ?? 0;
-        let opacity = focus >= 0 || i !== face ? 0 : Math.min(1, (facing - 0.93) / 0.05) * revealed(x, reveal);
-        opacity = Math.round(opacity * 50) / 50;
-        if (opacity === 0 && shown[i] === 0) return;
-        shown[i] = opacity;
-        span.style.visibility = opacity > 0 ? "visible" : "hidden";
-        span.style.opacity = String(opacity * 0.9);
-        if (opacity === 0) return;
-        const q = project(pose, x, model.stars[o + 1] ?? 0, model.stars[o + 2] ?? 0);
-        // Beside its star, toward the room's middle, and away from a release written at an end of the axis.
-        let left = q.x > (room.left + room.right) / 2;
-        const near = [a, b].find((e) => Math.hypot(e.x - q.x, e.y - q.y) < 72);
-        if (near) {
-          left = near.x > q.x;
-          crowded = near === a ? 0 : 1;
-        }
-        // Never past the room's edge: a label that would cross it goes to the other side of its star.
-        const width = span.offsetWidth + 24;
-        if (left && q.x - width < room.left) left = false;
-        else if (!left && q.x + width > room.right) left = true;
-        span.classList.toggle("hero2__star-id--left", left);
-        span.style.transform = `translate(${q.x.toFixed(1)}px, ${q.y.toFixed(1)}px)`;
-      });
+      // The first and the last release beyond the strands at the axis's ends, on the axis's line.
       ends.forEach((span, i) => {
         const end = i === 0 ? a : b;
-        const out = (i === 0 ? -1 : 1) * AXIS_LABEL_PX;
-        const x = end.x + along.x * out;
-        const y = end.y + along.y * out;
-        span.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px)`;
-        span.style.opacity = String(revealed(i === 0 ? -1 : 1, reveal) * (crowded === i ? 0.3 : 1));
+        const x = i === 0 ? Math.min(end.x, band.left) - AXIS_LABEL_PX : Math.max(end.x, band.right) + AXIS_LABEL_PX;
+        span.style.transform = `translate(${x.toFixed(1)}px, ${end.y.toFixed(1)}px)`;
+        span.style.opacity = revealed(i === 0 ? -1 : 1, reveal).toFixed(3);
       });
+      for (const { r, span } of ticks) {
+        const p = project(pose, xOf(r), 0, 0);
+        span.style.transform = `translate(${p.x.toFixed(1)}px, ${p.y.toFixed(1)}px)`;
+        span.style.opacity = revealed(xOf(r), reveal).toFixed(3);
+      }
+      for (const { r, span } of changes) {
+        const p = project(pose, xOf(r), 0, 0);
+        span.style.transform = `translate(${p.x.toFixed(1)}px, ${(band.top - 20).toFixed(1)}px)`;
+        span.style.opacity = revealed(xOf(r), reveal).toFixed(3);
+      }
     },
     remove() {
       box.remove();
@@ -395,109 +354,163 @@ function createLabels(layer: HTMLElement, model: Constellation) {
   };
 }
 
+/** How the cable is to be drawn: under reduced motion; the journey this visit follows (it faces the viewer first);
+ *  the names of the assemblies by their first release; the development switch. */
+export interface CableOptions {
+  reduced: boolean;
+  facing: number;
+  names: ReadonlyMap<number, string>;
+  stepped: boolean;
+  changed?: () => void;
+}
+
+/** The pose and the room of a cable laid in the hero, shared by its renderers. */
+function cableState(model: Constellation, facing: number) {
+  const firstTurn = -Math.PI / 2 - (model.journeys[facing]?.angle ?? -Math.PI / 2) + FIRST_TURN;
+  const state: {
+    room: Rect | null;
+    rest: Pose;
+    box: Rect;
+    place(width: number, height: number, laid: CablePlace): void;
+    band: () => Rect | null;
+  } = {
+    room: null,
+    rest: { turn: firstTurn, yaw: YAW, distance: 3.2, girth: 1, cx: 0, cy: 0, scale: 1 },
+    box: { left: 0, right: 0, top: 0, bottom: 0 },
+    place(width, height, laid) {
+      state.room = roomOf(width, height, laid.words, laid.caption);
+      if (state.room) {
+        state.rest = { ...fitPose(model, state.room, MARGIN, YAW), turn: firstTurn };
+        state.box = bandOf(model, state.rest);
+      }
+    },
+    band: () => (state.room ? state.box : null),
+  };
+  return state;
+}
+
 export function createConstellation(
   canvas: HTMLCanvasElement,
   layer: HTMLElement,
   model: Constellation,
-  reducedMotion: boolean,
+  options: CableOptions,
 ): ConstellationView {
-  const clock = import.meta.env.DEV ? devClock() : null;
-  const labels = createLabels(layer, model);
+  const labels = createLabels(layer, model, options.names);
+  const state = cableState(model, options.facing);
+  const host = hostPicture<CablePlace>(
+    canvas,
+    {
+      attributes: { alpha: true, antialias: true, premultipliedAlpha: true, preserveDrawingBuffer: options.stepped },
+      start(gl) {
+        const programs = {
+          segments: startProgram(gl, SEGMENT_VERTEX, SEGMENT_FRAGMENT),
+          stars: startProgram(gl, STAR_VERTEX, STAR_FRAGMENT),
+          composite: startProgram(gl, COMPOSITE_VERTEX, COMPOSITE_FRAGMENT),
+        };
+        return {
+          done: () => programsDone(gl, Object.values(programs)),
+          build: () => createWebgl(gl, programs, model, state, labels, options),
+        };
+      },
+    },
+    (target) => createStill(target, model, state, labels),
+    options.stepped,
+    options.changed,
+  );
+  return {
+    ...host,
+    get mode() {
+      return host.mode;
+    },
+    get element() {
+      return host.element;
+    },
+    get moving() {
+      return host.moving;
+    },
+    band: () => state.band(),
+    destroy() {
+      host.destroy();
+      labels.remove();
+    },
+  };
+}
+
+type Labels = ReturnType<typeof createLabels>;
+type CableState = ReturnType<typeof cableState>;
+
+function createWebgl(
+  gl: WebGL2RenderingContext,
+  programs: { segments: WebGLProgram; stars: WebGLProgram; composite: WebGLProgram },
+  model: Constellation,
+  state: CableState,
+  labels: Labels,
+  options: CableOptions,
+): ConstellationView {
+  const reduced = options.reduced;
   let dpr = 1;
   let width = 1;
   let height = 1;
-  let room: Rect = { left: 0, top: 0, right: 1, bottom: 1 };
-  // The most convoluted journey (the first) is first seen nearly facing the viewer.
-  const firstTurn = -Math.PI / 2 - (model.journeys[0]?.angle ?? -Math.PI / 2) + FIRST_TURN;
-  let rest: Pose = { turn: firstTurn, yaw: 0, roll: 0, distance: 2.6, cx: 0, cy: 0, scale: 1 };
-  let colours: ConstellationColours = {
-    ink: [0.05, 0.07, 0.09],
-    history: [0.18, 0.37, 0.82],
-    event: [0.76, 0.29, 0],
-    handoff: [0.75, 0.22, 0.6],
-    external: [0, 0.5, 0.36],
-    dark: false,
-  };
-  let paper: Rgb = [1, 1, 1];
+  let inks: Inks | null = null;
   let focus = -1;
   // The pointer's pull (target and present): yaw toward it across, a little more turn toward it up and down.
   const pull = { yaw: 0, turn: 0, toYaw: 0, toTurn: 0 };
   const motion = { running: false, raf: 0, start: -1, previous: -1, last: 0 };
   const times = { frames: 0, frameMs: 0, drawMs: 0 };
-  const forced = clock !== null;
-  let quiet = reducedMotion && !forced;
+  let forced: number | null = options.stepped ? 0 : null;
+  let ended = false;
+  const su = uniformsOf(gl, programs.segments);
+  const pu = uniformsOf(gl, programs.stars);
+  const cu = uniformsOf(gl, programs.composite);
+  const segmentVao = segmentArray(gl, programs.segments, model.segments);
+  const target = sumTarget(gl);
+  const starVao = starArray(gl, programs.stars, model.stars);
+  const segmentCount = model.segments.length / SEGMENT;
+  const starCount = model.stars.length / STAR;
+  const work = { drawCalls: 0, segments: segmentCount, stars: starCount };
 
   /** The pose at `seconds` after the picture began. */
   const poseAt = (seconds: number): Pose => ({
-    ...rest,
-    turn: rest.turn + (quiet ? 0 : (seconds / TURN_SECONDS) * Math.PI * 2) + pull.turn,
-    yaw: rest.yaw + pull.yaw,
+    ...state.rest,
+    turn: state.rest.turn + (reduced ? 0 : (seconds / TURN_SECONDS) * Math.PI * 2) + pull.turn,
+    yaw: state.rest.yaw + pull.yaw,
   });
-  const revealAt = (seconds: number) => (quiet ? 1 : 1 - Math.pow(1 - Math.min(1, seconds / REVEAL_SECONDS), 3));
+  const revealAt = (seconds: number) => (reduced ? 1 : 1 - Math.pow(1 - Math.min(1, seconds / REVEAL_SECONDS), 3));
 
-  const measure = (w: number, h: number, words: Rect | null, caption: Rect | null) => {
-    dpr = Math.min(2, window.devicePixelRatio || 1);
-    width = Math.max(1, Math.round(w * dpr));
-    height = Math.max(1, Math.round(h * dpr));
-    room = roomOf(w, h, words, caption);
-    const wide = room.left > 16;
-    const inner = { ...room, left: room.left + MARGIN.x, right: room.right - MARGIN.x };
-    rest = { ...fitPose(model, inner, MARGIN.y, { roll: wide ? VIEW.roll : 0, yaw: VIEW.yaw }), turn: firstTurn };
-  };
-  const readPaper = () => {
-    paper = parseColour(getComputedStyle(layer).getPropertyValue("--paper"));
-  };
-
-  const webgl = canvas.getContext("webgl2", { alpha: true, antialias: true, premultipliedAlpha: true });
-  if (!webgl) return still(canvas);
-  const gl: WebGL2RenderingContext = webgl;
-  // In software (no GPU) WebGL would hold the page: the still drawing on a 2D canvas instead (in development the
-  // clock may ask for the moving picture there, to see its motion).
-  if (drawsInSoftware(gl) && !forced) return still(fresh(canvas, gl));
-  let programs: { segments: Program; stars: Program; composite: Program };
-  try {
-    programs = {
-      segments: program(gl, SEGMENT_VERTEX, SEGMENT_FRAGMENT),
-      stars: program(gl, STAR_VERTEX, STAR_FRAGMENT),
-      composite: program(gl, COMPOSITE_VERTEX, COMPOSITE_FRAGMENT),
-    };
-  } catch {
-    return still(fresh(canvas, gl));
-  }
-  const segmentVao = segmentArray(gl, programs.segments.handle, model.segments);
-  const target = sumTarget(gl);
-  const starVao = starArray(gl, programs.stars.handle, model.stars);
-  const segmentCount = model.segments.length / SEGMENT;
-  const starCount = model.stars.length / STAR;
-
-  function common(p: Program, pose: Pose, seconds: number, reveal: number) {
-    gl.useProgram(p.handle);
-    gl.uniform2f(p.at("u_res"), width, height);
-    gl.uniform3f(p.at("u_pose"), pose.turn, pose.yaw, pose.roll);
-    gl.uniform4f(p.at("u_place"), pose.cx * dpr, pose.cy * dpr, pose.scale * dpr, pose.distance);
-    gl.uniform1f(p.at("u_dpr"), dpr);
-    gl.uniform1f(p.at("u_time"), quiet ? 0 : seconds);
-    gl.uniform1f(p.at("u_reveal"), reveal);
-    gl.uniform1f(p.at("u_focus"), focus);
-    const look = colours.dark ? LOOK.dark : LOOK.light;
+  function common(at: (name: string) => WebGLUniformLocation | null, pose: Pose, seconds: number, reveal: number) {
+    gl.uniform2f(at("u_res"), width, height);
+    gl.uniform2f(at("u_pose"), pose.turn, pose.yaw);
+    gl.uniform4f(at("u_place"), pose.cx * dpr, pose.cy * dpr, pose.scale * dpr, pose.distance);
+    gl.uniform1f(at("u_girth"), pose.girth);
+    gl.uniform1f(at("u_dpr"), dpr);
+    gl.uniform1f(at("u_time"), reduced ? 0 : seconds);
+    gl.uniform1f(at("u_reveal"), reveal);
+    gl.uniform1f(at("u_focus"), focus);
+    const look = inks?.dark ? LOOK.dark : LOOK.light;
     const size = sizeOf(pose);
-    gl.uniform4f(p.at("u_look"), look.core * size, look.halo * size, look.blur * size, look.far);
+    gl.uniform4f(at("u_look"), look.core * size, look.halo * size, look.blur * size, look.far);
   }
 
   function draw(now: number) {
+    if (ended || !inks || !state.room) {
+      gl.clearColor(0, 0, 0, 0);
+      gl.clear(gl.COLOR_BUFFER_BIT);
+      return;
+    }
     const t0 = performance.now();
     if (motion.start < 0) motion.start = now;
-    const seconds = (now - motion.start) / 1000;
+    const seconds = forced ?? (now - motion.start) / 1000;
     // The pointer's pull eases in (about a third of a second).
     const dt = motion.previous < 0 ? 0 : Math.min(0.1, Math.max(0, (now - motion.previous) / 1000));
     motion.previous = now;
-    const ease = 1 - Math.exp(-dt * 5);
+    const ease = forced !== null ? 1 : 1 - Math.exp(-dt * 5);
     pull.yaw += (pull.toYaw - pull.yaw) * ease;
     pull.turn += (pull.toTurn - pull.turn) * ease;
     const pose = poseAt(seconds);
     const reveal = revealAt(seconds);
-    const look = colours.dark ? LOOK.dark : LOOK.light;
-    const { hues, inks } = palette(colours);
+    const look = inks.dark ? LOOK.dark : LOOK.light;
+    const { hues, inks: starInks } = palette(inks);
+    const paper = inks.paper;
     gl.viewport(0, 0, width, height);
     // The threads: added up in the texture of half floats where there is one (light, or ink as absorbance), then
     // mapped to the screen; else drawn directly (dark adds light, light lays ink over the paper).
@@ -506,44 +519,46 @@ export function createConstellation(
     gl.clearColor(0, 0, 0, 0);
     gl.clear(gl.COLOR_BUFFER_BIT);
     gl.enable(gl.BLEND);
-    if (summed || colours.dark) gl.blendFunc(gl.ONE, gl.ONE);
+    if (summed || inks.dark) gl.blendFunc(gl.ONE, gl.ONE);
     else gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
-    const s = programs.segments;
-    common(s, pose, seconds, reveal);
-    gl.uniform3fv(s.at("u_hues"), hues.flat());
-    gl.uniform4f(s.at("u_alphas"), look.run, look.step, look.axis, quiet ? 0 : look.pulse);
-    gl.uniform1f(s.at("u_haloStrength"), look.haloStrength);
-    gl.uniform1f(s.at("u_absorb"), summed && !colours.dark ? 1 : 0);
-    gl.uniform3f(s.at("u_paper"), ...paper);
+    gl.useProgram(programs.segments);
+    common(su, pose, seconds, reveal);
+    gl.uniform3fv(su("u_hues"), hues.flat());
+    gl.uniform4f(su("u_alphas"), look.run, look.step, look.axis, reduced ? 0 : look.pulse);
+    gl.uniform1f(su("u_haloStrength"), look.haloStrength);
+    gl.uniform1f(su("u_absorb"), summed && !inks.dark ? 1 : 0);
+    gl.uniform3f(su("u_paper"), ...paper);
     gl.bindVertexArray(segmentVao);
     gl.drawArraysInstanced(gl.TRIANGLE_STRIP, 0, 4, segmentCount);
+    work.drawCalls = 1;
     if (summed) {
       gl.bindFramebuffer(gl.FRAMEBUFFER, null);
       gl.disable(gl.BLEND);
-      const c = programs.composite;
-      gl.useProgram(c.handle);
+      gl.useProgram(programs.composite);
       gl.activeTexture(gl.TEXTURE0);
       gl.bindTexture(gl.TEXTURE_2D, target.texture);
-      gl.uniform1i(c.at("u_sum"), 0);
-      gl.uniform1f(c.at("u_dark"), colours.dark ? 1 : 0);
-      gl.uniform3f(c.at("u_paper"), ...paper);
+      gl.uniform1i(cu("u_sum"), 0);
+      gl.uniform1f(cu("u_dark"), inks.dark ? 1 : 0);
+      gl.uniform3f(cu("u_paper"), ...paper);
       gl.bindVertexArray(null);
       gl.drawArrays(gl.TRIANGLES, 0, 3);
       gl.enable(gl.BLEND);
+      work.drawCalls++;
     }
     // The stars over the threads: dark adds light, light lays ink over a little paper that sets each apart.
-    if (colours.dark) gl.blendFunc(gl.ONE, gl.ONE);
+    if (inks.dark) gl.blendFunc(gl.ONE, gl.ONE);
     else gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
-    const p = programs.stars;
-    common(p, pose, seconds, reveal);
-    gl.uniform1f(p.at("u_star"), STAR_RADIUS * sizeOf(pose));
-    gl.uniform1f(p.at("u_dark"), colours.dark ? 1 : 0);
-    gl.uniform3fv(p.at("u_inks"), inks.flat());
-    gl.uniform3f(p.at("u_paper"), ...paper);
+    gl.useProgram(programs.stars);
+    common(pu, pose, seconds, reveal);
+    gl.uniform1f(pu("u_star"), STAR_RADIUS * sizeOf(pose));
+    gl.uniform1f(pu("u_dark"), inks.dark ? 1 : 0);
+    gl.uniform3fv(pu("u_inks"), starInks.flat());
+    gl.uniform3f(pu("u_paper"), ...paper);
     gl.bindVertexArray(starVao);
     gl.drawArrays(gl.POINTS, 0, starCount);
     gl.bindVertexArray(null);
-    labels.place(pose, room, focus, reveal);
+    work.drawCalls++;
+    labels.place(pose, reveal, state.box);
     times.drawMs += performance.now() - t0;
     if (motion.last) times.frameMs += now - motion.last;
     motion.last = now;
@@ -552,41 +567,43 @@ export function createConstellation(
   const loop = (now: number) => {
     motion.raf = 0;
     draw(now);
-    if (motion.running && !quiet) motion.raf = requestAnimationFrame(loop);
+    if (motion.running && !reduced && forced === null) motion.raf = requestAnimationFrame(loop);
   };
   const request = () => {
-    if (clock !== null) {
-      draw(motion.last || clock * 1000);
+    if (ended) return;
+    if (forced !== null) {
+      draw(performance.now());
       return;
     }
     if (!motion.raf) motion.raf = requestAnimationFrame(loop);
   };
-  if (import.meta.env.DEV && clock !== null) {
-    motion.start = 0;
-    (window as unknown as { idtrackHeroClock?: (seconds: number) => void }).idtrackHeroClock = (seconds) => {
-      draw(seconds * 1000);
-    };
-  }
+  const currentSeconds = () =>
+    forced ?? (motion.start < 0 ? 0 : ((motion.last || performance.now()) - motion.start) / 1000);
 
   return {
     mode: "webgl2",
-    element: canvas,
-    resize(w, h, words, caption) {
-      measure(w, h, words, caption);
+    element: gl.canvas as HTMLCanvasElement,
+    moving: !reduced,
+    resize(w, h, laid) {
+      const size = devicePixels(w, h);
+      dpr = size.dpr;
+      width = size.width;
+      height = size.height;
+      state.place(w, h, laid);
+      const canvas = gl.canvas as HTMLCanvasElement;
       canvas.width = width;
       canvas.height = height;
       target.resize(width, height);
-      readPaper();
       request();
     },
     setColours(c) {
-      colours = c;
-      readPaper();
+      inks = c;
       request();
     },
     setPointer(point) {
-      if (quiet) return -1;
+      if (reduced || !state.room) return -1;
       focus = point ? nearest(model, poseAt(currentSeconds()), point) : -1;
+      const room = state.room;
       const halfW = Math.max(1, (room.right - room.left) / 2);
       const halfH = Math.max(1, (room.bottom - room.top) / 2);
       const clamp = (v: number) => Math.max(-1, Math.min(1, v));
@@ -609,73 +626,24 @@ export function createConstellation(
       meanFrameMs: times.frames > 1 ? times.frameMs / (times.frames - 1) : 0,
       meanDrawMs: times.frames ? times.drawMs / times.frames : 0,
     }),
+    work: () => ({ ...work }),
+    drawAt(seconds) {
+      forced = seconds;
+      draw(performance.now());
+    },
+    band: () => state.band(),
     destroy() {
+      ended = true;
       motion.running = false;
       if (motion.raf) cancelAnimationFrame(motion.raf);
-      labels.remove();
-      gl.getExtension("WEBGL_lose_context")?.loseContext();
+      motion.raf = 0;
     },
   };
-
-  function currentSeconds() {
-    return motion.start < 0 ? 0 : ((motion.last || performance.now()) - motion.start) / 1000;
-  }
-
-  /** The still picture on a 2D canvas: the same model and pose, drawn once (in slices of about 6 ms a frame), far
-   *  things first. */
-  function still(target: HTMLCanvasElement): ConstellationView {
-    quiet = true;
-    const context = target.getContext("2d");
-    let job = 0;
-    const paint = () => {
-      if (!context) return;
-      if (job) cancelAnimationFrame(job);
-      target.width = width;
-      target.height = height;
-      context.setTransform(dpr, 0, 0, dpr, 0, 0);
-      context.clearRect(0, 0, width, height);
-      const pose = poseAt(0);
-      const queue = stillMarks(model, pose, colours, paper);
-      labels.place(pose, room, -1, 1);
-      let i = 0;
-      const slice = () => {
-        job = 0;
-        const until = performance.now() + 6;
-        while (i < queue.length && performance.now() < until) {
-          const end = Math.min(queue.length, i + 200);
-          for (; i < end; i++) queue[i]?.(context);
-        }
-        if (i < queue.length) job = requestAnimationFrame(slice);
-      };
-      slice();
-    };
-    return {
-      mode: "canvas2d",
-      element: target,
-      resize(w, h, words, caption) {
-        measure(w, h, words, caption);
-        readPaper();
-        paint();
-      },
-      setColours(c) {
-        colours = c;
-        readPaper();
-        paint();
-      },
-      setPointer: () => -1,
-      setRunning: () => undefined,
-      stats: () => ({ frames: 0, meanFrameMs: 0, meanDrawMs: 0 }),
-      destroy() {
-        if (job) cancelAnimationFrame(job);
-        labels.remove();
-      },
-    };
-  }
 }
 
-/** The journey whose star is nearest the pointer (within 24 CSS px), or -1. */
+/** The journey whose star or thread is nearest the pointer (within 28 CSS px), or -1. */
 function nearest(model: Constellation, pose: Pose, point: { x: number; y: number }): number {
-  let best = 24;
+  let best = 28;
   let journey = -1;
   for (let s = 0; s < model.stars.length / STAR; s++) {
     const o = s * STAR;
@@ -684,6 +652,18 @@ function nearest(model: Constellation, pose: Pose, point: { x: number; y: number
     if (d < best) {
       best = d;
       journey = model.stars[o + 3] ?? -1;
+    }
+  }
+  if (journey >= 0) return journey;
+  for (let i = 0; i < model.segments.length / SEGMENT; i += 2) {
+    const o = i * SEGMENT;
+    const j = model.segments[o + 7] ?? -1;
+    if (j < 0) continue;
+    const q = project(pose, model.segments[o] ?? 0, model.segments[o + 1] ?? 0, model.segments[o + 2] ?? 0);
+    const d = Math.hypot(q.x - point.x, q.y - point.y);
+    if (d < best * 0.6) {
+      best = d / 0.6;
+      journey = j;
     }
   }
   return journey;
@@ -701,19 +681,82 @@ function fogAt(look: Look, z: number) {
   return 1 + (look.far - 1) * f * f * (3 - 2 * f);
 }
 
+/** The still cable on a 2D canvas: the same model and pose, drawn once (in slices of about 6 ms a frame), far things
+ *  first. */
+function createStill(
+  canvas: HTMLCanvasElement,
+  model: Constellation,
+  state: CableState,
+  labels: Labels,
+): ConstellationView {
+  const context = stillContext(canvas);
+  let job = 0;
+  let painted = 0;
+  let size = { w: 1, h: 1 };
+  let inks: Inks | null = null;
+  const paint = () => {
+    if (!context) return;
+    if (job) cancelAnimationFrame(job);
+    const { dpr, width, height } = devicePixels(size.w, size.h);
+    canvas.width = width;
+    canvas.height = height;
+    context.setTransform(dpr, 0, 0, dpr, 0, 0);
+    context.clearRect(0, 0, size.w, size.h);
+    if (!inks || !state.room) return;
+    const pose = state.rest;
+    const queue = stillMarks(model, pose, inks, inks.paper);
+    labels.place(pose, 1, state.box);
+    let i = 0;
+    const slice = () => {
+      job = 0;
+      const until = performance.now() + 6;
+      while (i < queue.length && performance.now() < until) {
+        const end = Math.min(queue.length, i + 200);
+        for (; i < end; i++) queue[i]?.(context);
+      }
+      if (i < queue.length) job = requestAnimationFrame(slice);
+      else painted++;
+    };
+    job = requestAnimationFrame(slice);
+  };
+  return {
+    mode: "canvas2d",
+    element: canvas,
+    moving: false,
+    resize(w, h, laid) {
+      size = { w, h };
+      state.place(w, h, laid);
+      paint();
+    },
+    setColours(c) {
+      inks = c;
+      paint();
+    },
+    setPointer: () => -1,
+    setRunning: () => undefined,
+    stats: () => ({ frames: painted, meanFrameMs: 0, meanDrawMs: 0 }),
+    work: () => null,
+    drawAt: () => undefined,
+    band: () => state.band(),
+    destroy() {
+      if (job) cancelAnimationFrame(job);
+    },
+  };
+}
+
 /** The still picture's marks, far ones first: each segment and each star as the shaders draw them (depth softens and
  *  fades them; dark adds light, light lays ink). */
-function stillMarks(model: Constellation, pose: Pose, colours: ConstellationColours, paper: Rgb): Mark[] {
-  const marks = [...segmentMarks(model, pose, colours), ...starMarks(model, pose, colours, paper)];
+function stillMarks(model: Constellation, pose: Pose, inks: Inks, paper: Rgb): Mark[] {
+  const marks = [...segmentMarks(model, pose, inks), ...starMarks(model, pose, inks, paper)];
   // Far first, so near threads and stars lie over far ones.
   marks.sort((m, n) => n.z - m.z);
   return marks.map((m) => m.draw);
 }
 
-function segmentMarks(model: Constellation, pose: Pose, colours: ConstellationColours) {
-  const look = colours.dark ? LOOK.dark : LOOK.light;
+function segmentMarks(model: Constellation, pose: Pose, inks: Inks) {
+  const look = inks.dark ? LOOK.dark : LOOK.light;
   const size = sizeOf(pose);
-  const { hues } = palette(colours);
+  const { hues } = palette(inks);
   const marks: { z: number; draw: Mark }[] = [];
   const stroke = (context: CanvasRenderingContext2D, a: { x: number; y: number }, b: { x: number; y: number }) => {
     context.beginPath();
@@ -726,28 +769,23 @@ function segmentMarks(model: Constellation, pose: Pose, colours: ConstellationCo
     const a = project(pose, model.segments[o] ?? 0, model.segments[o + 1] ?? 0, model.segments[o + 2] ?? 0);
     const b = project(pose, model.segments[o + 3] ?? 0, model.segments[o + 4] ?? 0, model.segments[o + 5] ?? 0);
     const kind = model.segments[o + 6] ?? 0;
-    const z = (a.z + b.z) / 2;
-    const k = (a.k + b.k) / 2;
-    const weight = kind === KIND.run ? 0.75 : kind === KIND.fan ? 1.15 : kind === KIND.axis ? 0.7 : 1;
+    const still = kind >= KIND.axis;
+    const z = still ? -10 : (a.z + b.z) / 2;
+    const k = still ? 1 : (a.k + b.k) / 2;
+    const weight = kind === KIND.run ? 0.75 : kind === KIND.fan ? 1.2 : kind === KIND.axis ? 1.3 : 1;
     const core = look.core * size * k * weight;
-    const blur = Math.abs(z) * look.blur * size;
+    const blur = still ? 0 : Math.abs(z) * look.blur * size;
     const base =
-      kind === KIND.run
-        ? look.run
-        : kind === KIND.axis
-          ? look.axis
-          : kind === KIND.external
-            ? 0.75 * look.step
-            : look.step;
-    const alpha = base * fogAt(look, z) * ((0.5 * core + 0.45) / Math.max(0.45, 0.5 * core + 0.5 * blur));
+      kind === KIND.run ? look.run : still ? look.axis : kind === KIND.external ? 0.75 * look.step : look.step;
+    const alpha = base * (still ? 1 : fogAt(look, z)) * ((0.5 * core + 0.45) / Math.max(0.45, 0.5 * core + 0.5 * blur));
     const rgb = hues[kind] ?? hues[1] ?? [0, 0, 0];
     marks.push({
       z,
       draw(context) {
         // Light adds up without burning out (screen); ink deepens where threads cross (multiply).
-        context.globalCompositeOperation = colours.dark ? "screen" : "multiply";
+        context.globalCompositeOperation = inks.dark ? "screen" : "multiply";
         context.lineCap = "butt";
-        if (colours.dark) {
+        if (inks.dark && !still) {
           context.strokeStyle = css(rgb, alpha * look.haloStrength * 0.9);
           context.lineWidth = core + blur + 2 * look.halo * size * k;
           stroke(context, a, b);
@@ -761,10 +799,10 @@ function segmentMarks(model: Constellation, pose: Pose, colours: ConstellationCo
   return marks;
 }
 
-function starMarks(model: Constellation, pose: Pose, colours: ConstellationColours, paper: Rgb) {
-  const look = colours.dark ? LOOK.dark : LOOK.light;
+function starMarks(model: Constellation, pose: Pose, inks: Inks, paper: Rgb) {
+  const look = inks.dark ? LOOK.dark : LOOK.light;
   const size = sizeOf(pose);
-  const { inks } = palette(colours);
+  const { inks: starInks } = palette(inks);
   const marks: { z: number; draw: Mark }[] = [];
   const disc = (context: CanvasRenderingContext2D, x: number, y: number, r: number) => {
     context.beginPath();
@@ -774,24 +812,29 @@ function starMarks(model: Constellation, pose: Pose, colours: ConstellationColou
     const o = s * STAR;
     const q = project(pose, model.stars[o] ?? 0, model.stars[o + 1] ?? 0, model.stars[o + 2] ?? 0);
     const role = model.stars[o + 6] ?? 0;
-    const roleSize = role === ROLE.answer ? 1.5 : role === ROLE.external ? 0.8 : 1;
+    const roleSize = role === ROLE.answer ? 1.5 : role === ROLE.knot ? 1.35 : role === ROLE.external ? 0.8 : 1;
     const r = STAR_RADIUS * size * q.k * (0.8 + 0.25 * ((model.stars[o + 4] ?? 1) - 1)) * roleSize;
     const blur = Math.abs(q.z) * look.blur * size * 0.6;
-    const placeLight = role === ROLE.answer ? 1 : role === ROLE.query ? 0.95 : 0.5 + 0.45 * (model.stars[o + 5] ?? 0);
+    const placeLight =
+      role === ROLE.answer || role === ROLE.knot
+        ? 1
+        : role === ROLE.query
+          ? 0.95
+          : 0.5 + 0.45 * (model.stars[o + 5] ?? 0);
     const bright = placeLight * fogAt(look, q.z) * (r / (r + blur)) ** 2;
-    const ink = inks[role] ?? inks[0] ?? [0, 0, 0];
-    const knock = colours.dark ? 0 : Math.max(0, 1 - Math.max(0, (q.z + 0.1) / 0.45));
+    const ink = starInks[role] ?? starInks[0] ?? [0, 0, 0];
+    const knock = inks.dark ? 0 : Math.max(0, 1 - Math.max(0, (q.z + 0.1) / 0.45));
     const ring = role === ROLE.answer ? 1.9 : role === ROLE.query ? 1.7 : 0;
     marks.push({
       z: q.z - 0.001,
       draw(context) {
-        context.globalCompositeOperation = colours.dark ? "lighter" : "source-over";
+        context.globalCompositeOperation = inks.dark ? "lighter" : "source-over";
         if (knock > 0) {
           context.fillStyle = css(paper, 0.92 * knock);
           disc(context, q.x, q.y, 1.35 * (r + blur));
           context.fill();
         }
-        if (colours.dark) {
+        if (inks.dark || role === ROLE.knot) {
           const glow = context.createRadialGradient(q.x, q.y, 0, q.x, q.y, 3 * (r + blur));
           glow.addColorStop(0, css(ink, 0.35 * bright));
           glow.addColorStop(1, css(ink, 0));
@@ -812,36 +855,6 @@ function starMarks(model: Constellation, pose: Pose, colours: ConstellationColou
     });
   }
   return marks;
-}
-
-interface Program {
-  handle: WebGLProgram;
-  at(name: string): WebGLUniformLocation | null;
-}
-
-function program(gl: WebGL2RenderingContext, vertex: string, fragment: string): Program {
-  const handle = gl.createProgram();
-  for (const [type, source] of [
-    [gl.VERTEX_SHADER, vertex],
-    [gl.FRAGMENT_SHADER, fragment],
-  ] as const) {
-    const shader = gl.createShader(type);
-    if (!shader) throw new Error("no shader");
-    gl.shaderSource(shader, source);
-    gl.compileShader(shader);
-    if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(shader) ?? "shader");
-    gl.attachShader(handle, shader);
-  }
-  gl.linkProgram(handle);
-  if (!gl.getProgramParameter(handle, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(handle) ?? "program");
-  const cache = new Map<string, WebGLUniformLocation | null>();
-  return {
-    handle,
-    at(name) {
-      if (!cache.has(name)) cache.set(name, gl.getUniformLocation(handle, name));
-      return cache.get(name) ?? null;
-    },
-  };
 }
 
 /** The segments as instances of one quad (two triangles across the segment, widened in the vertex shader). */
@@ -914,13 +927,4 @@ function sumTarget(gl: WebGL2RenderingContext) {
       gl.bindTexture(gl.TEXTURE_2D, null);
     },
   };
-}
-
-/** A new canvas in the place of one that holds a WebGL context (a canvas holds one kind of context for good). */
-function fresh(canvas: HTMLCanvasElement, gl: WebGL2RenderingContext): HTMLCanvasElement {
-  gl.getExtension("WEBGL_lose_context")?.loseContext();
-  const other = document.createElement("canvas");
-  other.className = canvas.className;
-  canvas.replaceWith(other);
-  return other;
 }

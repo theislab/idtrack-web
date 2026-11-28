@@ -1,13 +1,35 @@
-// The renderer of the home's lineage field: WebGL2 where the browser has it, else one still drawing on a 2D canvas.
-// What it draws is the layout of lib/hero/lineageLayout.ts (each gene id a line over the releases it is active at, a
-// dot at each new version, a curve for each history edge to another id), nothing else, on a plane seen in perspective:
-// the first release far away at the left, the last near at the right, the release axis a level line at the plane's
-// foot (`FieldFrame`, one projective map, the same for the shaders, the pointer and the words placed over it). The
-// still field is drawn once into a texture of density (again only on a resize or a change of theme); each frame
-// composites it into ink (light) or light (dark) with a soft glow of its own density, revealed along the time axis
-// once, brightened near the pointer, with light travelling along the lines with time and the family under the pointer
-// lifted. It draws only while the hero is on screen and the page is shown, and under reduced motion one still frame.
-import { EDGE_FLOATS, SEGMENT_FLOATS, type LineageLayout, type Lines } from "../../lib/hero/lineageLayout";
+// The renderer of the lineage field (the home's default picture, and the History tab's field): WebGL2 where the page
+// draws by a GPU, else one still drawing on a 2D canvas. What it draws is the layout of lib/hero/lineageLayout.ts (each
+// gene id a line over the releases it is active at, a grain at each new version, a curve for each history edge to
+// another id), nothing else, on a field seen in perspective: the first release far away at the left, the last near at
+// the right, the release axis a line at the field's foot (`FieldFrame`, one map, the same for the shaders, the pointer
+// and the words placed over it). The still field is drawn once into a texture of density (again only on a resize or a
+// change of theme); each frame composites it into ink (light) or light (dark), revealed along the time axis once,
+// brightened near the pointer, with light travelling along the lines with time (and along the edges it meets, and
+// flaring at the new versions it passes) and the family under the pointer lifted. It draws only while seen, and under
+// reduced motion one still frame.
+import {
+  DOT_FLOATS,
+  EDGE_FLOATS,
+  SEGMENT_FLOATS,
+  simplified,
+  type LineageLayout,
+  type Lines,
+} from "../../lib/hero/lineageLayout";
+import {
+  devicePixels,
+  stillContext,
+  hostPicture,
+  programsDone,
+  startProgram,
+  uniformsOf,
+  type FrameStats,
+  type HeroRoom,
+  type Inks,
+  type Picture,
+  type Point,
+  type Rgb,
+} from "./canvas";
 
 /** One end of the field: its x and the y of its top and bottom edges, in CSS pixels of the canvas. */
 interface FieldEdge {
@@ -16,61 +38,39 @@ interface FieldEdge {
   bottom: number;
 }
 
-/** Where the field lies: its far end (the graph's first release) and its near end (its last). The two ends are
- *  vertical; between them the field is the plane they bound, seen in perspective, so that the far end is smaller and
- *  its releases closer together, as a plane receding from the eye is seen. */
+/** Where the field lies: its far end (the graph's first release) and its near end (its last), each vertical. Between
+ *  them the releases lie as on a plane receding from the eye (`depth`: how much closer together they lie at the far
+ *  end than at the near; by default the ratio of the ends' heights, a true plane), and the field's height grows from
+ *  the far end's to the near end's as the `flare`-th power of the way across (1, the default: linearly, a true plane;
+ *  more: the field stays low longer and opens toward the present, a horn). */
 export interface FieldFrame {
   far: FieldEdge;
   near: FieldEdge;
+  depth?: number;
+  flare?: number;
 }
 
-/** The projective map of a frame, row-major: (x, y, 1) of the field (x from 0 at the first release to 1 at the last,
- *  y from -0.5 to 0.5 across) to homogeneous CSS pixels; the third coordinate is the depth (1 at the near end). */
-function projection(frame: FieldFrame): number[] {
-  const nearHalf = Math.max(0.5, (frame.near.bottom - frame.near.top) / 2);
+/** The numbers of a frame's map. */
+function shapeOf(frame: FieldFrame) {
   const farHalf = Math.max(0.5, (frame.far.bottom - frame.far.top) / 2);
-  const r = nearHalf / farHalf;
-  const nearCentre = (frame.near.top + frame.near.bottom) / 2;
-  const farCentre = (frame.far.top + frame.far.bottom) / 2;
-  return [
-    frame.near.x - r * frame.far.x,
-    0,
-    r * frame.far.x,
-    nearCentre - r * farCentre,
-    2 * nearHalf,
-    r * farCentre,
-    1 - r,
-    0,
-    r,
-  ];
+  const nearHalf = Math.max(0.5, (frame.near.bottom - frame.near.top) / 2);
+  return { farHalf, nearHalf, depth: frame.depth ?? nearHalf / farHalf, flare: frame.flare ?? 1 };
 }
 
-/** The inverse of a 3×3 matrix, row-major. */
-function inverse(m: number[]): number[] {
-  const [a = 0, b = 0, c = 0, d = 0, e = 0, f = 0, g = 0, h = 0, i = 0] = m;
-  const A = e * i - f * h;
-  const B = -(d * i - f * g);
-  const C = d * h - e * g;
-  const det = a * A + b * B + c * C || 1;
-  return [
-    A / det,
-    -(b * i - c * h) / det,
-    (b * f - c * e) / det,
-    B / det,
-    (a * i - c * g) / det,
-    -(a * f - c * d) / det,
-    C / det,
-    -(a * h - b * g) / det,
-    (a * e - b * d) / det,
-  ];
-}
+/** The share of the way across the screen of a fraction of the time axis (perspective of ratio `depth`). */
+const screenShare = (u: number, depth: number) => u / (depth - (depth - 1) * u);
+/** Its inverse. */
+const fieldShare = (s: number, depth: number) => (depth * s) / (1 + (depth - 1) * s);
 
-/** The placing of points of the field (fractions) in CSS pixels, as the shaders place them. */
+/** The placing of points of the field (x from 0 at the first release to 1 at the last, y from -0.5 to 0.5 across) in
+ *  CSS pixels, as the shaders place them. */
 export function placer(frame: FieldFrame): (x: number, y: number) => { x: number; y: number } {
-  const [a = 0, b = 0, c = 0, d = 0, e = 0, f = 0, g = 0, h = 0, i = 1] = projection(frame);
-  return (x, y) => {
-    const w = g * x + h * y + i;
-    return { x: (a * x + b * y + c) / w, y: (d * x + e * y + f) / w };
+  const { farHalf, nearHalf, depth, flare } = shapeOf(frame);
+  return (u, y) => {
+    const s = screenShare(u, depth);
+    const bottom = frame.far.bottom + (frame.near.bottom - frame.far.bottom) * s;
+    const half = farHalf + (nearHalf - farHalf) * Math.max(0, s) ** flare;
+    return { x: frame.far.x + (frame.near.x - frame.far.x) * s, y: bottom - half + 2 * half * y };
   };
 }
 
@@ -81,68 +81,110 @@ export function placeOf(frame: FieldFrame, x: number, y: number): { x: number; y
 
 /** The inverse of `placeOf`: fractions of the field for a point in CSS pixels. */
 export function fieldAt(frame: FieldFrame, px: number, py: number): { x: number; y: number } {
-  const m = inverse(projection(frame));
-  const w = (m[6] ?? 0) * px + (m[7] ?? 0) * py + (m[8] ?? 1);
-  return {
-    x: ((m[0] ?? 0) * px + (m[1] ?? 0) * py + (m[2] ?? 0)) / w,
-    y: ((m[3] ?? 0) * px + (m[4] ?? 0) * py + (m[5] ?? 0)) / w,
-  };
+  const { farHalf, nearHalf, depth, flare } = shapeOf(frame);
+  const s = (px - frame.far.x) / (frame.near.x - frame.far.x || 1);
+  const bottom = frame.far.bottom + (frame.near.bottom - frame.far.bottom) * s;
+  const half = farHalf + (nearHalf - farHalf) * Math.max(0, s) ** flare;
+  return { x: fieldShare(s, depth), y: (py - bottom + half) / (2 * half) };
 }
 
-/** The room the release axis takes under the field (its releases and the assemblies' names). */
-const AXIS_ROOM = 46;
-/** How much taller the plane's near end is than its far end: a perspective that gives depth and leaves the first
- *  releases room (at 4 the first half of the releases took a fifth of the width). */
+/** The room the release axis takes under the field: the releases, the names under them, and a second row of names. */
+export const AXIS_ROOM = 62;
+/** The axis without its names (a narrow window). */
+export const AXIS_ROOM_NARROW = 32;
+/** How much closer together the releases lie at the far end than at the near (at 4 the first half of the releases
+ *  took a fifth of the width). */
 const DEPTH = 2.2;
+/** How far the field's outermost line keeps from the words (CSS px). */
+const CLEAR = 40;
+/** The least height of a field worth drawing (CSS px at its near end), and its least width. */
+const LEAST = { height: 48, width: 200 } as const;
+/** Below this height of its near end the field is a flat band: no perspective. */
+const FLAT_BELOW = 160;
+/** The flares tried, the least first, and the ratios of the near end's height to the far end's (the plane's depth
+ *  first): the field opens toward the present only as much as the words ask for its near end to reach the top of the
+ *  hero's upper third. The releases stay spaced by `DEPTH` whatever the heights. */
+const FLARES = [1, 1.25, 1.5, 1.75, 2, 2.5, 3];
+const RATIOS = [DEPTH, 2.8, 3.5, 4.5];
 
-/** Where the lineages lie in the hero, so that no line crosses a word: the plane's foot is a level line (the release
- *  axis) above the caption, its far end (the first release) at the left, its near end (the last) at the right, the
- *  near end DEPTH times as tall as the far. Beside the words (a wide window) the plane is as tall as it can be with
- *  every release's outermost line (`top`, by release, as `LineageLayout.top`) passing clear of the words' box (40 px);
- *  under them (a phone, a narrow window) it fills the room between the words and the caption. `words` is the box of
- *  the words' text in the field's pixels, `foot` the caption's top. */
-export function frameOf(
-  width: number,
-  height: number,
-  words: { right: number; bottom: number } | null,
-  foot: number,
-  top: ArrayLike<number> = [],
-): FieldFrame {
-  const margin = Math.max(16, Math.min(56, width * 0.035));
-  const bottom = Math.max(40, Math.min(height, foot) - AXIS_ROOM);
-  const at = (nearTop: number): FieldFrame => ({
-    far: { x: margin, top: bottom - (bottom - nearTop) / DEPTH, bottom },
-    near: { x: width - margin, top: nearTop, bottom },
-  });
-  if (!words || width < 900 || words.right > width * 0.58)
-    return at(Math.min(bottom - 60, (words?.bottom ?? height * 0.45) + 28));
-  const clear = { x: words.right + 40, y: words.bottom + 40 };
+/** Where the lineages lie in the hero, so that no line crosses a word: the field's foot a level line above the
+ *  caption (with the axis under it), its far end at the content column's left edge, its near end at its right edge.
+ *  Of three compositions the one that draws the field largest: beside the words (the field's outermost line, `top` by
+ *  release as `LineageLayout.top`, kept `CLEAR` px from the words' box; its near end as high as the top of the hero's
+ *  upper third where a flare lets it, the field opening toward the present), to the right of the words (a short
+ *  window), or under them (a phone: a flat band where it is low). Null where no room is left for it. */
+export function frameOf(room: HeroRoom, top: ArrayLike<number> = [], axis = AXIS_ROOM): FieldFrame | null {
+  const foot = Math.min(room.height, room.captionTop) - axis;
+  const pad = Math.max(12, room.height * 0.05);
   const n = top.length;
-  const fits = (nearTop: number) => {
-    const place = placer(at(nearTop));
+  const words = room.words;
+  const build = (
+    left: number,
+    right: number,
+    nearTop: number,
+    flare: number,
+    flat: boolean,
+    ratio = DEPTH,
+  ): FieldFrame => {
+    const nearHalf = (foot - nearTop) / 2;
+    const farHalf = flat ? nearHalf : nearHalf / ratio;
+    return {
+      far: { x: left, top: foot - 2 * farHalf, bottom: foot },
+      near: { x: right, top: nearTop, bottom: foot },
+      depth: flat ? 1.6 : DEPTH,
+      flare,
+    };
+  };
+  const clearOfWords = (frame: FieldFrame) => {
+    if (!words) return true;
+    const place = placer(frame);
     for (let k = 0; k < n; k++) {
       const p = place(n > 1 ? k / (n - 1) : 0.5, top[k] ?? -0.5);
-      if (p.x <= clear.x && p.y < clear.y) return false;
+      if (p.x < words.right + CLEAR && p.x > words.left - CLEAR && p.y < words.bottom + CLEAR) return false;
     }
     return true;
   };
-  // The highest near end that fits (a lower one always fits when a higher one does).
-  let lo = Math.max(12, height * 0.06);
-  let hi = bottom - 60;
-  if (fits(lo)) return at(lo);
-  for (let i = 0; i < 30; i++) {
-    const mid = (lo + hi) / 2;
-    if (fits(mid)) hi = mid;
-    else lo = mid;
+  const options: FieldFrame[] = [];
+  // Beside the words: across the content column, as tall as the words let it be.
+  if (words && room.right - room.left >= LEAST.width) {
+    const target = room.height * 0.3;
+    let best: FieldFrame | null = null;
+    search: for (const ratio of RATIOS)
+      for (const flare of FLARES) {
+        const frameAt = (nearTop: number) => build(room.left, room.right, nearTop, flare, false, ratio);
+        const nearTop = highest(pad, foot - LEAST.height, (t) => clearOfWords(frameAt(t)));
+        if (nearTop === null) continue;
+        const frame = frameAt(nearTop);
+        if (!best || frame.near.top < best.near.top - 1) best = frame;
+        if (nearTop <= target) break search;
+      }
+    if (best) options.push(best);
+    // To the right of the words (a short window): its own room, from the top.
+    const left = words.right + CLEAR;
+    if (room.right - left >= LEAST.width && foot - pad >= LEAST.height)
+      options.push(build(left, room.right, pad, 1, foot - pad < FLAT_BELOW));
   }
-  return at(hi);
+  // Under the words (or the whole room where there are none).
+  const below = words ? words.bottom + CLEAR / 2 : pad;
+  if (foot - below >= LEAST.height) options.push(build(room.left, room.right, below, 1, foot - below < FLAT_BELOW));
+  const size = (f: FieldFrame) => (f.near.bottom - f.near.top) * (f.near.x - f.far.x);
+  const chosen = options.sort((a, b) => size(b) - size(a))[0];
+  return chosen && chosen.near.bottom - chosen.near.top >= LEAST.height ? chosen : null;
 }
 
-export interface FieldColours {
-  ink: [number, number, number];
-  history: [number, number, number];
-  event: [number, number, number];
-  dark: boolean;
+/** The highest (least) of the values from `lo` to `hi` that `fits`, where a larger value fits when a smaller one does;
+ *  null where not even `hi` fits. */
+function highest(lo: number, hi: number, fits: (value: number) => boolean): number | null {
+  if (hi <= lo || !fits(hi)) return null;
+  if (fits(lo)) return lo;
+  let a = lo;
+  let b = hi;
+  for (let i = 0; i < 24; i++) {
+    const mid = (a + b) / 2;
+    if (fits(mid)) b = mid;
+    else a = mid;
+  }
+  return b;
 }
 
 /** What one frame asks of the GPU, counted as it is drawn (the still pass only when it is redrawn). */
@@ -155,58 +197,73 @@ interface FieldWork {
   texture: { width: number; height: number; bytes: number };
 }
 
-export interface Field {
-  mode: "webgl2" | "canvas2d";
-  /** The canvas drawn on (a fresh one where WebGL was given up). */
-  element: HTMLCanvasElement;
-  resize(width: number, height: number, frame: FieldFrame): void;
-  setColours(colours: FieldColours): void;
-  /** The pointer in CSS pixels of the canvas, or null when it left; `lift` the id whose family is lifted, or -1. */
-  setPointer(point: { x: number; y: number } | null, lift: number): void;
-  setRunning(running: boolean): void;
-  /** Frame times measured (ms between frames drawn, and the CPU time of drawing them). */
-  stats(): { frames: number; meanFrameMs: number; meanDrawMs: number };
-  /** The GPU work of the last frame (WebGL2 only). */
-  work(): FieldWork | null;
-  /** Draw the frame at a time since the start, in ms (the development switch's stepping of time). */
-  drawAt(ms: number): void;
-  destroy(): void;
-}
+/** The lineage field's renderer. `setPointer` takes the id whose family is lifted (or -1). */
+export type Field = Picture<FieldFrame>;
 
 /** Steps of a curve between two releases: a smooth step in y, linear in x. */
 const STEPS = 10;
-/** The reveal along the time axis, once; then the light fades in. */
+/** The reveal along the time axis, once; the light fades in from part of the way through it. */
 const REVEAL_MS = 2400;
+const LIGHT_FROM = 0.55;
 const LIGHT_IN_MS = 1800;
+
+/** The light travelling along a line (or an edge, or reaching a grain): where its head is at a time, as a fraction of
+ *  the field (about half of its cycle on the field), how long its tail is, and how bright it is at a point. The same
+ *  for every pass, so that light leaving a line along an edge leaves it as it passes. */
+const PULSE = `
+float pulseSpeed(float phase) { return 0.034 + 0.03 * fract(phase * 7.13); }
+float pulseHead(float phase, float time) { return fract(time * pulseSpeed(phase) + phase) * 2.2 - 0.35; }
+float pulseTail(float phase) { return 1.5 * (0.05 + 0.06 * fract(phase * 3.7)); }
+float pulseLight(float x, float phase, float time) {
+  float d = pulseHead(phase, time) - x;
+  float tail = pulseTail(phase);
+  float light = d > 0.0 && d < tail ? pow(1.0 - d / tail, 2.6) : 0.0;
+  return light + (d <= 0.0 && d > -0.006 ? 1.0 + d / 0.006 : 0.0);
+}`;
+
+/** The field's map in the shaders: `u_ends` the ends' x and feet, `u_shape` their half heights, the depth and the
+ *  flare (device px). Returns the point and the field's scale there (1 at the near end). */
+const PLACE = `
+uniform vec4 u_ends;
+uniform vec4 u_shape;
+vec3 place(vec2 f) {
+  float r = u_shape.z;
+  float s = f.x / (r - (r - 1.0) * f.x);
+  float bottom = mix(u_ends.z, u_ends.w, s);
+  float spread = u_shape.x + (u_shape.y - u_shape.x) * pow(max(s, 0.0), u_shape.w);
+  return vec3(mix(u_ends.x, u_ends.y, s), bottom - spread + 2.0 * spread * f.y, spread / u_shape.y);
+}`;
 
 const VERTEX = `#version 300 es
 precision highp float;
 in float a_t;
 in vec4 a_seg;
 in vec2 a_meta;
-uniform mat3 u_m; // the field to device px (homogeneous)
 uniform vec2 u_res;
 uniform float u_offset;
 uniform float u_eras;
+uniform float u_edges; // 1: the instances are edges (their kind, then the phase of the id they leave)
+${PLACE}
 out float v_fade;
 out float v_x;
 out float v_phase;
 out float v_era;
 out float v_scale;
+out float v_kind;
 void main() {
   float s = a_t * a_t * (3.0 - 2.0 * a_t);
   float x = mix(a_seg.x, a_seg.z, a_t);
   float y = mix(a_seg.y, a_seg.w, s);
-  vec3 h = u_m * vec3(x, y, 1.0);
-  vec2 p = h.xy / h.z + vec2(0.0, u_offset);
-  v_fade = a_meta.x == 1.0 ? a_t : (a_meta.x == 2.0 ? 1.0 - a_t : 1.0);
+  vec3 p = place(vec2(x, y));
+  bool edge = u_edges > 0.5;
+  v_fade = edge ? 1.0 : (a_meta.x == 1.0 ? a_t : (a_meta.x == 2.0 ? 1.0 - a_t : 1.0));
+  v_kind = edge ? a_meta.x : -1.0;
   v_x = x;
   v_phase = fract(a_meta.y);
   // Growth rings: the ids of the first assembly in full ink, each later era a step lighter.
   v_era = u_eras > 1.0 ? floor(a_meta.y) / (u_eras - 1.0) : 0.0;
-  // The plane's scale here (1 at its near end): lines lie closer together toward the far end.
-  v_scale = 1.0 / h.z;
-  vec2 clip = p / u_res * 2.0 - 1.0;
+  v_scale = p.z;
+  vec2 clip = (p.xy + vec2(0.0, u_offset)) / u_res * 2.0 - 1.0;
   gl_Position = vec4(clip.x, -clip.y, 0.0, 1.0);
 }`;
 
@@ -217,64 +274,78 @@ in float v_x;
 in float v_phase;
 in float v_era;
 in float v_scale;
+in float v_kind;
 uniform vec4 u_colour;
 uniform vec3 u_young;
 uniform float u_time;
 uniform float u_pulse;
 uniform float u_still;
-uniform vec4 u_fibre; // a thread's weight: floor + gain * h^power (h its hash); the haze at the far end
+uniform float u_kind;   // only edges of this kind (-1: every one)
+uniform float u_phase;  // the light's phase for every line drawn (-1: each line's own)
+uniform vec4 u_fibre;   // a thread's weight: floor + gain * h^power (h its hash); the haze at the far end
+${PULSE}
 out vec4 colour;
 void main() {
+  if (u_kind >= 0.0 && abs(v_kind - u_kind) > 0.5) discard;
   float a = u_colour.a * v_fade;
   vec3 rgb = u_colour.rgb;
   if (u_still > 0.5) {
-    // Growth rings: the ids of the first assembly in the line's ink at the core, each later era's further toward the
-    // young ids' colour and lighter. Each thread its own weight, most of them faint and a few strong (fibres catching
-    // the light; in the light theme the engraver's few cut lines over a fine haze; the mean weight is the same for
-    // every line), and as much ink per pixel at the far end as at the near (lines lie closer there), hazing with
+    // Growth rings: the ids of the first assembly in the line's ink, each later era's further toward the young ids'
+    // colour and lighter. Each thread its own weight, most of them faint and a few strong (the mean weight is the same
+    // for every line), and as much ink per pixel at the far end as at the near (lines lie closer there), hazing with
     // distance.
     float weight = u_fibre.x + u_fibre.y * pow(fract(v_phase * 13.731), u_fibre.z);
     a *= weight * mix(1.0, 0.62, v_era) * v_scale * mix(u_fibre.w, 1.0, v_x);
     rgb = mix(u_colour.rgb, u_young, v_era);
   }
-  if (u_pulse > 0.5) {
-    // Light travelling with time along the line, about half of its cycle on the field: a head, a tail fading behind.
-    float speed = 0.034 + 0.03 * fract(v_phase * 7.13);
-    float h = fract(u_time * speed + v_phase) * 2.2 - 0.35;
-    float d = h - v_x;
-    float tail = 0.05 + 0.06 * fract(v_phase * 3.7);
-    float light = d > 0.0 && d < tail ? pow(1.0 - d / tail, 2.6) : 0.0;
-    light += d <= 0.0 && d > -0.006 ? 1.0 + d / 0.006 : 0.0;
-    a *= light;
-  }
+  if (u_pulse > 0.5) a *= pulseLight(v_x, u_phase >= 0.0 ? u_phase : v_phase, u_time);
   colour = vec4(rgb * a, a);
 }`;
 
 const DOT_VERTEX = `#version 300 es
 precision highp float;
-in vec2 a_dot;
-uniform mat3 u_m;
+in vec3 a_dot;
 uniform vec2 u_res;
 uniform float u_size;
-out float v_scale;
+uniform float u_time;
+uniform float u_flare; // 0: a grain of the still field; 1: the light passing it
+uniform float u_crowd; // grains lie this many deep where a release re-versions many ids (each is lighter by it)
+${PLACE}
+${PULSE}
+out float v_alpha;
+out float v_flare;
+float hash(float n) { return fract(sin(n * 12.9898) * 43758.5453); }
 void main() {
-  vec3 h = u_m * vec3(a_dot, 1.0);
-  vec2 p = h.xy / h.z;
-  v_scale = 1.0 / h.z;
-  vec2 clip = p / u_res * 2.0 - 1.0;
+  vec3 p = place(a_dot.xy);
+  float h = hash(float(gl_VertexID));
+  // A grain: a little to one side of its line or the other, of a weight of its own (a column of new versions reads as
+  // grains, never a bar).
+  vec2 jitter = u_flare > 0.5 ? vec2(0.0) : vec2((h - 0.5) * 2.4 * u_size / 2.0, 0.0);
+  vec2 clip = (p.xy + jitter) / u_res * 2.0 - 1.0;
   gl_Position = vec4(clip.x, -clip.y, 0.0, 1.0);
-  gl_PointSize = u_size * (0.45 + 0.55 * v_scale);
+  float phase = fract(a_dot.z);
+  // The light reaching it: a flare of about 300 ms as the head passes.
+  float width = 0.3 * pulseSpeed(phase) * 2.2;
+  float d = pulseHead(phase, u_time) - a_dot.x;
+  v_flare = u_flare > 0.5 ? exp(-pow(d / width, 2.0)) : 0.0;
+  // Most grains faint and a few strong, all lighter where they lie deep (a release that re-versions many ids is a
+  // column of grains, never a bar).
+  float weight = 0.25 + 1.75 * pow(hash(float(gl_VertexID) * 1.7 + 3.1), 3.0);
+  v_alpha = u_flare > 0.5 ? v_flare : weight / max(1.0, u_crowd / p.z);
+  gl_PointSize = u_flare > 0.5 ? u_size * 3.2 * (0.6 + 0.4 * v_flare) : u_size;
 }`;
 
 const DOT_FRAGMENT = `#version 300 es
 precision highp float;
-in float v_scale;
+in float v_alpha;
+in float v_flare;
 uniform vec4 u_colour;
+uniform float u_flare;
 out vec4 colour;
 void main() {
   vec2 c = gl_PointCoord * 2.0 - 1.0;
-  float r = dot(c, c);
-  float a = u_colour.a * smoothstep(1.0, 0.35, r) * (0.5 + 0.5 * v_scale);
+  float shape = u_flare > 0.5 ? exp(-2.2 * dot(c, c)) : 1.0;
+  float a = u_colour.a * v_alpha * shape;
   colour = vec4(u_colour.rgb * a, a);
 }`;
 
@@ -292,20 +363,23 @@ precision highp float;
 in vec2 v_uv;
 uniform sampler2D u_field;
 uniform vec2 u_res;
-uniform mat3 u_inv; // device px to the field
+uniform vec4 u_ends;
+uniform vec4 u_shape;
 uniform float u_reveal; // the release fraction shown so far
 uniform vec3 u_pointer; // device px, and 1 where the pointer is on the field
 uniform float u_radius;
 uniform vec3 u_tint;
 uniform vec3 u_glow;
+uniform vec3 u_deep;   // dark: the ink of the sparse field (a two-stop ramp toward the lines' own light)
 uniform float u_gain;
 uniform float u_dark;
 uniform float u_bloom;
+uniform float u_floor; // light: the least ink of a pixel a line passes
 out vec4 colour;
 void main() {
   vec2 p = vec2(v_uv.x, 1.0 - v_uv.y) * u_res;
-  vec3 f = u_inv * vec3(p, 1.0);
-  float fx = f.x / f.z;
+  float s = (p.x - u_ends.x) / max(1.0, u_ends.y - u_ends.x);
+  float fx = u_shape.z * s / (1.0 + (u_shape.z - 1.0) * s);
   vec4 c = texture(u_field, v_uv);
   // The glow: the density itself, seen through its mipmaps (a wide soft blur at no cost per line).
   float near = textureLod(u_field, v_uv, 2.5).a;
@@ -319,32 +393,140 @@ void main() {
   float a = 1.0 - exp(-u_gain * c.a * (1.0 + glow * 1.2));
   float halo = (1.0 - exp(-u_bloom * (0.6 * near + 0.4 * wide))) * (1.0 - a * 0.6);
   if (u_dark > 0.5) {
-    // Light on the night: the lines add up to light, with a bloom of their own density.
-    vec3 rgb = mix(hue, u_tint, glow * 0.7) * a + u_glow * halo + u_tint * front * a * 1.4;
+    // Light on the night: the sparse field a deep indigo, the dense core its lines' own pale light (two stops), with
+    // a bloom of its own density.
+    vec3 ramp = mix(u_deep, hue, smoothstep(0.05, 0.85, a));
+    vec3 rgb = mix(ramp, u_tint, glow * 0.7) * a + u_glow * halo + u_tint * front * a * 1.4;
     colour = vec4(rgb, min(1.0, max(a, halo))) * shown;
   } else {
-    // Ink on the paper, an engraving: the hairlines' density is the ink (the paper shows between them), the pointer's
-    // light draws them toward the history hue, and a faint wash of their own density softens the edges.
+    // Ink on the paper, an engraving: the hairlines' density is the ink (the paper shows between them), each pixel a
+    // line passes at least a floor of ink so that a sparse fan stays drawn; the pointer's light draws them toward the
+    // history hue.
+    a = c.a > 0.002 ? max(a, u_floor) : a;
     vec3 rgb = mix(hue, u_tint, glow * 0.6) * a + u_glow * halo + u_tint * front * a * 0.9;
     colour = vec4(rgb, min(1.0, a + halo * (1.0 - a))) * shown;
   }
 }`;
 
-/** A program's shaders compiled and linked, not waited for (the driver may compile them off the page's thread). */
-function startProgram(gl: WebGL2RenderingContext, vertex: string, fragment: string): WebGLProgram {
-  const program = gl.createProgram();
-  for (const [type, source] of [
-    [gl.VERTEX_SHADER, vertex],
-    [gl.FRAGMENT_SHADER, fragment],
-  ] as const) {
-    const shader = gl.createShader(type);
-    if (!shader) throw new Error("no shader");
-    gl.shaderSource(shader, source);
-    gl.compileShader(shader);
-    gl.attachShader(program, shader);
-  }
-  gl.linkProgram(program);
-  return program;
+/** The device pixels across which the ids of the widest release are spread at the field's near end. */
+function spreadOf(frame: FieldFrame, dpr: number): number {
+  return (frame.near.bottom - frame.near.top) * dpr;
+}
+
+/** A line's weight in the density: where the lines lie thickest they add up to about 1 (the composite's gain then
+ *  sets how deep that is), and a line alone keeps a visible weight. */
+function lineAlpha(layout: LineageLayout, spread: number): number {
+  const perPixel = layout.widest / Math.max(1, spread);
+  return Math.min(0.5, Math.max(0.02, 1 / perPixel));
+}
+
+/** An edge's weight in the density: where the most edges cross one cell of the layout's grid (its 99th percentile,
+ *  `edgeCrowd`) they add up to about 0.9, so that where hundreds of fans meet at an assembly change every curve stays a
+ *  curve; an edge alone keeps its full weight. */
+function edgeAlpha(layout: LineageLayout, frame: FieldFrame, dpr: number): number {
+  const { farHalf, nearHalf } = shapeOf(frame);
+  const cell = (2 * Math.sqrt(farHalf * nearHalf) * dpr) / 128;
+  return Math.min(1.3, Math.max(0.05, (0.9 * cell) / Math.max(1, layout.edgeCrowd)));
+}
+
+const mixed = (p: Rgb, q: Rgb, t: number): Rgb => p.map((v, i) => v + ((q[i] ?? 0) - v) * t) as Rgb;
+const lighten = (rgb: Rgb, by: number): Rgb => rgb.map((v) => v + (1 - v) * by) as Rgb;
+
+/** The inks of each theme. Dark: light on the night (pale steel lines, the younger eras toward the history hue, added
+ *  up with a bloom; most threads faint, a few bright; the sparse field deep indigo). Light: ink on the paper, an
+ *  engraving (deep blue-black hairlines, the younger eras toward the history hue; most threads a fine haze and a few cut
+ *  strong; the showcase's journeys deeper). The travelling light: in the dark a comet of light; in the light a cut of
+ *  the paper with a bead of deep ink in it (the event hue on an edge). */
+function paletteOf(inks: Inks) {
+  if (inks.dark)
+    return {
+      line: [0.7, 0.79, 0.96] as Rgb,
+      young: lighten(inks.history, 0.25),
+      deep: [0.11, 0.15, 0.33] as Rgb,
+      focal: [0.78, 0.85, 1] as Rgb,
+      focalAlpha: 0.08,
+      journeyAlpha: 0.22,
+      dots: lighten(inks.history, 0.2),
+      dotAlpha: 0.4,
+      core: [0.88, 0.94, 1] as Rgb,
+      halo: [0.36, 0.55, 1] as Rgb,
+      lift: [0.97, 0.98, 1] as Rgb,
+      glow: [0.3, 0.45, 0.85] as Rgb,
+      gain: 0.85,
+      bloom: 0.7,
+      floor: 0,
+      fibre: [0.25, 3.0, 5.0, 0.55] as [number, number, number, number],
+    };
+  return {
+    line: mixed(inks.ink, inks.history, 0.12),
+    young: mixed(inks.history, inks.ink, 0.35),
+    deep: inks.ink,
+    focal: mixed(inks.history, inks.ink, 0.45),
+    focalAlpha: 0.16,
+    journeyAlpha: 0.5,
+    dots: inks.history,
+    dotAlpha: 0.4,
+    core: inks.ink,
+    halo: inks.paper,
+    lift: inks.ink,
+    glow: lighten(inks.history, 0.6),
+    gain: 1.05,
+    bloom: 0.06,
+    floor: 0.1,
+    fibre: [0.1, 4.3, 8.0, 0.3] as [number, number, number, number],
+  };
+}
+
+const LIGHT_INKS: Inks = {
+  ink: [0.05, 0.07, 0.09],
+  paper: [0.98, 0.98, 0.97],
+  history: [0.18, 0.37, 0.82],
+  event: [0.76, 0.29, 0],
+  handoff: [0.75, 0.22, 0.6],
+  external: [0, 0.5, 0.36],
+  dark: false,
+};
+
+/** How the field is to be drawn: under reduced motion; the ids of the journey this visit follows (drawn strongest,
+ *  the first light along them; empty for none); the development switch. */
+export interface FieldOptions {
+  reduced: boolean;
+  focus?: readonly number[];
+  stepped?: boolean;
+  /** Called when the renderer's mode or canvas changes (its programs compiled, or WebGL given up). */
+  changed?: () => void;
+}
+
+/** The renderer: WebGL2 where the page draws by a GPU (`canvas.ts`, `pageGraphics`), else the still on a 2D canvas. */
+export function createField(canvas: HTMLCanvasElement, layout: LineageLayout, options: FieldOptions): Field {
+  const focus = options.focus ?? [];
+  const focal = focus.length ? simplified(layout, focus, layout.tolerance) : null;
+  return hostPicture<FieldFrame>(
+    canvas,
+    {
+      attributes: {
+        alpha: true,
+        antialias: true,
+        premultipliedAlpha: true,
+        powerPreference: "low-power",
+        preserveDrawingBuffer: options.stepped ?? false,
+      },
+      start(gl) {
+        const programs = {
+          lines: startProgram(gl, VERTEX, LINE_FRAGMENT),
+          dots: startProgram(gl, DOT_VERTEX, DOT_FRAGMENT),
+          quad: startProgram(gl, QUAD_VERTEX, QUAD_FRAGMENT),
+        };
+        return {
+          done: () => programsDone(gl, Object.values(programs)),
+          build: () => createWebgl(gl, programs, layout, focal, options),
+        };
+      },
+    },
+    (target) => createStill(target, layout, focal),
+    options.stepped ?? false,
+    options.changed,
+  );
 }
 
 interface Programs {
@@ -353,211 +535,15 @@ interface Programs {
   quad: WebGLProgram;
 }
 
-/** Whether the programs are compiled and linked, asked without waiting where the browser can (its
- *  KHR_parallel_shader_compile); then whether they linked. */
-function programsDone(gl: WebGL2RenderingContext, programs: Programs): boolean {
-  const parallel = gl.getExtension("KHR_parallel_shader_compile") as { COMPLETION_STATUS_KHR: number } | null;
-  const all: WebGLProgram[] = [programs.lines, programs.dots, programs.quad];
-  if (parallel && !all.every((p) => gl.getProgramParameter(p, parallel.COMPLETION_STATUS_KHR) === true)) return false;
-  for (const p of all)
-    if (!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(p) ?? "program");
-  return true;
-}
-
-/** The device pixels across which the ids of the widest release are spread at the field's near end. */
-function spreadOf(frame: FieldFrame, dpr: number): number {
-  return (frame.near.bottom - frame.near.top) * dpr;
-}
-
-/** A line's weight in the density: where the lines lie thickest they add up to about 1 (the composite's gain then
- *  sets how deep that is), and a line alone keeps a visible weight. On 8-bit textures (no float target) the sum
- *  saturates at 1 instead. */
-function lineAlpha(layout: LineageLayout, spread: number): number {
-  const perPixel = layout.widest / Math.max(1, spread);
-  return Math.min(0.5, Math.max(0.02, 1 / perPixel));
-}
-
-/** Whether WebGL draws in software here (no GPU: SwiftShader, llvmpipe, Microsoft's basic renderer): there a picture
- *  is drawn once and holds still, as under reduced motion (a frame takes a few hundred milliseconds of a CPU). */
-export function drawsInSoftware(gl: WebGL2RenderingContext): boolean {
-  const info = gl.getExtension("WEBGL_debug_renderer_info");
-  const renderer = String(gl.getParameter(info ? info.UNMASKED_RENDERER_WEBGL : gl.RENDERER) ?? "");
-  return /swiftshader|llvmpipe|softpipe|software|basic render/i.test(renderer);
-}
-
-/** The renderer. `stepped` (the development switch, never in a production build) keeps the animated path where WebGL
- *  draws in software and draws only when `drawAt` is called, so that a script can capture the motion frame by frame. */
-export function createField(
-  canvas: HTMLCanvasElement,
-  layout: LineageLayout,
-  reducedMotion: boolean,
-  stepped = false,
-): Field {
-  const gl = canvas.getContext("webgl2", {
-    alpha: true,
-    antialias: true,
-    premultipliedAlpha: true,
-    powerPreference: "low-power",
-    preserveDrawingBuffer: stepped,
-  });
-  if (!gl) return createStill(canvas, layout);
-  // In software (no GPU) a frame costs a few hundred milliseconds of the GPU process: one still frame is drawn, as under
-  // reduced motion, and nothing moves.
-  const still = reducedMotion || (!stepped && drawsInSoftware(gl));
-  let programs: Programs;
-  try {
-    programs = {
-      lines: startProgram(gl, VERTEX, LINE_FRAGMENT),
-      dots: startProgram(gl, DOT_VERTEX, DOT_FRAGMENT),
-      quad: startProgram(gl, QUAD_VERTEX, QUAD_FRAGMENT),
-    };
-  } catch {
-    return createStill(fresh(canvas, gl), layout);
-  }
-  return whenCompiled(canvas, gl, programs, (done) => {
-    try {
-      return done ? createWebgl(canvas, gl, layout, still, stepped, programs) : createStill(fresh(canvas, gl), layout);
-    } catch {
-      return createStill(fresh(canvas, gl), layout);
-    }
-  });
-}
-
-/** A field that waits, a frame at a time, for its programs to compile (so that the page's thread never waits on the
- *  driver), keeping what it is told meanwhile, then hands over to the field made by `make` (false: they failed). */
-function whenCompiled(
-  canvas: HTMLCanvasElement,
-  gl: WebGL2RenderingContext,
-  programs: Programs,
-  make: (done: boolean) => Field,
-): Field {
-  let field: Field | null = null;
-  let size: [number, number, FieldFrame] | null = null;
-  let colours: FieldColours | null = null;
-  let pointer: [{ x: number; y: number } | null, number] | null = null;
-  let running: boolean | null = null;
-  let raf = 0;
-  const poll = () => {
-    raf = 0;
-    let done: boolean;
-    try {
-      if (!programsDone(gl, programs)) {
-        raf = requestAnimationFrame(poll);
-        return;
-      }
-      done = true;
-    } catch {
-      done = false;
-    }
-    field = make(done);
-    proxy.element = field.element;
-    proxy.mode = field.mode;
-    canvas.dispatchEvent(new Event("idtrack:field"));
-    if (colours) field.setColours(colours);
-    if (size) field.resize(...size);
-    if (pointer) field.setPointer(...pointer);
-    if (running !== null) field.setRunning(running);
-  };
-  raf = requestAnimationFrame(poll);
-  const proxy: Field = {
-    mode: "webgl2",
-    element: canvas,
-    resize(...args) {
-      size = args;
-      field?.resize(...args);
-    },
-    setColours(c) {
-      colours = c;
-      field?.setColours(c);
-    },
-    setPointer(...args) {
-      pointer = args;
-      field?.setPointer(...args);
-    },
-    setRunning(on) {
-      running = on;
-      field?.setRunning(on);
-    },
-    stats: () => field?.stats() ?? { frames: 0, meanFrameMs: 0, meanDrawMs: 0 },
-    work: () => field?.work() ?? null,
-    drawAt(ms) {
-      field?.drawAt(ms);
-    },
-    destroy() {
-      if (raf) cancelAnimationFrame(raf);
-      if (field) field.destroy();
-      else gl.getExtension("WEBGL_lose_context")?.loseContext();
-    },
-  };
-  return proxy;
-}
-
-/** A new canvas in the place of one that holds a WebGL context (a canvas holds one kind of context for good). */
-function fresh(canvas: HTMLCanvasElement, gl: WebGL2RenderingContext): HTMLCanvasElement {
-  gl.getExtension("WEBGL_lose_context")?.loseContext();
-  const other = document.createElement("canvas");
-  other.className = canvas.className;
-  canvas.replaceWith(other);
-  return other;
-}
-
-/** The inks of each theme. Dark: light on the night (pale steel lines, the younger eras toward the history hue, added
- *  up with a bloom; most threads faint, a few bright). Light: ink on the paper, an engraving (deep blue-black hairlines,
- *  the younger eras toward the history hue; most threads a fine haze and a few cut strong, so the paper shows between
- *  them; hazing toward the paper with distance; the showcase's journeys in the history hue). The two hues stay
- *  accents: the history hue's dots and one-to-one edges, the event hue's fans, the light travelling. */
-function paletteOf(colours: FieldColours) {
-  const lighten = (rgb: [number, number, number], by: number) =>
-    rgb.map((v) => v + (1 - v) * by) as [number, number, number];
-  const mixed = (p: [number, number, number], q: [number, number, number], t: number) =>
-    p.map((v, i) => v + ((q[i] ?? 0) - v) * t) as [number, number, number];
-  const rgb = (r: number, g: number, b: number): [number, number, number] => [r, g, b];
-  if (colours.dark)
-    return {
-      line: rgb(0.7, 0.79, 0.96),
-      young: lighten(colours.history, 0.25),
-      focal: rgb(0.7, 0.79, 0.96),
-      focalAlpha: 0.16,
-      one: colours.history,
-      fan: colours.event,
-      dots: colours.history,
-      dotAlpha: 0.5,
-      core: rgb(0.86, 0.93, 1),
-      halo: rgb(0.36, 0.55, 1),
-      lift: [0.97, 0.98, 1, 1] as [number, number, number, number],
-      glow: rgb(0.3, 0.45, 0.85),
-      gain: 0.95,
-      bloom: 0.8,
-      fibre: [0.25, 3.0, 5.0, 0.55] as [number, number, number, number],
-    };
-  const ink = mixed(colours.ink, colours.history, 0.3);
-  return {
-    line: ink,
-    young: mixed(colours.history, colours.ink, 0.25),
-    focal: mixed(colours.history, colours.ink, 0.35),
-    focalAlpha: 0.14,
-    one: colours.history,
-    fan: colours.event,
-    dots: colours.history,
-    dotAlpha: 0.32,
-    core: colours.history,
-    halo: lighten(colours.history, 0.55),
-    lift: [...colours.ink, 1] as [number, number, number, number],
-    glow: lighten(colours.history, 0.6),
-    gain: 0.85,
-    bloom: 0.06,
-    fibre: [0.1, 4.3, 8.0, 0.3] as [number, number, number, number],
-  };
-}
-
 function createWebgl(
-  canvas: HTMLCanvasElement,
   gl: WebGL2RenderingContext,
-  layout: LineageLayout,
-  reducedMotion: boolean,
-  stepped: boolean,
   programs: Programs,
+  layout: LineageLayout,
+  focal: Lines | null,
+  options: FieldOptions,
 ): Field {
+  const reduced = options.reduced;
+  const stepped = options.stepped ?? false;
   const { lines, dots: dotsProgram, quad } = programs;
   const steps = new Float32Array(STEPS + 1).map((_, i) => i / STEPS);
   const work = { drawCalls: 0, vertices: 0, stillDrawCalls: 0, stillVertices: 0 };
@@ -595,41 +581,54 @@ function createWebgl(
     point(0);
     return { vao, count: data.length / stride, point, vertices };
   }
-  /** Draw simplified lines: the straight, then the curved. */
+  type Curves = ReturnType<typeof curves>;
+  /** Simplified lines: the straight, then the curved. */
   const drawn = (parts: Lines) => ({
     straight: curves(parts.straight, SEGMENT_FLOATS, 2),
     curved: curves(parts.curved, SEGMENT_FLOATS),
   });
-  const drawLines = (lines: ReturnType<typeof drawn>) => {
-    for (const part of [lines.straight, lines.curved]) {
-      if (!part.count) continue;
-      gl.bindVertexArray(part.vao);
-      gl.drawArraysInstanced(gl.LINE_STRIP, 0, part.vertices, part.count);
-      count(part.vertices * part.count);
-    }
+  const drawLines = (set: ReturnType<typeof drawn>) => {
+    for (const part of [set.straight, set.curved]) drawCurves(part);
+  };
+  const drawCurves = (part: Curves, from = 0, to = part.count) => {
+    if (to <= from) return;
+    if (from) part.point(from);
+    gl.bindVertexArray(part.vao);
+    gl.drawArraysInstanced(gl.LINE_STRIP, 0, part.vertices, to - from);
+    count(part.vertices * (to - from));
+    if (from) part.point(0);
   };
   const threads = curves(layout.segments, SEGMENT_FLOATS);
   const all = drawn(layout.lines.all);
-  const focal = drawn(layout.lines.focal);
+  const showcase = drawn(layout.lines.focal);
   const pulses = drawn(layout.lines.pulses);
-  // Edges in two draws by kind: their kind is the fifth float; sorted so each kind is one range.
-  const edgeList: number[][] = [[], []];
-  for (let e = 0; e < layout.edges.length / EDGE_FLOATS; e++) {
-    const row = Array.from(layout.edges.subarray(e * EDGE_FLOATS, (e + 1) * EDGE_FLOATS));
-    edgeList[row[4] === 1 ? 1 : 0]?.push(...row.slice(0, 4), 0, 0);
-  }
-  const edgesOne = curves(Float32Array.from(edgeList[0] ?? []), EDGE_FLOATS);
-  const edgesFan = curves(Float32Array.from(edgeList[1] ?? []), EDGE_FLOATS);
+  const journey = focal ? drawn(focal) : null;
+  // Edges in two draws by kind (the kind is the fifth float).
+  const byKind = (kind: number) => {
+    const out: number[] = [];
+    for (let e = 0; e < layout.edges.length / EDGE_FLOATS; e++)
+      if ((layout.edges[e * EDGE_FLOATS + 4] ?? 0) === kind)
+        out.push(...layout.edges.subarray(e * EDGE_FLOATS, (e + 1) * EDGE_FLOATS));
+    return Float32Array.from(out);
+  };
+  const edgesOne = curves(byKind(0), EDGE_FLOATS);
+  const edgesFan = curves(byKind(1), EDGE_FLOATS);
   const allEdges = curves(layout.edges, EDGE_FLOATS);
+  const pulseEdges = curves(layout.pulseEdges, EDGE_FLOATS);
 
-  const dotVao = gl.createVertexArray();
-  gl.bindVertexArray(dotVao);
-  const dotBuffer = gl.createBuffer();
-  gl.bindBuffer(gl.ARRAY_BUFFER, dotBuffer);
-  gl.bufferData(gl.ARRAY_BUFFER, layout.dots, gl.STATIC_DRAW);
-  const aDot = gl.getAttribLocation(dotsProgram, "a_dot");
-  gl.enableVertexAttribArray(aDot);
-  gl.vertexAttribPointer(aDot, 2, gl.FLOAT, false, 0, 0);
+  const dotArray = (data: Float32Array) => {
+    const vao = gl.createVertexArray();
+    gl.bindVertexArray(vao);
+    const buffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+    gl.bufferData(gl.ARRAY_BUFFER, data, gl.STATIC_DRAW);
+    const at = gl.getAttribLocation(dotsProgram, "a_dot");
+    gl.enableVertexAttribArray(at);
+    gl.vertexAttribPointer(at, 3, gl.FLOAT, false, DOT_FLOATS * 4, 0);
+    return { vao, count: data.length / DOT_FLOATS };
+  };
+  const grains = dotArray(layout.dots);
+  const flares = dotArray(layout.pulseDots);
 
   const quadVao = gl.createVertexArray();
   gl.bindVertexArray(quadVao);
@@ -647,94 +646,71 @@ function createWebgl(
   let width = 1;
   let height = 1;
   let frame: FieldFrame = { far: { x: 0, top: 0, bottom: 1 }, near: { x: 1, top: 0, bottom: 1 } };
-  let colours: FieldColours = {
-    ink: [0.05, 0.07, 0.09],
-    history: [0.18, 0.37, 0.82],
-    event: [0.76, 0.29, 0],
-    dark: false,
-  };
+  let inks: Inks = LIGHT_INKS;
   let dirty = true;
-  let pointer: { x: number; y: number } | null = null;
+  let pointer: Point | null = null;
   let lift = -1;
   let running = false;
   let raf = 0;
   let start = -1;
-  let lost = false;
+  let ended = false;
   const times = { frames: 0, frameMs: 0, drawMs: 0, last: 0 };
-
-  function uniforms<K extends string>(program: WebGLProgram, names: readonly K[]) {
-    const out = {} as Record<K, WebGLUniformLocation | null>;
-    for (const n of names) out[n] = gl.getUniformLocation(program, n);
-    return out;
-  }
-  const lu = uniforms(lines, [
-    "u_m",
-    "u_young",
-    "u_res",
-    "u_offset",
-    "u_colour",
-    "u_time",
-    "u_pulse",
-    "u_still",
-    "u_fibre",
-    "u_eras",
-  ] as const);
-  const du = uniforms(dotsProgram, ["u_m", "u_res", "u_size", "u_colour"] as const);
-  const qu = uniforms(quad, [
-    "u_field",
-    "u_res",
-    "u_inv",
-    "u_reveal",
-    "u_pointer",
-    "u_radius",
-    "u_tint",
-    "u_glow",
-    "u_gain",
-    "u_dark",
-    "u_bloom",
-  ] as const);
+  const lu = uniformsOf(gl, lines);
+  const du = uniformsOf(gl, dotsProgram);
+  const qu = uniformsOf(gl, quad);
   // A still field of half floats where the browser can draw into them: thousands of faint lines add up without the
   // steps of 8 bits.
   const floats =
     gl.getExtension("EXT_color_buffer_float") !== null || gl.getExtension("EXT_color_buffer_half_float") !== null;
   let textureBytes = 0;
 
-  /** The projection in device pixels, column-major for the shaders, and its inverse. */
-  const matrices = () => {
-    const scaled: FieldFrame = {
-      far: { x: frame.far.x * dpr, top: frame.far.top * dpr, bottom: frame.far.bottom * dpr },
-      near: { x: frame.near.x * dpr, top: frame.near.top * dpr, bottom: frame.near.bottom * dpr },
+  /** The frame's map in device pixels, for the shaders. */
+  const shape = () => {
+    const s = shapeOf(frame);
+    return {
+      ends: [frame.far.x * dpr, frame.near.x * dpr, frame.far.bottom * dpr, frame.near.bottom * dpr] as const,
+      shape: [s.farHalf * dpr, s.nearHalf * dpr, s.depth, s.flare] as const,
     };
-    const m = projection(scaled);
-    const columns = (r: number[]) => [0, 3, 6, 1, 4, 7, 2, 5, 8].map((i) => r[i] ?? 0);
-    return { m: new Float32Array(columns(m)), inv: new Float32Array(columns(inverse(m))) };
   };
-  let projected = matrices();
+  let mapped = shape();
+  const setPlace = (at: (name: string) => WebGLUniformLocation | null) => {
+    gl.uniform4f(at("u_ends"), ...mapped.ends);
+    gl.uniform4f(at("u_shape"), ...mapped.shape);
+  };
 
   function applyLines(
     colour: [number, number, number, number],
-    mode: { pulse?: boolean; still?: boolean },
+    mode: { pulse?: boolean; still?: boolean; edges?: boolean; kind?: number; phase?: number },
     time: number,
     offset = 0,
   ) {
     gl.useProgram(lines);
-    gl.uniformMatrix3fv(lu.u_m, false, projected.m);
-    gl.uniform2f(lu.u_res, width, height);
-    gl.uniform1f(lu.u_offset, offset);
-    gl.uniform4f(lu.u_colour, ...colour);
-    const palette = paletteOf(colours);
-    gl.uniform3f(lu.u_young, ...palette.young);
-    gl.uniform4f(lu.u_fibre, ...palette.fibre);
-    gl.uniform1f(lu.u_time, time);
-    gl.uniform1f(lu.u_pulse, mode.pulse ? 1 : 0);
-    gl.uniform1f(lu.u_still, mode.still ? 1 : 0);
-    gl.uniform1f(lu.u_eras, layout.eras);
+    setPlace(lu);
+    gl.uniform2f(lu("u_res"), width, height);
+    gl.uniform1f(lu("u_offset"), offset);
+    gl.uniform4f(lu("u_colour"), ...colour);
+    const palette = paletteOf(inks);
+    gl.uniform3f(lu("u_young"), ...palette.young);
+    gl.uniform4f(lu("u_fibre"), ...palette.fibre);
+    gl.uniform1f(lu("u_time"), time);
+    gl.uniform1f(lu("u_pulse"), mode.pulse ? 1 : 0);
+    gl.uniform1f(lu("u_still"), mode.still ? 1 : 0);
+    gl.uniform1f(lu("u_edges"), mode.edges ? 1 : 0);
+    gl.uniform1f(lu("u_kind"), mode.kind ?? -1);
+    gl.uniform1f(lu("u_phase"), mode.phase ?? -1);
+    gl.uniform1f(lu("u_eras"), layout.eras);
   }
 
-  function blend() {
-    gl.enable(gl.BLEND);
-    if (colours.dark) gl.blendFunc(gl.ONE, gl.ONE);
-    else gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+  function applyDots(colour: [number, number, number, number], flare: boolean, time: number) {
+    gl.useProgram(dotsProgram);
+    setPlace(du);
+    gl.uniform2f(du("u_res"), width, height);
+    gl.uniform1f(du("u_size"), 2 * dpr);
+    gl.uniform1f(du("u_time"), time);
+    gl.uniform1f(du("u_flare"), flare ? 1 : 0);
+    // How many grains deep a column of new versions lies at the near end: the ids' spacing against a grain's size.
+    gl.uniform1f(du("u_crowd"), (2 * dpr) / Math.max(0.05, spreadOf(frame, dpr) / layout.widest));
+    gl.uniform4f(du("u_colour"), ...colour);
   }
 
   /** The still field, into the texture, with its mipmaps (the composite's glow). */
@@ -757,30 +733,39 @@ function createWebgl(
     gl.enable(gl.BLEND);
     gl.blendFunc(gl.ONE, gl.ONE);
     const a = lineAlpha(layout, spreadOf(frame, dpr));
-    const palette = paletteOf(colours);
+    const palette = paletteOf(inks);
     applyLines([...palette.line, a], { still: true }, 0);
     drawLines(all);
-    // The showcase's journeys (the first families): drawn again, stronger, the focal threads of the field.
-    if (layout.focusIds > 0) {
-      applyLines([...palette.focal, palette.focalAlpha], {}, 0);
-      drawLines(focal);
-    }
-    applyLines([...palette.one, 0.7], {}, 0);
-    gl.bindVertexArray(edgesOne.vao);
-    gl.drawArraysInstanced(gl.LINE_STRIP, 0, STEPS + 1, edgesOne.count);
-    count((STEPS + 1) * edgesOne.count);
-    applyLines([...palette.fan, 1.3], {}, 0);
-    gl.bindVertexArray(edgesFan.vao);
-    gl.drawArraysInstanced(gl.LINE_STRIP, 0, STEPS + 1, edgesFan.count);
-    count((STEPS + 1) * edgesFan.count);
-    gl.useProgram(dotsProgram);
-    gl.uniformMatrix3fv(du.u_m, false, projected.m);
-    gl.uniform2f(du.u_res, width, height);
-    gl.uniform1f(du.u_size, 2.6 * dpr);
-    gl.uniform4f(du.u_colour, ...palette.dots, palette.dotAlpha);
-    gl.bindVertexArray(dotVao);
-    gl.drawArrays(gl.POINTS, 0, layout.dots.length / 2);
-    count(layout.dots.length / 2);
+    // The showcase's journeys (the first families): drawn again, stronger, two pixels wide with a soft glow, the focal
+    // threads.
+    // Where the showcase's families are more than a seventh of the lines (a phone's sample), the strong threads are
+    // lighter by as much, so that they stay threads and never fill a band.
+    const close = Math.max(0.25, Math.min(1, (0.15 * layout.shown) / Math.max(1, layout.focusIds)));
+    if (layout.focusIds > 0)
+      for (const [offset, share] of [
+        [-1.5, 0.3],
+        [-0.5, 1],
+        [0.5, 1],
+        [1.5, 0.3],
+      ] as const) {
+        applyLines([...palette.focal, palette.focalAlpha * share * close], {}, 0, offset * dpr);
+        drawLines(showcase);
+      }
+    // The journey this visit follows: the strongest of all.
+    if (journey)
+      for (const offset of [-0.6, 0, 0.6]) {
+        applyLines([...palette.focal, palette.journeyAlpha * close], {}, 0, offset * dpr);
+        drawLines(journey);
+      }
+    const ea = edgeAlpha(layout, frame, dpr);
+    applyLines([...inks.history, Math.min(0.7, ea)], { edges: true }, 0);
+    drawCurves(edgesOne);
+    applyLines([...inks.event, ea], { edges: true }, 0);
+    drawCurves(edgesFan);
+    applyDots([...palette.dots, palette.dotAlpha], false, 0);
+    gl.bindVertexArray(grains.vao);
+    gl.drawArrays(gl.POINTS, 0, grains.count);
+    count(grains.count);
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
     gl.bindTexture(gl.TEXTURE_2D, texture);
     gl.generateMipmap(gl.TEXTURE_2D);
@@ -789,9 +774,57 @@ function createWebgl(
     dirty = false;
   }
 
+  /** The travelling light: in the dark a comet of light added to the field; in the light a cut of the paper along the
+   *  line with a bead of deep ink in it (the event hue along an edge), and the grains it passes flaring. */
+  function drawLight(seconds: number, light: number) {
+    const palette = paletteOf(inks);
+    const cut: [number, number][] = inks.dark
+      ? [
+          [-1.2, 0.32],
+          [1.2, 0.32],
+          [-2.6, 0.1],
+          [2.6, 0.1],
+        ]
+      : [
+          [-2.5, 0.55],
+          [-1.5, 0.85],
+          [1.5, 0.85],
+          [2.5, 0.55],
+        ];
+    const core: [number, number][] = inks.dark
+      ? [[0, 0.95]]
+      : [
+          [-0.4, 0.95],
+          [0.4, 0.95],
+        ];
+    // The journey of this visit carries the first light: its head leaves the far end as the light fades in.
+    const startAt = (REVEAL_MS * LIGHT_FROM) / 1000;
+    const journeyPhase = (speed: number) => (((0.16 - startAt * speed) % 1) + 1) % 1;
+    const passes = (offsets: [number, number][], rgb: Rgb, edgeRgb: Rgb) => {
+      for (const [offset, alpha] of offsets) {
+        applyLines([...rgb, alpha * light], { pulse: true }, seconds, offset * dpr);
+        drawLines(pulses);
+        if (journey) {
+          applyLines([...rgb, alpha * light], { pulse: true, phase: journeyPhase(0.05) }, seconds, offset * dpr);
+          drawLines(journey);
+        }
+        applyLines([...edgeRgb, alpha * light], { pulse: true, edges: true }, seconds, offset * dpr);
+        drawCurves(pulseEdges);
+      }
+    };
+    if (inks.dark) gl.blendFunc(gl.ONE, gl.ONE);
+    else gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+    passes(cut, palette.halo, inks.dark ? inks.event : palette.halo);
+    passes(core, palette.core, inks.event);
+    applyDots([...(inks.dark ? palette.core : inks.history), 0.9 * light], true, seconds);
+    gl.bindVertexArray(flares.vao);
+    gl.drawArrays(gl.POINTS, 0, flares.count);
+    count(flares.count);
+  }
+
   /** One frame at `elapsed` ms since the field began. */
   function draw(elapsed: number) {
-    if (lost) return;
+    if (ended) return;
     const t0 = performance.now();
     work.drawCalls = 0;
     work.vertices = 0;
@@ -800,77 +833,61 @@ function createWebgl(
       work.stillDrawCalls = 0;
       work.stillVertices = 0;
     }
-    const shown = reducedMotion ? REVEAL_MS : elapsed;
+    const shown = reduced ? REVEAL_MS : elapsed;
     const reveal = Math.min(1, shown / REVEAL_MS);
     const eased = 1 - (1 - reveal) ** 3;
     const seconds = elapsed / 1000;
     gl.viewport(0, 0, width, height);
     gl.clearColor(0, 0, 0, 0);
     gl.clear(gl.COLOR_BUFFER_BIT);
-    blend();
+    gl.enable(gl.BLEND);
+    if (inks.dark) gl.blendFunc(gl.ONE, gl.ONE);
+    else gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
     gl.useProgram(quad);
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, texture);
-    gl.uniform1i(qu.u_field, 0);
-    gl.uniform2f(qu.u_res, width, height);
-    gl.uniformMatrix3fv(qu.u_inv, false, projected.inv);
-    gl.uniform1f(qu.u_reveal, reveal >= 1 ? 2 : -0.06 + 1.12 * eased);
-    gl.uniform3f(qu.u_pointer, (pointer?.x ?? 0) * dpr, (pointer?.y ?? 0) * dpr, pointer ? 1 : 0);
-    gl.uniform1f(qu.u_radius, 170 * dpr);
-    const palette = paletteOf(colours);
-    gl.uniform3f(qu.u_tint, ...colours.history);
-    gl.uniform3f(qu.u_glow, ...palette.glow);
-    gl.uniform1f(qu.u_gain, palette.gain);
-    gl.uniform1f(qu.u_dark, colours.dark ? 1 : 0);
-    gl.uniform1f(qu.u_bloom, palette.bloom);
+    gl.uniform1i(qu("u_field"), 0);
+    gl.uniform2f(qu("u_res"), width, height);
+    setPlace(qu);
+    gl.uniform1f(qu("u_reveal"), reveal >= 1 ? 2 : -0.06 + 1.12 * eased);
+    gl.uniform3f(qu("u_pointer"), (pointer?.x ?? 0) * dpr, (pointer?.y ?? 0) * dpr, pointer ? 1 : 0);
+    gl.uniform1f(qu("u_radius"), 170 * dpr);
+    const palette = paletteOf(inks);
+    gl.uniform3f(qu("u_tint"), ...inks.history);
+    gl.uniform3f(qu("u_glow"), ...palette.glow);
+    gl.uniform3f(qu("u_deep"), ...palette.deep);
+    gl.uniform1f(qu("u_gain"), palette.gain);
+    gl.uniform1f(qu("u_dark"), inks.dark ? 1 : 0);
+    gl.uniform1f(qu("u_bloom"), palette.bloom);
+    gl.uniform1f(qu("u_floor"), palette.floor);
     gl.bindVertexArray(quadVao);
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
     count(4);
-    const light = reducedMotion ? 0 : Math.min(1, Math.max(0, (shown - REVEAL_MS * 0.8) / LIGHT_IN_MS));
-    if (light > 0) {
-      // The travelling light: in the dark theme light added to the field, a core and a halo; in the light theme a bead
-      // of the history hue's ink laid over it, with a pale halo.
-      const { core, halo } = palette;
-      const passes: [number, number][] = [
-        [0, colours.dark ? 0.95 : 0.9],
-        [-1.2, 0.32],
-        [1.2, 0.32],
-        [-2.6, 0.1],
-        [2.6, 0.1],
-      ];
-      for (const [offset, alpha] of passes) {
-        applyLines([...(offset === 0 ? core : halo), alpha * light], { pulse: true }, seconds, offset * dpr);
-        drawLines(pulses);
-      }
-      blend();
-    }
-    if (lift >= 0 && !reducedMotion) {
-      const first = layout.familyOf[2 * lift] ?? lift;
-      const last = layout.familyOf[2 * lift + 1] ?? lift;
-      const s0 = layout.segmentStart[first] ?? 0;
-      const s1 = layout.segmentStart[last + 1] ?? 0;
-      const e0 = layout.edgeStart[first] ?? 0;
-      const e1 = layout.edgeStart[last + 1] ?? 0;
-      gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
-      const strong = palette.lift;
-      for (const offset of [-0.6 * dpr, 0, 0.6 * dpr]) {
-        applyLines(strong, {}, 0, offset);
-        threads.point(s0);
-        gl.drawArraysInstanced(gl.LINE_STRIP, 0, STEPS + 1, s1 - s0);
-        count((STEPS + 1) * (s1 - s0));
-        if (e1 > e0) {
-          applyLines([...palette.fan, 1], {}, 0, offset);
-          allEdges.point(e0);
-          gl.drawArraysInstanced(gl.LINE_STRIP, 0, STEPS + 1, e1 - e0);
-          count((STEPS + 1) * (e1 - e0));
-        }
-      }
-      threads.point(0);
-      allEdges.point(0);
-    }
+    const light = reduced ? 0 : Math.min(1, Math.max(0, (shown - REVEAL_MS * LIGHT_FROM) / LIGHT_IN_MS));
+    if (light > 0) drawLight(seconds, light);
+    if (lift >= 0 && !reduced) drawLift(palette.lift);
     gl.bindVertexArray(null);
     times.drawMs += performance.now() - t0;
     times.frames++;
+  }
+
+  /** The family under the pointer, lifted: its lines in full ink, each of its edges in the hue of its kind. */
+  function drawLift(ink: Rgb) {
+    const first = layout.familyOf[2 * lift] ?? lift;
+    const last = layout.familyOf[2 * lift + 1] ?? lift;
+    const s0 = layout.segmentStart[first] ?? 0;
+    const s1 = layout.segmentStart[last + 1] ?? 0;
+    const e0 = layout.edgeStart[first] ?? 0;
+    const e1 = layout.edgeStart[last + 1] ?? 0;
+    gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+    for (const offset of [-0.6 * dpr, 0, 0.6 * dpr]) {
+      applyLines([...ink, 1], {}, 0, offset);
+      drawCurves(threads, s0, s1);
+      applyLines([...inks.history, 1], { edges: true, kind: 0 }, 0, offset);
+      drawCurves(allEdges, e0, e1);
+      applyLines([...inks.event, 1], { edges: true, kind: 1 }, 0, offset);
+      drawCurves(allEdges, e0, e1);
+    }
   }
 
   function loop(now: number) {
@@ -879,46 +896,42 @@ function createWebgl(
     if (times.last) times.frameMs += now - times.last;
     times.last = now;
     draw(now - start);
-    if (running && !reducedMotion) raf = requestAnimationFrame(loop);
+    if (running && !reduced) raf = requestAnimationFrame(loop);
   }
 
   function request() {
-    if (stepped) return;
-    if (!raf && !lost) raf = requestAnimationFrame(loop);
+    if (stepped || ended) return;
+    if (!raf) raf = requestAnimationFrame(loop);
   }
-
-  const onLost = (event: Event) => {
-    event.preventDefault();
-    lost = true;
-    if (raf) cancelAnimationFrame(raf);
-    raf = 0;
-  };
-  canvas.addEventListener("webglcontextlost", onLost);
 
   return {
     mode: "webgl2",
-    element: canvas,
+    element: gl.canvas as HTMLCanvasElement,
+    moving: !reduced,
     resize(w, h, f) {
-      dpr = Math.min(2, window.devicePixelRatio || 1);
-      width = Math.max(1, Math.round(w * dpr));
-      height = Math.max(1, Math.round(h * dpr));
+      const size = devicePixels(w, h);
+      dpr = size.dpr;
+      width = size.width;
+      height = size.height;
+      const canvas = gl.canvas as HTMLCanvasElement;
       canvas.width = width;
       canvas.height = height;
       frame = f;
-      projected = matrices();
+      mapped = shape();
       dirty = true;
       request();
     },
     setColours(c) {
-      colours = c;
+      inks = c;
       dirty = true;
       request();
     },
     setPointer(p, id) {
-      if (reducedMotion) return;
+      if (reduced) return -1;
       pointer = p;
       lift = id;
       request();
+      return id;
     },
     setRunning(on) {
       running = on;
@@ -929,32 +942,38 @@ function createWebgl(
         times.last = 0;
       }
     },
-    stats() {
+    stats(): FrameStats {
       return {
         frames: times.frames,
         meanFrameMs: times.frames > 1 ? times.frameMs / (times.frames - 1) : 0,
         meanDrawMs: times.frames ? times.drawMs / times.frames : 0,
       };
     },
-    work() {
+    work(): FieldWork {
       return { ...work, texture: { width, height, bytes: textureBytes } };
     },
-    drawAt(ms) {
-      draw(ms);
+    drawAt(seconds) {
+      draw(seconds * 1000);
     },
     destroy() {
+      ended = true;
       running = false;
       if (raf) cancelAnimationFrame(raf);
-      canvas.removeEventListener("webglcontextlost", onLost);
-      gl.getExtension("WEBGL_lose_context")?.loseContext();
+      raf = 0;
     },
   };
 }
 
-/** Without WebGL2: the still field on a 2D canvas, drawn in slices over frames so that no long task holds the page;
- *  no light, no pointer. */
-function createStill(canvas: HTMLCanvasElement, layout: LineageLayout): Field {
-  const context = canvas.getContext("2d");
+/** The weight classes of the 2D still: the threads' weights (as the shader gives them, from each line's phase) in a few
+ *  classes, each class drawn at its own alpha. */
+const CLASSES = 6;
+
+/** The still field on a 2D canvas (without WebGL2, or where WebGL draws in software): the same lines, edges and grains
+ *  as the WebGL still, each line a single hairline at a low alpha by its weight, drawn in batches of one path per
+ *  weight class and hue, in slices of a few milliseconds one a frame, so that no long task holds the page. On a device
+ *  of four cores or fewer, 1,500 of the lines (every journey's, then an even share of the others). No light, no lift. */
+function createStill(canvas: HTMLCanvasElement, layout: LineageLayout, focal: Lines | null): Field {
+  const context = stillContext(canvas);
   let job = 0;
   let painted = 0;
   let size: { w: number; h: number; frame: FieldFrame } = {
@@ -962,76 +981,148 @@ function createStill(canvas: HTMLCanvasElement, layout: LineageLayout): Field {
     h: 1,
     frame: { far: { x: 0, top: 0, bottom: 1 }, near: { x: 1, top: 0, bottom: 1 } },
   };
-  let colours: FieldColours = {
-    ink: [0.05, 0.07, 0.09],
-    history: [0.18, 0.37, 0.82],
-    event: [0.76, 0.29, 0],
-    dark: false,
+  let inks: Inks = LIGHT_INKS;
+  const slow = typeof navigator !== "undefined" && (navigator.hardwareConcurrency || 8) <= 4;
+  const share = slow ? Math.min(1, 1500 / Math.max(1, layout.shown)) : 1;
+  const css = (rgb: Rgb, a: number) =>
+    `rgb(${rgb.map((v) => Math.round(v * 255)).join(" ")} / ${Math.max(0, Math.min(1, a)).toFixed(3)})`;
+  /** A line's phase and its weight class, as the shader reads them. */
+  const classOf = (meta: number, fibre: readonly number[]) => {
+    const phase = meta - Math.floor(meta);
+    const h = (phase * 13.731) % 1;
+    const weight = (fibre[0] ?? 0) + (fibre[1] ?? 0) * h ** (fibre[2] ?? 1);
+    const top = (fibre[0] ?? 0) + (fibre[1] ?? 0);
+    return Math.min(CLASSES - 1, Math.floor((weight / top) ** 0.5 * CLASSES));
   };
-  const css = (rgb: [number, number, number], a: number) =>
-    `rgb(${rgb.map((v) => Math.round(v * 255)).join(" ")} / ${a})`;
   function paint() {
     if (!context) return;
     if (job) cancelAnimationFrame(job);
-    const dpr = Math.min(2, window.devicePixelRatio || 1);
-    canvas.width = Math.round(size.w * dpr);
-    canvas.height = Math.round(size.h * dpr);
+    const { dpr, width, height } = devicePixels(size.w, size.h);
+    canvas.width = width;
+    canvas.height = height;
     context.setTransform(dpr, 0, 0, dpr, 0, 0);
     context.clearRect(0, 0, size.w, size.h);
     const f = size.frame;
     const place = placer(f);
-    const alpha = lineAlpha(layout, spreadOf(f, dpr));
-    const palette = paletteOf(colours);
-    // Dark: the pale lines added up as light; light: the ink's hairlines on the paper.
-    const ink = palette.line;
-    context.globalCompositeOperation = colours.dark ? "lighter" : "source-over";
-    // Each curve as the shaders draw it: x along, y by a smooth step, placed on the plane.
-    const curve = (data: Float32Array, stride: number, from: number, to: number) => {
-      for (let s = from; s < to; s++) {
-        const o = s * stride;
-        const x0 = data[o] ?? 0;
-        const y0 = data[o + 1] ?? 0;
-        const x1 = data[o + 2] ?? 0;
-        const y1 = data[o + 3] ?? 0;
-        for (let i = 0; i <= 6; i++) {
-          const t = i / 6;
-          const p = place(x0 + (x1 - x0) * t, y0 + (y1 - y0) * t * t * (3 - 2 * t));
-          if (i === 0) context.moveTo(p.x, p.y);
-          else context.lineTo(p.x, p.y);
-        }
+    const palette = paletteOf(inks);
+    const base = lineAlpha(layout, spreadOf(f, dpr));
+    context.globalCompositeOperation = inks.dark ? "lighter" : "source-over";
+    context.lineCap = "butt";
+    // Each curve as the shaders draw it: x along, y by a smooth step, placed on the field.
+    const trace = (path: Path2D, data: Float32Array, o: number, straight: boolean) => {
+      const x0 = data[o] ?? 0;
+      const y0 = data[o + 1] ?? 0;
+      const x1 = data[o + 2] ?? 0;
+      const y1 = data[o + 3] ?? 0;
+      const n = straight ? 1 : 6;
+      for (let i = 0; i <= n; i++) {
+        const t = i / n;
+        const p = place(x0 + (x1 - x0) * t, y0 + (y1 - y0) * t * t * (3 - 2 * t));
+        if (i === 0) path.moveTo(p.x, p.y);
+        else path.lineTo(p.x, p.y);
       }
     };
-    // One stroke per id, so that lines lying over each other add up as they do on the GPU; drawn in slices of a few
-    // milliseconds, one a frame, so that no long task holds the page however slow the device.
-    const ids = layout.shown;
-    let at = 0;
+    // The work, as batches: each a set of rows of one array, one stroke.
+    interface Batch {
+      data: Float32Array;
+      stride: number;
+      rows: number[];
+      straight: boolean;
+      style: string;
+      width: number;
+    }
+    const batches: Batch[] = [];
+    const meanWeight = palette.fibre[0] + palette.fibre[1] / (palette.fibre[2] + 1);
+    for (const [data, straight] of [
+      [layout.lines.all.straight, true],
+      [layout.lines.all.curved, false],
+    ] as const) {
+      // By weight class, and by era: the first assembly's ids in the line's ink, the later ones toward the young ids'
+      // colour and lighter, as the shader draws them.
+      const rows: number[][] = Array.from({ length: CLASSES * 2 }, () => []);
+      for (let r = 0; r < data.length / SEGMENT_FLOATS; r++) {
+        const meta = data[r * SEGMENT_FLOATS + 5] ?? 0;
+        if (share < 1 && ((meta % 1) * 7.77) % 1 > share) continue;
+        rows[classOf(meta, palette.fibre) + (meta >= 1 ? CLASSES : 0)]?.push(r);
+      }
+      rows.forEach((list, i) => {
+        const c = i % CLASSES;
+        const young = i >= CLASSES;
+        const weight = ((c + 0.5) / CLASSES) ** 2 * (palette.fibre[0] + palette.fibre[1]);
+        batches.push({
+          data,
+          stride: SEGMENT_FLOATS,
+          rows: list,
+          straight,
+          style: css(
+            young ? palette.young : palette.line,
+            Math.min(0.8, base * (weight / meanWeight) * (young ? 0.62 : 1) * 0.65),
+          ),
+          width: 1 / dpr,
+        });
+      });
+    }
+    if (focal)
+      for (const [data, straight] of [
+        [focal.straight, true],
+        [focal.curved, false],
+      ] as const)
+        batches.push({
+          data,
+          stride: SEGMENT_FLOATS,
+          rows: Array.from({ length: data.length / SEGMENT_FLOATS }, (_, i) => i),
+          straight,
+          style: css(palette.focal, 0.75),
+          width: 1.6,
+        });
+    const ea = Math.min(0.9, edgeAlpha(layout, f, dpr));
+    for (const kind of [0, 1]) {
+      const rows: number[] = [];
+      for (let e = 0; e < layout.edges.length / EDGE_FLOATS; e++)
+        if ((layout.edges[e * EDGE_FLOATS + 4] ?? 0) === kind) rows.push(e);
+      batches.push({
+        data: layout.edges,
+        stride: EDGE_FLOATS,
+        rows,
+        straight: false,
+        style: css(kind ? inks.event : inks.history, kind ? ea : Math.min(0.6, ea)),
+        width: 1,
+      });
+    }
+    let b = 0;
+    let row = 0;
+    let path = new Path2D();
+    const CHUNK = 400;
     const step = () => {
       job = 0;
-      context.lineWidth = 1 / dpr;
-      context.strokeStyle = css(ink, Math.min(0.12, alpha * 0.22));
       const began = performance.now();
-      while (at < ids && performance.now() - began < 3) {
-        context.beginPath();
-        curve(layout.segments, SEGMENT_FLOATS, layout.segmentStart[at] ?? 0, layout.segmentStart[at + 1] ?? 0);
-        context.stroke();
-        at++;
+      while (b < batches.length && performance.now() - began < 6) {
+        const batch = batches[b];
+        if (!batch) break;
+        const end = Math.min(batch.rows.length, row + CHUNK);
+        for (; row < end; row++) trace(path, batch.data, (batch.rows[row] ?? 0) * batch.stride, batch.straight);
+        // One stroke a chunk: lines of a chunk do not add up where they cross, chunks do (the density, coarsely).
+        context.strokeStyle = batch.style;
+        context.lineWidth = batch.width;
+        context.stroke(path);
+        path = new Path2D();
+        if (row >= batch.rows.length) {
+          b++;
+          row = 0;
+        }
       }
-      if (at < ids) {
+      if (b < batches.length) {
         job = requestAnimationFrame(step);
         return;
       }
-      const edges = layout.edges;
-      for (const fan of [0, 1]) {
-        context.beginPath();
-        context.strokeStyle = css(fan ? colours.event : colours.history, fan ? 0.8 : 0.55);
-        for (let e = 0; e < edges.length / EDGE_FLOATS; e++)
-          if ((edges[e * EDGE_FLOATS + 4] ?? 0) === fan) curve(edges, EDGE_FLOATS, e, e + 1);
-        context.stroke();
-      }
-      context.fillStyle = css(colours.history, 0.3);
-      for (let d = 0; d < layout.dots.length; d += 2) {
+      // The grains of the new versions.
+      // Each lighter where they lie deep (a release that re-versions many ids is a column of grains, never a bar).
+      const crowd = Math.max(1, 2 / Math.max(0.05, spreadOf(f, dpr) / layout.widest));
+      context.fillStyle = css(palette.dots, Math.min(0.9, (palette.dotAlpha * 1.6) / crowd));
+      for (let d = 0; d < layout.dots.length; d += DOT_FLOATS) {
         const p = place(layout.dots[d] ?? 0, layout.dots[d + 1] ?? 0);
-        context.fillRect(p.x - 0.8, p.y - 0.8, 1.6, 1.6);
+        const jitter = ((((d * 0.618034) % 1) + 1) % 1) - 0.5;
+        context.fillRect(p.x - 1 + jitter * 1.2, p.y - 1, 2, 2);
       }
       painted++;
     };
@@ -1040,15 +1131,16 @@ function createStill(canvas: HTMLCanvasElement, layout: LineageLayout): Field {
   return {
     mode: "canvas2d",
     element: canvas,
+    moving: false,
     resize(w, h, frame) {
       size = { w, h, frame };
       paint();
     },
     setColours(c) {
-      colours = c;
+      inks = c;
       paint();
     },
-    setPointer: () => undefined,
+    setPointer: () => -1,
     setRunning: () => undefined,
     // The drawings finished (one each time the field is drawn again).
     stats: () => ({ frames: painted, meanFrameMs: 0, meanDrawMs: 0 }),
