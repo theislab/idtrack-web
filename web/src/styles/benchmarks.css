@@ -1082,6 +1082,24 @@
   display: none;
 }
 
+/* On a phone a family's card (and a value's counts) stands at the foot of the window, its full width less the page's
+   gutters, wherever its trigger is in the row: never off the screen's edge. */
+@media (max-width: 640px) {
+  .accuracy .hovercard__card,
+  .accuracy .hovercard__card--above,
+  .accuracy .hovercard__card--right {
+    position: fixed;
+    inset: auto 16px 16px;
+    max-width: none;
+    max-height: 70vh;
+    overflow-y: auto;
+  }
+
+  .accuracy__measures {
+    width: auto;
+  }
+}
+
 @media (max-width: 760px) {
   /* One organism on a phone: each family a block, its name across, then its rate, the share judged and the mark on
      one line; the axis's labelled head once above them. */
