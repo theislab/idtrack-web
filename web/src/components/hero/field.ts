@@ -420,13 +420,13 @@ function lineAlpha(layout: LineageLayout, spread: number): number {
   return Math.min(0.5, Math.max(0.02, 1 / perPixel));
 }
 
-/** An edge's weight in the density: where the most edges cross one cell of the layout's grid (its 99th percentile,
+/** An edge's weight in the density: where the most edges cross one cell of the layout's grid (its 99.9th percentile,
  *  `edgeCrowd`) they add up to about 0.9, so that where hundreds of fans meet at an assembly change every curve stays a
  *  curve; an edge alone keeps its full weight. */
 function edgeAlpha(layout: LineageLayout, frame: FieldFrame, dpr: number): number {
   const { farHalf, nearHalf } = shapeOf(frame);
   const cell = (2 * Math.sqrt(farHalf * nearHalf) * dpr) / 128;
-  return Math.min(1.3, Math.max(0.05, (0.9 * cell) / Math.max(1, layout.edgeCrowd)));
+  return Math.min(1.3, Math.max(0.03, (0.9 * cell) / Math.max(1, layout.edgeCrowd)));
 }
 
 const mixed = (p: Rgb, q: Rgb, t: number): Rgb => p.map((v, i) => v + ((q[i] ?? 0) - v) * t) as Rgb;

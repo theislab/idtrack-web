@@ -41,7 +41,7 @@ export interface LineageLayout {
   /** The new versions: x, y and the line's era plus phase per dot (`DOT_FLOATS`). */
   dots: Float32Array;
   /** The crowding of the edges: of the cells of a grid of the field (a column per release, `CROWD_ROWS` rows) that an
-   *  edge passes, the 99th percentile of the edges passing one (the renderer lightens edges by it, so that where
+   *  edge passes, the 99.9th percentile of the edges passing one (the renderer lightens edges by it, so that where
    *  hundreds of fans meet they stay curves, never a slab). */
   edgeCrowd: number;
   /** Per id, its family's first and last id (inclusive). */
@@ -363,7 +363,7 @@ function rowsOf(data: Float32Array, stride: number, keep: (row: number) => boole
   return Float32Array.from(out);
 }
 
-/** The 99th percentile of the edges passing one cell of a grid of the field (a column per release, `CROWD_ROWS`
+/** The 99.9th percentile of the edges passing one cell of a grid of the field (a column per release, `CROWD_ROWS`
  *  rows), over the cells an edge passes; 1 where there is no edge. Each edge is followed along its curve as the
  *  renderer draws it (x along, y by a smooth step) and counted once in each cell it passes. */
 function crowdOf(edges: Float32Array, n: number): number {
@@ -388,7 +388,7 @@ function crowdOf(edges: Float32Array, n: number): number {
   }
   if (!cells.size) return 1;
   const counts = [...cells.values()].sort((a, b) => a - b);
-  return counts[Math.min(counts.length - 1, Math.floor(counts.length * 0.99))] ?? 1;
+  return counts[Math.min(counts.length - 1, Math.floor(counts.length * 0.999))] ?? 1;
 }
 
 /** The id under a point of the field (fractions as above), or -1: the nearest release, then the id whose line there
