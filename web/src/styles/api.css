@@ -1391,10 +1391,6 @@
 }
 
 @media (max-width: 640px) {
-  .api-card {
-    padding: var(--space-4);
-  }
-
   .api-main {
     gap: var(--space-7);
   }

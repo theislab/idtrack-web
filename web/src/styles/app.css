@@ -145,8 +145,7 @@ h2,
 .figure-panel__title,
 .home-section-head h3,
 .hero-figure__title h3,
-.explore-head h2,
-.api-section__title {
+.explore-head h2 {
   font-family: var(--font-display);
   font-size: var(--heading-section);
   font-weight: var(--weight-medium);
