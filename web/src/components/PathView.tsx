@@ -1520,7 +1520,13 @@ function VerticalPath({
   // label fewer than sixteen characters, the track gives way (the scores stay in each step's note and the reading).
   const trackX = left + layout.stackSize + 4;
   const scored = (drawWidth - trackX - 44) / CHAR >= 16 ? allScored : [];
-  const gutter = trackX + (scored.length ? 44 : 4);
+  // The counts of a split's or a merge's other ids stand beside their glyph, right of the lanes: the labels' column
+  // starts after the widest of them (stubCounts: 14 px from the glyph, the count in 10 px type).
+  const countRoom = useMemo(() => {
+    const most = Math.max(0, ...model.steps.map((st) => Math.max(st.api.splits, st.api.merges)));
+    return most ? 14 + textWidth(`+${most}`, 10) + 4 : 0;
+  }, [model.steps]);
+  const gutter = Math.max(trackX + (scored.length ? 44 : 4), left + layout.stackSize + countRoom + 4);
   const height = answerT + layout.answers.length * 4 + 40;
   const items = useItems(layout, model, names, toXY);
   const focus = useFocus(items, tipId);
