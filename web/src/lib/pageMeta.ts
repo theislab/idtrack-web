@@ -43,7 +43,8 @@ export const PAGE_META: Record<string, PageMeta> = {
     description: "Every gene a name or a symbol has named, release by release, and every name a gene has had.",
   },
   "/organisms": {
-    description: "The graphs this server holds: their releases, genome assemblies, databases and history.",
+    description:
+      "What can happen to a gene id, told by real identifiers, and the graphs this server holds: releases, assemblies, history.",
   },
   "/developers": {
     description:
