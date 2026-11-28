@@ -30,9 +30,4 @@ export const SHORTFALLS: Shortfall[] = [
     en: "In forced colours (Windows' high contrast), the chosen tab, segmented option and organism look like the others, and a focused tab's ring is drawn only at its sides.",
     de: "In erzwungenen Farben (Kontrastmodus von Windows) sehen der gewählte Tab, die gewählte Option und der gewählte Organismus wie die anderen aus, und der Fokusrahmen eines Tabs ist nur an seinen Seiten zu sehen.",
   },
-  {
-    criterion: "2.5.7 Dragging Movements",
-    en: "On a graph's page, the History tab's field of lineages moves along the releases only by dragging or by the arrow keys; its buttons zoom about its middle only.",
-    de: "Auf der Seite eines Graphen bewegt sich das Feld der Linien im Tab „History“ nur durch Ziehen oder mit den Pfeiltasten entlang der Releases; seine Schaltflächen zoomen nur um seine Mitte.",
-  },
 ];
