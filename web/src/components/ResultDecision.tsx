@@ -14,7 +14,20 @@ import { RECORD, SUCCESSOR_CRITERIA } from "../lib/resultWords";
 import { IdMenu, SymbolOf, type IdContext } from "./IdMenu";
 import { CriterionValue, ScoreValue, Term } from "./ResultParts";
 import { usePhone } from "../lib/usePhone";
+import { navigate } from "../lib/router";
 import { Button, Mono, Prose, TableFrame } from "./ui";
+
+/** The candidates of the first ranks that every drawing of the path holds (a phone's drawing holds four): each of them
+ *  can be drawn strong on the Path tab from its row. */
+const ON_PATH = 4;
+
+/** Open the answer's Path tab (the first: the address without `tab`). */
+function showPath() {
+  const search = new URLSearchParams(window.location.search);
+  search.delete("tab");
+  const text = search.toString();
+  navigate(`${window.location.pathname}${text ? `?${text}` : ""}`, { replace: true });
+}
 
 export function DecisionText({ decision }: { decision: Decision }) {
   const vocabulary = useVocabulary();
@@ -215,6 +228,7 @@ function CandidateRow({
   criteria,
   highlight,
   context,
+  onPath,
 }: {
   c: Candidate;
   i: number;
@@ -227,6 +241,8 @@ function CandidateRow({
   criteria: Criterion[];
   highlight: Highlight;
   context: IdContext;
+  /** Draw this candidate strong on the Path tab and open it (none: no path is drawn, or the drawing may not hold it). */
+  onPath: (() => void) | null;
 }) {
   const vocabulary = useVocabulary();
   const [expanded, setExpanded] = useState(false);
@@ -296,6 +312,16 @@ function CandidateRow({
           </td>
         ) : null}
         <td className="cand__more" data-label="">
+          {onPath ? (
+            <Button
+              variant="quiet"
+              className="cand__on-path"
+              aria-label={`Draw candidate ${i + 1}, ${c.target}, strong on the path`}
+              onClick={onPath}
+            >
+              On the path
+            </Button>
+          ) : null}
           <Button
             variant="quiet"
             className="cand__toggle"
@@ -331,6 +357,8 @@ function Candidates({
 }) {
   const vocabulary = useVocabulary();
   const decided = result.decided_by;
+  // The path is drawn (its tab exists): a candidate of the first ranks, which every drawing holds, can be shown on it.
+  const drawn = (result.path?.steps.length ?? 0) > 0;
   // The criteria in the order in which they decide, as the api gives them (the record of every candidate).
   const criteria = vocabulary.criteria.length ? vocabulary.criteria : RECORD;
   const score = criteria.find((c) => c.code === "score") ?? { code: "score", meaning: null, fields: [] };
@@ -457,6 +485,14 @@ function Candidates({
               criteria={criteria}
               highlight={highlight}
               context={context}
+              onPath={
+                drawn && i < ON_PATH
+                  ? () => {
+                      highlight.setCandidate(i);
+                      showPath();
+                    }
+                  : null
+              }
             />
           ))}
         </table>

@@ -64,18 +64,23 @@ export function Toggletip({
     };
   }, [open]);
 
-  // Keep the card inside the window: shifted left by what would pass its right edge (16 px kept free). Set on the
-  // element itself, measured once it is drawn.
+  // Keep the card inside the window: moved left by what would pass its right edge (16 px kept free). Set on the
+  // element itself, measured once it is drawn; its box itself moves (not a transform, which leaves the box where it was
+  // and so widens the page by what the card would pass).
   useLayoutEffect(() => {
     const element = card.current;
     if (!shown || !element) return;
-    element.style.transform = "";
+    element.style.left = "";
+    element.style.right = "";
     element.style.top = "";
     element.style.bottom = "";
     const box = element.getBoundingClientRect();
     const room = document.documentElement.clientWidth - 16;
     const over = box.right - room;
-    if (over > 0) element.style.transform = `translateX(${-Math.min(over, Math.max(0, box.left - 16))}px)`;
+    if (over > 0) {
+      element.style.left = `${element.offsetLeft - Math.min(over, Math.max(0, box.left - 16))}px`;
+      element.style.right = "auto";
+    }
     // Past the window's bottom, and with more room above the term than below it: the card opens above.
     const term = root.current?.getBoundingClientRect();
     if (term && box.bottom > window.innerHeight - 8 && term.top > window.innerHeight - term.bottom) {

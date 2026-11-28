@@ -201,6 +201,8 @@ test("every note of the path view stands whole in the window, and every element 
   if (!isPhone(info)) {
     // The toolbar says which view it set: the whole path, at first.
     await expect(page.getByRole("button", { name: "Fit the path" })).toHaveAttribute("aria-pressed", "true");
+    // The pinned note is let go first (it may stand over the toolbar).
+    await page.keyboard.press("Escape");
     const views = page.getByRole("button", { name: /^View/ });
     await views.click();
     await page.getByRole("button", { name: "All releases" }).click();
@@ -307,15 +309,26 @@ test("the states of an answer without a target", async ({ page }, info) => {
   }
 });
 
-test("the candidate pointed at in the decision is the one the path draws strong", async ({ page }) => {
+test("the candidate chosen in the decision is the one the path draws strong", async ({ page }) => {
   await page.goto(convertUrl(data.long));
   await waitForResult(page);
   await page.getByRole("tab", { name: /^Decision/ }).click();
-  const rows = page.getByRole("region", { name: "Candidates, ranked" }).locator("tbody tr");
+  const rows = page.getByRole("region", { name: "Candidates, ranked" }).locator("tbody tr.cand__row");
   expect(await rows.count()).toBeGreaterThan(1);
+  // Pointing at a row marks it; its "On the path" opens the Path tab with that candidate alone drawn strong.
   await rows.nth(1).hover();
-  await page.getByRole("tab", { name: /^Path/ }).click();
-  await expect(page.locator(".pv-answer.pv-strong")).toHaveCount(1);
+  await expect(rows.nth(1)).toHaveClass(/is-highlighted/);
+  await rows
+    .nth(1)
+    .getByRole("button", { name: /^Draw candidate 2, .* strong on the path$/ })
+    .click();
+  await expect(page.getByRole("tab", { name: /^Path/ })).toHaveAttribute("aria-selected", "true");
+  const strong = page.locator(".pv-answer.pv-strong");
+  await expect(strong).toHaveCount(1);
+  await expect(page.locator(".pv__chosen")).toContainText("Candidate 2");
+  // Back to the best answer.
+  await page.getByRole("button", { name: "Draw the best answer strong" }).click();
+  await expect(page.locator(".pv__chosen")).toHaveCount(0);
 });
 
 test("the conversion's address holds every option and reloads", async ({ page }) => {

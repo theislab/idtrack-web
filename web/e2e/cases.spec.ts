@@ -93,7 +93,8 @@ for (const item of cases) {
       await expect(page.locator(".answer__cautions")).toContainText("bridge");
 
     // Every step of a candidate, in order, with its numbers: releases (Ensembl's order), score, splits and merges,
-    // places; the candidates one at a time, the first few chosen in turn.
+    // places; the candidates one at a time, the first few chosen in turn (the Path tab, in words).
+    if (steps.length) await page.getByRole("radio", { name: "In words" }).click();
     const choose = page.locator(".reading").getByLabel("Candidate", { exact: true });
     for (const [i, candidate] of answer.candidates.slice(0, 4).entries()) {
       if (answer.candidates.length > 1) await choose.selectOption(String(i));
@@ -125,7 +126,13 @@ for (const item of cases) {
     }
 
     // Every bridge the search considered, with where the two genes lie, whether it was taken, and each rule: the taken
-    // first, the refused on a press, every list bounded and opened whole on a press.
+    // first, the refused on a press, every list bounded and opened whole on a press (the Reading tab, each topic a row
+    // opened on a press).
+    await page.getByRole("tab", { name: /^Reading/ }).click();
+    for (const topic of [/^The bridges the search considered/, /^Steps not followed/]) {
+      const row = page.getByRole("button", { name: topic });
+      if (await row.count()) await row.click();
+    }
     const bridges = answer.path?.bridges ?? [];
     const refusedCount = bridges.filter((b) => !b.taken).length;
     if (refusedCount) await page.getByRole("button", { name: `Show the ${refusedCount} refused` }).click();

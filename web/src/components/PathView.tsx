@@ -202,9 +202,15 @@ export function PathView({
   const limit = showAll ? Number.POSITIVE_INFINITY : vertical ? LIMIT_PHONE : LIMIT_WIDE;
   const rowsPerLane = showAll ? Number.POSITIVE_INFINITY : vertical ? ROWS_PHONE : ROWS_WIDE;
   const [drawn, setDrawn] = useState<number | null>(null);
+  // On a phone, the best answers drawn where the width holds fewer lanes than the best answers (null: all of them).
+  const [capped, setCapped] = useState<number | null>(null);
+  const onDrawn = useCallback((count: number, cappedBest: number | null) => {
+    setDrawn(count);
+    setCapped(cappedBest);
+  }, []);
   const bestCount = model.candidates.filter((c) => c.best).length;
   // The key names the marks of the candidates drawn (on a phone a wide tie draws the first of its best answers).
-  const drawnBest = drawn !== null && drawn < bestCount ? drawn : Number.POSITIVE_INFINITY;
+  const drawnBest = capped ?? Number.POSITIVE_INFINITY;
   const present = useMemo(() => presentMarks(model, limit, drawnBest), [model, limit, drawnBest]);
 
   return (
@@ -219,7 +225,7 @@ export function PathView({
           width={width}
           limit={limit}
           rowsPerLane={rowsPerLane}
-          onDrawn={setDrawn}
+          onDrawn={onDrawn}
           highlight={highlight}
           litStep={litStep}
           onStepShown={store.setStep}
@@ -236,7 +242,7 @@ export function PathView({
           width={width}
           limit={limit}
           rowsPerLane={rowsPerLane}
-          onDrawn={setDrawn}
+          onDrawn={onDrawn}
           highlight={highlight}
           litStep={litStep}
           onStepShown={store.setStep}
@@ -246,12 +252,27 @@ export function PathView({
           lead={lead}
         />
       )}
+      {highlight !== null && model.candidates[highlight] ? (
+        <p className="pv__chosen" role="status">
+          Candidate <span className="mono">{highlight + 1}</span>,{" "}
+          <span className="mono">{model.candidates[highlight].api.target}</span>, is drawn strong, as chosen in the
+          decision.{" "}
+          <Button
+            variant="quiet"
+            onClick={() => {
+              store.setCandidate(null);
+            }}
+          >
+            Draw the best answer strong
+          </Button>
+        </p>
+      ) : null}
       {showAll || (drawn !== null && drawn < model.candidates.length) ? (
         <p className="pv__more">
           {showAll
             ? `All ${model.candidates.length} candidates are drawn.`
-            : (drawn ?? 0) < bestCount
-              ? `${drawn ?? 0} of the ${bestCount} best answers are drawn (as many lanes as the width holds)${bestCount < model.candidates.length ? `, of ${model.candidates.length} candidates` : ""}; the reading and the table list all.`
+            : capped !== null
+              ? `${capped} of the ${bestCount} best answers are drawn (as many lanes as the width holds)${bestCount < model.candidates.length ? `, of ${model.candidates.length} candidates` : ""}; the reading and the table list all.`
               : `${drawn ?? 0} of ${model.candidates.length} candidates are drawn (the best and the next in rank, at most ${rowsPerLane} targets per gene); the reading and the table list all.`}{" "}
           <Button
             variant="quiet"
@@ -277,7 +298,8 @@ interface DrawingProps {
   width: number;
   limit: number;
   rowsPerLane: number;
-  onDrawn: (count: number) => void;
+  /** The candidates drawn, and the best answers drawn where the width holds fewer lanes than they are (else null). */
+  onDrawn: (count: number, cappedBest: number | null) => void;
   highlight: number | null;
   /** A step to ring (pointed at in the path in words). */
   litStep: number | null;
@@ -792,7 +814,7 @@ function HorizontalPath({
     [model, scale, answerT, metrics, limit, rowsPerLane],
   );
   useEffect(() => {
-    onDrawn(layout.shown.length);
+    onDrawn(layout.shown.length, null);
   }, [layout.shown.length, onDrawn]);
   const isStrong = useCallback(
     (candidates: number[], best: boolean) => (highlight === null ? best : candidates.includes(highlight)),
@@ -1459,33 +1481,35 @@ function VerticalPath({
   );
   const answerT = top + (b - a + 1) * pixels + 30;
   const left = 46;
-  // The lanes stand side by side across the phone: a tie of many genes draws as many of its best answers as leave the
-  // labels' column room (sixteen characters and the score track), the first in the api's order (the line under the
-  // drawing says how many; "Draw all" draws every one, and the drawing then scrolls sideways).
-  const layout = useMemo(() => {
-    const at = (maxBest: number) =>
-      layoutPath(model, { scale: (r) => scale(r), answerT, metrics, limit, rowsPerLane, maxBest });
-    const fits = (l: PathLayout) => left + l.stackSize + 4 + 44 + 16 * CHAR <= width;
-    const whole = at(Number.POSITIVE_INFINITY);
-    if (!Number.isFinite(limit) || fits(whole)) return whole;
+  // The lanes stand side by side across the phone: where the best answers alone (a tie of many genes) leave the labels'
+  // column less than sixteen characters and the score track, as many of them are drawn as leave it that, the first in
+  // the api's order (the line under the drawing says how many; "Draw all" draws every one, and the drawing then
+  // scrolls sideways in its frame). Any other drawing keeps the frame's width.
+  const need = (l: PathLayout) => Math.ceil(left + l.stackSize + 4 + 44 + 16 * CHAR);
+  const { layout, capped } = useMemo(() => {
+    const at = (maxBest: number, n: number) =>
+      layoutPath(model, { scale: (r) => scale(r), answerT, metrics, limit: n, rowsPerLane, maxBest });
+    const whole = at(Number.POSITIVE_INFINITY, limit);
+    const bests = model.candidates.filter((c) => c.best).length;
+    if (!Number.isFinite(limit) || bests < 2 || need(at(Number.POSITIVE_INFINITY, 0)) <= width)
+      return { layout: whole, capped: null };
     let lo = 1;
-    let hi = model.candidates.filter((c) => c.best).length - 1;
-    let found = at(1);
+    let hi = bests - 1;
+    let found = { layout: at(1, limit), capped: 1 };
     while (lo <= hi) {
       const mid = Math.floor((lo + hi) / 2);
-      const l = at(mid);
-      if (fits(l)) {
-        found = l;
+      const l = at(mid, limit);
+      if (need(l) <= width) {
+        found = { layout: l, capped: mid };
         lo = mid + 1;
       } else hi = mid - 1;
     }
     return found;
   }, [model, scale, answerT, metrics, limit, rowsPerLane, width]);
-  // The drawing's own width: the frame's, or wider where every candidate is drawn and the lanes need it.
-  const drawWidth = Math.max(width, Math.ceil(left + layout.stackSize + 4 + 44 + 16 * CHAR));
+  const drawWidth = Number.isFinite(limit) ? width : Math.max(width, need(layout));
   useEffect(() => {
-    onDrawn(layout.shown.length);
-  }, [layout.shown.length, onDrawn]);
+    onDrawn(layout.shown.length, capped);
+  }, [layout.shown.length, capped, onDrawn]);
   const toXY = useCallback((t: number, s: number): [number, number] => [s + left, t], []);
   const isStrong = useCallback(
     (candidates: number[], best: boolean) => (highlight === null ? best : candidates.includes(highlight)),

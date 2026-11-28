@@ -13,7 +13,7 @@ const human = graph === "human" && data.organism === "homo_sapiens";
 const pig = graph === "pig" && data.organism === "sus_scrofa";
 
 async function open(page: Page, query: string): Promise<void> {
-  await page.goto(`/?organism=${data.organism}&${query}`);
+  await page.goto(`/convert?organism=${data.organism}&${query}`);
   await waitForResult(page);
 }
 
@@ -65,10 +65,12 @@ test("a tie of candidates of different entry genes is equal in the lineage only,
 }) => {
   test.skip(!human, "the human graph's MAT1");
   await open(page, "id=MAT1&from=60");
+  // What a tie of genes means for a list stands with the status; the decision is the Decision tab's.
+  await expect(page.locator(".answer__guidance")).toContainText("For a list or a count matrix");
+  await page.getByRole("tab", { name: /^Decision/ }).click();
   const text = page.locator(".decision-none");
   await expect(text).toContainText("descend from 2 different entry genes");
   await expect(text).not.toContainText("equal in every criterion");
-  await expect(page.locator(".answer__guidance")).toContainText("For a list or a count matrix");
 });
 
 test("an identifier not found is told what its form is, and where another graph holds it", async ({ page }) => {

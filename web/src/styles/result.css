@@ -483,13 +483,14 @@
   text-decoration: none;
 }
 
-/* The facts open the answer's Record tab (the tab is their frame: no rule above them). */
 .answer__facts {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
   gap: 0 var(--space-5);
   row-gap: var(--space-3);
-  margin: 0;
+  margin: var(--space-5) 0 0;
+  padding: var(--space-4) 0 0;
+  border-top: 1px solid var(--line);
 }
 
 /* Each fact is a label row and a value row of the sheet's grid (subgrid): the values of one row of facts share a
@@ -1186,7 +1187,8 @@ a.anatomy__link:hover .anatomy__go {
   font-size: var(--text-xs);
 }
 
-.pv__more {
+.pv__more,
+.pv__chosen {
   color: var(--ink-2);
   font-size: var(--text-sm);
 }
