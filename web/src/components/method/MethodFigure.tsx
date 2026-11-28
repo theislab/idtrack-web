@@ -188,11 +188,10 @@ function WalkPanel({ v }: { v: Vocabulary }) {
           <>
             The best answer&apos;s path through Ensembl&apos;s history, each step where one version ends and the next
             begins, drawn over the releases the path spans and two on each side (the strip above places them on the
-            graph&apos;s whole axis), over the bands of the assemblies that serve each release; the thread is the walk,
-            in the order it was taken, and Replay walks it step by step; below, Ensembl&apos;s mapping score of each
-            history step. Focus the figure and use the arrow keys for each element&apos;s exact values. The case is the
-            answer of this graph&apos;s showcase whose best path walks through a split and passes the most ids and steps
-            (bridges are the next stage).
+            graph&apos;s whole axis), over the bands of the assemblies that serve each release; Replay walks the thread
+            step by step; below, Ensembl&apos;s mapping score of each history step. Focus the figure and use the arrow
+            keys for each element&apos;s exact values. The case is the answer of this graph&apos;s showcase whose best
+            path walks through a split and passes the most ids and steps (bridges are the next stage).
           </>
         }
       >
