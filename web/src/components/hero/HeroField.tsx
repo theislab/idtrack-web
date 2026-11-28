@@ -5,7 +5,8 @@
 //   from the first release, far and low under the words, to the last, near and tall at the right; over the release
 //   axis and its assembly changes (`GET /organisms/{organism}`);
 // - the rings: the releases as rings, the first innermost (`GET /organisms/{organism}/history`): ids active, created,
-//   retired and the fans of Ensembl's mapping, each ring turning at the pace of its changes (./rings.ts);
+//   retired and the fans of Ensembl's mapping, each ring turning at the pace of its changes (./rings.ts), placed
+//   clear of every word of the hero, with the labels of its first ring, its assemblies' first rings and its last;
 // - the constellation: the showcase's most convoluted journeys (`GET /organisms/{organism}/showcase`), each the path of
 //   its answer, turning about the axis of time.
 // WebGL2 draws them (./field.ts, ./constellation.ts); without it, a still 2D drawing. Each is a picture: hidden from
@@ -24,7 +25,7 @@ import { assemblyBands } from "../figure/releases";
 import { constellationOf, type Constellation, type Rect } from "../../lib/hero/constellationModel";
 import { createConstellation } from "./constellation";
 import { createField, fieldAt, frameOf, placer, type FieldColours, type FieldFrame } from "./field";
-import { createRings, ringsOf, type RingsModel } from "./rings";
+import { createRings, grownAt, ringLabels, ringsOf, ringsPlace, type RingLabel, type RingsModel } from "./rings";
 
 /** The ids a desktop and a phone ask for. */
 const WIDE_LIMIT = 4_000;
@@ -269,22 +270,12 @@ export function HeroField({ description }: { description: GraphDescription }) {
     [shown, description, eras],
   );
   const history = useHistory(choice === "rings" ? description.organism : null);
-  const rings = useMemo(
-    () =>
-      history
-        ? ringsOf(
-            history,
-            assemblyBands(description)
-              .slice(1)
-              .map((b) => b.first),
-          )
-        : null,
-    [history, description],
-  );
+  const rings = useMemo(() => (history ? ringsOf(history, assemblyBands(description)) : null), [history, description]);
   const themes = useThemeChanges();
   const box = useRef<HTMLDivElement>(null);
   const [frame, setFrame] = useState<FieldFrame | null>(null);
   const [lifted, setLifted] = useState<Lifted | null>(null);
+  const [labels, setLabels] = useState<{ marks: RingLabel[]; moving: boolean }>({ marks: [], moving: false });
 
   // The lineages and the rings.
   useEffect(() => {
@@ -367,26 +358,42 @@ export function HeroField({ description }: { description: GraphDescription }) {
     const canvas = document.createElement("canvas");
     canvas.className = "hero2__canvas";
     element.prepend(canvas);
-    const view = createRings(canvas, rings, reducedMotion());
+    const view = createRings(canvas, rings, reducedMotion() && !STEPPED, STEPPED);
     element.dataset["mode"] = view.mode;
     view.setColours(readColours(element));
-    let place = { cx: 0, cy: 0, inner: 1, outer: 2 };
+    const hero = element.closest(".hero2");
+    const words = hero?.querySelector(".hero2__words") ?? null;
     const measure = () => {
       const { width, height } = element.getBoundingClientRect();
-      const narrowNow = width < 720;
-      const outer = narrowNow ? Math.min(width * 0.46, height * 0.26) : Math.min(height * 0.38, width * 0.29);
-      place = {
-        cx: narrowNow ? width / 2 : width * 0.68,
-        cy: narrowNow ? height * 0.71 : height * 0.49,
-        inner: outer * 0.14,
-        outer,
-      };
-      view.resize(width, height, place);
+      const place = ringsPlace(width, height, wordsBox(element), footOf(element));
+      const marks = ringLabels(rings, place, width < 720);
+      view.resize(
+        width,
+        height,
+        place,
+        marks.map((l) => l.k),
+      );
+      element.dataset["place"] = [place.form, place.cx, place.cy, place.inner, place.outer, place.horizon ?? ""]
+        .map((v) => (typeof v === "number" ? v.toFixed(1) : v))
+        .join(" ");
+      setLabels({ marks, moving: view.moving });
       setFrame(null);
     };
     measure();
+    // The words' and the caption's boxes change with the fonts and the window: the disc follows them.
     const resize = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(measure);
     resize?.observe(element);
+    if (words) resize?.observe(words);
+    const captionNow = hero?.querySelector(".hero2__caption");
+    if (captionNow) resize?.observe(captionNow);
+    void document.fonts.ready.then(measure);
+    if (STEPPED) {
+      const hooks = window as unknown as Record<string, unknown>;
+      hooks["__heroTime"] = (seconds: number) => {
+        view.drawAt(seconds);
+      };
+      hooks["__heroWork"] = () => view.work();
+    }
     const stopVisible = watchVisible(element, (on) => {
       view.setRunning(on);
     });
@@ -398,7 +405,7 @@ export function HeroField({ description }: { description: GraphDescription }) {
     }, 1000);
     const stopPointer = watchPointer(element, (p) => {
       const k = view.setPointer(p);
-      setLifted(p && k >= 0 ? ringLifted(rings, k, p) : null);
+      setLifted(p && k >= 0 && !reducedMotion() ? ringLifted(rings, k, p) : null);
     });
     const recolour = () => {
       view.setColours(readColours(element));
@@ -411,8 +418,10 @@ export function HeroField({ description }: { description: GraphDescription }) {
       stopVisible();
       resize?.disconnect();
       view.destroy();
-      canvas.remove();
+      view.element.remove();
       setLifted(null);
+      setLabels({ marks: [], moving: false });
+      delete element.dataset["place"];
     };
   }, [rings, choice]);
 
@@ -510,6 +519,24 @@ export function HeroField({ description }: { description: GraphDescription }) {
         {choice === "lineages" && frame && layout ? (
           <Axis description={description} layout={layout} frame={frame} />
         ) : null}
+        {choice === "rings" && rings
+          ? labels.marks.map((l) => (
+              <span
+                key={l.k}
+                className={`hero2__ring-label hero2__ring-label--${l.align}`}
+                style={{
+                  left: l.x,
+                  top: l.y,
+                  // Each label appears as its ring grows in.
+                  animationDelay: labels.moving ? `${grownAt(l.k, rings.releases.length).toFixed(2)}s` : undefined,
+                  animationName: labels.moving ? undefined : "none",
+                }}
+              >
+                <span className="mono">{l.release}</span>
+                {l.name ? <span className="hero2__ring-name">{l.name}</span> : null}
+              </span>
+            ))
+          : null}
         {lifted ? (
           <div
             className={`hero2__lift${lifted.x > window.innerWidth * 0.66 ? " hero2__lift--left" : ""}`}
@@ -657,34 +684,40 @@ function Caption({
         </span>
       </p>
     );
-  if (rings)
+  if (rings) {
+    const unit = groupedInteger(rings.unit);
+    const ids = rings.unit === 1 ? "gene id" : "gene ids";
     return (
       <p className="hero2__caption">
         <span>
-          The <span className="mono">{rings.releases.length}</span> releases of the <em>{name}</em> graph as rings,{" "}
-          <span className="mono">{span}</span> from the centre out; each turns at the pace of its changes
+          The <span className="mono">{rings.releases.length}</span> releases of the <em>{name}</em> graph as rings, the
+          first at the centre; each turns at the pace of its changes
         </span>
         <span className="hero2__key">
-          <span className="hero2__key-tick hero2__key-tick--out" aria-hidden="true" /> {groupedInteger(rings.unit)} ids
-          created
+          <span className="hero2__key-tick hero2__key-tick--out" aria-hidden="true" /> {unit} {ids} new at the release
         </span>
         <span className="hero2__key">
-          <span className="hero2__key-tick" aria-hidden="true" /> {groupedInteger(rings.unit)} retired
+          <span className="hero2__key-tick" aria-hidden="true" /> {unit} retired on the way in
         </span>
         <span className="hero2__key">
-          <span className="hero2__key-line hero2__key-line--event" aria-hidden="true" /> a fan of Ensembl&apos;s mapping
+          <span className="hero2__key-line hero2__key-line--event" aria-hidden="true" /> a gene version whose edges fan
+          out or in
         </span>
         <span className="hero2__source mono">GET /api/v1/organisms/{description.organism}/history</span>
         <span className="visually-hidden">
-          . Each ring is one release, its weight the gene ids active there; outside it a tick for each{" "}
-          {groupedInteger(rings.unit)} ids created at that release, inside it a tick for each{" "}
-          {groupedInteger(rings.unit)} retired on the way into it; a short orange spoke between two rings for each gene
-          version whose history edges fan out to two or more versions or in from two or more (
+          . Each ring is one release, from {rings.releases[0]} at the centre to {rings.releases.at(-1)} at the rim, its
+          line the brighter the more gene ids are active there; outside it a tick for every {unit} {ids} whose first
+          release it is, inside it a tick for every {unit} {rings.unit === 1 ? "retirement" : "retirements"} of a gene
+          id on the way into it, a count that is not a whole number of ticks ending in a shorter tick as long as the
+          rest, every tenth tick longer; between it and the ring inside it, a short orange spoke for each gene version
+          whose history edges fan out to two or more versions or in from two or more (
           {groupedInteger(rings.fans.reduce((a, b) => a + b, 0))} in all); the first ring of each later assembly in its
-          own colour.
+          own colour (
+          {rings.changes.map((k) => `${rings.assemblies[k] ?? ""} at ${String(rings.releases[k] ?? "")}`).join(", ")}).
         </span>
       </p>
     );
+  }
   if (stars?.journeys.length === 0)
     return (
       <p className="hero2__caption">
@@ -747,13 +780,18 @@ function Caption({
   );
 }
 
-/** The words beside a ring under the pointer: its release and what the history counts there. */
+/** The words beside a ring under the pointer: its release, its assembly and what the history counts there. */
 function ringLifted(rings: RingsModel, k: number, p: { x: number; y: number }): Lifted {
+  const n = (values: number[]) => groupedInteger(values[k] ?? 0);
+  const assembly = rings.assemblies[k];
   return {
     x: p.x,
     y: p.y,
-    title: `Release ${rings.releases[k] ?? ""}`,
-    line: `${groupedInteger(rings.active[k] ?? 0)} gene ids active · ${groupedInteger(rings.created[k] ?? 0)} created · ${groupedInteger(rings.retired[k] ?? 0)} retired · ${groupedInteger(rings.fans[k] ?? 0)} fans`,
+    title: `Release ${String(rings.releases[k] ?? "")}${assembly ? ` · ${assembly}` : ""}`,
+    line:
+      k === 0
+        ? `${n(rings.active)} gene ids active · the graph begins here`
+        : `${n(rings.active)} gene ids active · ${n(rings.created)} new · ${n(rings.retired)} retired on the way in · ${n(rings.fans)} fans`,
   };
 }
 

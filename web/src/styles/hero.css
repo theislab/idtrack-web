@@ -438,7 +438,8 @@
     opacity: 1;
   }
 
-  .hero2__lift {
+  .hero2__lift,
+  .hero2__ring-label {
     animation: none;
   }
 }
@@ -451,4 +452,43 @@
 
 .hero2__key-tick--out {
   background: var(--hue-history);
+}
+
+/* The rings stand clear of the words by their place (components/hero/rings.ts, ringsPlace): no mask under the words. */
+.hero2__field[data-picture="rings"] .hero2__canvas {
+  mask-image: none;
+}
+
+/* The labels of the rings' slot (or of the horizon of a disc rising from the foot): a release, and an assembly. */
+.hero2__ring-label {
+  position: absolute;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  font-size: var(--text-2xs);
+  line-height: 1;
+  color: var(--ink-3);
+  white-space: nowrap;
+  pointer-events: none;
+  transform: translate(3px, -50%);
+  animation: hero2-ring-label var(--dur-3) var(--ease-out) backwards;
+}
+
+@keyframes hero2-ring-label {
+  from {
+    opacity: 0;
+  }
+}
+
+.hero2__ring-label--before {
+  flex-direction: row-reverse;
+  transform: translate(calc(-100% - 3px), -50%);
+}
+
+.hero2__ring-label--under {
+  transform: translate(-50%, -50%);
+}
+
+.hero2__ring-name {
+  letter-spacing: 0.02em;
 }

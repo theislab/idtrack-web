@@ -6,7 +6,7 @@ import { act, cleanup, fireEvent, render, screen } from "@testing-library/react"
 import { useState } from "react";
 import { afterEach, describe, expect, it } from "vitest";
 import type { HistoryResponse, LineagesResponse, ShowcaseResponse } from "../src/api/types";
-import { ringsOf } from "../src/components/hero/rings";
+import { ringAt, ringLabels, ringsOf, ringsPlace, radiusOf, ticksOf } from "../src/components/hero/rings";
 import { HeroMenu } from "../src/components/shell/HeroMenu";
 import { ThemeSwitch } from "../src/components/ThemeSwitch";
 import { nextTheme, themeLabel } from "../src/lib/theme";
@@ -442,14 +442,83 @@ describe("the rings", () => {
         },
       ],
     };
-    const rings = ringsOf(history, [11]);
+    const rings = ringsOf(history, [
+      { name: "Sscrofa10.2", first: 10, last: 10 },
+      { name: "Sscrofa11.1", first: 11, last: 11 },
+    ]);
     expect(rings.active).toEqual([100, 110]);
     // The first release's ids are not drawn as created (they are where the graph begins).
     expect(rings.created).toEqual([0, 20]);
     expect(rings.retired).toEqual([0, 10]);
     expect(rings.fans).toEqual([0, 4]);
     expect(rings.changes).toEqual([1]);
+    expect(rings.assemblies).toEqual(["Sscrofa10.2", "Sscrofa11.1"]);
     expect(rings.churn[1]).toBeCloseTo(17 / 110);
+  });
+
+  it("draw a count exactly: whole ticks of `unit` ids and one shorter tick as long as the rest", () => {
+    expect(ticksOf(16_878, 100)).toEqual({ whole: 168, rest: 0.78 });
+    expect(ticksOf(9, 100)).toEqual({ whole: 0, rest: 0.09 });
+    expect(ticksOf(300, 100)).toEqual({ whole: 3, rest: 0 });
+  });
+
+  const words = { left: 104, top: 80, right: 650, bottom: 460 };
+  it("stand clear of the words and above the caption, in the largest of three compositions", () => {
+    for (const [width, height, box, caption] of [
+      [1440, 836, words, 790],
+      [1366, 704, { ...words, right: 620 }, 660],
+      [1024, 704, { left: 20, top: 60, right: 600, bottom: 520 }, 660],
+      [2560, 1376, { left: 660, top: 120, right: 1260, bottom: 640 }, 1330],
+      [768, 960, { left: 20, top: 60, right: 640, bottom: 560 }, 900],
+      [390, 788, { left: 16, top: 40, right: 374, bottom: 460 }, 690],
+    ] as const) {
+      const place = ringsPlace(width, height, { right: box.right, bottom: box.bottom }, caption);
+      expect(place.outer, `${width}`).toBeGreaterThan(100);
+      // No ring reaches the words: the disc's nearest point to their box is beyond the box.
+      const nearestX = Math.max(box.left, Math.min(place.cx, box.right));
+      const nearestY = Math.max(box.top, Math.min(place.cy, box.bottom));
+      const shown = place.horizon === null || nearestY <= place.horizon;
+      if (shown)
+        expect(Math.hypot(place.cx - nearestX, place.cy - nearestY), `${width}`).toBeGreaterThan(place.outer + 20);
+      // Nothing is drawn down to the caption.
+      const lowest = place.horizon ?? place.cy + place.outer;
+      expect(lowest, `${width}`).toBeLessThan(caption);
+      expect(place.inner).toBeCloseTo(place.outer * 0.14);
+    }
+    expect(ringsPlace(1440, 836, words, 790).form).toBe("disc");
+    expect(ringsPlace(390, 788, { right: 374, bottom: 460 }, 690).form).toBe("rise");
+  });
+
+  it("are labelled at the first ring, each later assembly's first ring and the last, no two labels touching", () => {
+    const releases = Array.from({ length: 68 }, (_, i) => 48 + i);
+    const model = {
+      releases,
+      assemblies: releases.map((r) => (r < 55 ? "NCBI36" : r < 76 ? "GRCh37" : "GRCh38")),
+      active: releases.map(() => 1),
+      created: releases.map(() => 0),
+      retired: releases.map(() => 0),
+      fans: releases.map(() => 0),
+      churn: releases.map(() => 0),
+      unit: 100,
+      changes: [7, 28],
+    };
+    const place = ringsPlace(1440, 836, words, 790);
+    const labels = ringLabels(model, place, false);
+    expect(labels.map((l) => [l.release, l.name])).toEqual([
+      ["48", ""],
+      ["55", "GRCh37"],
+      ["76", "GRCh38"],
+      ["115", ""],
+    ]);
+    expect(labels.every((l) => l.y === place.cy && l.align === "after")).toBe(true);
+    expect(labels.map((l) => l.x)).toEqual([0, 7, 28, 67].map((k) => place.cx + radiusOf(place, k, 68)));
+    // On a phone, the first and the last ring only.
+    const phone = ringsPlace(390, 788, { right: 374, bottom: 460 }, 690);
+    expect(ringLabels(model, phone, true).map((l) => l.release)).toEqual(["48", "115"]);
+    // The ring under a point is the nearest by radius; below a horizon, none.
+    expect(ringAt(place, 68, { x: place.cx + radiusOf(place, 28, 68) + 0.4, y: place.cy })).toBe(28);
+    expect(ringAt(place, 68, { x: place.cx, y: place.cy })).toBe(-1);
+    expect(ringAt(phone, 68, { x: phone.cx, y: (phone.horizon ?? 0) + 5 })).toBe(-1);
   });
 });
 
