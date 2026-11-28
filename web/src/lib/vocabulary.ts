@@ -28,7 +28,12 @@ export interface Vocabulary {
   readingReasons: Map<string, string | null>;
   placeRelations: Map<string, string | null>;
   bridgeRules: Map<string, { meaning: string | null; taken: boolean }>;
-  errors: Map<string, { status: number; title: string; meaning: string; retryable: boolean }>;
+  /** Each error code: its status, its words, whether a retry can succeed, whether its refusal sends `Retry-After`,
+   *  and how a client goes on after it (`retry`, the API's words). */
+  errors: Map<
+    string,
+    { status: number; title: string; meaning: string; retryable: boolean; retryAfter: boolean; retry: string }
+  >;
   /** The classes of evidence the api computes on every result (`cautions`): what each means, and its tone. */
   cautions: Map<string, { meaning: string; tone: string }>;
 }
@@ -66,7 +71,14 @@ export function readVocabulary(data: VocabularyResponse): Vocabulary {
     errors: new Map(
       data.errors.map((t) => [
         t.code,
-        { status: t.status, title: t.title, meaning: t.meaning, retryable: t.retryable },
+        {
+          status: t.status,
+          title: t.title,
+          meaning: t.meaning,
+          retryable: t.retryable,
+          retryAfter: t.retry_after,
+          retry: t.retry,
+        },
       ]),
     ),
     cautions: new Map((data.cautions ?? []).map((t) => [t.code, { meaning: t.meaning, tone: t.tone }])),

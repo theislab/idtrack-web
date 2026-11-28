@@ -356,19 +356,12 @@ test("the API page marks only the allowances as not applied, and strikes nothing
 test("the API page says exactly which answers carry an ETag, and how each code is retried", async ({ page }) => {
   await page.goto("/developers");
   const document = await openApi(page);
-  // The document declares each answer's headers: what it says of ETag and Retry-After is what the page says.
-  const refusal = (r: OpenApiResponse) =>
-    r.$ref ? (document.components?.responses?.[r.$ref.split("/").pop() ?? ""] ?? {}) : r;
+  // The document declares each answer's headers: what it says of ETag is what the page says.
   const withoutTag: string[] = [];
-  const waits = new Map<string, boolean>();
   for (const [path, item] of Object.entries(document.paths))
-    for (const [method, op] of Object.entries(item)) {
+    for (const [method, op] of Object.entries(item))
       if (method === "get" && !("ETag" in (op.responses["200"]?.headers ?? {})))
         withoutTag.push(path.replace(/^\/api\/v1/, "") || "/");
-      for (const r of Object.values(op.responses).map(refusal))
-        for (const code of r["x-error-codes"] ?? [])
-          waits.set(code, (waits.get(code) ?? false) || "Retry-After" in (r.headers ?? {}));
-    }
   expect(withoutTag.length).toBeGreaterThan(0);
   await openGuide(page, "conventions");
   await page.getByRole("button", { name: /^Requests and answers/ }).click();
@@ -377,7 +370,7 @@ test("the API page says exactly which answers carry an ETag, and how each code i
   await expect(requests).not.toContainText("every GET answer has an ETag");
   await openGuide(page, "errors");
   const vocabulary = (await (await page.request.get("/api/v1/vocabulary")).json()) as {
-    errors: { code: string; retryable: boolean }[];
+    errors: { code: string; retryable: boolean; retry_after: boolean; retry: string }[];
   };
   const table = page.getByRole("region", { name: "Table of error codes" });
   await expect(table.locator("tbody tr")).toHaveCount(vocabulary.errors.length);
@@ -388,12 +381,15 @@ test("the API page says exactly which answers carry an ETag, and how each code i
         rows.map((r) => [r.querySelector("td")?.textContent ?? "", r.querySelectorAll("td")[2]?.textContent ?? ""]),
       ),
   );
-  for (const e of vocabulary.errors) {
-    const text = said.get(e.code);
-    if (!e.retryable) expect(text, e.code).toBe("no: change the request");
-    else if (waits.get(e.code) === true) expect(text, e.code).toBe("yes, after Retry-After");
-    else if (waits.get(e.code) === false) expect(text, e.code).toBe("yes; no Retry-After is sent");
-  }
+  // The retry column is the vocabulary's: whether a retry helps, whether the refusal sends Retry-After.
+  for (const e of vocabulary.errors)
+    expect(said.get(e.code), e.code).toBe(
+      !e.retryable
+        ? "no: change the request"
+        : e.retry_after
+          ? "yes, after Retry-After"
+          : "yes; no Retry-After is sent",
+    );
 });
 
 test("the API page shows a table answer's columns and a recorded table", async ({ page }) => {

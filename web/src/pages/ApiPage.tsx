@@ -696,23 +696,14 @@ function ReadingAnAnswer({ doc, raw }: { doc: OpenApiDocument | null; raw: strin
   );
 }
 
-/** How a code is retried, from the document: retryable codes (the vocabulary's `retryable`) are retried after the
- *  `Retry-After` seconds where their answers carry that header (the document declares it per answer), else without
- *  it; the others only changed. */
-function retryWords(retryable: boolean, retryAfter: boolean | undefined): { short: string; long: string } {
-  if (!retryable) return { short: "no", long: ": change the request" };
-  if (retryAfter === true) return { short: "yes", long: ", after Retry-After" };
-  if (retryAfter === false) return { short: "yes", long: "; no Retry-After is sent" };
-  return { short: "yes", long: "" };
-}
+type ErrorEntry = ReturnType<typeof useVocabulary>["errors"] extends Map<string, infer E> ? E : never;
 
-/** Whether the answers that carry each error code declare `Retry-After`, as the document states it. */
-function retryAfterByCode(list: Endpoint[]): Map<string, boolean> {
-  const out = new Map<string, boolean>();
-  for (const e of list)
-    for (const a of e.answers)
-      for (const code of a.codes) out.set(code, (out.get(code) ?? false) || a.headers.includes("Retry-After"));
-  return out;
+/** Whether a retry helps, and after what, as the vocabulary says it (`retryable`, `retry_after`). */
+function retryWords(e: { retryable: boolean; retryAfter: boolean }): { short: string; long: string } {
+  if (!e.retryable) return { short: "no", long: ": change the request" };
+  return e.retryAfter
+    ? { short: "yes", long: ", after Retry-After" }
+    : { short: "yes", long: "; no Retry-After is sent" };
 }
 
 /** The GET endpoints whose success carries no `ETag`, as the document declares their headers. */
@@ -998,8 +989,8 @@ function ForPrograms({
                 time it repeats.
               </>
             )}{" "}
-            A <Mono>request_budget_exceeded</Mono> that comes again for the same request asks for a smaller one: send
-            the batch in halves, a name and its copies kept together (the recipe below does both).
+            How to go on after each code is the vocabulary&apos;s <Mono>retry</Mono> (Error codes); the recipe below
+            follows it.
           </p>
         </details>
       </li>
@@ -1076,13 +1067,7 @@ function ForPrograms({
 }
 
 /** The error codes of `/vocabulary`: each its status, whether a retry helps (and after what), and what it says. */
-function ErrorCodes({
-  errors,
-  retryAfter,
-}: {
-  errors: [string, { status: number; title: string; meaning: string; retryable: boolean }][];
-  retryAfter: Map<string, boolean>;
-}) {
+function ErrorCodes({ errors }: { errors: [string, ErrorEntry][] }) {
   return errors.length ? (
     <div className="table-wrap" role="region" aria-label="Table of error codes" tabIndex={0}>
       <table className="table table--compact table--cards api-errors">
@@ -1093,12 +1078,12 @@ function ErrorCodes({
               Status
             </th>
             <th scope="col">Retry</th>
-            <th scope="col">What it says (each opens to when, and what to change)</th>
+            <th scope="col">What it says (each opens to when, and how to go on)</th>
           </tr>
         </thead>
         <tbody>
           {errors.map(([code, e]) => {
-            const retry = retryWords(e.retryable, retryAfter.get(code));
+            const retry = retryWords(e);
             return (
               <tr key={code}>
                 <td data-label="Code">
@@ -1116,7 +1101,7 @@ function ErrorCodes({
                   <details className="cell-value">
                     <summary>{e.title}</summary>
                     <div>
-                      <Prose text={e.meaning} literal />
+                      <Prose text={e.meaning} literal /> <Prose text={e.retry} literal />
                     </div>
                   </details>
                 </td>
@@ -1287,8 +1272,7 @@ export function ApiPage() {
   }, [complete, follow]);
 
   const errors = [...vocabulary.errors.entries()];
-  const retryAfter = useMemo(() => retryAfterByCode(list), [list]);
-  const waitCodes = errors.filter(([code, e]) => e.retryable && retryAfter.get(code) === true);
+  const waitCodes = errors.filter(([, e]) => e.retryable && e.retryAfter);
   const uncached = withoutEtag(list);
 
   const guidePanel = (id: GuideTab): ReactNode =>
@@ -1305,7 +1289,7 @@ export function ApiPage() {
     ) : id === "programs" ? (
       <ForPrograms limits={limits} waitCodes={waitCodes} />
     ) : (
-      <ErrorCodes errors={errors} retryAfter={retryAfter} />
+      <ErrorCodes errors={errors} />
     );
 
   return (
