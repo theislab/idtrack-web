@@ -30,7 +30,7 @@ const bin = (name: string) => `node_modules/.bin/${name}`;
 
 const matches = (output: string, pattern: RegExp) => output.match(pattern)?.length ?? 0;
 const number = (output: string, pattern: RegExp) => Number(pattern.exec(output)?.[1] ?? 0);
-const plural = (n: number, word: string) => `${String(n)} ${word}${n === 1 ? "" : "s"}`;
+const plural = (n: number, word: string, many = `${word}s`) => `${String(n)} ${n === 1 ? word : many}`;
 
 /** A generated file's check: whether the file is what its source gives. */
 const generated = (name: string, script: string): Check => ({
@@ -76,7 +76,7 @@ const CHECKS: Check[] = [
   {
     name: "unused classes",
     command: ["node", "scripts/unused-classes.ts"],
-    count: (output) => plural(matches(output, /is styled but never named/g), "class"),
+    count: (output) => plural(matches(output, /is styled but never named/g), "class", "classes"),
   },
   {
     name: "knip",
