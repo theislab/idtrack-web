@@ -184,6 +184,11 @@
   line-height: var(--leading-caption);
 }
 
+/* A row's head (the key, the package, the source) in the voice of a label, not the browser's bold. */
+.doc__table tbody th {
+  font-weight: var(--weight-medium);
+}
+
 .doc__table thead th {
   color: var(--ink-3);
   font-weight: var(--weight-medium);
