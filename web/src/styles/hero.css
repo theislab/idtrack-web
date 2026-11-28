@@ -241,6 +241,7 @@
     transparent
   );
   pointer-events: none;
+
   /* It appears once the field's reveal along time has passed it. */
   opacity: 0;
   animation: hero2-in var(--dur-4) var(--ease-out) 1.4s forwards;
