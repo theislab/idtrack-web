@@ -752,6 +752,7 @@
 }
 
 .accuracy__organisms {
+  position: relative;
   max-width: 100%;
   overflow-x: auto;
   scrollbar-width: none;
