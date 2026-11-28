@@ -13,7 +13,7 @@ import { IdHistory } from "../components/explore/IdHistory";
 import { BenchmarkProvenance } from "../components/method/BenchmarkProvenance";
 import { ExploreStories, StoriesOrganism } from "../components/explore/Stories";
 import { chipName } from "../lib/explore/chips";
-import { CaptionMore } from "../components/home/CaptionMore";
+import { CaptionMore } from "../components/v2/CaptionMore";
 import { Segmented } from "../components/v2/Segmented";
 import { Tabs } from "../components/v2/Tabs";
 import { Expandable } from "../components/v2/Expandable";

@@ -29,7 +29,7 @@ import { useRequest } from "../../lib/useRequest";
 import { createField, fieldAt, placeOf, type Field, type FieldColours, type FieldFrame } from "../hero/field";
 import { assemblyBands } from "../figure/releases";
 import { ErrorPanel } from "../ErrorPanel";
-import { CaptionMore } from "../home/CaptionMore";
+import { CaptionMore } from "../v2/CaptionMore";
 import { Button, Link, Mono, Skeleton } from "../ui";
 
 /** The ids a wide screen and a phone ask for (whole families; the same sample as the home's picture). */

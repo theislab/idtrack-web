@@ -22,7 +22,7 @@ import { useShowcase } from "../../lib/showcase";
 import { ErrorBoundary } from "../ErrorBoundary";
 import { ErrorPanel } from "../ErrorPanel";
 import { FigureLegend, type LegendEntry } from "../figure/Legend";
-import { CaptionMore } from "../home/CaptionMore";
+import { CaptionMore } from "../v2/CaptionMore";
 import { Mono } from "../ui";
 import type { JourneysDrawn } from "./JourneysFigure";
 

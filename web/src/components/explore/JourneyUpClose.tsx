@@ -13,7 +13,7 @@ import { prose } from "../../lib/values";
 import { spaced } from "../../lib/vocabulary";
 import { useVocabulary } from "../../lib/vocabularyContext";
 import { FigureLegend } from "../figure/Legend";
-import { CaptionMore } from "../home/CaptionMore";
+import { CaptionMore } from "../v2/CaptionMore";
 import { FigureReserve } from "./FigureReserve";
 import { Link, Mono } from "../ui";
 
