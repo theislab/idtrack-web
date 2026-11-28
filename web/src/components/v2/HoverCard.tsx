@@ -34,6 +34,9 @@ const CLOSE_MS = 200;
 const FOCUSABLE =
   'a[href], button:not([disabled]), input:not([disabled]), select, textarea, [tabindex]:not([tabindex="-1"])';
 
+/** The cards leaving now (their exit's fade), each ended when another card opens. */
+const leaving = new Set<() => void>();
+
 /** Give the focus back to a card's trigger, marked for the moment so that this focus opens no card. */
 function giveBack(triggerId: string): void {
   const trigger = document.getElementById(triggerId);
@@ -72,7 +75,15 @@ export function HoverCard({
 }) {
   const id = useId();
   const [open, setOpenState] = useState(false);
-  const { shown, closing } = useExit(open);
+  const { shown, closing, finish } = useExit(open);
+  // A card still leaving is gone the moment another card opens: one card at a time over the page.
+  useEffect(() => {
+    if (!closing) return;
+    leaving.add(finish);
+    return () => {
+      leaving.delete(finish);
+    };
+  }, [closing, finish]);
   const [host, setHost] = useState<Element | null>(null);
   const root = useRef<HTMLSpanElement>(null);
   const button = useRef<HTMLButtonElement>(null);
@@ -84,7 +95,10 @@ export function HoverCard({
   // Opened: drawn over the page, in the dialog that holds the trigger where one does (a modal's page is inert).
   const setOpen = useCallback(
     (value: boolean) => {
-      if (value) setHost(document.getElementById(triggerId)?.closest("dialog") ?? document.body);
+      if (value) {
+        setHost(document.getElementById(triggerId)?.closest("dialog") ?? document.body);
+        for (const end of [...leaving]) end();
+      }
       setOpenState(value);
       onOpenChange?.(value);
     },

@@ -748,20 +748,26 @@
   }
 }
 
-/* ---- A copy button: its faces in one cell (its width the widest's), cross-fading to a check ------------------ */
+/* ---- A copy button: its idle width kept, its copied face drawn over it, the two cross-fading ------------------ */
 
 .copy__faces {
-  display: inline-grid;
+  position: relative;
+  display: inline-flex;
 }
 
 .copy__face {
-  grid-area: 1 / 1;
-  display: inline-flex;
+  opacity: 0;
+  transition: opacity var(--dur-1) var(--ease-out);
+}
+
+.copy__face--over {
+  position: absolute;
+  inset: 0;
+  display: flex;
   align-items: center;
   justify-content: center;
   gap: 4px;
-  opacity: 0;
-  transition: opacity var(--dur-1) var(--ease-out);
+  white-space: nowrap;
 }
 
 .copy__face[data-shown="true"] {

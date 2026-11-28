@@ -1,7 +1,7 @@
 // What closes leaves with a short fade (DIRECTION.md, "Motion": every change of state moves): a card, a drawer or the
 // palette asked to close is kept drawn for `--dur-exit` (160 ms, tokens.css) with its closing class, then goes. Under
 // reduced motion, and where the browser cannot say (a test's DOM), it goes at once.
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 /** The exit's length in milliseconds (tokens.css `--dur-exit`). */
 export const EXIT_MS = 160;
@@ -12,8 +12,9 @@ export function exitMoves(): boolean {
   return typeof matchMedia === "function" && !matchMedia.call(window, "(prefers-reduced-motion: reduce)").matches;
 }
 
-/** `shown` while open or leaving; `closing` while leaving (for `EXIT_MS` after `open` turned false). */
-export function useExit(open: boolean): { shown: boolean; closing: boolean } {
+/** `shown` while open or leaving; `closing` while leaving (for `EXIT_MS` after `open` turned false); `finish` ends a
+ *  leaving at once (another of its kind opens in its place). */
+export function useExit(open: boolean): { shown: boolean; closing: boolean; finish: () => void } {
   const [was, setWas] = useState(open);
   const [closing, setClosing] = useState(false);
   if (was !== open) {
@@ -29,5 +30,8 @@ export function useExit(open: boolean): { shown: boolean; closing: boolean } {
       window.clearTimeout(timer);
     };
   }, [closing]);
-  return { shown: open || closing, closing };
+  const finish = useCallback(() => {
+    setClosing(false);
+  }, []);
+  return { shown: open || closing, closing, finish };
 }

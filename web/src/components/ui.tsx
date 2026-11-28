@@ -218,19 +218,17 @@ export function CopyButton({
         );
       }}
     >
-      {/* Every face in one cell: the button keeps the width of its widest, and the faces cross-fade. */}
+      {/* The button keeps its idle width: the copied face is drawn over it (a check, and the word where the label is
+          as long), and the two cross-fade; a failure is said in the idle face's place. */}
       <span className="copy__faces" aria-hidden="true">
-        <span className="copy__face" data-shown={state === "idle"}>
-          {label}
+        <span className="copy__face" data-shown={state !== "copied"}>
+          {state === "failed" ? "Copy failed" : label}
         </span>
-        <span className="copy__face" data-shown={state === "copied"}>
+        <span className="copy__face copy__face--over" data-shown={state === "copied"}>
           <svg viewBox="0 0 16 16" width="12" height="12" focusable="false">
             <path d="M3 8.5l3.2 3L13 4.5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
           </svg>
-          Copied
-        </span>
-        <span className="copy__face" data-shown={state === "failed"}>
-          Copy failed
+          {label.length >= "Copied".length + 2 ? "Copied" : null}
         </span>
       </span>
       <span className="visually-hidden" aria-live="polite">
