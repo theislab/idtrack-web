@@ -16,7 +16,9 @@ const PAGES: [string, string, (page: Page) => Promise<void>][] = [
     "home",
     `/?organism=${data.organism}`,
     async (page) => {
+      // The headline, and the picture's caption drawn (a window too short for it leaves the caption out).
       await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+      await expect(page.locator(".hero2__caption")).toBeAttached();
     },
   ],
   ["answer", convertUrl(data.long), waitForResult],
@@ -102,14 +104,23 @@ const PAGES: [string, string, (page: Page) => Promise<void>][] = [
   ],
 ];
 
-const WIDTHS = [320, 768, 1024, 2560];
+/** The sizes every page is drawn at: a small phone, the zoom of 400 % on a screen 1280 by 1024 px (WCAG 1.4.10) and
+ *  of 200 % on one 1440 by 900 px, a tablet, a laptop, a wide screen. */
+const SIZES: [number, number][] = [
+  [320, 640],
+  [320, 256],
+  [720, 450],
+  [768, 900],
+  [1024, 900],
+  [2560, 900],
+];
 
 test.describe("every page at every width", () => {
   for (const [name, url, ready] of PAGES) {
     test(`${name}: whole, legible figures, no sideways scroll`, async ({ page }, info) => {
       test.skip(!info.project.name.startsWith("desktop"), "the widths are set here; once per theme");
-      for (const width of WIDTHS) {
-        await page.setViewportSize({ width, height: width < 400 ? 640 : 900 });
+      for (const [width, height] of SIZES) {
+        await page.setViewportSize({ width, height });
         await page.goto(url);
         await ready(page);
         await page.evaluate(async () => {
@@ -301,8 +312,9 @@ test("focus is an outline, kept as the highlight colour in forced colours", asyn
 });
 
 test.describe("one heading system on every page", () => {
-  // The home's headline is the display (DIRECTION.md, "Type"): its own test (home.spec.ts).
-  for (const [name, url, ready] of PAGES.filter(([n]) => n !== "home")) {
+  // The home's headline is the display, its only use (DIRECTION.md, "The visual language"); every other page's title
+  // is the title tier.
+  for (const [name, url, ready] of PAGES.filter(([page]) => page !== "home")) {
     test(`${name}: the title, the sections' serif tier, three weights, one head`, async ({ page }, info) => {
       test.skip(!info.project.name.startsWith("desktop"), "the widths are set here; once per theme");
       for (const width of [1440, 390]) {
@@ -778,14 +790,16 @@ test.describe("the masthead's tools", () => {
     await expect(readings).toBeVisible();
     await expect(readings).toContainText(/CPU\s*\d+\.\d %/);
     await expect(readings).toContainText(/Memory\s*\d+\.\d\d GiB/);
-    // Narrower, the readings unfold on pointing, never empty, in a pill of the chip's height.
-    for (const width of [1100, 900, 700]) {
+    // Narrower, the readings unfold on pointing beside the state's dot, never empty, in a pill of the chip's height:
+    // at each edge of the masthead's widths and between them.
+    for (const width of [1279, 1180, 1081, 900, 861, 860, 700, 641]) {
       await page.setViewportSize({ width, height: 900 });
       await expect(readings).toBeHidden();
       await page.locator(".load-monitor__trigger").hover();
       const pill = page.locator(".load-monitor__shown");
       await expect(pill).toContainText(/CPU/);
       await expect(pill).toContainText(/Memory/);
+      await expect(page.locator(".load-monitor__trigger .load-dot")).toBeVisible();
       expect(Math.round((await pill.boundingBox())?.height ?? 0), `${width}`).toBe(36);
       await page.mouse.move(0, 400);
     }

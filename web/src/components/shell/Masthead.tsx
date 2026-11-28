@@ -291,7 +291,7 @@ export function Masthead() {
     </>
   );
   return (
-    <header className={`mast${away ? " mast--away" : ""}`}>
+    <header lang="en" className={`mast${away ? " mast--away" : ""}`}>
       <div className="mast__inner">
         <Link to={href("/", keep)} className="mast__brand" label="IDTrack, home">
           <LogoMark className="mast__mark" />

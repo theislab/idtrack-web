@@ -13,6 +13,9 @@ import "./styles/tokens.css";
 import "./styles/app.css";
 import "./styles/shell.css";
 import "./styles/v2.css";
+// The site's own documents are drawn whole in their frames (prerender.tsx), so their style is the entry's, applied at
+// the first paint: a style that came with the page's code would move the document when it arrived.
+import "./styles/doc.css";
 // The figure grammar every page with a figure shares (batch, names, the answer, Explore, the 404 page).
 import "./styles/figure.css";
 
