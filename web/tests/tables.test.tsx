@@ -314,9 +314,10 @@ describe("the names' lanes", () => {
         const bodies = region.querySelectorAll("tbody.names-gene");
         expect(bodies).toHaveLength(Math.min(groups.length, 12));
         const counts = nameCounts(matches);
-        const summary = document.querySelector(".names-summary")?.textContent ?? "";
-        expect(summary).toContain(`${String(counts.genes)} gene`);
-        expect(summary).toContain(`${String(counts.versions)} version`);
+        const summary = document.querySelector(".names-verdict")?.textContent ?? "";
+        expect(summary).toContain(counts.genes === 1 ? "names one gene" : `names ${String(counts.genes)} genes`);
+        expect(summary).toContain(`(${String(counts.versions)} version`);
+        expect(summary).toContain(counts.databases === 1 ? "one database" : `${String(counts.databases)} databases`);
         const axis = axisOf(graph.releases);
         // Every version's releases on a press of its lane's "+ N versions".
         for (const more of [...region.querySelectorAll<HTMLButtonElement>(".names-exact__more")]) fireEvent.click(more);

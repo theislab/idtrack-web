@@ -358,6 +358,67 @@ test("Names refuses a release that is no whole number without asking the api", a
   await page.goto(`/names?organism=${data.organism}&gene=${data.unknownVersion.identifier}&release=abc`);
   await expect(page.getByRole("heading", { name: "Not a release: abc" })).toBeVisible();
   expect(asked).toBe(0);
-  await page.getByRole("button", { name: "List the names at every release" }).click();
+  await page.getByRole("button", { name: "Ask at every release" }).click();
   await expect(page).not.toHaveURL(/release=abc/);
+});
+
+test("Names: a gene id without its version offers its versions with their releases, and at a release reads the one active there", async ({
+  page,
+  request,
+}) => {
+  const gene = data.unknownVersion.identifier.replace(/\.\d+$/, "");
+  await page.goto(`/names?organism=${data.organism}&gene=${gene}`);
+  const choice = page.getByRole("group", { name: new RegExp(`^${gene} has .+ in this graph`) });
+  await expect(choice).toBeVisible();
+  // Every version the api names, one press each, with the releases its own path gives.
+  const refusal = (await (await request.get(`/api/v1/organisms/${data.organism}/names-of?gene=${gene}`)).json()) as {
+    error: { allowed: string[] };
+  };
+  const chips = choice.getByRole("button");
+  await expect(chips).toHaveCount(refusal.error.allowed.length);
+  await expect(chips.first().locator(".chip__count")).toHaveText(/^\d+(–\d+)?(, \d+(–\d+)?)*$/);
+  await expect(page.getByRole("alert")).toHaveCount(0);
+  await expectAccessible(page);
+  await chips.last().click();
+  await expect(page).toHaveURL(new RegExp(`gene=${refusal.error.allowed.at(-1)?.replace(".", "\\.") ?? ""}`));
+  // At a release: IDTrack's convert says which version is active there, and its names follow.
+  const last = refusal.error.allowed.at(-1) ?? "";
+  // The release the id is read at by IDTrack alone (the latest at which it exists), and the version convert gives there.
+  const { from_release: top } = (await (
+    await request.get(`/api/v1/organisms/${data.organism}/convert?identifier=${gene}`)
+  ).json()) as { from_release: number };
+  const at = (await (
+    await request.get(
+      `/api/v1/organisms/${data.organism}/convert?identifier=${gene}&from_release=${String(top)}&to_release=${String(top)}`,
+    )
+  ).json()) as { candidates: { target: string; best: boolean }[] };
+  const bests = [...new Set(at.candidates.filter((c) => c.best).map((c) => c.target))];
+  expect(bests).toHaveLength(1);
+  await page.goto(`/names?organism=${data.organism}&gene=${gene}&release=${String(top)}`);
+  await expect(page.locator(".names-version-line")).toContainText(
+    `${gene} is ${bests[0] ?? last} at release ${String(top)}`,
+  );
+  await expect(page.locator(".names-verdict, .empty").first()).toBeVisible();
+});
+
+test("Names: the name question is asked at a release, which is marked on the lanes", async ({ page, request }) => {
+  const { snapshot_release: top } = (await (await request.get(`/api/v1/organisms/${data.organism}`)).json()) as {
+    snapshot_release: number;
+  };
+  const asked: (string | null)[] = [];
+  await page.route("**/genes-named**", (route) => {
+    asked.push(new URL(route.request().url()).searchParams.get("release"));
+    return route.continue();
+  });
+  await page.goto(`/names?organism=${data.organism}`);
+  await page.getByLabel("Name", { exact: true }).fill(data.name);
+  await page.getByLabel("At release", { exact: true }).fill(String(top));
+  await page.getByRole("button", { name: "Find genes" }).click();
+  await expect(page).toHaveURL(new RegExp(`release=${String(top)}`));
+  await expect(page.locator(".names-verdict").first()).toContainText(`at release ${String(top)}`);
+  await expect(page.locator(".names-legend")).toContainText("the release asked");
+  expect(asked).toEqual([String(top)]);
+  // The answer is the page's subject: the head is the title alone, and the examples have left.
+  await expect(page.locator(".page-head .lede")).toHaveCount(0);
+  await expect(page.locator(".names-examples")).toHaveCount(0);
 });

@@ -380,8 +380,10 @@ test("names: the genes a name names, then the names of one of them", async ({ pa
   // Genes are counted by their id, versions apart; each gene is a group with its versions, and links to its names.
   const ids = [...new Set(answer.matches.map((m) => m.gene.replace(/\.\d+$/, "")))];
   const versions = new Set(answer.matches.map((m) => m.gene)).size;
-  await expect(page.locator(".names-summary").first()).toContainText(`${String(ids.length)} gene`);
-  await expect(page.locator(".names-summary").first()).toContainText(`${String(versions)} version`);
+  // The counts are said in the answer's one sentence.
+  const verdict = page.locator(".names-verdict").first();
+  await expect(verdict).toContainText(ids.length === 1 ? "names one gene" : `names ${String(ids.length)} genes`);
+  await expect(verdict).toContainText(`(${String(versions)} version`);
   const groups = matches.locator("tbody.names-gene");
   await expect(groups).toHaveCount(Math.min(ids.length, 12));
   const firstGene = (await groups.first().locator(".names-gene__id .mono").first().innerText()).trim();
@@ -391,7 +393,7 @@ test("names: the genes a name names, then the names of one of them", async ({ pa
     .sort((a, b) => a.localeCompare(b, "en", { numeric: true }))
     .at(-1);
   await groups.first().locator(".names-gene__id").getByRole("link").click();
-  await expect(page.getByLabel("Ensembl gene, with version")).toHaveValue(latest ?? "");
+  await expect(page.getByLabel("Ensembl gene", { exact: true })).toHaveValue(latest ?? "");
   // One question at a time, each table named by what it holds: the names of the gene opened, and the genes the name
   // names one press back, both kept in the address.
   await expect(page.getByRole("region", { name: /^The names of / })).toHaveCount(1);

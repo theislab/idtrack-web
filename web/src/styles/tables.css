@@ -946,11 +946,17 @@ th[aria-sort] .sort__mark {
 
 /* ---- Names ---------------------------------------------------------------------------------------------------- */
 
+/* No card around the question: the choice, the form and the answer sit on the paper; the lanes' table is the one
+   surface. Once an answer is asked, the head is the title alone. */
 .names-panel {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   gap: var(--space-4);
   min-width: 0;
+}
+
+.page--names .page-head--folded {
+  margin-bottom: var(--space-4);
 }
 
 /* The two questions: one shown, chosen above its form; what it answers a press away. */
@@ -1002,15 +1008,54 @@ th[aria-sort] .sort__mark {
   max-width: var(--measure);
 }
 
+/* The form is one row on one baseline: the field, the release, the switch and the button stand on the line of the
+   field's foot, at the height of the Convert page's field and button. */
 .names-form {
+  --names-control-h: 52px;
   display: grid;
-  grid-template-columns: minmax(220px, 1.4fr) minmax(200px, 1fr) auto;
-  align-items: start;
+  grid-template-columns: minmax(220px, 1fr) 9.5em auto auto;
+  align-items: end;
   gap: var(--space-4);
 }
 
-.names-form__submit {
-  padding-top: 27px;
+.names-form--gene {
+  grid-template-columns: minmax(220px, 1fr) 9.5em auto;
+}
+
+.names-form .input {
+  min-height: var(--names-control-h);
+}
+
+.names-form__switch {
+  display: flex;
+  align-items: center;
+  min-height: var(--names-control-h);
+}
+
+.names-form__submit .button {
+  min-height: var(--names-control-h);
+}
+
+/* A gene id without its version: what IDTrack reads at a release, or its versions as chips with their releases. */
+.names-version-choice {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.names-version-line {
+  margin: 0;
+  font-size: var(--text-md);
+  color: var(--ink-1);
+  overflow-wrap: anywhere;
+}
+
+.names-version-chips {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
 }
 
 .names-figure {
@@ -1398,11 +1443,17 @@ th[aria-sort] .sort__mark {
 
 /* ---- Names: the verdict, genes grouped, today's names, paging, examples ---------------------------------------- */
 
+/* The answer in one sentence, with its counts: the screen's focal element. */
 .names-verdict {
   margin: 0 0 var(--space-3);
-  font-size: var(--text-md);
+  font-size: var(--text-lg);
+  line-height: 1.5;
   color: var(--ink-1);
   overflow-wrap: anywhere;
+}
+
+.names-verdict__counts {
+  color: var(--ink-2);
 }
 
 .names-find,
@@ -1906,12 +1957,29 @@ th[aria-sort] .sort__mark {
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .names-form {
-    grid-template-columns: minmax(0, 1fr);
+  /* Two rows: the field and its button, then the release and the switch. */
+  .names-form,
+  .names-form--gene {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "field go"
+      "release switch";
   }
 
-  .names-form__submit {
-    padding-top: 0;
+  .names-form > .field:first-child {
+    grid-area: field;
+  }
+
+  .names-form > .names-form__release {
+    grid-area: release;
+  }
+
+  .names-form > .names-form__switch {
+    grid-area: switch;
+  }
+
+  .names-form > .names-form__submit {
+    grid-area: go;
   }
 }
 

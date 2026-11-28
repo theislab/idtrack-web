@@ -8,7 +8,7 @@ import { api } from "../api/client";
 import type { GraphDescription, NameMatch } from "../api/types";
 import { convertHref, plainConversion } from "../lib/convertParameters";
 import { databaseLabel } from "../lib/databases";
-import { groupByGene, nameCounts, turnsOf, type GeneGroup, type NameLane } from "../lib/nameGroups";
+import { groupByGene, nameCounts, turnsOf, type GeneGroup, type NameCounts, type NameLane } from "../lib/nameGroups";
 import { groupedInteger, releaseRanges } from "../lib/numbers";
 import { axisOf, bandsOf, runsOf, type Axis, type AxisBand, type Run } from "./figure/releases";
 import { href } from "../lib/router";
@@ -63,28 +63,7 @@ export function NameMatches({
   const scale = <ReleaseScale axis={axis} bands={bands} marks={marks} highlight={pointed ?? []} />;
   return (
     <figure className="names-figure">
-      <div className="names-summary" tabIndex={-1}>
-        {first === "gene" ? (
-          <span>
-            <Mono>{groupedInteger(counts.genes)}</Mono> {counts.genes === 1 ? "gene" : "genes"}{" "}
-            <span className="muted">
-              (<Mono>{groupedInteger(counts.versions)}</Mono> {counts.versions === 1 ? "version" : "versions"})
-            </span>
-          </span>
-        ) : (
-          <span>
-            <Mono>{groupedInteger(counts.names)}</Mono> {counts.names === 1 ? "name" : "names"}
-          </span>
-        )}
-        <span>
-          <Mono>{groupedInteger(counts.databases)}</Mono> {counts.databases === 1 ? "database" : "databases"}
-        </span>
-        <span>
-          <Mono>{groupedInteger(counts.attachments)}</Mono> {counts.attachments === 1 ? "attachment" : "attachments"}
-        </span>
-        <span>
-          <Mono>{groupedInteger(counts.synonyms)}</Mono> as {counts.synonyms === 1 ? "a synonym" : "synonyms"}
-        </span>
+      <div className="names-summary">
         <Legend marks={marks.length > 0} />
       </div>
       {first === "gene" ? (
@@ -98,6 +77,7 @@ export function NameMatches({
           scale={scale}
           setPointed={setPointed}
           asked={asked ?? ""}
+          counts={counts}
         />
       ) : (
         <NamesOf
@@ -109,6 +89,8 @@ export function NameMatches({
           release={marks.length ? release : null}
           scale={scale}
           setPointed={setPointed}
+          counts={counts}
+          asked={asked ?? ""}
         />
       )}
       <figcaption className="fig-caption">
@@ -121,6 +103,9 @@ export function NameMatches({
             )
           }
         >
+          <Mono>{groupedInteger(counts.attachments)}</Mono> {counts.attachments === 1 ? "attachment" : "attachments"} in
+          all, {counts.synonyms ? <Mono>{groupedInteger(counts.synonyms)}</Mono> : "none"} as{" "}
+          {counts.synonyms === 1 ? "a synonym" : "synonyms"}.{" "}
           {first === "gene" ? (
             <>
               Each group is an Ensembl id, in each of its versions, with what the databases of its names call it at the
@@ -305,6 +290,7 @@ function GenesNamed({
   scale,
   setPointed,
   asked,
+  counts,
 }: {
   matches: NameMatch[];
   description: GraphDescription;
@@ -315,6 +301,7 @@ function GenesNamed({
   scale: ReactNode;
   setPointed: (runs: Run[] | null) => void;
   asked: string;
+  counts: NameCounts;
 }) {
   const organism = description.organism;
   const groups = useMemo(() => groupByGene(matches), [matches]);
@@ -339,13 +326,23 @@ function GenesNamed({
   if (!drawn && today === "loading") return <div className="names-skeleton" aria-hidden="true" />;
   return (
     <>
-      <p className="names-verdict">
+      <p className="names-verdict" tabIndex={-1}>
         {asked ? (
           <>
             <Mono>{asked}</Mono>{" "}
           </>
         ) : null}
-        names {groups.length === 1 ? "one gene" : `${groupedInteger(groups.length)} genes`}
+        names {groups.length === 1 ? "one gene" : `${groupedInteger(groups.length)} genes`}{" "}
+        <span className="names-verdict__counts">
+          (<Mono>{groupedInteger(counts.versions)}</Mono> {counts.versions === 1 ? "version" : "versions"}) in{" "}
+          {counts.databases === 1 ? "one database" : `${groupedInteger(counts.databases)} databases`}
+        </span>
+        {release !== null ? (
+          <>
+            {" "}
+            at release <Mono>{release}</Mono>
+          </>
+        ) : null}
         {groups.length <= 4 ? (
           <>
             :{" "}
@@ -722,6 +719,8 @@ function NamesOf({
   release,
   scale,
   setPointed,
+  counts,
+  asked,
 }: {
   matches: NameMatch[];
   description: GraphDescription;
@@ -731,6 +730,8 @@ function NamesOf({
   release: number | null;
   scale: ReactNode;
   setPointed: (runs: Run[] | null) => void;
+  counts: NameCounts;
+  asked: string;
 }) {
   const organism = description.organism;
   const runs = useMemo(() => matches.map((m) => runsOf(axis, m.releases)), [axis, matches]);
@@ -738,6 +739,18 @@ function NamesOf({
   const rows = matches.slice(0, shown);
   return (
     <>
+      <p className="names-verdict" tabIndex={-1}>
+        <Mono>{asked || matches[0]?.gene}</Mono> has{" "}
+        {counts.names === 1 ? "one name" : `${groupedInteger(counts.names)} names`} in{" "}
+        {counts.databases === 1 ? "one database" : `${groupedInteger(counts.databases)} databases`}
+        {release !== null ? (
+          <>
+            {" "}
+            at release <Mono>{release}</Mono>
+          </>
+        ) : null}
+        .
+      </p>
       <TableFrame label={`The names of ${matches[0]?.gene ?? "the gene"}`} className="table-frame--cards">
         <table className="table table--names table--cards">
           <thead>

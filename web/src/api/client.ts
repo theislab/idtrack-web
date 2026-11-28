@@ -547,13 +547,13 @@ export const api = {
       signal,
       expect: "text",
     }) as Promise<Answer<string>>,
-  genesNamed: (organism: string, name: string, foldCase: boolean, options?: Share) =>
+  genesNamed: (organism: string, name: string, foldCase: boolean, release: number | null, options?: Share) =>
     get<NamesResponse>(
       `${organismPath(organism)}/genes-named`,
       "GET /organisms/{organism}/genes-named",
       share(options),
       {
-        query: { name, fold_case: foldCase },
+        query: { name, fold_case: foldCase, release },
       },
     ),
   namesOf: (organism: string, gene: string, release: number | null, options?: Share) =>
