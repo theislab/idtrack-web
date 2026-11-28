@@ -4,7 +4,7 @@
 
 /** The site's own pages (the legal notice and the privacy page each in English and in German, the licences, the
  *  accessibility statement): they need no organism. */
-export type SitePage = "legal" | "legal-de" | "privacy" | "privacy-de" | "licences" | "accessibility";
+type SitePage = "legal" | "legal-de" | "privacy" | "privacy-de" | "licences" | "accessibility";
 
 export type Route =
   | { page: "home" | "convert" | "batch" | "names" | "organisms" | "developers" | "method" | SitePage; title: string }
