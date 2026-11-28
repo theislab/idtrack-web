@@ -6,7 +6,6 @@ import { act, cleanup, fireEvent, render, screen } from "@testing-library/react"
 import { useState } from "react";
 import { afterEach, describe, expect, it } from "vitest";
 import type { HistoryResponse, LineagesResponse, ShowcaseResponse } from "../src/api/types";
-import { simplified } from "../src/components/hero/field";
 import { ringsOf } from "../src/components/hero/rings";
 import { HeroMenu } from "../src/components/shell/HeroMenu";
 import { ThemeSwitch } from "../src/components/ThemeSwitch";
@@ -27,7 +26,8 @@ import {
   STAR,
   TILT,
 } from "../src/lib/hero/constellationModel";
-import { idAt, layoutLineages, SEGMENT_FLOATS } from "../src/lib/hero/lineageLayout";
+import { fieldAt, frameOf, placeOf, type FieldFrame } from "../src/components/hero/field";
+import { idAt, layoutLineages, SEGMENT_FLOATS, simplified } from "../src/lib/hero/lineageLayout";
 import { resetAddress } from "./disclose";
 import { conversions } from "./fixtures";
 
@@ -185,7 +185,7 @@ describe("the home's picture menu", () => {
 /** A small graph's lineages as the api writes them: two families (one of two ids joined by an edge) and a third id. */
 const lineages: LineagesResponse = {
   organism: "sus_scrofa",
-  content_digest: null,
+  content_digest: "0".repeat(64),
   releases: [10, 11, 12, 13],
   genes: 5,
   families: 3,
@@ -196,7 +196,6 @@ const lineages: LineagesResponse = {
   active: [[[10, 11]], [[12, 13]], [[10, 13]], [[11, 13]]],
   versions: [[11], [], [12, 13], []],
   edges: [[0, 1, 11, 12, 0.9]],
-  compute_seconds: 0,
 };
 
 describe("the lineages' layout", () => {
@@ -235,6 +234,72 @@ describe("the lineages' layout", () => {
     const xs = [...straight, ...curved].filter((_, i) => i % SEGMENT_FLOATS === 0 || i % SEGMENT_FLOATS === 2);
     expect(Math.min(...xs)).toBe(0);
     expect(Math.max(...xs)).toBe(1);
+    // The lines drawn are made with the layout: every id's, the showcase's (the first family), those that carry light.
+    const drawn = (lines: { straight: Float32Array; curved: Float32Array }) =>
+      (lines.straight.length + lines.curved.length) / SEGMENT_FLOATS;
+    expect(drawn(layout.lines.all)).toBeGreaterThan(0);
+    expect(drawn(layout.lines.focal)).toBeGreaterThan(0);
+    expect(drawn(layout.lines.focal)).toBeLessThan(drawn(layout.lines.all));
+    expect(drawn(layout.lines.pulses)).toBeGreaterThan(0);
+    // The field's top edge at each release is its outermost line, half a line out.
+    for (let k = 0; k < 4; k++) {
+      const ys = [...(layout.columns[k] ?? [])].map((i) => layout.y[i * 4 + k] ?? 0);
+      const up = ys.filter((y) => y < 0).length;
+      expect(layout.top[k]).toBeCloseTo(up ? -up / layout.widest : 0);
+    }
+  });
+});
+
+describe("the lineages' plane", () => {
+  const frame: FieldFrame = { far: { x: 40, top: 600, bottom: 760 }, near: { x: 1400, top: 200, bottom: 760 } };
+
+  it("is one projective map: the far end and the near end where the frame says, the inverse its inverse", () => {
+    expect(placeOf(frame, 0, -0.5)).toEqual({ x: 40, y: 600 });
+    expect(placeOf(frame, 0, 0.5).y).toBeCloseTo(760);
+    expect(placeOf(frame, 1, -0.5).x).toBeCloseTo(1400);
+    expect(placeOf(frame, 1, -0.5).y).toBeCloseTo(200);
+    // The foot is level, the ends vertical; releases lie closer together toward the far end.
+    expect(placeOf(frame, 0.3, 0.5).y).toBeCloseTo(760);
+    expect(placeOf(frame, 0.4, -0.5).x).toBeCloseTo(placeOf(frame, 0.4, 0.5).x);
+    const gap = (u: number) => placeOf(frame, u + 0.1, 0).x - placeOf(frame, u, 0).x;
+    expect(gap(0)).toBeLessThan(gap(0.9));
+    for (const [x, y] of [
+      [0.25, -0.3],
+      [0.8, 0.45],
+    ] as const) {
+      const p = placeOf(frame, x, y);
+      const back = fieldAt(frame, p.x, p.y);
+      expect(back.x).toBeCloseTo(x);
+      expect(back.y).toBeCloseTo(y);
+    }
+  });
+
+  it("lies clear of the words beside them, and under them on a narrow screen", () => {
+    const top = Float32Array.from({ length: 20 }, (_, k) => -0.25 - (0.25 * k) / 19);
+    const words = { right: 640, bottom: 490 };
+    const wide = frameOf(1440, 836, words, 800, top);
+    expect(wide.far.bottom).toBe(wide.near.bottom);
+    expect(wide.near.bottom).toBeLessThanOrEqual(800 - 40);
+    expect((wide.near.bottom - wide.near.top) / (wide.far.bottom - wide.far.top)).toBeCloseTo(2.2);
+    // Every release's outermost line left of the words' edge (and 40 px beyond) lies below them (and 40 px more).
+    for (let k = 0; k < top.length; k++) {
+      const p = placeOf(wide, k / (top.length - 1), top[k] ?? 0);
+      if (p.x <= words.right + 40) expect(p.y).toBeGreaterThanOrEqual(words.bottom + 40 - 0.5);
+    }
+    // As tall as that allows: a near end a pixel higher would cross the clearance.
+    const higher: FieldFrame = {
+      far: { ...wide.far, top: wide.far.bottom - (wide.near.bottom - wide.near.top + 2) / 2.2 },
+      near: { ...wide.near, top: wide.near.top - 2 },
+    };
+    const crosses = [...top].some((v, k) => {
+      const p = placeOf(higher, k / (top.length - 1), v);
+      return p.x <= words.right + 40 && p.y < words.bottom + 40;
+    });
+    expect(crosses).toBe(true);
+    // A phone: the plane under the words, between them and the caption.
+    const phone = frameOf(390, 788, { right: 374, bottom: 420 }, 700, top);
+    expect(phone.near.top).toBeGreaterThanOrEqual(420 + 28 - 0.5);
+    expect(phone.near.bottom).toBeLessThanOrEqual(700 - 40);
   });
 });
 

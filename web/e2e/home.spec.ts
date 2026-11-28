@@ -74,11 +74,47 @@ async function textsWholeAndClear(page: Page): Promise<string[]> {
   });
 }
 
+/** Whether the hero's words, as seen, are the same pixels with the picture and without it: nothing of the picture lies
+ *  under a word. The picture is drawn whole first (the renderer counts its frames, a 2D drawing its finished drawings,
+ *  on the field: `data-frames`). */
+async function wordsClearOfPicture(page: Page): Promise<boolean> {
+  await expect(page.locator(".hero2__field[data-mode] canvas")).toHaveCount(1, { timeout: 30_000 });
+  await expect
+    .poll(async () => page.locator(".hero2__field").getAttribute("data-frames"), { timeout: 60_000 })
+    .toMatch(/^[1-9]/);
+  const box = await page.evaluate(() => {
+    const words = document.querySelector(".hero2__words");
+    if (!words) return null;
+    const range = document.createRange();
+    const boxes = [...words.children].flatMap((child) =>
+      child.classList.contains("hero2__actions")
+        ? [...child.children].map((c) => c.getBoundingClientRect())
+        : (range.selectNodeContents(child), [range.getBoundingClientRect()]),
+    );
+    const seen = boxes.filter((b) => b.width > 0 && b.height > 0);
+    const x = Math.max(0, Math.min(...seen.map((b) => b.left)) - 4);
+    const y = Math.max(0, Math.min(...seen.map((b) => b.top)) - 4);
+    return {
+      x,
+      y,
+      width: Math.max(...seen.map((b) => b.right)) + 4 - x,
+      height: Math.max(...seen.map((b) => b.bottom)) + 4 - y,
+    };
+  });
+  if (!box) return false;
+  const withPicture = await page.screenshot({ clip: box, animations: "disabled" });
+  await page.locator(".hero2__field canvas").evaluate((c: HTMLElement) => (c.style.visibility = "hidden"));
+  const without = await page.screenshot({ clip: box, animations: "disabled" });
+  await page.locator(".hero2__field canvas").evaluate((c: HTMLElement) => (c.style.visibility = ""));
+  return withPicture.equals(without);
+}
+
 test("the home is one picture: a headline, a sentence, two calls to action, nothing else to press", async ({
   page,
 }, info) => {
   const asked = conversionsAsked(page);
-  await page.goto("/");
+  // The home of the graph under test (a server of several graphs shows the first by default).
+  await page.goto(`/?organism=${data.organism}`);
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(/^Every gene id\s*has a history\.$/);
   const hero = page.locator(".hero2");
   // Exactly two controls in the hero: Convert, and the documentation.
@@ -104,13 +140,15 @@ test("the home is one picture: a headline, a sentence, two calls to action, noth
   });
   expect(fit.bottom).toBeLessThanOrEqual(fit.viewport + 1);
   expect(fit.wide).toBe(false);
+  expect(await wordsClearOfPicture(page), "no line of the picture crosses a word").toBe(true);
   await expectAccessible(page);
   await shot(page, info, "01-home");
   expect(asked, "the home converts nothing").toEqual([]);
 });
 
 test("the home's picture menu offers three pictures and keeps the choice", async ({ page }) => {
-  await page.goto("/");
+  // The home of the graph under test (a server of several graphs shows the first by default).
+  await page.goto(`/?organism=${data.organism}`);
   const button = page.getByRole("button", { name: "Choose the home page picture" });
   await button.click();
   const menu = page.getByRole("menu", { name: "Home page picture" });

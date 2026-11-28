@@ -85,6 +85,11 @@
   opacity: 0;
 }
 
+/* The lineages lie clear of the words (their plane is placed so: components/hero/HeroField.tsx, frameOf). */
+.hero2__field[data-picture="lineages"] .hero2__canvas {
+  mask-image: none;
+}
+
 @keyframes hero2-in {
   to {
     opacity: 1;
@@ -97,7 +102,7 @@
   z-index: 2;
   width: min(100%, var(--content));
   margin: 0 auto;
-  padding: clamp(40px, 9vh, 112px) var(--space-5) 0;
+  padding: clamp(24px, 8vh, 112px) var(--space-5) 0;
   pointer-events: none;
 }
 
@@ -137,7 +142,7 @@
 
 .hero2__lede {
   margin: var(--space-5) 0 0;
-  max-width: 34rem;
+  max-width: 37rem;
   font-size: var(--text-lg);
   line-height: 1.55;
   color: var(--ink-2);
@@ -225,11 +230,20 @@
   letter-spacing: 0.02em;
 }
 
+/* An assembly change: a hairline through the field at its first release, fading upward. */
 .hero2__change {
   position: absolute;
-  width: 0;
-  border-left: 1px dashed color-mix(in srgb, var(--hue-handoff) 45%, transparent);
+  width: 1px;
+  background: linear-gradient(
+    to top,
+    color-mix(in srgb, var(--hue-handoff) 55%, transparent),
+    color-mix(in srgb, var(--hue-handoff) 18%, transparent) 70%,
+    transparent
+  );
   pointer-events: none;
+  /* It appears once the field's reveal along time has passed it. */
+  opacity: 0;
+  animation: hero2-in var(--dur-4) var(--ease-out) 1.4s forwards;
 }
 
 /* The lifted line's words, beside the pointer. */
@@ -353,6 +367,20 @@
   }
 }
 
+/* A short window or a phone: the words close up (the kicker, which the headline says again, steps aside), so that the
+   picture keeps its room. */
+@media (max-height: 820px), (max-width: 719px) {
+  .hero2__kicker {
+    display: none;
+  }
+}
+
+@media (max-height: 820px) and (min-width: 900px) {
+  .hero2__title {
+    font-size: min(var(--text-display), 8.6vh);
+  }
+}
+
 @media (max-width: 719px) {
   .hero2 {
     min-height: calc(100svh - var(--masthead-height));
@@ -403,7 +431,8 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .hero2__field {
+  .hero2__field,
+  .hero2__change {
     animation: none;
     opacity: 1;
   }

@@ -1,8 +1,9 @@
 // The home's picture, one of three (chosen in the masthead, lib/hero/choice.ts), each drawn from the graph in view:
 // - the lineages: the gene ids of whole families of the graph (`GET /organisms/{organism}/lineages`), each a line over
 //   the releases at which a version of it is active, as growth rings about the centre line (the oldest ids nearest
-//   it), the families of the showcase's journeys drawn as the focal threads; over the release axis and its assembly
-//   changes (`GET /organisms/{organism}`);
+//   it), the families of the showcase's journeys drawn as the focal threads, on a plane seen in perspective that rises
+//   from the first release, far and low under the words, to the last, near and tall at the right; over the release
+//   axis and its assembly changes (`GET /organisms/{organism}`);
 // - the rings: the releases as rings, the first innermost (`GET /organisms/{organism}/history`): ids active, created,
 //   retired and the fans of Ensembl's mapping, each ring turning at the pace of its changes (./rings.ts);
 // - the constellation: the showcase's most convoluted journeys (`GET /organisms/{organism}/showcase`), each the path of
@@ -22,7 +23,7 @@ import { useShowcase } from "../../lib/showcase";
 import { assemblyBands } from "../figure/releases";
 import { constellationOf, type Constellation, type Rect } from "../../lib/hero/constellationModel";
 import { createConstellation } from "./constellation";
-import { createField, fieldAt, placeOf, type FieldColours, type FieldFrame } from "./field";
+import { createField, fieldAt, frameOf, placer, type FieldColours, type FieldFrame } from "./field";
 import { createRings, ringsOf, type RingsModel } from "./rings";
 
 /** The ids a desktop and a phone ask for. */
@@ -61,17 +62,39 @@ function readColours(element: Element) {
   return colours;
 }
 
-/** Where the lineages lie in the hero: low and across the width, leaving the words their room. */
-function frameOf(width: number, height: number): FieldFrame {
-  const narrow = width < 720;
-  if (narrow) return { left: 0, right: width, centre: height * 0.67, half: Math.min(height * 0.15, 150) };
-  return {
-    left: Math.max(24, width * 0.035),
-    right: width - Math.max(24, width * 0.035),
-    centre: height * 0.66,
-    half: height * 0.235,
-  };
+/** The box of the hero's words (their text and the calls to action, not their empty blocks) in `element`'s pixels. */
+function wordsBox(element: Element): { right: number; bottom: number } | null {
+  const words = element.closest(".hero2")?.querySelector(".hero2__words");
+  if (!words) return null;
+  const origin = element.getBoundingClientRect();
+  let right = -Infinity;
+  let bottom = -Infinity;
+  const range = document.createRange();
+  for (const child of words.children) {
+    const boxes =
+      child.children.length && child.classList.contains("hero2__actions")
+        ? [...child.children].map((c) => c.getBoundingClientRect())
+        : (range.selectNodeContents(child), [range.getBoundingClientRect()]);
+    for (const box of boxes) {
+      if (!box.width || !box.height) continue;
+      right = Math.max(right, box.right - origin.left);
+      bottom = Math.max(bottom, box.bottom - origin.top);
+    }
+  }
+  return Number.isFinite(right) ? { right, bottom } : null;
 }
+
+/** The top of the caption under the field, in `element`'s pixels. */
+function footOf(element: Element): number {
+  const caption = element.closest(".hero2")?.querySelector(".hero2__caption");
+  const origin = element.getBoundingClientRect();
+  return caption ? caption.getBoundingClientRect().top - origin.top : origin.height;
+}
+
+/** The development switch (`?hero-frames` on the development server, never in a production build): the animated
+ *  path even where WebGL draws in software, time stepped by `window.__heroTime(seconds)`, the frame's GPU work read
+ *  by `window.__heroWork()`. */
+const STEPPED = import.meta.env.DEV && new URLSearchParams(window.location.search).has("hero-frames");
 
 /** The address of the page's worker, passed through the page's one Trusted Types policy of its own
  *  (`idtrack-worker`, the server's Content-Security-Policy), which lets that address alone through. */
@@ -270,20 +293,35 @@ export function HeroField({ description }: { description: GraphDescription }) {
     const canvas = document.createElement("canvas");
     canvas.className = "hero2__canvas";
     element.prepend(canvas);
-    const reduced = reducedMotion();
-    const f = createField(canvas, layout, reduced);
+    const reduced = reducedMotion() && !STEPPED;
+    const f = createField(canvas, layout, reduced, STEPPED);
     element.dataset["mode"] = f.mode;
+    // The renderer is made once its shaders are compiled (WebGL2, or the 2D drawing where they failed).
+    const made = () => {
+      element.dataset["mode"] = f.mode;
+    };
+    canvas.addEventListener("idtrack:field", made);
     f.setColours(readColours(element));
-    let current = frameOf(1, 1);
+    let current = frameOf(1, 1, null, 1);
     const measure = () => {
       const { width, height } = element.getBoundingClientRect();
-      current = frameOf(width, height);
+      current = frameOf(width, height, wordsBox(element), footOf(element), layout.top);
       f.resize(width, height, current);
       setFrame(current);
     };
     measure();
     const resize = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(measure);
     resize?.observe(element);
+    // The words change their box as their fonts arrive, and the caption its height.
+    const words = element.closest(".hero2")?.querySelector(".hero2__words");
+    if (words) resize?.observe(words);
+    if (STEPPED) {
+      const hooks = window as unknown as Record<string, unknown>;
+      hooks["__heroTime"] = (seconds: number) => {
+        f.drawAt(seconds * 1000);
+      };
+      hooks["__heroWork"] = () => f.work();
+    }
     const stopVisible = watchVisible(element, (on) => {
       f.setRunning(on);
     });
@@ -311,6 +349,7 @@ export function HeroField({ description }: { description: GraphDescription }) {
     window.addEventListener("idtrack:recolour", recolour);
     return () => {
       window.removeEventListener("idtrack:recolour", recolour);
+      canvas.removeEventListener("idtrack:field", made);
       window.clearInterval(timer);
       stopPointer();
       stopVisible();
@@ -504,8 +543,9 @@ function liftedOf(layout: LineageLayout, id: number, p: { x: number; y: number }
   };
 }
 
-/** The release axis under the lineages: the first release of each assembly with its name, and the last release; the
- *  assembly changes as faint rules through the field. */
+/** The release axis under the lineages: the first release of each assembly with its name, and the last release, at
+ *  the plane's foot; the assembly changes as hairlines up through the field to its outermost line there. Toward the
+ *  far end the releases lie close: a name with no room beside its neighbour is left out, then a release. */
 function Axis({
   description,
   layout,
@@ -518,33 +558,61 @@ function Axis({
   const bands = assemblyBands(description);
   const last = description.releases[description.releases.length - 1];
   const n = layout.releases.length;
-  const xOf = (release: number) => placeOf(frame, n > 1 ? layout.releases.indexOf(release) / (n - 1) : 0.5, 0).x;
+  const place = placer(frame);
+  const kOf = (release: number) => layout.releases.indexOf(release);
+  const uOf = (release: number) => (n > 1 ? kOf(release) / (n - 1) : 0.5);
+  const xOf = (release: number) => place(uOf(release), 0.5).x;
+  // The ticks in order, with an estimate of each text's width (the axis' small type: about 6.5 px a character).
+  const ticks = [
+    ...bands.map((band, i) => ({
+      key: band.assembly,
+      release: band.first,
+      name: band.name,
+      kind: i === 0 ? "first" : "",
+    })),
+    ...(last !== undefined ? [{ key: "last", release: last, name: "", kind: "last" }] : []),
+  ].map((tick) => ({ ...tick, x: xOf(tick.release), showName: tick.name !== "", show: true }));
+  const extent = (t: (typeof ticks)[number]) => {
+    const w = Math.max(String(t.release).length, t.showName ? t.name.length : 0) * 6.5;
+    return t.kind === "first" ? [t.x, t.x + w] : t.kind === "last" ? [t.x - w, t.x] : [t.x - w / 2, t.x + w / 2];
+  };
+  for (let i = 1; i < ticks.length; i++) {
+    const tick = ticks[i];
+    const before = ticks.slice(0, i).filter((t) => t.show);
+    const previous = before[before.length - 1];
+    if (!tick || !previous) continue;
+    const overlaps = () => (extent(previous)[1] ?? 0) + 10 > (extent(tick)[0] ?? 0);
+    if (overlaps() && previous.showName && tick.kind !== "last") previous.showName = false;
+    if (overlaps()) tick.showName = false;
+    if (overlaps()) previous.show = previous.kind === "first" && tick.kind !== "last" ? true : false;
+    if (overlaps()) tick.show = false;
+  }
   return (
     <>
-      <div className="hero2__axis" style={{ top: frame.centre + frame.half + 18 }}>
-        {bands.map((band, i) => (
+      <div className="hero2__axis" style={{ top: frame.near.bottom + 12 }}>
+        {ticks
+          .filter((tick) => tick.show)
+          .map((tick) => (
+            <span
+              key={tick.key}
+              className={`hero2__tick${tick.kind ? ` hero2__tick--${tick.kind}` : ""}`}
+              style={{ left: tick.x }}
+            >
+              <span className="hero2__tick-release mono">{tick.release}</span>
+              {tick.showName ? <span className="hero2__tick-name">{tick.name}</span> : null}
+            </span>
+          ))}
+      </div>
+      {bands.slice(1).map((band) => {
+        const top = place(uOf(band.first), layout.top[kOf(band.first)] ?? -0.5);
+        return (
           <span
             key={band.assembly}
-            className={`hero2__tick${i === 0 ? " hero2__tick--first" : ""}`}
-            style={{ left: xOf(band.first) }}
-          >
-            <span className="hero2__tick-release mono">{band.first}</span>
-            <span className="hero2__tick-name">{band.name}</span>
-          </span>
-        ))}
-        {last !== undefined ? (
-          <span className="hero2__tick hero2__tick--last" style={{ left: xOf(last) }}>
-            <span className="hero2__tick-release mono">{last}</span>
-          </span>
-        ) : null}
-      </div>
-      {bands.slice(1).map((band) => (
-        <span
-          key={band.assembly}
-          className="hero2__change"
-          style={{ left: xOf(band.first), top: frame.centre - frame.half, height: 2 * frame.half }}
-        />
-      ))}
+            className="hero2__change"
+            style={{ left: top.x, top: top.y, height: frame.near.bottom - top.y }}
+          />
+        );
+      })}
     </>
   );
 }
@@ -570,8 +638,7 @@ function Caption({
       <p className="hero2__caption">
         <span>
           <span className="mono">{groupedInteger(layout.shown)}</span> of the{" "}
-          <span className="mono">{groupedInteger(layout.genes)}</span> gene ids of the <em>{name}</em> graph, Ensembl{" "}
-          <span className="mono">{span}</span>
+          <span className="mono">{groupedInteger(layout.genes)}</span> gene ids of the <em>{name}</em> graph
         </span>
         <span className="hero2__key">
           <span className="hero2__key-dot" aria-hidden="true" /> a new version
@@ -581,7 +648,7 @@ function Caption({
         </span>
         <span className="hero2__source mono">GET /api/v1/organisms/{description.organism}/lineages</span>
         <span className="visually-hidden">
-          . Each line is one gene id over the releases at which a version of it is active; the{" "}
+          . Each line is one gene id over the releases at which a version of it is active, Ensembl {span}; the{" "}
           {groupedInteger(layout.counts.versions)} dots are new versions Ensembl gave them, and the{" "}
           {groupedInteger(layout.counts.edges)} curves are history edges from one id to another,{" "}
           {groupedInteger(layout.counts.fans)} of them where Ensembl&apos;s mapping fans out to two or more ids or in

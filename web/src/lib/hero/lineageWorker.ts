@@ -21,6 +21,7 @@ scope.addEventListener("message", (event) => {
       const layout = layoutLineages((await response.json()) as LineagesResponse, eras);
       const moved = [
         layout.y,
+        layout.top,
         layout.segments,
         layout.segmentStart,
         layout.edges,
@@ -30,6 +31,7 @@ scope.addEventListener("message", (event) => {
         layout.versionCounts,
         layout.runs,
         layout.runStart,
+        ...Object.values(layout.lines).flatMap((lines) => [lines.straight, lines.curved]),
         ...layout.columns,
       ].map((a) => a.buffer);
       // The ids as one string (one clone, not thousands).

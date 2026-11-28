@@ -22,6 +22,9 @@ export interface LineageLayout {
   columns: Int32Array[];
   /** The most ids active at one release (the field's height). */
   widest: number;
+  /** Per release (by index), the y of the field's top edge there: its outermost line, half a line out (-0.5 at the
+   *  widest release; 0 where no id is active). */
+  top: Float32Array;
   /** Per id, the y of the id at each release index (NaN where it is not active), row-major: id * releases + k. */
   y: Float32Array;
   segments: Float32Array;
@@ -46,6 +49,83 @@ export interface LineageLayout {
   runs: Int32Array;
   runStart: Int32Array;
   versionCounts: Int32Array;
+  /** What the renderer draws: every id's line, the showcase's journeys' lines (drawn stronger) and the lines that
+   *  carry the travelling light, simplified (`simplified`). */
+  lines: { all: Lines; focal: Lines; pulses: Lines };
+}
+
+/** Segments to draw: those drawn as straight lines (two vertices each) and those drawn as curves. */
+export interface Lines {
+  straight: Float32Array;
+  curved: Float32Array;
+}
+
+/** The ids whose lines carry the travelling light: the ids of the showcase's journeys first (the focal threads),
+ *  then every id of a family with an edge (the convoluted lineages), then others spread through the field, `most` in
+ *  all. */
+function pulseIds(layout: Pick<LineageLayout, "focusIds" | "familyStarts" | "shown">, most: number): number[] {
+  const chosen: number[] = [];
+  for (let i = 0; i < layout.focusIds && chosen.length < most * 0.4; i++) chosen.push(i);
+  const starts = [...layout.familyStarts, layout.shown];
+  for (let f = 0; f < starts.length - 1 && chosen.length < most * 0.6; f++) {
+    const first = starts[f] ?? 0;
+    const last = (starts[f + 1] ?? 0) - 1;
+    if (last > first) for (let i = first; i <= last && chosen.length < most * 0.6; i++) chosen.push(i);
+  }
+  const step = Math.max(1, Math.floor(layout.shown / Math.max(1, most - chosen.length)));
+  const taken = new Set(chosen);
+  for (let i = 0; i < layout.shown && chosen.length < most; i += step) if (!taken.has(i)) chosen.push(i);
+  return chosen;
+}
+
+/** The segments of some ids, simplified for drawing: a run of segments of one id whose height changes by less than
+ *  `tolerance` at each release (a shift of a fraction of a pixel) is one straight segment, drawn with two vertices;
+ *  the others are curves. On a laptop's GPU it saves little; in software rendering it is the difference between
+ *  seconds and a fraction of one. Made here, with the layout (in the page's worker), not on the page's thread. */
+export function simplified(
+  layout: Pick<LineageLayout, "segments" | "segmentStart">,
+  ids: Iterable<number>,
+  tolerance: number,
+): Lines {
+  const straight: number[] = [];
+  const curved: number[] = [];
+  const seg = layout.segments;
+  for (const i of ids) {
+    const a = layout.segmentStart[i] ?? 0;
+    const b = layout.segmentStart[i + 1] ?? 0;
+    let run: number[] | null = null;
+    const flush = () => {
+      if (run) straight.push(...run);
+      run = null;
+    };
+    for (let k = a; k < b; k++) {
+      const o = k * SEGMENT_FLOATS;
+      const x0 = seg[o] ?? 0;
+      const y0 = seg[o + 1] ?? 0;
+      const x1 = seg[o + 2] ?? 0;
+      const y1 = seg[o + 3] ?? 0;
+      const fade = seg[o + 4] ?? 0;
+      const meta = seg[o + 5] ?? 0;
+      if (fade !== 0) {
+        flush();
+        straight.push(x0, y0, x1, y1, fade, meta);
+      } else if (Math.abs(y1 - y0) < tolerance) {
+        const r: number[] | null = run;
+        if (r && Math.abs((r[2] ?? 0) - x0) < 1e-6) {
+          r[2] = x1;
+          r[3] = y1;
+        } else {
+          flush();
+          run = [x0, y0, x1, y1, 0, meta];
+        }
+      } else {
+        flush();
+        curved.push(x0, y0, x1, y1, 0, meta);
+      }
+    }
+    flush();
+  }
+  return { straight: Float32Array.from(straight), curved: Float32Array.from(curved) };
 }
 
 /** A fraction of the axis for a release index: releases evenly spaced (Ensembl's releases are consecutive numbers). */
@@ -99,6 +179,7 @@ export function layoutLineages(body: LineagesResponse, eras: readonly number[] =
   for (let k = 0; k < n; k++) widest = Math.max(widest, 2 * Math.max(above[k] ?? 0, below[k] ?? 0));
   const y = new Float32Array(count * n).fill(Number.NaN);
   const columns: Int32Array[] = [];
+  const edgeTop = new Float32Array(n);
   for (let k = 0; k < n; k++) {
     let up = 0;
     let down = 0;
@@ -118,6 +199,7 @@ export function layoutLineages(body: LineagesResponse, eras: readonly number[] =
     }
     // The column from the top edge down: the upper side outermost first, then the lower side.
     columns.push(Int32Array.from([...top.reverse(), ...bottom]));
+    edgeTop[k] = up ? -up / widest : 0;
   }
   // Segments: one per pair of consecutive releases an id is active at; a short lead-in where an id begins after the
   // graph's first release, a lead-out where it ends before the last (half a release, fading).
@@ -193,26 +275,42 @@ export function layoutLineages(body: LineagesResponse, eras: readonly number[] =
       dots.push(xOf(k, n), yk);
     }
   });
+  // Within a quarter of the gap between two lines, a run is drawn straight.
+  const tolerance = 0.25 / widest;
+  const range = (from: number, to: number) => Array.from({ length: Math.max(0, to - from) }, (_, i) => from + i);
+  const focusIds = body.family_starts[body.focus_families] ?? count;
+  const drawing = { segments: Float32Array.from(segments), segmentStart };
+  const lines = {
+    all: simplified(drawing, range(0, count), tolerance),
+    focal: simplified(drawing, range(0, focusIds), tolerance),
+    pulses: simplified(
+      drawing,
+      pulseIds({ focusIds, familyStarts: body.family_starts, shown: count }, count > 2500 ? 420 : 200),
+      tolerance,
+    ),
+  };
   return {
     releases,
     shown: count,
     genes: body.genes,
     columns,
     widest,
+    top: edgeTop,
     y,
-    segments: Float32Array.from(segments),
+    segments: drawing.segments,
     segmentStart,
     edges: Float32Array.from(edges),
     edgeStart,
     dots: Float32Array.from(dots),
     familyOf,
     familyStarts: body.family_starts,
-    focusIds: body.family_starts[body.focus_families] ?? count,
+    focusIds,
     eras: eras.length + 1,
     counts: { versions: dots.length / 2, edges: drawnEdges, fans, families: body.family_starts.length },
     ids: body.ids,
     ...flatRuns(body.active),
     versionCounts,
+    lines,
   };
 }
 
