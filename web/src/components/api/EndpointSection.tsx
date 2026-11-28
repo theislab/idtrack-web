@@ -627,7 +627,7 @@ export function EndpointSection({
             label: "Try it",
             panel: () => (
               <div className="endpoint__run endpoint__run--console">
-                <CodeTabs origin={origin} spec={spec} what={`${endpoint.key}, the request as set below`} />
+                <CodeTabs origin={origin} spec={spec} what={`${endpoint.key}, the request`} />
                 <TryIt
                   endpoint={endpoint}
                   spec={spec}

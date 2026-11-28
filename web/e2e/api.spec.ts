@@ -201,7 +201,8 @@ test("the api page: a first request above all, the rules for reading an answer, 
   await expect(reading.locator(".api-reading__list li").first()).toBeVisible();
   expect(await reading.locator(".api-reading__list li").count()).toBeGreaterThanOrEqual(5);
   await expect(reading.locator(".api-annotated__row").first()).toBeVisible();
-  // The reference writes the contract's literals as the contract does.
+  // The conventions are folded to one line each; the bounds open to the contract's literals as the contract writes them.
+  await page.getByRole("button", { name: /^Bounds of this server/ }).click();
   await expect(page.locator(".api-bounds")).toContainText("rate_per_minute");
   const tall = await page
     .locator(".api-bounds__row")
@@ -237,6 +238,10 @@ test("the api page's contents mark the entry just followed", async ({ page }, in
     ["…/names-of", "get-organisms-organism-names-of"],
   ] as const) {
     const link = toc.locator(`a[href="#${id}"]`);
+    // An endpoint's group is folded in the contents until one of its entries is read: opened here.
+    const group = link.locator("xpath=ancestor::details[1]");
+    if ((await group.count()) && !(await group.evaluate((d) => (d as HTMLDetailsElement).open)))
+      await group.locator(":scope > summary").click();
     await link.click();
     await expect(link, `following ${name}`).toHaveAttribute("aria-current", "location");
     expect(await toc.locator('[aria-current="location"]').count()).toBe(1);
@@ -250,6 +255,7 @@ test("the api page's contents mark the entry just followed", async ({ page }, in
 
 test("the api page marks only the allowances as not applied, and strikes nothing through", async ({ page }) => {
   await page.goto("/developers");
+  await page.getByRole("button", { name: /^Bounds of this server/ }).click();
   const limits = (await (await page.request.get("/api/v1/limits")).json()) as {
     allowances_enforced: boolean;
     allowance_fields: string[];
@@ -270,12 +276,14 @@ test("the api page marks only the allowances as not applied, and strikes nothing
 test("the api page shows a table answer's columns and a recorded table", async ({ page }) => {
   await page.goto("/developers");
   const endpoint = page.locator("#post-organisms-organism-convert-batch");
+  await endpoint.getByRole("tab", { name: "Response" }).click();
   await endpoint.getByText("Columns of the table").click();
   const columns = endpoint.getByRole("region", { name: "The table's columns" });
   await expect(columns).toContainText("input_index");
   await expect(columns).toContainText("candidate_count");
   await expect(columns).toContainText("error_code");
   await expect(endpoint).toContainText("provenance=true");
+  await endpoint.getByRole("tab", { name: "Examples" }).click();
   await endpoint.getByText("A recorded table").click();
   const table = endpoint.getByRole("region", { name: /a recorded table: the table$/ });
   await expect(table.locator("th").first()).toHaveText("input_index");
@@ -315,7 +323,16 @@ test("the api page lists every endpoint of the server's OpenAPI document", async
   const llms = await page.request.get("/llms.txt");
   expect(llms.status()).toBe(200);
   expect(await llms.text()).toContain("# idtrack web api");
-  // The error codes are the api's own table.
+  // The texts for programs and agents, one click away at the head of the page.
+  const agents = page.getByRole("navigation", { name: "The api as text, for programs and agents" });
+  await expect(agents.getByRole("link", { name: "llms.txt", exact: true })).toHaveAttribute("href", "/llms.txt");
+  await expect(agents.getByRole("link", { name: "llms-full.txt" })).toHaveAttribute("href", "/llms-full.txt");
+  await expect(agents.getByRole("link", { name: "openapi.json" })).toHaveAttribute("href", "/api/v1/openapi.json");
+  // Each endpoint is its summary and four tabs.
+  for (const article of await articles.all())
+    await expect(article.getByRole("tab")).toHaveText(["Try it", /^Parameters/, "Response", "Examples"]);
+  // The error codes are the api's own table, folded to one line.
+  await page.getByRole("button", { name: /^Error codes/ }).click();
   const vocabulary = (await (await page.request.get("/api/v1/vocabulary")).json()) as { errors: { code: string }[] };
   await expect(page.getByRole("region", { name: "Error codes" }).locator("tbody tr")).toHaveCount(
     vocabulary.errors.length,
@@ -327,7 +344,7 @@ test("the api page lists every endpoint of the server's OpenAPI document", async
 test("the api page's console sends the example and shows the answer as the api sent it", async ({ page }, info) => {
   await page.goto("/developers");
   const endpoint = page.locator("#get-organisms-organism-convert");
-  await endpoint.getByRole("button", { name: /^Try it/ }).click();
+  await endpoint.getByRole("tab", { name: "Try it" }).click();
   const form = endpoint.getByRole("form");
   // The examples' organism: the first of the page's examples that this server holds.
   const health = (await (await page.request.get("/api/v1/health")).json()) as { organisms: string[] };
@@ -362,7 +379,7 @@ test("the api page's console sends the example and shows the answer as the api s
 test("the api page's console shows a refusal with its code and meaning", async ({ page }) => {
   await page.goto("/developers");
   const endpoint = page.locator("#get-organisms-organism-names-of");
-  await endpoint.getByRole("button", { name: /^Try it/ }).click();
+  await endpoint.getByRole("tab", { name: "Try it" }).click();
   const form = endpoint.getByRole("form");
   await form.getByLabel(/^gene/).fill("ENSXXXG00000000000.1");
   await form.getByRole("button", { name: "Send GET" }).click();
@@ -375,7 +392,7 @@ test("the api page's console shows a refusal with its code and meaning", async (
 test("the api page's console asks a batch for a table and shows it as one", async ({ page }) => {
   await page.goto("/developers");
   const endpoint = page.locator("#post-organisms-organism-convert-batch");
-  await endpoint.getByRole("button", { name: /^Try it/ }).click();
+  await endpoint.getByRole("tab", { name: "Try it" }).click();
   const form = endpoint.getByRole("form");
   await form.getByLabel(/^format/).selectOption("tsv");
   const curl = await endpoint.getByRole("region", { name: /the request in curl/ }).innerText();
@@ -395,6 +412,7 @@ test("the api page's console asks a batch for a table and shows it as one", asyn
 test("every endpoint shows a recorded answer of the api, its numbers as written", async ({ page }) => {
   await page.goto("/developers");
   const endpoint = page.locator("#get-organisms-organism-convert");
+  await endpoint.getByRole("tab", { name: "Examples" }).click();
   await endpoint.getByText("A recorded answer").click();
   const body = endpoint.getByRole("region", { name: /a recorded answer$/ });
   await expect(body).toContainText('"query_id": "ENSG00000141510"');

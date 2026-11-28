@@ -449,6 +449,8 @@ test("Explore: the graphs side by side, then one graph: assemblies, composition,
   page,
 }, info) => {
   await page.goto("/organisms");
+  await page.getByRole("tab", { name: /^The graphs/ }).click();
+  await expect(page).toHaveURL(/tab=graphs/);
   const all = (await (await page.request.get("/api/v1/organisms")).json()) as {
     organisms: { organism: string; counts: Record<string, number> }[];
   };
@@ -463,9 +465,14 @@ test("Explore: the graphs side by side, then one graph: assemblies, composition,
   };
   const graph = version.graphs.find((g) => g.organism === data.organism);
   expect(graph).toBeDefined();
+  await expect(page.getByRole("region", { name: "Assemblies", exact: true })).toBeVisible();
+  // The build: the digest short, whole one press away; the file's SHA-256 whole.
+  await page.getByRole("tab", { name: "Build" }).click();
+  await page.getByRole("button", { name: /^Content digest .*: the whole digest$/ }).click();
   await expect(page.getByText(graph?.content_digest ?? "-", { exact: true })).toBeVisible();
   await expect(page.getByText(graph?.file.sha256 ?? "-", { exact: true })).toBeVisible();
-  await expect(page.getByRole("region", { name: "Assemblies", exact: true })).toBeVisible();
+  await page.keyboard.press("Escape");
+  await page.getByRole("tab", { name: "Composition" }).click();
   // The composition: every count of the build, exactly.
   const counts = all.organisms.find((o) => o.organism === data.organism)?.counts ?? {};
   const rows = page.getByRole("list", { name: "Counts of the build" }).getByRole("listitem");
@@ -478,6 +485,7 @@ test("Explore: the graphs side by side, then one graph: assemblies, composition,
   const matrix = (await (await page.request.get(`/api/v1/organisms/${data.organism}/databases`)).json()) as {
     databases: { name: string; releases: number[] }[];
   };
+  await page.getByRole("tab", { name: "Databases by release" }).click();
   const lines = page.getByRole("list", { name: "The matrix, one database a line" }).locator("li");
   await expect(lines).toHaveCount(matrix.databases.length);
   const matrixSvg = page.locator(".dbm__svg");
@@ -488,22 +496,42 @@ test("Explore: the graphs side by side, then one graph: assemblies, composition,
   await shot(page, info, "25-organism");
 });
 
-test("Method: the five panels in idtrack's words, the citation, the data, the limits", async ({ page }, info) => {
+test("Method: the five stages one at a time, the citation in a drawer, the data, the limits", async ({
+  page,
+}, info) => {
   await page.goto("/method");
-  for (const name of [
-    "Read the identifier",
-    "Walk Ensembl's history",
-    "Bridge through an id two genes carried",
-    "Rank the candidates",
-    "Answer in the database asked",
-  ])
+  const stages = page.getByRole("tablist", { name: "The stages of an answer" });
+  for (const [tab, name] of [
+    ["Read", "Read the identifier"],
+    ["Walk", "Walk Ensembl's history"],
+    ["Bridge", "Bridge through an id two genes carried"],
+    ["Rank", "Rank the candidates"],
+    ["Answer", "Answer in the database asked"],
+  ] as const) {
+    await stages.getByRole("tab", { name: new RegExp(`${tab}$`) }).click();
     await expect(page.getByRole("heading", { name })).toBeVisible();
+    // One stage at a time: the address keeps it.
+    if (tab !== "Read") await expect(page).toHaveURL(new RegExp(`stage=${tab.toLowerCase()}`));
+  }
+  await stages.getByRole("tab", { name: /Rank$/ }).click();
   const vocabulary = (await (await page.request.get("/api/v1/vocabulary")).json()) as { criteria: { code: string }[] };
   const ladder = page.getByRole("list", { name: "The criteria, in the order they decide" }).locator("li");
   await expect(ladder).toHaveCount(vocabulary.criteria.length);
+  // The stepper's way on: Next moves to the next stage and to its tab.
+  await page.getByRole("button", { name: /^Next: 5\. Answer/ }).click();
+  await expect(stages.getByRole("tab", { name: /Answer$/ })).toBeFocused();
+  // The citation: a drawer, opened and closed by keyboard, focus back on its opener.
   const version = (await (await page.request.get("/api/v1/version")).json()) as { idtrack_version: string };
-  await expect(page.locator("pre.raw--cite")).toContainText(`version = {${version.idtrack_version}}`);
-  await expect(page.getByRole("heading", { name: "Limits" })).toBeVisible();
+  const cite = page.getByRole("button", { name: "Cite IDTrack" });
+  await cite.click();
+  const drawer = page.getByRole("dialog", { name: "Cite IDTrack" });
+  await expect(drawer.locator("pre.raw--cite")).toContainText(`version = {${version.idtrack_version}}`);
+  await expectAccessible(page);
+  await page.keyboard.press("Escape");
+  await expect(drawer).toHaveCount(0);
+  await expect(cite).toBeFocused();
+  await page.getByRole("tab", { name: "Limits" }).click();
+  await expect(page.locator("dl.limits > div").first()).toBeVisible();
   await expectAccessible(page);
   await shot(page, info, "27-method");
 });

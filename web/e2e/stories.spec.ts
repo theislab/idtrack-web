@@ -1,6 +1,7 @@
 // Explore's stories against the real server: nothing the reader sees moves while the stories load (the layout shifts
 // summed, as the browser reports them); every case is a small figure as tall as what it draws, the cards of a column
-// following one another with no band of empty paper, the key drawing every mark it names; the replay of the journey up
+// following one another with no band of empty paper, its concept in its hover card, the key (a hover card over the
+// gallery) drawing every mark it names; the replay of the journey up
 // close writes the product of Ensembl's scores so far and ends on the candidate's score as the api gives it.
 import { expect, test, type Page } from "@playwright/test";
 import type { ShowcaseResponse } from "../src/api/types";
@@ -45,7 +46,7 @@ test("Explore: every case is a small figure as tall as what it draws, the key dr
   const cases = casesOf(showcase);
   test.skip(cases.length === 0, "the server's showcase holds no cases for this graph");
   await page.goto(`/organisms?organism=${data.organism}`);
-  const cards = page.locator(".case:not(.case--key)");
+  const cards = page.locator(".case");
   await expect(cards).toHaveCount(cases.length);
   await expect(page.locator(".case-sketch svg")).toHaveCount(cases.length);
   // Each sketch is as tall as its layout says: a sketch of one row holds no room of a taller one.
@@ -53,7 +54,11 @@ test("Explore: every case is a small figure as tall as what it draws, the key dr
     .locator(".case-sketch svg")
     .evaluateAll((svgs) => svgs.map((s) => Number(s.getAttribute("height"))));
   expect(heights).toEqual(cases.map((c) => (c.result ? sketchLayout(c.result).height : 0)));
-  // The cards of a column follow one another: no band of empty paper between two cards.
+  // The cards of a column follow one another at the gallery's one gap: no band of empty paper between two cards.
+  const gap = await page
+    .locator(".case")
+    .first()
+    .evaluate((e) => parseFloat(getComputedStyle(e).marginBottom));
   const boxes = await page
     .locator(".case")
     .evaluateAll((els) => els.map((e) => e.getBoundingClientRect()).map((r) => [r.left, r.top, r.bottom]));
@@ -61,8 +66,15 @@ test("Explore: every case is a small figure as tall as what it draws, the key dr
     const [left, top] = boxes[i] ?? [0, 0, 0];
     const previous = boxes[i - 1] ?? [0, 0, 0];
     if (Math.abs((previous[0] ?? 0) - (left ?? 0)) < 1)
-      expect(Math.abs((top ?? 0) - (previous[2] ?? 0))).toBeLessThan(2);
+      expect(Math.abs((top ?? 0) - (previous[2] ?? 0) - gap)).toBeLessThan(2);
   }
+  // A card is its sketch, its kind and one line; its concept is one gesture away, in its hover card.
+  const first = cards.first();
+  await expect(first.locator(".case__line")).toContainText(cases[0]?.query.identifier ?? "-");
+  await expect(first.locator(".case__concept")).toHaveCount(0);
+  await first.getByRole("button", { name: /^About this case/ }).click();
+  await expect(first.locator(".case__concept")).toBeVisible();
+  await page.keyboard.press("Escape");
   // Every text of a sketch inside its drawing.
   const outside = await page.locator(".case-sketch svg").evaluateAll((svgs) =>
     svgs.flatMap((svg) => {
@@ -104,8 +116,9 @@ test("Explore: every case is a small figure as tall as what it draws, the key dr
     }),
   );
   expect(near).toEqual([]);
-  // The key: each mark beside its word, and no reference to another figure.
-  const key = page.locator(".case--key");
+  // The key, in a hover card over the gallery: each mark beside its word, and no reference to another figure.
+  await page.getByRole("button", { name: "Key: reading the sketches" }).click();
+  const key = page.locator(".cases-key .hovercard__card");
   await expect(key.locator(".case-key li")).not.toHaveCount(0);
   expect(await key.locator(".case-key li").count()).toBe(await key.locator(".case-key li svg").count());
   await expect(key).not.toContainText("figure a");
