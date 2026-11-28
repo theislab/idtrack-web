@@ -268,6 +268,10 @@ test("a batch of 1000 results draws the rows in view and reaches every row", asy
   expect(middle.shown.some((n) => n > 300 && n < 700)).toBe(true);
   expect(middle.shown).toEqual([...middle.shown].sort((a, b) => a - b));
   expect(middle.same).toBe(true);
+  // The pointer rests where Convert was pressed: rows scrolled under it would open a mark's card over its cell (a layer
+  // over the page, not a value of the cell); it is moved away before the cells are measured.
+  await page.mouse.move(0, 0);
+  await expect(page.locator(".table--batch .toggletip__card")).toHaveCount(0);
   await expectWholeAndTyped(page);
 });
 
