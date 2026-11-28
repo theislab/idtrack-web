@@ -140,11 +140,12 @@ function ReadPanel({ v }: { v: Vocabulary }) {
       <StageHead id="method-read" stage={stage} />
       <StageCase
         stage="read"
-        claim="The steps of a match in IDTrack's order, as this answer took them: hollow found nothing, filled matched, faint were not needed."
+        claim="Hollow: no match; filled: the step that matched; faint: not needed."
         caption={
           <>
-            The step that matched names the identifier of the graph; beside the ladder, the release the string was read
-            at and the databases that attach it there. What each step compares opens from the ladder&apos;s label.
+            The steps of a match in IDTrack&apos;s order, as this answer took them: the step that matched names the
+            identifier of the graph; beside the ladder, the release the string was read at and the databases that attach
+            it there. What each step compares opens from the ladder&apos;s label.
           </>
         }
       >
@@ -182,10 +183,11 @@ function WalkPanel({ v }: { v: Vocabulary }) {
       <StageHead id="method-walk" stage={stage} />
       <StageCase
         stage="walk"
-        claim="The best answer's path through Ensembl's history: one lane per stable id, one bar per version, each step where one version ends and the next begins."
+        claim="One lane per stable id, one bar per version; the thread is the walk, in the order taken."
         caption={
           <>
-            It is drawn over the releases the path spans and two on each side (the strip above places them on the
+            The best answer&apos;s path through Ensembl&apos;s history, each step where one version ends and the next
+            begins, drawn over the releases the path spans and two on each side (the strip above places them on the
             graph&apos;s whole axis), over the bands of the assemblies that serve each release; the thread is the walk,
             in the order it was taken, and Replay walks it step by step; below, Ensembl&apos;s mapping score of each
             history step. Focus the figure and use the arrow keys for each element&apos;s exact values. The case is the
@@ -272,7 +274,7 @@ function BridgePanel({ v }: { v: Vocabulary }) {
       <StageHead id="method-bridge" stage={stage} />
       <StageCase
         stage="bridge"
-        claim="The best answer's path: where one gene's history ends, a bridge through the id it carried to the gene that carried it next."
+        claim="Where one gene's history ends, a bridge through the id it carried leads to the next gene."
         caption={
           <>
             Drawn over the releases the path spans and two on each side: each lane one stable id, each bar one version
@@ -331,13 +333,13 @@ function RankPanel({ v }: { v: Vocabulary }) {
       <StageHead id="method-rank" stage={stage} />
       <StageCase
         stage="rank"
-        claim="The best answer and the runner-up on each of IDTrack's criteria, in the order they decide."
+        claim="Equal above the criterion that decides, different on it, not compared below."
         caption={
           <>
-            Equal above the criterion that decides, different on it, not compared below it: the thread runs as one while
-            the two are equal and parts where the criterion decides. A criterion&apos;s name opens what it compares. The
-            first five after the gene&apos;s own version compare the lineage (which entry gene the identifier stands
-            for); the rest compare successors of one entry gene.
+            The best answer and the runner-up on each of IDTrack&apos;s criteria, in the order they decide: the thread
+            runs as one while the two are equal and parts where the criterion decides. A criterion&apos;s name opens
+            what it compares. The first five after the gene&apos;s own version compare the lineage (which entry gene the
+            identifier stands for); the rest compare successors of one entry gene.
           </>
         }
       >
@@ -382,11 +384,12 @@ function AnswerPanel({ v }: { v: Vocabulary }) {
       <StageHead id="method-answer" stage={stage} />
       <StageCase
         stage="answer"
-        claim="The last steps of the answer at the target release: the number read as its gene, then every id of the database asked attached to that gene."
+        claim="The number read as its gene, then every id of the database asked attached to that gene."
         caption={
           <>
-            The number is read as its gene through the database that attaches it; each id of the database asked that
-            IDTrack attaches to that gene there stands with the transcript and translation that carry it.
+            The last steps of the answer, at the target release: the number is read as its gene through the database
+            that attaches it; each id of the database asked that IDTrack attaches to that gene there stands with the
+            transcript and translation that carry it.
           </>
         }
       >

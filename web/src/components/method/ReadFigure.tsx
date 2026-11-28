@@ -95,7 +95,7 @@ export function ReadFigure({ result }: { result: ConversionResult }) {
             <Mono strong>{result.from_release ?? "—"}</Mono>{" "}
             <span className="muted">
               {result.from_release_inferred
-                ? "(no release given: inferred)"
+                ? "(inferred: none given)"
                 : result.from_release_given !== null
                   ? "(as given)"
                   : ""}
