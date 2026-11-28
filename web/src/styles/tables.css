@@ -246,9 +246,9 @@
 .batch-form__gauge {
   position: relative;
   height: 3px;
-  background: var(--line);
   border-radius: 2px;
   overflow: hidden;
+  background: linear-gradient(var(--line), var(--line)) 0 100% / 100% 1px no-repeat;
 }
 
 .batch-form__gauge-fill {
@@ -265,6 +265,10 @@
 .batch-form__file {
   flex: none;
   font-size: var(--text-sm);
+}
+
+.batch-form__upload {
+  border: 0;
 }
 
 /* The setting, folded under one line that says it (an expandable row). */
@@ -1381,7 +1385,7 @@ th[aria-sort] .sort__mark {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: var(--space-2);
+  gap: var(--space-2) var(--space-4);
   margin: var(--space-2) 0 var(--space-4);
 }
 
@@ -1390,11 +1394,13 @@ th[aria-sort] .sort__mark {
   color: var(--ink-3);
 }
 
-/* The examples are touch targets of their own: at least 24 px each way, apart (WCAG 2.2, 2.5.8). */
-.chip--example {
-  min-height: 28px;
+/* The examples are words, each a touch target of its own: at least 24 px each way, apart (WCAG 2.2, 2.5.8). */
+.names-examples__value,
+.batch-examples__set {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
   min-width: 24px;
-  margin-block: 2px;
 }
 
 .table--names-genes > tbody.names-gene > tr.names-gene__head > th {
@@ -1756,7 +1762,14 @@ th[aria-sort] .sort__mark {
   padding: 0;
   display: flex;
   flex-wrap: wrap;
-  gap: var(--space-2);
+  gap: var(--space-2) var(--space-5);
+}
+
+/* The examples are words, not boxes: a quiet underline, as the Convert page's examples. */
+.batch-examples__set {
+  font-family: var(--font-sans);
+  font-size-adjust: none;
+  font-size: var(--text-sm);
 }
 
 .batch-examples__card .hovercard__card {

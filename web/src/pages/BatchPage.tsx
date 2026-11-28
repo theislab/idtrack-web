@@ -640,7 +640,7 @@ function BatchForOrganism({ description }: { description: GraphDescription }) {
                   <li key={set.identifiers.join("|")}>
                     <HoverCard
                       trigger={exampleKind(set)}
-                      triggerClassName="chip chip--example batch-examples__set"
+                      triggerClassName="example batch-examples__set"
                       className="batch-examples__card"
                       describedBy={`batch-example-${String(k)}`}
                       onPress={() => {

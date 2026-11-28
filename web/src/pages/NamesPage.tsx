@@ -440,7 +440,7 @@ function Examples({ label, values, onPick }: { label: string; values: string[]; 
         <button
           key={value}
           type="button"
-          className="chip chip--example"
+          className="example names-examples__value"
           onClick={() => {
             onPick(value);
           }}
