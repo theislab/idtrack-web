@@ -282,8 +282,6 @@ test.describe("one heading system on every page", () => {
             weights: [...weights].sort(),
             head: head
               ? {
-                  eyebrow:
-                    head.querySelector(":scope > .eyebrow") !== null || head.classList.contains("convert-landing"),
                   h1: head.querySelector(":scope > h1") !== null,
                   lede: head.querySelector(":scope > .lede, :scope > .convert-landing__lede") !== null,
                 }
@@ -304,7 +302,7 @@ test.describe("one heading system on every page", () => {
           expect(s.size, `${name} ${width}: ${s.text}`).toBe(width >= 720 ? 28 : 21);
         }
         for (const w of found.weights) expect(["400", "520", "640"], `${name} ${width}: weight ${w}`).toContain(w);
-        if (!answer) expect(found.head, `${name}: the page's head`).toEqual({ eyebrow: true, h1: true, lede: true });
+        if (!answer) expect(found.head, `${name}: the page's head`).toEqual({ h1: true, lede: true });
       }
     });
   }
@@ -379,7 +377,7 @@ test("every page is drawn before its code runs: the masthead and the page's head
   }
 });
 
-test("every page's lede starts at one x, beside its title", async ({ page }, info) => {
+test("every page's lede starts at one x, under its title", async ({ page }, info) => {
   test.skip(!info.project.name.startsWith("desktop-light"), "the widths are set here");
   await page.setViewportSize({ width: 1440, height: 900 });
   const starts = new Set<number>();

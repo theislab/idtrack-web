@@ -1,12 +1,15 @@
-// Names: the genes a name names, and the names of a gene, per database and release. Each answer is a table whose
-// last column draws the releases at which each attachment holds on the graph's release axis (the assemblies serving
-// them behind), with the exact releases written under every lane.
+// Names: the genes a name names, and the names of a gene, per database and release: two questions, one shown at a time
+// (a segmented choice, kept in the address), each with what it answers a press away. Each answer is a table whose last
+// column draws the releases at which each attachment holds on the graph's release axis (the assemblies serving them
+// behind), with the exact releases written beside every lane.
 import { useEffect, useRef, useState, type RefObject, type SyntheticEvent } from "react";
 import { api } from "../api/client";
 import type { GraphDescription } from "../api/types";
 import { ErrorPanel } from "../components/ErrorPanel";
 import { NameMatches as Matches } from "../components/NameMatches";
 import { Button, Field, Mono, Skeleton, Switch, TextInput } from "../components/ui";
+import { Expandable } from "../components/v2/Expandable";
+import { Segmented } from "../components/v2/Segmented";
 import { nameExamples } from "../lib/batchExamples";
 import { useShowcase } from "../lib/showcase";
 import { announce } from "../lib/announce";
@@ -26,14 +29,23 @@ import "../styles/tables.css";
 export function NamesHead() {
   return (
     <header className="page-head">
-      <p className="eyebrow">Names</p>
       <h1>What a name names, and what a gene is called</h1>
       <p className="lede">
-        Databases attach names (symbols, accessions) to Ensembl genes, and the attachments change between releases: each
-        answer gives the database and the exact releases at which it holds.
+        Each answer gives the database that attaches a name to a gene and the exact releases it holds.
       </p>
     </header>
   );
+}
+
+/** The two questions of the page. */
+type Question = "genes" | "names";
+
+/** The question shown: the address's (`ask=names`), else the one whose answer the address holds (a gene and no name:
+ *  the names of the gene), else the genes a name names. */
+function questionOf(search: URLSearchParams): Question {
+  const ask = search.get("ask");
+  if (ask === "names" || ask === "genes") return ask;
+  return search.get("gene") && !search.get("name") ? "names" : "genes";
 }
 
 export function NamesPage() {
@@ -83,124 +95,115 @@ function NamesForOrganism({ description }: { description: GraphDescription }) {
   const address = Object.fromEntries(location.search.entries());
   const showcase = useShowcase(organism);
   const examples = nameExamples(showcase.state === "done" ? showcase.answer.data : null);
+  const question = questionOf(location.search);
+  // The choice is kept in the address (a link or a reload shows the same question), replacing the entry.
+  const choose = (next: Question) => {
+    const kept = Object.fromEntries(location.search.entries());
+    const plain = next === "genes" ? !(kept["gene"] && !kept["name"]) : Boolean(kept["gene"] && !kept["name"]);
+    navigate(href("/names", { organism, ...kept, ask: plain ? null : next }), { replace: true });
+  };
   return (
     <div className="page page--names">
       <NamesHead />
-      <div className="names-stack">
-        <section className="panel names-panel" aria-labelledby="genes-named">
-          <div className="panel-head">
-            <span className="panel-letter" aria-hidden="true">
-              a
-            </span>
-            <h2 id="genes-named" className="panel-head__title">
-              Genes a name names
-            </h2>
+      <section className="panel names-panel" aria-labelledby="names-question">
+        <h2 id="names-question" className="visually-hidden">
+          {question === "genes" ? "Genes a name names" : "Names of a gene"}
+        </h2>
+        <Segmented<Question>
+          className="names-choice"
+          label="The question"
+          value={question}
+          onChange={choose}
+          options={[
+            { value: "genes", label: "A name → its genes" },
+            { value: "names", label: "A gene → its names" },
+          ]}
+        />
+        {question === "genes" ? (
+          <div className="names-view" key="genes">
+            <Expandable className="names-about" summary="What this answers">
+              <p className="names-panel__intro">
+                Every gene of the reference sequence to which a database attaches the name, at which releases, and
+                whether as the name or as a synonym; for each gene, what the same databases call it at the graph&rsquo;s
+                last release.
+              </p>
+            </Expandable>
+            <NameForm
+              placeholder={examples.names[0] ?? ""}
+              databases={description.synonym_databases}
+              name={asked.name}
+              foldCase={asked.foldCase}
+              onSubmit={(name, foldCase) => {
+                go({ name: name || null, fold_case: foldCase ? "true" : null, ask: null });
+              }}
+            />
+            <Examples
+              label="Try a name"
+              values={examples.names}
+              onPick={(name) => {
+                go({ name, fold_case: null, ask: null });
+              }}
+            />
+            <div aria-busy={named.state === "loading"} ref={namedArea}>
+              {named.state === "loading" ? <TableSkeleton /> : null}
+              {named.state === "failed" ? (
+                <ErrorPanel error={named.error} onRetry={named.retry} context="The search" level={3} />
+              ) : null}
+              {named.state === "done" ? (
+                <Matches
+                  matches={named.answer.data.matches}
+                  description={description}
+                  address={address}
+                  empty={
+                    <>
+                      No external database attaches the name <Mono>{asked.name}</Mono>
+                      {asked.foldCase ? " (in any letter case)" : " (as written)"} to a gene of this graph&rsquo;s
+                      reference sequence at any of its releases.
+                    </>
+                  }
+                  asked={asked.name}
+                  first="gene"
+                  release={null}
+                  endpoint={`GET /api/v1/organisms/${organism}/genes-named`}
+                />
+              ) : null}
+            </div>
           </div>
-          <p className="names-panel__intro">
-            Every gene of the reference sequence to which a database attaches the name, at which releases, and whether
-            as the name or as a synonym; for each gene, what the same databases call it at the graph&rsquo;s last
-            release.
-          </p>
-          <NameForm
-            placeholder={examples.names[0] ?? ""}
-            databases={description.synonym_databases}
-            name={asked.name}
-            foldCase={asked.foldCase}
-            onSubmit={(name, foldCase) => {
-              go({ name: name || null, fold_case: foldCase ? "true" : null });
-            }}
-          />
-          <Examples
-            label="Try a name"
-            values={examples.names}
-            onPick={(name) => {
-              go({ name, fold_case: null });
-            }}
-          />
-          <div aria-busy={named.state === "loading"} ref={namedArea}>
-            {named.state === "loading" ? <TableSkeleton /> : null}
-            {named.state === "failed" ? (
-              <ErrorPanel error={named.error} onRetry={named.retry} context="The search" level={3} />
-            ) : null}
-            {named.state === "done" ? (
-              <Matches
-                matches={named.answer.data.matches}
-                description={description}
-                address={address}
-                empty={
-                  <>
-                    No external database attaches the name <Mono>{asked.name}</Mono>
-                    {asked.foldCase ? " (in any letter case)" : " (as written)"} to a gene of this graph&rsquo;s
-                    reference sequence at any of its releases.
-                  </>
-                }
-                asked={asked.name}
-                first="gene"
-                release={null}
-                endpoint={`GET /api/v1/organisms/${organism}/genes-named`}
-              />
-            ) : null}
-          </div>
-        </section>
-        <section className="panel names-panel" aria-labelledby="names-of">
-          <div className="panel-head">
-            <span className="panel-letter" aria-hidden="true">
-              b
-            </span>
-            <h2 id="names-of" className="panel-head__title">
-              Names of a gene
-            </h2>
-          </div>
-          <p className="names-panel__intro">
-            Every name a database attaches to the gene itself (symbols, their synonyms, gene numbers such as
-            NCBI&rsquo;s), grouped as idtrack lists them, at which releases. The accessions of its transcripts and
-            proteins (RefSeq, UniProt and others) are not names of the gene: convert the gene to their database to get
-            them.
-          </p>
-          <GeneForm
-            genePlaceholder={examples.genes[0] ?? ""}
-            gene={asked.gene}
-            release={asked.release}
-            onSubmit={(gene, release) => {
-              go({ gene: gene || null, release: release || null });
-            }}
-          />
-          <Examples
-            label="Try a gene"
-            values={examples.genes}
-            onPick={(gene) => {
-              go({ gene, release: null });
-            }}
-          />
-          <div aria-busy={names.state === "loading"} ref={namesArea}>
-            {notRelease ? (
-              <div className="notice notice--danger" role="alert">
-                <h3 className="notice__title">Not a release: {asked.release}</h3>
-                <p>
-                  A release is a whole number; the <em>{organismName(organism)}</em> graph holds releases{" "}
-                  <Mono>{description.releases[0]}</Mono> to{" "}
-                  <Mono>{description.releases[description.releases.length - 1]}</Mono>. Nothing was asked of the api.
-                </p>
-                <div className="notice__actions">
-                  <Button
-                    onClick={() => {
-                      go({ release: null });
-                    }}
-                  >
-                    List the names at every release
-                  </Button>
-                </div>
-              </div>
-            ) : null}
-            {names.state === "loading" ? <TableSkeleton /> : null}
-            {names.state === "failed" ? (
-              <ErrorPanel
-                error={names.error}
-                onRetry={names.retry}
-                context="The names"
-                level={3}
-                actions={
-                  asked.release && refusedArguments(names.error).includes("release") ? (
+        ) : (
+          <div className="names-view" key="names">
+            <Expandable className="names-about" summary="What this answers">
+              <p className="names-panel__intro">
+                Every name a database attaches to the gene itself (symbols, their synonyms, gene numbers such as
+                NCBI&rsquo;s), grouped as IDTrack lists them, at which releases. The accessions of its transcripts and
+                proteins (RefSeq, UniProt and others) are not names of the gene: convert the gene to their database to
+                get them.
+              </p>
+            </Expandable>
+            <GeneForm
+              genePlaceholder={examples.genes[0] ?? ""}
+              gene={asked.gene}
+              release={asked.release}
+              onSubmit={(gene, release) => {
+                go({ gene: gene || null, release: release || null, ask: "names" });
+              }}
+            />
+            <Examples
+              label="Try a gene"
+              values={examples.genes}
+              onPick={(gene) => {
+                go({ gene, release: null, ask: "names" });
+              }}
+            />
+            <div aria-busy={names.state === "loading"} ref={namesArea}>
+              {notRelease ? (
+                <div className="notice notice--danger" role="alert">
+                  <h3 className="notice__title">Not a release: {asked.release}</h3>
+                  <p>
+                    A release is a whole number; the <em>{organismName(organism)}</em> graph holds releases{" "}
+                    <Mono>{description.releases[0]}</Mono> to{" "}
+                    <Mono>{description.releases[description.releases.length - 1]}</Mono>. Nothing was asked of the api.
+                  </p>
+                  <div className="notice__actions">
                     <Button
                       onClick={() => {
                         go({ release: null });
@@ -208,30 +211,50 @@ function NamesForOrganism({ description }: { description: GraphDescription }) {
                     >
                       List the names at every release
                     </Button>
-                  ) : null
-                }
-              />
-            ) : null}
-            {names.state === "done" ? (
-              <Matches
-                matches={names.answer.data.matches}
-                description={description}
-                address={address}
-                empty={
-                  <>
-                    No external database attaches a name to <Mono>{asked.gene}</Mono> on the reference sequence
-                    {asked.release ? ` at release ${asked.release}` : " at any release of this graph"}.
-                  </>
-                }
-                asked={asked.gene}
-                first="name"
-                release={releaseValue}
-                endpoint={`GET /api/v1/organisms/${organism}/names-of`}
-              />
-            ) : null}
+                  </div>
+                </div>
+              ) : null}
+              {names.state === "loading" ? <TableSkeleton /> : null}
+              {names.state === "failed" ? (
+                <ErrorPanel
+                  error={names.error}
+                  onRetry={names.retry}
+                  context="The names"
+                  level={3}
+                  actions={
+                    asked.release && refusedArguments(names.error).includes("release") ? (
+                      <Button
+                        onClick={() => {
+                          go({ release: null });
+                        }}
+                      >
+                        List the names at every release
+                      </Button>
+                    ) : null
+                  }
+                />
+              ) : null}
+              {names.state === "done" ? (
+                <Matches
+                  matches={names.answer.data.matches}
+                  description={description}
+                  address={address}
+                  empty={
+                    <>
+                      No external database attaches a name to <Mono>{asked.gene}</Mono> on the reference sequence
+                      {asked.release ? ` at release ${asked.release}` : " at any release of this graph"}.
+                    </>
+                  }
+                  asked={asked.gene}
+                  first="name"
+                  release={releaseValue}
+                  endpoint={`GET /api/v1/organisms/${organism}/names-of`}
+                />
+              ) : null}
+            </div>
           </div>
-        </section>
-      </div>
+        )}
+      </section>
     </div>
   );
 }

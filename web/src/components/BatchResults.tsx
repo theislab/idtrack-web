@@ -1,10 +1,11 @@
-// The answer of a batch as a figure: a, what came back (the statuses as one proportional bar with each status's meaning,
-// and the counts that say how the batch was answered and how strongly); b, the results, one row per identifier with the
-// gene at the target release and its symbol, its id in the database asked, how it was read, what decided it and the
-// evidence it rests on, sortable and filterable, each row opening to every candidate and the decision between the
-// first two; c, the identifiers' way through the releases (the release each was read at, and the steps of Ensembl's
-// history their paths crossed); d, the files to download. Every number is counted from the api's answer or read from
-// its headers; the api's JSON is its bytes, and every other file says where it came from.
+// The answer of a batch: a summary (the identifiers and the setting; the statuses as one proportional bar with their
+// counts; how the batch was answered, a press away), then tabs: the table, one row per identifier with the gene at the
+// target release and its symbol, its id in the database asked, how it was read, what decided it and the evidence it
+// rests on, sortable and filterable, each row opening to its answer (every candidate and the decision between the first
+// two); the identifiers' way through the releases (the release each was read at, and the steps of Ensembl's history
+// their paths crossed); the identifiers with no answer. The files to download and the sentence to cite are in a
+// drawer. Every number is counted from the api's answer or read from its headers; the api's JSON is its bytes, and
+// every other file says where it came from.
 import {
   Fragment,
   memo,
@@ -16,7 +17,6 @@ import {
   useRef,
   useState,
   type ReactNode,
-  type RefObject,
 } from "react";
 import { api } from "../api/client";
 import docs from "../generated/idtrack_docs.json";
@@ -86,6 +86,11 @@ import type { PathsRefused } from "../lib/batchRun";
 import { ErrorPanel } from "./ErrorPanel";
 import { Toggletip } from "./Toggletip";
 import { Button, Link, Mono, Prose, Select, StatusBadge, TableFrame, TextInput } from "./ui";
+import { CaptionMore } from "./v2/CaptionMore";
+import { Drawer } from "./v2/Drawer";
+import { Expandable } from "./v2/Expandable";
+import { Hint, HoverCard } from "./v2/HoverCard";
+import { Tabs } from "./v2/Tabs";
 
 /** How many ids a cell shows before "and N more" (the rest are in the opened row). */
 const SHOWN = 3;
@@ -122,7 +127,7 @@ export const BatchResults = memo(function BatchResults({
   description: GraphDescription;
   answer: BatchAnswer;
 }) {
-  const { count, request, serverTiming, requestId, pathsRefused } = answer;
+  const { count, request, pathsRefused } = answer;
   // The head is drawn with the answer's first frame; the panels, which read every result and its paths, in a
   // transition after it, so that a large answer never holds the page in one long task.
   const [ready, setReady] = useState(false);
@@ -131,29 +136,38 @@ export const BatchResults = memo(function BatchResults({
       setReady(true);
     });
   }, []);
+  const [downloads, setDownloads] = useState(false);
   const target = request.to_release ?? description.snapshot_release;
-  const timing = parseServerTiming(serverTiming);
-  const app = timing.find((t) => t.name === "app" && t.dur !== null);
   const distinct = useMemo(() => new Set(answer.results.map((r) => r.query_id)).size, [answer.results]);
   return (
     <div className="batch-results">
       <header className="batch-figure-head">
-        <p className="eyebrow">The batch</p>
-        <p className="batch-figure-head__line">
-          <Mono>{groupedInteger(count)}</Mono> {count === 1 ? "identifier" : "identifiers"} of{" "}
-          <i>{organismName(description.organism)}</i>
+        <div className="batch-figure-head__top">
+          <h2 className="batch-figure-head__line" id="batch-summary" tabIndex={-1}>
+            <Mono>{groupedInteger(count)}</Mono> {count === 1 ? "identifier" : "identifiers"} of{" "}
+            <i>{organismName(description.organism)}</i>
+          </h2>
+          <Button
+            className="batch-figure-head__downloads"
+            aria-haspopup="dialog"
+            onClick={() => {
+              setDownloads(true);
+            }}
+          >
+            Download and cite
+          </Button>
+        </div>
+        <p className="batch-figure-head__setting">
           {distinct !== count ? (
             <span className="batch-figure-head__distinct">
-              {" "}
-              (<Mono>{groupedInteger(distinct)}</Mono> different: a repeated one is answered at each of its places)
+              <Mono>{groupedInteger(distinct)}</Mono> different (a repeated one is answered at each of its places)
+              ·{" "}
             </span>
           ) : null}
-        </p>
-        <p className="batch-figure-head__setting">
           <Setting label="read at">
             {request.from_release === null ? "the release inferred for each" : <Mono>{request.from_release}</Mono>}
           </Setting>
-          <Setting label="to release">
+          <Setting label="to">
             <Mono>{target}</Mono>
           </Setting>
           <Setting label="in">{databaseLabel(request.final_database ?? "ensembl_gene")}</Setting>
@@ -174,15 +188,15 @@ export const BatchResults = memo(function BatchResults({
                       <>
                         The batch was asked with every path and refused for time: <Prose text={pathsRefused.message} />{" "}
                         (<span className="code-quiet">{pathsRefused.code}</span>). You asked again without the paths:
-                        the table is whole, and what the paths crossed (the evidence read from them, panel c) is not
-                        shown.
+                        the table is whole, and what the paths crossed (the evidence read from them, Through the
+                        releases) is not shown.
                       </>
                     ) : (
                       <>
                         The batch was asked with every path, and the server would not send them:{" "}
                         <Prose text={pathsRefused.message} /> (<span className="code-quiet">{pathsRefused.code}</span>).
                         It was asked again without them, as the api advises: the table is whole, and what the paths
-                        crossed (the evidence read from them, panel c) is not shown.
+                        crossed (the evidence read from them, Through the releases) is not shown.
                       </>
                     )}
                   </span>
@@ -195,79 +209,22 @@ export const BatchResults = memo(function BatchResults({
             )}
           </Setting>
         </p>
-        <p className="batch-figure-head__meta">
-          {app ? (
-            <span className="batch-figure-head__time">
-              answered in{" "}
-              <Toggletip
-                label={`answered in ${app.dur ?? ""} ms on the server: its timings`}
-                tip={
-                  <span className="toggletip__text">
-                    The server&rsquo;s own times of this request (its <Mono>Server-Timing</Mono> header), in
-                    milliseconds:{" "}
-                    {timing.map((t, i) => (
-                      <Fragment key={t.name}>
-                        {i ? " · " : ""}
-                        {t.name} <Mono>{t.dur ?? ABSENT}</Mono>
-                      </Fragment>
-                    ))}
-                    .
-                  </span>
-                }
-              >
-                <span className="nowrap">
-                  <Mono>{app.dur}</Mono>&nbsp;ms
-                </span>
-              </Toggletip>{" "}
-              on the server
-            </span>
-          ) : null}
-          {requestId ? (
-            <span>
-              request <Mono>{requestId}</Mono>
-            </span>
-          ) : null}
-          <button
-            type="button"
-            className="link-button batch-figure-head__jump"
-            onClick={() => {
-              const downloads = document.getElementById("batch-downloads");
-              if (!downloads) return;
-              downloads.focus({ preventScroll: true });
-              downloads.scrollIntoView({
-                block: "start",
-                behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
-              });
-            }}
-          >
-            Download the results <span aria-hidden="true">↓</span>
-          </button>
-        </p>
       </header>
       {ready ? (
-        <BatchPanels description={description} answer={answer} />
+        <BatchPanels
+          description={description}
+          answer={answer}
+          downloads={downloads}
+          closeDownloads={() => {
+            setDownloads(false);
+          }}
+        />
       ) : (
         <p className="batch-loading">Reading the answer…</p>
       )}
     </div>
   );
 });
-
-/** The head of a lettered panel of the batch's figure: its letter and its title in the section's tier (as the answer's
- *  panels), a rule under them, and what stands beside the title. */
-function PanelHead({ letter, id, title, aside }: { letter: string; id: string; title: string; aside?: ReactNode }) {
-  return (
-    <div className="panel-head batch-panel__head">
-      <span className="panel-letter" aria-hidden="true">
-        {letter}
-      </span>
-      <h2 id={id} className="panel-head__title">
-        {title}
-      </h2>
-      {aside ? <div className="batch-panel__aside">{aside}</div> : null}
-    </div>
-  );
-}
 
 /** The rows of a batch, read from its results a slice at a time between frames (a few milliseconds each), so that
  *  reading a thousand answers with their paths never holds the page; null until every row is read. */
@@ -303,8 +260,20 @@ function useBatchRows(results: ConversionResult[], vocabulary: Vocabulary): Batc
   return read?.results === results && read.vocabulary === vocabulary ? read.rows : null;
 }
 
-/** The panels of a batch's answer: every count, row and figure read from its results. */
-function BatchPanels({ description, answer }: { description: GraphDescription; answer: BatchAnswer }) {
+/** The batch's answer under its head: the summary (statuses and counts), then the tabs (the table, the way through the
+ *  releases, the identifiers with no answer), and the drawer of the files and the citation. Every count, row and figure
+ *  is read from the results. */
+function BatchPanels({
+  description,
+  answer,
+  downloads,
+  closeDownloads,
+}: {
+  description: GraphDescription;
+  answer: BatchAnswer;
+  downloads: boolean;
+  closeDownloads: () => void;
+}) {
   const { results, request } = answer;
   const vocabulary = useVocabulary();
   const statusOrder = useMemo(() => [...vocabulary.statuses.keys()], [vocabulary]);
@@ -318,14 +287,19 @@ function BatchPanels({ description, answer }: { description: GraphDescription; a
   );
   const lives = useRetiredLives(description, rows ?? [], names.authority);
   const [filter, setFilter] = useState<Filter>(NO_FILTER);
-  const table = useRef<HTMLElement>(null);
+  const [tab, setTab] = useState("table");
+  // The api's TSV, once asked: kept here, so that the provenance names it whenever the drawer is opened again.
+  const [tsvAsked, setTsvAsked] = useState<TsvAsked | null>(null);
+  const tabs = useRef<HTMLDivElement>(null);
   const target = request.to_release ?? description.snapshot_release;
+  const unanswered = useMemo(() => (rows ?? []).filter((r) => r.answers.length === 0), [rows]);
   if (!rows) return <p className="batch-loading">Reading the answer…</p>;
-  // A count's rows, shown in the table: the filter set, and the table brought into view.
+  // A count's rows, shown in the table: the filter set, the table's tab chosen and brought into view.
   const show = (next: Filter) => {
     setFilter(next);
+    setTab("table");
     window.requestAnimationFrame(() => {
-      table.current?.scrollIntoView({
+      tabs.current?.scrollIntoView({
         block: "start",
         behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
       });
@@ -345,29 +319,93 @@ function BatchPanels({ description, answer }: { description: GraphDescription; a
         target={target}
         renamed={renamed}
       />
-      <ResultsTable
-        description={description}
-        rows={rows}
-        summary={summary}
-        counts={counts}
-        statusOrder={statusOrder}
-        request={request}
-        filter={filter}
-        setFilter={setFilter}
-        names={names}
-        renamed={renamedIndices}
-        lives={lives}
-        frame={table}
-      />
-      <Releases
-        description={description}
-        results={results}
-        summary={summary}
-        request={request}
-        filter={filter}
-        show={show}
-      />
-      <Downloads description={description} answer={answer} rows={rows} names={names} lives={lives} counts={counts} />
+      <div className="batch-tabs" ref={tabs}>
+        <Tabs
+          label="The results"
+          value={tab}
+          onChange={setTab}
+          items={[
+            {
+              id: "table",
+              label: "Table",
+              count: groupedInteger(rows.length),
+              panel: () => (
+                <ResultsTable
+                  description={description}
+                  rows={rows}
+                  summary={summary}
+                  counts={counts}
+                  statusOrder={statusOrder}
+                  request={request}
+                  filter={filter}
+                  setFilter={setFilter}
+                  names={names}
+                  renamed={renamedIndices}
+                  lives={lives}
+                />
+              ),
+            },
+            {
+              id: "releases",
+              label: "Through the releases",
+              panel: () => (
+                <Releases
+                  description={description}
+                  results={results}
+                  summary={summary}
+                  request={request}
+                  filter={filter}
+                  show={show}
+                />
+              ),
+            },
+            ...(unanswered.length
+              ? [
+                  {
+                    id: "none",
+                    label: "No answer",
+                    count: groupedInteger(unanswered.length),
+                    panel: () => (
+                      <ResultsTable
+                        description={description}
+                        rows={unanswered}
+                        summary={summary}
+                        counts={statusCounts(
+                          unanswered.map((r) => r.result),
+                          statusOrder,
+                        )}
+                        statusOrder={statusOrder}
+                        request={request}
+                        names={names}
+                        renamed={renamedIndices}
+                        lives={lives}
+                        label="No answer"
+                      />
+                    ),
+                  },
+                ]
+              : []),
+          ]}
+        />
+      </div>
+      <Drawer
+        open={downloads}
+        onClose={closeDownloads}
+        title="Download and cite"
+        subtitle="The table, the api's own answers and the provenance as files, and a sentence for a methods section."
+        className="batch-downloads-drawer"
+      >
+        <Downloads
+          description={description}
+          answer={answer}
+          rows={rows}
+          names={names}
+          lives={lives}
+          counts={counts}
+          tsvAsked={tsvAsked}
+          setTsvAsked={setTsvAsked}
+        />
+      </Drawer>
     </>
   );
 }
@@ -471,7 +509,7 @@ const NONE = "none";
 
 /**
  * The ids of the genes of the rows (the best answers' and the others reached) in a database, at the target release:
- * by default the organism's name authority (idtrack's `SYMBOL_DATABASES`, the first the graph can convert to there, as
+ * by default the organism's name authority (IDTrack's `SYMBOL_DATABASES`, the first the graph can convert to there, as
  * the answer page's symbols), else a database the person chooses, or none. One more batch of the same endpoint with
  * the genes as identifiers, read and answered at the target release (each gene is its own answer there; its ids are
  * those the database attaches to it), split into requests of the server's bound; nothing is asked where the database
@@ -568,7 +606,7 @@ const namesOfGene = (names: NamesState, gene: string): string[] => names.names?.
 
 // ---- Panel a ----------------------------------------------------------------------------------------------------
 
-/** A count of rows of panel a: its number, its name, a line of plain words, how it is counted (on a press) and, where
+/** A count of rows of the summary: its number, its name, a line of plain words, how it is counted (on a press) and, where
  *  it counts rows, the filter that shows only them; `value` null where it cannot be counted (said in `sub`). */
 interface Count {
   key: string;
@@ -684,7 +722,7 @@ function Summary({
       key: "bridge",
       label: "Through a bridge",
       value: summary.bridged,
-      sub: "idtrack's inference where Ensembl's history ends",
+      sub: "IDTrack's inference where Ensembl's history ends",
       how: (
         <>
           Answers whose best candidate crosses a bridge (<Mono>candidates[].bridges</Mono> above 0): an id two genes
@@ -721,7 +759,7 @@ function Summary({
                 <Mono>{target}</Mono>: none of the gene&rsquo;s ids there is the name as read (<Mono>graph_id</Mono>).
                 {renamed.fromAnswers
                   ? " The names at the target are the batch's own answers."
-                  : " The names at the target are those beside the genes in panel b (one more request)."}{" "}
+                  : " The names at the target are those beside the genes in the table (one more request)."}{" "}
                 A name read through a synonym or in another letter case is compared as the graph holds it.
               </>
             ),
@@ -754,10 +792,10 @@ function Summary({
           key: "elsewhere",
           label: "Read at a release inferred",
           value: summary.inferred,
-          sub: "no release given: each read where idtrack infers",
+          sub: "no release given: each read where IDTrack infers",
           how: (
             <>
-              No release was given, so idtrack chose the release each identifier is read at (
+              No release was given, so IDTrack chose the release each identifier is read at (
               <Mono>from_release_inferred</Mono>): a symbol is read with its meaning at that release.{" "}
               {limitationAt(LIMITATION_OF.other_release)?.lead ?? ""} For a dataset, give the Ensembl release of its
               annotation.
@@ -823,9 +861,9 @@ function Summary({
   const shown = all.filter((c) => (c.value === null ? c.key === "renamed" : c.value > 0));
   const none = all.filter((c) => c.value === 0 && c.key !== "dates" && c.key !== "copies");
   const unknown = all.filter((c) => c.value === null && c.key !== "renamed");
+  const care = summary.care;
   return (
-    <section className="panel batch-panel" aria-labelledby="batch-summary">
-      <PanelHead letter="a" id="batch-summary" title="What came back" />
+    <section className="batch-summary" aria-label="What came back">
       <figure className="batch-bar-figure">
         <div className="sbar" role="img" aria-label={counts.map(([s, n]) => `${statusTitle(s)} ${n}`).join(", ")}>
           {counts.map(([status, n]) => (
@@ -843,65 +881,77 @@ function Summary({
               <li key={status} className="slegend__item">
                 <span className={`slegend__swatch ${statusFill(status)}`} aria-hidden="true" />
                 <span className="slegend__count mono">{groupedInteger(n)}</span>
-                <span className="slegend__name">{statusTitle(status)}</span>
                 {meaning ? (
-                  <span className="slegend__meaning">
+                  <HoverCard
+                    trigger={statusTitle(status)}
+                    className="slegend__name"
+                    triggerClassName="slegend__term"
+                    label={`${statusTitle(status)}: what it means`}
+                  >
                     <Prose text={meaning} />
-                  </span>
+                  </HoverCard>
                 ) : (
-                  <span />
+                  <span className="slegend__name">{statusTitle(status)}</span>
                 )}
               </li>
             );
           })}
         </ul>
-        <figcaption className="fig-caption">
-          The status of each of the {groupedInteger(total)} results, in proportion: a segment is as wide as the share of
-          the identifiers with that status (a segment of a few is at least 3 px wide); the key gives each count and the
-          api&rsquo;s meaning of the status (<Mono>GET /api/v1/vocabulary</Mono>).
+        <figcaption className="fig-caption batch-bar-figure__caption">
+          <CaptionMore lead={<>The status of each result, in proportion.</>}>
+            A segment is as wide as the share of the {groupedInteger(total)} identifiers with that status (a segment of
+            a few is at least 3 px wide); each status&rsquo;s name gives the api&rsquo;s meaning of it (
+            <Mono>GET /api/v1/vocabulary</Mono>).
+          </CaptionMore>
         </figcaption>
       </figure>
-
-      <div className="counts" role="group" aria-labelledby="batch-counts-title">
-        <p className="counts__title setting__label" id="batch-counts-title">
-          How the batch was answered
+      <Expandable
+        className="batch-counts"
+        summary="How the batch was answered"
+        meta={
+          care
+            ? `${groupedInteger(care)} ${care === 1 ? "answer needs" : "answers need"} care`
+            : `${groupedInteger(shown.length)} ${shown.length === 1 ? "count" : "counts"}`
+        }
+      >
+        <div className="counts" role="group" aria-label="How the batch was answered">
+          {shown.length ? (
+            <ul className="counts__list">
+              {shown.map(({ key, ...c }) => (
+                <CountRow key={key} {...c} />
+              ))}
+            </ul>
+          ) : null}
+          {none.length ? (
+            <p className="counts__none">
+              <span className="counts__none-label">None</span>{" "}
+              {none.map((c, i) => (
+                <Fragment key={c.key}>
+                  {i ? (i === none.length - 1 ? " or " : ", ") : ""}
+                  <Toggletip
+                    className="counts__term"
+                    label={`How it is counted: ${c.label}`}
+                    tip={<span className="toggletip__text">{c.how}</span>}
+                  >
+                    {lowerFirst(c.label)}
+                  </Toggletip>
+                </Fragment>
+              ))}
+              .
+            </p>
+          ) : null}
+          {unknown.length ? (
+            <p className="counts__none">
+              <span className="counts__none-label">Not counted</span>{" "}
+              {unknown.map((c) => lowerFirst(c.label)).join(", ")}: the batch was answered without its paths.
+            </p>
+          ) : null}
+        </div>
+        <p className="fig-caption">
+          Counts of rows, from the answer of <Mono>{endpoint}</Mono> at release <Mono>{target}</Mono>; <em>Show</em>{" "}
+          shows only a count&rsquo;s rows in the table, a count&rsquo;s name says how it is counted.
         </p>
-        {shown.length ? (
-          <ul className="counts__list">
-            {shown.map(({ key, ...c }) => (
-              <CountRow key={key} {...c} />
-            ))}
-          </ul>
-        ) : null}
-        {none.length ? (
-          <p className="counts__none">
-            <span className="counts__none-label">None</span>{" "}
-            {none.map((c, i) => (
-              <Fragment key={c.key}>
-                {i ? (i === none.length - 1 ? " or " : ", ") : ""}
-                <Toggletip
-                  className="counts__term"
-                  label={`How it is counted: ${c.label}`}
-                  tip={<span className="toggletip__text">{c.how}</span>}
-                >
-                  {lowerFirst(c.label)}
-                </Toggletip>
-              </Fragment>
-            ))}
-            .
-          </p>
-        ) : null}
-        {unknown.length ? (
-          <p className="counts__none">
-            <span className="counts__none-label">Not counted</span> {unknown.map((c) => lowerFirst(c.label)).join(", ")}
-            : the batch was answered without its paths.
-          </p>
-        ) : null}
-      </div>
-      <p className="fig-caption">
-        Counts of rows, from the answer of <Mono>{endpoint}</Mono> at release <Mono>{target}</Mono>; <em>Show</em> shows
-        only a count&rsquo;s rows in panel b, a count&rsquo;s name says how it is counted.
-      </p>
+      </Expandable>
     </section>
   );
 }
@@ -927,7 +977,7 @@ function RenamedPairs({ pairs }: { pairs: readonly RenamedRow[] }) {
   );
 }
 
-/** One count of panel a: the number in the monospaced face, its unit beside it; its name, which opens how it is
+/** One count of the summary: the number in the monospaced face, its unit beside it; its name, which opens how it is
  *  counted; a line of plain words; the button that shows only its rows. */
 function CountRow({ label, value, unit, sub, how, pressed = false, onShow }: Omit<Count, "key">) {
   return (
@@ -1005,12 +1055,12 @@ function ResultsTable({
   counts,
   statusOrder,
   request,
-  filter,
-  setFilter,
+  filter: shownFilter,
+  setFilter: setShownFilter,
   names,
   renamed,
   lives,
-  frame,
+  label = "Results",
 }: {
   description: GraphDescription;
   rows: BatchRow[];
@@ -1018,14 +1068,19 @@ function ResultsTable({
   counts: [string, number][];
   statusOrder: string[];
   request: Required<BatchRequest>;
-  filter: Filter;
-  setFilter: (f: Filter) => void;
+  /** The filter, where the summary's counts set it too; none: the table's own. */
+  filter?: Filter;
+  setFilter?: (f: Filter) => void;
   names: NamesState;
   /** The rows named otherwise at the target (the filter of that count), where known. */
   renamed: ReadonlySet<number> | null;
   lives: Lives | null;
-  frame: RefObject<HTMLElement | null>;
+  /** The table's name ("Results", "No answer"), before the rows it shows. */
+  label?: string;
 }) {
+  const [ownFilter, setOwnFilter] = useState<Filter>(NO_FILTER);
+  const filter = shownFilter ?? ownFilter;
+  const setFilter = setShownFilter ?? setOwnFilter;
   const vocabulary = useVocabulary();
   const organism = description.organism;
   const target = request.to_release ?? description.snapshot_release;
@@ -1076,8 +1131,9 @@ function ResultsTable({
     else next.add(value);
     return next;
   };
+  // One row open at a time: opening another closes the one before.
   const toggleRow = (index: number) => {
-    setOpen(toggle(open, index));
+    setOpen(open.has(index) ? new Set() : new Set([index]));
   };
   const sortBy = (key: SortKey) => {
     setSort((s) => (s.key === key ? { key, descending: !s.descending } : { key, descending: false }));
@@ -1241,21 +1297,28 @@ function ResultsTable({
   const beside = names.database;
   const columnCount = columns.length;
   return (
-    <section className="panel batch-panel" aria-labelledby="batch-table" ref={frame}>
-      <PanelHead letter="b" id="batch-table" title="The results, one row per identifier" />
-      <p className="batch-lead">
-        Each row gives the gene at release <Mono>{target}</Mono>
-        {beside ? <> with its id in {databaseLabel(beside)} beside it</> : null}
-        {database !== "ensembl_gene" ? <>, its id in {databaseLabel(database)}</> : null}, the other genes the
-        identifier leads to, how it was read, the criterion that put the best answer before the next (with the two
-        values it compared), and the cautions its evidence holds.
-        {reading ? <> Every identifier was read {reading.replace(/^as written/, "as written,")}.</> : null}
-        {anyEvidence ? null : <> No answer holds a caution.</>}
-      </p>
+    <section className="batch-table" aria-label={label === "Results" ? "The results, one row per identifier" : label}>
+      {reading || !anyEvidence ? (
+        <p className="batch-lead">
+          {reading ? <>Every identifier was read {reading.replace(/^as written/, "as written,")}.</> : null}
+          {anyEvidence ? null : <> No answer holds a caution.</>}
+        </p>
+      ) : null}
       <div className="batch-names">
-        <label className="batch-names__label" htmlFor="batch-names">
-          Beside each gene, its id in
-        </label>
+        <span className="field__head">
+          <label className="batch-names__label" htmlFor="batch-names">
+            Beside each gene, its id in
+          </label>
+          <Hint descriptionId="batch-names-hint">
+            {names.state === "loading"
+              ? "Asking the server…"
+              : names.state === "failed"
+                ? "The server did not give them."
+                : request.final_database !== null && request.final_database === (names.authority ?? "")
+                  ? `The answers are in ${databaseLabel(request.final_database)}, the organism's symbols: nothing more is asked.`
+                  : `${names.authority ? `${databaseLabel(names.authority)} gives the organism's symbols. ` : ""}One more request of the same endpoint, with the genes as identifiers, read and answered at release ${String(target)}.`}
+          </Hint>
+        </span>
         <Select
           id="batch-names"
           className="batch-names__select"
@@ -1273,20 +1336,15 @@ function ResultsTable({
           ))}
           <option value={NONE}>no other database</option>
         </Select>
-        <p className="batch-names__hint" id="batch-names-hint">
-          {names.state === "loading"
-            ? "Asking the server…"
-            : names.state === "failed"
-              ? "The server did not give them. "
-              : request.final_database !== null && request.final_database === (names.authority ?? "")
-                ? `The answers are in ${databaseLabel(request.final_database)}, the organism's symbols: nothing more is asked.`
-                : `${names.authority ? `${databaseLabel(names.authority)} gives the organism's symbols. ` : ""}One more request of the same endpoint, with the genes as identifiers, read and answered at release ${String(target)}.`}
-          {names.state === "failed" ? (
+        {names.state === "loading" ? <span className="batch-names__state muted">asking the server…</span> : null}
+        {names.state === "failed" ? (
+          <span className="batch-names__state">
+            The server did not give them.{" "}
             <button type="button" className="link-button" onClick={names.retry}>
               Try again
             </button>
-          ) : null}
-        </p>
+          </span>
+        ) : null}
       </div>
       <details
         className="batch-tools"
@@ -1507,34 +1565,41 @@ function ResultsTable({
       </div>
       {visible.length === 0 ? <p className="empty empty--small">No result matches the filter.</p> : null}
       <p className="fig-caption">
-        <span className="when-table">
-          One row per identifier, in the order given (<Mono>#</Mono>); a column&rsquo;s name sorts by it, a chip above
-          shows only its rows.
-        </span>
-        <span className="when-cards">
-          One card per identifier, in the order given (<Mono>#</Mono>); the menu above sorts them, a chip shows only its
-          cards.
-        </span>{" "}
-        Under a gene: the other genes the identifier leads to, the splits and merges of Ensembl&rsquo;s history on its
-        path, and the other rows (<Mono>#</Mono>) whose answer it is too.{" "}
-        {reading ? null : (
-          <>
-            <em>Read</em> is how the identifier was read (as written, through a synonym, without letter case…) and at
-            which release;{" "}
-          </>
-        )}
-        <em>Decided by</em> is idtrack&rsquo;s criterion that put the best answer before the runner-up (press it for the
-        order of the criteria)
-        {anyEvidence ? (
-          <>
-            ; <em>Cautions</em> are what the answer rests on beyond Ensembl&rsquo;s history of the identifier as written
-            that changes how far it can be trusted (its meaning on the mark and in the opened row, with idtrack&rsquo;s
-            documented limitation where there is one)
-          </>
-        ) : null}
-        . Open a row for its notes (exact facts that are no fault, such as the lowest of Ensembl&rsquo;s mapping scores
-        on the path) and every candidate, ranked as idtrack ranks them; <em>Path</em> opens the conversion with the path
-        that leads to each answer (for an item read as another item&rsquo;s copy, the path of that item).
+        <CaptionMore
+          lead={
+            <>
+              <span className="when-table">
+                One row per identifier, in the order given (<Mono>#</Mono>); a column&rsquo;s name sorts by it, and a
+                row opens to its answer.
+              </span>
+              <span className="when-cards">
+                One card per identifier, in the order given (<Mono>#</Mono>); the menu above sorts them, and a card
+                opens to its answer.
+              </span>
+            </>
+          }
+        >
+          Under a gene: the other genes the identifier leads to, the splits and merges of Ensembl&rsquo;s history on its
+          path, and the other rows (<Mono>#</Mono>) whose answer it is too.{" "}
+          {reading ? null : (
+            <>
+              <em>Read</em> is how the identifier was read (as written, through a synonym, without letter case…) and at
+              which release;{" "}
+            </>
+          )}
+          <em>Decided by</em> is IDTrack&rsquo;s criterion that put the best answer before the runner-up (press it for
+          the order of the criteria)
+          {anyEvidence ? (
+            <>
+              ; <em>Cautions</em> are what the answer rests on beyond Ensembl&rsquo;s history of the identifier as
+              written that changes how far it can be trusted (its meaning on the mark and in the opened row, with
+              IDTrack&rsquo;s documented limitation where there is one)
+            </>
+          ) : null}
+          . An opened row gives its notes (exact facts that are no fault, such as the lowest of Ensembl&rsquo;s mapping
+          scores on the path) and every candidate, ranked as IDTrack ranks them; <em>Path</em> opens the conversion with
+          the path that leads to each answer (for an item read as another item&rsquo;s copy, the path of that item).
+        </CaptionMore>
       </p>
     </section>
   );
@@ -1627,7 +1692,7 @@ function CriteriaOrder({ vocabulary, decided }: { vocabulary: Vocabulary; decide
         </span>
       ) : null}
       <span className="criteria-tip__lead">
-        idtrack ranks the candidates by these criteria in turn; the first that differs between the best answer and the
+        IDTrack ranks the candidates by these criteria in turn; the first that differs between the best answer and the
         runner-up decides, and the later ones are not compared:
       </span>
       <ol className="criteria-tip__list">
@@ -1918,7 +1983,7 @@ function Row({
 }
 
 /** The decision between the best answer and the runner-up: the deciding criterion, the two candidates compared and
- *  each one's value of the fields it compares. idtrack compares the lineage criteria with the first best answer, and
+ *  each one's value of the fields it compares. IDTrack compares the lineage criteria with the first best answer, and
  *  the criteria within a lineage (score, being the query, annotation) with the best successor of the runner-up's own
  *  entry gene (as lib/pathModel.ts decisionOf). Null without a runner-up. */
 function decisionOf(result: ConversionResult, vocabulary: Vocabulary) {
@@ -2038,15 +2103,15 @@ function Detail({ row, names }: { row: BatchRow; names: NamesState }) {
                 <span className="emark-line__meaning">
                   Ensembl&rsquo;s mapping score: <Prose text={`${docs.mappingScore.text.split(". ")[0] ?? ""}.`} />{" "}
                   <a href={docs.mappingScore.source} target="_blank" rel="noreferrer">
-                    idtrack&rsquo;s concepts
-                    <span className="visually-hidden"> (idtrack&apos;s documentation, opens in a new tab)</span>
+                    IDTrack&rsquo;s concepts
+                    <span className="visually-hidden"> (IDTrack&apos;s documentation, opens in a new tab)</span>
                     <span aria-hidden="true"> ↗</span>
                   </a>
                 </span>
               ) : null}
               {m.meaning ? (
                 <span className="emark-line__meaning">
-                  idtrack: <Prose text={m.meaning} />{" "}
+                  IDTrack: <Prose text={m.meaning} />{" "}
                   <span className="code-quiet" title="The field of the result">
                     {m.code}
                   </span>
@@ -2054,10 +2119,10 @@ function Detail({ row, names }: { row: BatchRow; names: NamesState }) {
               ) : null}
               {m.limitation ? (
                 <span className="emark-line__limitation">
-                  A known limitation of idtrack: {m.limitation.lead}{" "}
+                  A known limitation of IDTrack: {m.limitation.lead}{" "}
                   <a href={m.limitation.href} target="_blank" rel="noreferrer">
                     {m.limitation.title}
-                    <span className="visually-hidden"> (idtrack&apos;s documentation, opens in a new tab)</span>
+                    <span className="visually-hidden"> (IDTrack&apos;s documentation, opens in a new tab)</span>
                     <span aria-hidden="true"> ↗</span>
                   </a>
                 </span>
@@ -2253,7 +2318,7 @@ function eventsText(row: BatchRow): string {
   return [...at.entries()].map(([releases, kinds]) => `${kinds.join(" and ")} at ${releases}`).join("; ");
 }
 
-/** A column head whose meaning is idtrack's text of the Candidate field, on a press. */
+/** A column head whose meaning is IDTrack's text of the Candidate field, on a press. */
 function FieldTerm({ vocabulary, field, children }: { vocabulary: Vocabulary; field: string; children: string }) {
   const meaning = vocabulary.candidateFields.get(field);
   if (!meaning) return <>{children}</>;
@@ -2315,7 +2380,7 @@ const CROSSING_LONG: Record<Crossing, string> = {
   merge: "a merge",
   handoff: "a change of assembly",
   remap: "a re-mapping of a gene to itself",
-  bridge: "a bridge (idtrack's inference)",
+  bridge: "a bridge (IDTrack's inference)",
   external: "a reading through an external database",
 };
 
@@ -2349,8 +2414,7 @@ function Releases({
   const crossed = CROSSINGS.map((k): [Crossing, number] => [k, summary.crossings.get(k) ?? 0]);
   const most = Math.max(1, ...crossed.map(([, n]) => n));
   return (
-    <section className="panel batch-panel" aria-labelledby="batch-releases">
-      <PanelHead letter="c" id="batch-releases" title="Through the releases" />
+    <section className="batch-releases-panel" aria-label="Through the releases">
       <div className="batch-releases">
         <figure className="batch-readat">
           <figcaption className="batch-readat__title">
@@ -2437,30 +2501,40 @@ function Releases({
             </details>
           ) : null}
           <p className="fig-caption">
-            {elsewhere.length && !oneRelease ? (
-              <>
-                Above the axis, each arc leaves the release at which identifiers were read (<Mono>from_release</Mono>)
-                for the target release, {target}; its width grows linearly with their number (the widest arc:{" "}
-                {groupedInteger(max)}), its height with the distance travelled
-                {allPlaced
-                  ? ", and its number stands under its foot"
-                  : "; the numbers stand under the feet where they have room, and every one is in the line under the axis"}
-                . The mark on the target holds the identifiers read there, their number at the head of its line. An arc
-                joins two releases, not the steps between them.{" "}
-              </>
-            ) : null}
-            {summary.paths && eventTotal ? (
-              <>
-                {elsewhere.length && !oneRelease ? "Below the arcs" : "Above the axis"}, a column at each release where
-                the best paths took a step of Ensembl&rsquo;s history, as tall as the number of identifiers whose path
-                stepped there, of each kind (one step of two kinds, a split and merge or a step across assemblies, is in
-                both), stacked in the hue of its family: history, splits and merges, assembly changes; the number on a
-                column counts each identifier once. A step is placed at the first release of its later id, in
-                Ensembl&rsquo;s direction.{" "}
-              </>
-            ) : null}
-            Behind, the assemblies that serve the releases. Counted from the answer of <Mono>{endpoint}</Mono>
-            {request.explain ? " with every path" : ""}.
+            <CaptionMore
+              lead={
+                elsewhere.length && !oneRelease ? (
+                  <>Each arc leaves the release at which identifiers were read for the target release, {target}.</>
+                ) : (
+                  <>Where the identifiers were read, on the graph&rsquo;s releases.</>
+                )
+              }
+            >
+              {elsewhere.length && !oneRelease ? (
+                <>
+                  Above the axis, each arc&rsquo;s width grows linearly with the number of identifiers read at its
+                  release (<Mono>from_release</Mono>; the widest arc: {groupedInteger(max)}), its height with the
+                  distance travelled
+                  {allPlaced
+                    ? ", and its number stands under its foot"
+                    : "; the numbers stand under the feet where they have room, and every one is in the line under the axis"}
+                  . The mark on the target holds the identifiers read there, their number at the head of its line. An
+                  arc joins two releases, not the steps between them.{" "}
+                </>
+              ) : null}
+              {summary.paths && eventTotal ? (
+                <>
+                  {elsewhere.length && !oneRelease ? "Below the arcs" : "Above the axis"}, a column at each release
+                  where the best paths took a step of Ensembl&rsquo;s history, as tall as the number of identifiers
+                  whose path stepped there, of each kind (one step of two kinds, a split and merge or a step across
+                  assemblies, is in both), stacked in the hue of its family: history, splits and merges, assembly
+                  changes; the number on a column counts each identifier once. A step is placed at the first release of
+                  its later id, in Ensembl&rsquo;s direction.{" "}
+                </>
+              ) : null}
+              Behind, the assemblies that serve the releases. Counted from the answer of <Mono>{endpoint}</Mono>
+              {request.explain ? " with every path" : ""}.
+            </CaptionMore>
           </p>
         </figure>
         <figure className="batch-crossed">
@@ -2513,10 +2587,12 @@ function Releases({
             </p>
           )}
           <p className="fig-caption">
-            The number of identifiers whose best path (every best candidate&rsquo;s, a tie&rsquo;s too) holds each kind
-            of step at least once, drawn with its glyph of the site&rsquo;s figures (a new version and a replacement
-            share the tick across the bar, as in every figure); a bar is as long as its count, the longest{" "}
-            {groupedInteger(most)}. <em>Show</em> shows only those rows in panel b.
+            <CaptionMore lead={<>The identifiers whose best path holds each kind of step at least once.</>}>
+              Every best candidate&rsquo;s path counts, a tie&rsquo;s too; each kind is drawn with its glyph of the
+              site&rsquo;s figures (a new version and a replacement share the tick across the bar, as in every figure);
+              a bar is as long as its count, the longest {groupedInteger(most)}. <em>Show</em> shows only those rows in
+              the table.
+            </CaptionMore>
           </p>
         </figure>
       </div>
@@ -2603,6 +2679,10 @@ function TablePreview({ text }: { text: string }) {
   );
 }
 
+/** The api's TSV as asked: its request, when, and its size. */
+type TsvAsked = BatchProvenance["tsv"] & { bytes: number };
+
+/** The drawer's content: the files, each with a preview of its first lines, and the sentence for a methods section. */
 function Downloads({
   description,
   answer,
@@ -2610,6 +2690,8 @@ function Downloads({
   names,
   lives,
   counts,
+  tsvAsked,
+  setTsvAsked,
 }: {
   description: GraphDescription;
   answer: BatchAnswer;
@@ -2617,12 +2699,13 @@ function Downloads({
   names: NamesState;
   lives: Lives | null;
   counts: [string, number][];
+  tsvAsked: TsvAsked | null;
+  setTsvAsked: (asked: TsvAsked) => void;
 }) {
   const { request, raw, requestId, serverTiming, answeredAt, count, source, pathsRefused, results } = answer;
   const organism = description.organism;
   const version = useRequest("version", (signal, fresh) => api.version({ signal, fresh }));
   const tsv = useAction((signal, body: BatchRequest) => api.batchTsv(organism, body, signal));
-  const [tsvAsked, setTsvAsked] = useState<(BatchProvenance["tsv"] & { bytes: number }) | null>(null);
   const [copied, setCopied] = useState(false);
   const resolvedTo = results[0]?.to_release ?? request.to_release ?? description.snapshot_release;
   const others = (): OtherRequest[] => {
@@ -2757,14 +2840,42 @@ function Downloads({
       () => undefined,
     );
   };
+  const timing = parseServerTiming(serverTiming);
+  const app = timing.find((t) => t.name === "app" && t.dur !== null);
   return (
-    <section
-      className="panel batch-panel batch-downloads"
-      aria-labelledby="batch-downloads-title"
-      id="batch-downloads"
-      tabIndex={-1}
-    >
-      <PanelHead letter="d" id="batch-downloads-title" title="Download and cite" />
+    <div className="batch-downloads">
+      <p className="batch-figure-head__meta">
+        {app ? (
+          <span className="batch-figure-head__time">
+            answered in{" "}
+            <Toggletip
+              label={`answered in ${app.dur ?? ""} ms on the server: its timings`}
+              tip={
+                <span className="toggletip__text">
+                  The server&rsquo;s own times of this request (its <Mono>Server-Timing</Mono> header), in milliseconds:{" "}
+                  {timing.map((t, i) => (
+                    <Fragment key={t.name}>
+                      {i ? " · " : ""}
+                      {t.name} <Mono>{t.dur ?? ABSENT}</Mono>
+                    </Fragment>
+                  ))}
+                  .
+                </span>
+              }
+            >
+              <span className="nowrap">
+                <Mono>{app.dur}</Mono>&nbsp;ms
+              </span>
+            </Toggletip>{" "}
+            on the server
+          </span>
+        ) : null}
+        {requestId ? (
+          <span>
+            request <Mono>{requestId}</Mono>
+          </span>
+        ) : null}
+      </p>
       <ul className="files">
         <li className="file">
           <div className="file__head">
@@ -2872,7 +2983,7 @@ function Downloads({
           </div>
           <FilePreview text={preview.provenance} lines={4} label="The first lines of the provenance" />
           <p className="file__facts">
-            The server, idtrack&rsquo;s and the api&rsquo;s versions, the graph&rsquo;s content digest, the request as
+            The server, IDTrack&rsquo;s and the api&rsquo;s versions, the graph&rsquo;s content digest, the request as
             sent and as answered (target <Mono>{resolvedTo}</Mono>), and every other request the table holds answers of.
           </p>
           <div className="file__actions">
@@ -2897,10 +3008,10 @@ function Downloads({
           <span className="muted cite__note" role="status">
             {copied ? "The sentence is on the clipboard." : null}
           </span>
-          <Link to={href("/method", {})}>Cite idtrack itself (Method)</Link>
+          <Link to={href("/method", {})}>Cite IDTrack itself (Method)</Link>
         </p>
       </figure>
-    </section>
+    </div>
   );
 }
 

@@ -30,13 +30,31 @@ export function exampleSets(showcase: ShowcaseResponse | null): ExampleSet[] {
 
 /** A set's settings in words, as its request sends them (the api's defaults named). */
 export function exampleWords(set: ExampleSet, snapshot: number): string {
-  const from = set.from !== null ? `read at ${String(set.from)}` : "read where idtrack infers";
+  const from = set.from !== null ? `read at ${String(set.from)}` : "read where IDTrack infers";
   const to =
     set.to !== null && set.from !== null && set.to < set.from
       ? `back to ${String(set.to)}`
       : `to ${String(set.to ?? snapshot)}`;
   const database = set.database !== null ? `in ${set.database}` : "as Ensembl genes";
   return `${from} · ${to} · ${database}`;
+}
+
+/** What a set's identifiers are, by the form of their scheme (Ensembl's stable ids, RefSeq's and UniProt's
+ *  accessions; anything else a name), in a few words with their number ("10 names", "6 Ensembl gene ids"); a set of
+ *  several kinds is "identifiers". */
+export function exampleKind(set: ExampleSet): string {
+  const kinds = new Set(set.identifiers.map(schemeOf));
+  const [kind] = kinds;
+  return `${String(set.identifiers.length)} ${kinds.size === 1 && kind ? kind : "identifiers"}`;
+}
+
+function schemeOf(id: string): string {
+  if (/^ENS[A-Z]*G\d{11}(\.\d+)?$/.test(id)) return "Ensembl gene ids";
+  if (/^ENS[A-Z]*T\d{11}(\.\d+)?$/.test(id)) return "Ensembl transcript ids";
+  if (/^ENS[A-Z]*P\d{11}(\.\d+)?$/.test(id)) return "Ensembl protein ids";
+  if (/^[NX][MRP]_\d+(\.\d+)?$/.test(id)) return "RefSeq accessions";
+  if (/^([OPQ]\d[A-Z0-9]{3}\d|[A-NR-Z]\d[A-Z][A-Z0-9]{2}\d)(-\d+)?$/.test(id)) return "UniProt accessions";
+  return "names";
 }
 
 function exampleList(showcase: ShowcaseResponse | null): string[] {

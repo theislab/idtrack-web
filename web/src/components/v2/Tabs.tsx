@@ -1,7 +1,8 @@
 // Tabs (DIRECTION.md, "The disclosure components"): a list of tabs, each with a label and an optional quiet count, a
 // sliding indicator under the chosen one, and one panel. The arrow keys move between tabs and choose (automatic
 // activation), Home and End go to the ends; Tab leaves to the panel. Only the chosen panel is drawn. With `param`,
-// the choice is kept in the page's address (`?tab=`), so every view can be linked to and survives a reload.
+// the choice is kept in the page's address (`?tab=`), so every view can be linked to and survives a reload; with
+// `value`, the page holds the choice (a count that shows its rows chooses the table's tab).
 import { useCallback, useId, useLayoutEffect, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import { navigate, useLocation } from "../../lib/router";
 
@@ -20,6 +21,7 @@ export function Tabs({
   initial,
   className = "",
   onChange,
+  value,
 }: {
   items: TabItem[];
   /** The tab list's accessible name. */
@@ -29,12 +31,14 @@ export function Tabs({
   initial?: string;
   className?: string;
   onChange?: (id: string) => void;
+  /** The chosen tab, where the page holds the choice (with `onChange`). */
+  value?: string;
 }) {
   const base = useId().replace(/:/g, "");
   const location = useLocation();
   const fromAddress = param ? location.search.get(param) : null;
   const [own, setOwn] = useState(initial ?? items[0]?.id ?? "");
-  const wanted = param ? (fromAddress ?? initial ?? items[0]?.id ?? "") : own;
+  const wanted = value ?? (param ? (fromAddress ?? initial ?? items[0]?.id ?? "") : own);
   const chosen = items.some((t) => t.id === wanted) ? wanted : (items[0]?.id ?? "");
   const list = useRef<HTMLDivElement>(null);
   const [bar, setBar] = useState<{ left: number; width: number } | null>(null);
@@ -47,10 +51,10 @@ export function Tabs({
         else search.set(param, id);
         const text = search.toString();
         navigate(`${window.location.pathname}${text ? `?${text}` : ""}`, { replace: true });
-      } else setOwn(id);
+      } else if (value === undefined) setOwn(id);
       onChange?.(id);
     },
-    [param, initial, items, onChange],
+    [param, initial, items, onChange, value],
   );
 
   // The indicator follows the chosen tab (measured after layout; it slides where motion is allowed).

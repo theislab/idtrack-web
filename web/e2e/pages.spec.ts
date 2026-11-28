@@ -33,6 +33,9 @@ test("a batch: results in order with each status, exported as the api returned t
   for (const [i, result] of parsed.results.entries()) {
     await expect(rows.nth(i)).toContainText(statusTitle(result.status));
   }
+  // The files are in the drawer "Download and cite".
+  await page.getByRole("button", { name: "Download and cite" }).click();
+  await expect(page.getByRole("dialog", { name: "Download and cite" })).toBeVisible();
   const downloadJson = page.waitForEvent("download");
   await page.getByRole("button", { name: /api.s JSON$/ }).click();
   const savedJson = readFileSync(await (await downloadJson).path(), "utf8");
@@ -121,7 +124,12 @@ test("a batch's figure: the statuses counted, sorted, filtered, opened to every 
   // kept beside the number.
   const timing = /app;dur=([^,;]+)/.exec(response.headers()["server-timing"] ?? "");
   expect(timing, "the batch's answer carries Server-Timing").not.toBeNull();
+  await page.getByRole("button", { name: "Download and cite" }).click();
   await expect(page.locator(".batch-figure-head__time")).toContainText(`answered in ${timing?.[1] ?? "-"}\u00a0ms`);
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("dialog", { name: "Download and cite" })).toBeHidden();
+  // How the batch was answered: one press away, under the statuses.
+  await page.getByRole("button", { name: /^How the batch was answered/ }).click();
   // The counts: one numeral face, words for people (no field names), each count of rows from the answer.
   const inferred = parsed.results.filter((r) => r.from_release !== null && r.from_release_inferred).length;
   const inferredCount = page.locator(".count", { hasText: "Read at a release inferred" });
@@ -270,7 +278,7 @@ test("a batch from a file", async ({ page }) => {
     mimeType: "text/csv",
     buffer: Buffer.from(data.batch.map((id) => `${id},x`).join("\n")),
   });
-  await expect(page.locator(".batch-form__file").getByRole("status")).toContainText(`${data.batch.length} identifiers`);
+  await expect(page.locator(".batch-form__file-note")).toContainText(`${data.batch.length} identifiers`);
   await expect(page.getByLabel("Identifiers", { exact: true })).toHaveValue(
     data.batch.map((id) => `${id},x`).join("\n"),
   );
@@ -290,6 +298,7 @@ test("a pasted table: its header found by the form of its cells, its column read
   await page.getByRole("button", { name: /^Convert/ }).click();
   const rows = page.getByRole("region", { name: /^Results: / }).locator("tbody:not(.batch-spacer) > tr");
   await expect(rows).toHaveCount(data.batch.length);
+  await page.getByRole("button", { name: "Download and cite" }).click();
   const download = page.waitForEvent("download");
   await page.getByRole("button", { name: "Save the table as TSV" }).click();
   const lines = readFileSync(await (await download).path(), "utf8")
@@ -301,6 +310,7 @@ test("a pasted table: its header found by the form of its cells, its column read
     const cells = lines[i + 1]?.split("\t") ?? [];
     expect(cells.slice(0, 4)).toEqual([String(i + 1), String(i + 2), id, String(-1.5 + i)]);
   }
+  await page.keyboard.press("Escape");
   // The person can say otherwise: with the header switched off, its line is an identifier too.
   await page.getByRole("switch", { name: "First line is a header" }).uncheck();
   await expect(page.locator(".batch-form__count .mono").first()).toHaveText(String(data.batch.length + 1));
@@ -320,6 +330,8 @@ test("the batch before a list: what will appear, and an example to try", async (
   const value = await page.getByLabel("Identifiers", { exact: true }).inputValue();
   const first = showcase.journeys[0]?.query;
   expect(value.split("\n")[0]).toBe(first?.identifier);
+  // The examples fill the setting too, folded under its line (which says it).
+  await page.getByRole("button", { name: /^Setting for every identifier/ }).click();
   await expect(page.getByLabel("From release")).toHaveValue(
     first?.from_release === null || first === undefined ? "" : String(first.from_release),
   );
@@ -376,9 +388,12 @@ test("names: the genes a name names, then the names of one of them", async ({ pa
     .at(-1);
   await groups.first().locator(".names-gene__id").getByRole("link").click();
   await expect(page.getByLabel("Ensembl gene, with version")).toHaveValue(latest ?? "");
-  // Both tables at once, each named by what it holds: the genes the name names, the names of the gene opened.
-  await expect(page.getByRole("region", { name: /^The genes .+ names$/ })).toHaveCount(1);
+  // One question at a time, each table named by what it holds: the names of the gene opened, and the genes the name
+  // names one press back, both kept in the address.
   await expect(page.getByRole("region", { name: /^The names of / })).toHaveCount(1);
+  await expect(page.getByRole("region", { name: /^The genes .+ names$/ })).toHaveCount(0);
+  await page.getByRole("radio", { name: "A name → its genes" }).click();
+  await expect(page.getByRole("region", { name: /^The genes .+ names$/ })).toHaveCount(1);
   // Every match is its version's exact releases in words on its gene's lane, as the api gives them.
   const first = page.getByRole("region", { name: /^The genes .+ names$/ });
   if (ids.length <= 12) {
@@ -420,6 +435,8 @@ test("names: the genes a name names, then the names of one of them", async ({ pa
 test("names: nothing found, and an unknown gene", async ({ page }, info) => {
   await page.goto(`/names?organism=${data.organism}&name=NOT_A_NAME_AT_ALL&gene=ENSXXXG00000000000.1`);
   await expect(page.getByText(/No external database attaches the name NOT_A_NAME_AT_ALL/)).toBeVisible();
+  await page.getByRole("radio", { name: "A gene → its names" }).click();
+  await expect(page).toHaveURL(/ask=names/);
   await expect(page.getByRole("alert")).toContainText("unknown_identifier");
   await shot(page, info, "24-names-empty-and-error");
 });

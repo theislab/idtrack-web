@@ -15,6 +15,7 @@ import { navigate } from "../lib/router";
 import { prose } from "../lib/values";
 import { statusTitle } from "../lib/vocabulary";
 import { useVocabulary } from "../lib/vocabularyContext";
+import { Hint } from "./v2/HoverCard";
 
 export function Button({
   variant = "secondary",
@@ -73,7 +74,9 @@ interface FieldProps {
   className?: string;
 }
 
-/** A labelled control with its explanation under it (always visible: a control is never explained by hover alone). */
+/** A labelled control. Its explanation is a hover card on an (i) beside the label (on pointing, focus or a press;
+ *  DIRECTION.md, rule 5), and the control's description, so a screen reader reads it with the control; an error is
+ *  said under the control, always shown. */
 export function Field({ label, hint, error, children, className = "" }: FieldProps) {
   const id = useId();
   const hintId = hint ? `${id}-hint` : undefined;
@@ -81,18 +84,16 @@ export function Field({ label, hint, error, children, className = "" }: FieldPro
   const describedBy = [errorId, hintId].filter(Boolean).join(" ") || undefined;
   return (
     <div className={`field ${error ? "field--error" : ""} ${className}`}>
-      <label className="field__label" htmlFor={id}>
-        {label}
-      </label>
+      <span className="field__head">
+        <label className="field__label" htmlFor={id}>
+          {label}
+        </label>
+        {hint && hintId ? <Hint descriptionId={hintId}>{hint}</Hint> : null}
+      </span>
       {children({ id, describedBy })}
       {error ? (
         <p className="field__error" id={errorId}>
           {error}
-        </p>
-      ) : null}
-      {hint ? (
-        <p className="field__hint" id={hintId}>
-          {hint}
         </p>
       ) : null}
     </div>
@@ -149,17 +150,15 @@ export function Switch({
           onChange(event.target.checked);
         }}
       />
-      <label htmlFor={id} className="switch__label">
-        <span className="switch__track" aria-hidden="true">
-          <span className="switch__thumb" />
-        </span>
-        {label}
-      </label>
-      {hint ? (
-        <p className="field__hint switch__hint" id={`${id}-hint`}>
-          {hint}
-        </p>
-      ) : null}
+      <span className="switch__head">
+        <label htmlFor={id} className="switch__label">
+          <span className="switch__track" aria-hidden="true">
+            <span className="switch__thumb" />
+          </span>
+          {label}
+        </label>
+        {hint ? <Hint descriptionId={`${id}-hint`}>{hint}</Hint> : null}
+      </span>
     </div>
   );
 }

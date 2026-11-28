@@ -24,7 +24,7 @@ import { FigurePanel } from "./ResultParts";
 import { Details, GenePlaces, OtherReadings, ReadingPanel } from "./ResultReading";
 import type { IdContext } from "./IdMenu";
 import { Button, CopyButton, Prose } from "./ui";
-import { CaptionMore } from "./home/CaptionMore";
+import { CaptionMore } from "./v2/CaptionMore";
 import { EvidenceCard, EvidenceGlyph } from "./Evidence";
 import { Expandable } from "./v2/Expandable";
 import { Segmented } from "./v2/Segmented";

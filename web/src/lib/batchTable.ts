@@ -16,13 +16,13 @@ export function statusCounts(results: readonly ConversionResult[], order: readon
   return [...known, ...other];
 }
 
-/** The prefixes of a match as idtrack writes it (`copy:exact` -> `["copy"]`). */
+/** The prefixes of a match as IDTrack writes it (`copy:exact` -> `["copy"]`). */
 export function matchPrefixes(match: string | null): string[] {
   if (!match) return [];
   return match.split(":").slice(0, -1);
 }
 
-/** The result was answered as a copy of another item of the batch (its match carries idtrack's prefix `copy`). */
+/** The result was answered as a copy of another item of the batch (its match carries IDTrack's prefix `copy`). */
 export function isCopy(result: ConversionResult): boolean {
   return matchPrefixes(result.match).includes("copy");
 }
@@ -89,7 +89,7 @@ export interface BatchRow {
   /** The Ensembl genes of the best answer at the target release, each once (for `no_target`, the genes reached). */
   genes: string[];
   read: ReadKind;
-  /** The place of the deciding criterion in idtrack's order (from 0), or null without a runner-up. */
+  /** The place of the deciding criterion in IDTrack's order (from 0), or null without a runner-up. */
   decided: number | null;
   evidence: EvidenceMark[];
   /** Some mark of the evidence is a caution. */
@@ -125,7 +125,7 @@ export interface Crossed {
 /** An Ensembl stable id without its version (`ENSG00000141510.5` -> `ENSG00000141510`). */
 const stableId = (id: string | null) => (id ? (/^(.+)\.\d+$/.exec(id)?.[1] ?? id) : id);
 
-/** The kind of a history step by its reason (idtrack's `step_reasons`): a new version of the same stable id, another
+/** The kind of a history step by its reason (IDTrack's `step_reasons`): a new version of the same stable id, another
  *  id (a replacement), a split, a merge (a split and merge at once counts as both), a re-mapping of a gene to itself. */
 function historyKinds(step: PathStep): CrossedEvent["kind"][] {
   if (step.kind === "self_loop") return ["remap"];
@@ -319,7 +319,7 @@ export interface RowFilter {
   text?: string;
 }
 
-/** A row read elsewhere than the release given, or (none given) at a release idtrack inferred. */
+/** A row read elsewhere than the release given, or (none given) at a release IDTrack inferred. */
 function readElsewhere(row: BatchRow): boolean {
   const how = releaseHow(row.result);
   return how === "fallback" || how === "inferred";
@@ -408,7 +408,7 @@ export interface BatchSummary {
   shared: { answers: number; rows: number };
   /** Read elsewhere than the release given. */
   fallback: number;
-  /** Read at a release idtrack inferred. */
+  /** Read at a release IDTrack inferred. */
   inferred: number;
   dates: number;
   copies: number;
@@ -549,7 +549,7 @@ const STEP_WORDS: Record<string, string> = {
   version_not_judged: "version not judged",
 };
 
-/** A part of a match (a prefix or the step, idtrack's codes) in a few words; the code, spaced, where none is set. */
+/** A part of a match (a prefix or the step, IDTrack's codes) in a few words; the code, spaced, where none is set. */
 export function matchLabel(code: string, role: "prefix" | "step"): string {
   return (role === "prefix" ? PREFIX_WORDS[code] : STEP_WORDS[code]) ?? code.replace(/_/g, " ");
 }

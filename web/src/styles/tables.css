@@ -2,40 +2,15 @@
    statuses' bar, the counts, the releases read at, the results table) and the names' lanes on a release axis. Colours
    are the tokens' only: the states' inks for the statuses, the ink scale for everything else. */
 
-/* ---- Shared: panel heads, captions, release scale and lanes ---------------------------------------------------- */
-
-/* A lettered panel's head, as the answer's: the letter, the title in the section's tier, a rule under both. */
-.panel-head {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: var(--space-2) var(--space-3);
-  margin-bottom: var(--space-5);
-  padding-bottom: var(--space-3);
-  border-bottom: 1px solid var(--line);
-}
-
-.panel-head .panel-letter {
-  font-size: var(--text-lg);
-  line-height: 1;
-  letter-spacing: -0.01em;
-}
-
-.batch-panel__aside {
-  margin-left: auto;
-  font-size: var(--text-sm);
-  color: var(--ink-3);
-}
+/* ---- Shared: captions, release scale and lanes ---------------------------------------------------------------- */
 
 .fig-caption .mono {
   color: var(--ink-1);
 }
 
 .setting__label {
-  font-family: var(--font-mono);
-  font-size: var(--text-2xs);
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
+  font-family: var(--font-sans);
+  font-size: var(--text-xs);
   color: var(--ink-3);
 }
 
@@ -220,9 +195,8 @@
 
 .batch-form {
   display: grid;
-  grid-template-columns: minmax(0, 1.45fr) minmax(280px, 1fr);
-  gap: var(--space-5) var(--space-7);
-  align-items: start;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-4);
 }
 
 .batch-form__list {
@@ -232,7 +206,7 @@
 }
 
 .batch-form__textarea {
-  min-height: 300px;
+  min-height: 188px;
   font-size: var(--text-sm);
   line-height: 1.6;
   background:
@@ -240,10 +214,19 @@
     var(--surface);
 }
 
+/* Under the list: its count against the server's bound (a thin gauge), and the way to upload a file. */
+.batch-form__under {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  margin-top: -2px;
+}
+
 .batch-form__meter {
+  flex: 1;
   display: grid;
   gap: 6px;
-  margin-top: -2px;
+  min-width: 0;
 }
 
 .batch-form__count {
@@ -280,31 +263,20 @@
 }
 
 .batch-form__file {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  flex-wrap: wrap;
+  flex: none;
   font-size: var(--text-sm);
 }
 
+/* The setting, folded under one line that says it (an expandable row). */
+.batch-form__setting {
+  border-top: 1px solid var(--line);
+}
+
 .batch-form__settings {
-  border: 0;
-  margin: 0;
-  padding: 0 0 0 var(--space-6);
-  border-left: 1px solid var(--line);
   display: grid;
   gap: var(--space-4);
   min-width: 0;
-}
-
-.batch-form__legend {
-  padding: 0;
-  margin-bottom: var(--space-4);
-  font-family: var(--font-mono);
-  font-size: var(--text-2xs);
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
-  color: var(--ink-3);
+  max-width: 760px;
 }
 
 .batch-form__pair {
@@ -314,13 +286,10 @@
 }
 
 .batch-form__actions {
-  grid-column: 1 / -1;
   display: flex;
   align-items: center;
   justify-content: flex-end;
   gap: var(--space-4);
-  padding-top: var(--space-4);
-  border-top: 1px solid var(--line);
 }
 
 .batch-form__actions .button--primary {
@@ -333,11 +302,11 @@
 }
 
 /* Before a list: what the answer will hold, as the figure's panels. */
+
+/* Before a list: one quiet line of what will appear. */
 .batch-empty {
-  padding: var(--space-6) var(--space-6) var(--space-5);
-  border: 1px dashed var(--line-strong);
-  border-radius: var(--radius-lg);
-  background: var(--surface);
+  padding: var(--space-5) 0;
+  border-top: 1px solid var(--line);
 }
 
 /* ---- Batch: the figure ---------------------------------------------------------------------------------------- */
@@ -348,24 +317,24 @@
 }
 
 .batch-figure-head {
-  align-items: flex-end;
-  padding-bottom: var(--space-4);
-  border-bottom: 1px solid var(--line-strong);
   display: grid;
   gap: var(--space-2);
 }
 
-.batch-figure-head > div:first-child {
-  display: grid;
-  gap: var(--space-2);
-  min-width: 0;
+.batch-figure-head__top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3) var(--space-5);
+}
+
+.batch-figure-head__top h2:focus {
+  outline: none;
 }
 
 .batch-figure-head__line {
   margin: 0;
-  font-size: var(--text-lg);
-  font-weight: var(--weight-medium);
-  color: var(--ink-1);
 }
 
 .batch-figure-head__distinct {
@@ -377,13 +346,20 @@
 .batch-figure-head__setting {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--space-1) var(--space-5);
+  gap: var(--space-1) var(--space-4);
+  margin: 0;
   font-size: var(--text-sm);
   color: var(--ink-2);
 }
 
-.batch-panel {
-  min-width: 0;
+/* The summary: the statuses' bar and key, then how the batch was answered, folded. */
+.batch-summary {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.batch-tabs {
+  scroll-margin-top: calc(var(--masthead-height) + var(--space-4));
 }
 
 /* The statuses: one bar, each segment as wide as its count; fills from the states' inks, a hatch where a status
@@ -455,19 +431,23 @@
 }
 
 /* The key of the statuses: each status present, its count and the api's meaning, in plain sight. */
+
+/* The key of the statuses: each status present, its count and its name, whose card gives the api's meaning. */
 .slegend {
   list-style: none;
   margin: var(--space-3) 0 0;
   padding: 0;
-  display: grid;
-  grid-template-columns: 12px max-content max-content minmax(0, 1fr);
+  display: flex;
+  flex-wrap: wrap;
   align-items: baseline;
-  gap: var(--space-2) var(--space-4);
+  gap: var(--space-2) var(--space-6);
 }
 
 .slegend__item {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--space-2);
   font-size: var(--text-sm);
-  display: contents;
 }
 
 .slegend__swatch,
@@ -478,17 +458,20 @@
   flex: none;
 }
 
-.slegend__name {
+.slegend__term {
+  padding: 0;
+  border: 0;
+  background: none;
   font-weight: var(--weight-medium);
+  text-decoration: underline dotted var(--line-strong);
+  text-underline-offset: 3px;
 }
 
 .slegend__count {
-  font-size: var(--text-xl);
+  font-size: var(--text-lg);
   font-weight: var(--weight-medium);
   line-height: 1.1;
-  letter-spacing: -0.02em;
   color: var(--ink-1);
-  text-align: right;
   font-variant-numeric: tabular-nums slashed-zero;
 }
 
@@ -867,10 +850,8 @@ th[aria-sort] .sort__mark {
 }
 
 .fact__label {
-  font-family: var(--font-mono);
-  font-size: var(--text-2xs);
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
+  font-family: var(--font-sans);
+  font-size: var(--text-xs);
   color: var(--ink-3);
 }
 
@@ -918,11 +899,6 @@ th[aria-sort] .sort__mark {
 
 /* ---- Names ---------------------------------------------------------------------------------------------------- */
 
-.names-stack {
-  display: grid;
-  gap: var(--space-6);
-}
-
 .names-panel {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
@@ -930,15 +906,27 @@ th[aria-sort] .sort__mark {
   min-width: 0;
 }
 
-.names-panel .panel-head {
-  margin-bottom: 0;
+/* The two questions: one shown, chosen above its form; what it answers a press away. */
+.names-choice {
+  justify-self: start;
+}
+
+.names-view {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-4);
+  min-width: 0;
+  animation: v2-rise var(--dur-2) var(--ease-out);
+}
+
+.names-about {
+  border-bottom: 0;
 }
 
 .names-panel__intro {
   color: var(--ink-2);
   font-size: var(--text-sm);
-  max-width: 80ch;
-  margin-top: calc(-1 * var(--space-2));
+  max-width: var(--measure);
 }
 
 .names-form {
@@ -946,14 +934,10 @@ th[aria-sort] .sort__mark {
   grid-template-columns: minmax(220px, 1.4fr) minmax(200px, 1fr) auto;
   align-items: start;
   gap: var(--space-4);
-  padding: var(--space-4);
-  background: var(--surface-sunk);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
 }
 
 .names-form__submit {
-  padding-top: 22px;
+  padding-top: 27px;
 }
 
 .names-figure {
@@ -1035,10 +1019,8 @@ th[aria-sort] .sort__mark {
 
 .names-lane-head__title {
   display: block;
-  font-size: var(--text-2xs);
+  font-size: var(--text-xs);
   font-weight: var(--weight-strong);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
   margin-bottom: 4px;
 }
 
@@ -1170,15 +1152,12 @@ th[aria-sort] .sort__mark {
   flex-wrap: wrap;
   align-items: center;
   gap: var(--space-2) var(--space-3);
-  padding: var(--space-3) 0;
   margin-bottom: var(--space-3);
-  border-top: 1px solid var(--line);
-  border-bottom: 1px solid var(--line);
 }
 
 .batch-names__label {
   font-size: var(--text-sm);
-  font-weight: var(--weight-strong);
+  font-weight: var(--weight-medium);
   color: var(--ink-2);
 }
 
@@ -1188,12 +1167,15 @@ th[aria-sort] .sort__mark {
   max-width: 100%;
 }
 
-.batch-names__hint {
-  flex-basis: 100%;
-  margin: 0;
+.batch-names__select .select__control {
+  min-height: 36px;
+  padding-block: 6px;
+  font-size: var(--text-sm);
+}
+
+.batch-names__state {
   font-size: var(--text-xs);
-  color: var(--ink-3);
-  max-width: var(--measure-caption);
+  color: var(--ink-2);
 }
 
 .link-button {
@@ -1217,10 +1199,8 @@ th[aria-sort] .sort__mark {
 
 .batch-tools__group-label {
   flex: 0 0 8.5em;
-  font-family: var(--font-mono);
-  font-size: var(--text-2xs);
-  text-transform: uppercase;
-  letter-spacing: var(--track-label);
+  font-family: var(--font-sans);
+  font-size: var(--text-xs);
   color: var(--ink-3);
 }
 
@@ -1427,10 +1407,8 @@ th[aria-sort] .sort__mark {
 }
 
 .names-today__label {
-  font-family: var(--font-mono);
-  font-size: var(--text-2xs);
-  text-transform: uppercase;
-  letter-spacing: var(--track-label);
+  font-family: var(--font-sans);
+  font-size: var(--text-xs);
   color: var(--ink-3);
 }
 
@@ -1487,11 +1465,6 @@ th[aria-sort] .sort__mark {
   color: var(--ink-3);
 }
 
-.batch-figure-head__jump {
-  margin-left: 0;
-  font-size: var(--text-xs);
-}
-
 .batch-figure-head__meta .toggletip__term,
 .batch-figure-head__setting .toggletip__term {
   font: inherit;
@@ -1504,13 +1477,6 @@ th[aria-sort] .sort__mark {
 
 .slegend__swatch {
   align-self: baseline;
-}
-
-.slegend__meaning {
-  max-width: var(--measure-caption);
-  font-size: var(--text-xs);
-  line-height: var(--leading-caption);
-  color: var(--ink-2);
 }
 
 /* Panel c: where the identifiers were read and where their paths stepped, beside what the paths crossed. */
@@ -1720,35 +1686,36 @@ th[aria-sort] .sort__mark {
 
 .batch-detail__decision-label {
   display: block;
-  font-family: var(--font-mono);
-  font-size: var(--text-2xs);
-  text-transform: uppercase;
-  letter-spacing: var(--track-label);
+  font-family: var(--font-sans);
+  font-size: var(--text-xs);
   color: var(--ink-3);
 }
 
 /* Panel d: each file, its button and what it holds. */
-.batch-downloads:focus {
-  outline: none;
+
+/* The drawer of the files and the citation. */
+.batch-downloads {
+  display: grid;
+  gap: var(--space-5);
 }
 
-.batch-downloads:focus-visible {
-  outline: var(--focus-width) solid var(--focus-color);
-  outline-offset: var(--focus-offset);
+.batch-downloads .files {
+  grid-template-columns: minmax(0, 1fr);
 }
 
 /* The form: the examples, each a set of the Convert page's first figure with its settings. */
+
+/* The form: the examples, chips of the Convert page's sets (their identifiers and settings in each chip's card). */
 .batch-examples {
-  display: grid;
-  gap: var(--space-2);
-  margin-top: var(--space-4);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
 }
 
 .batch-examples__label {
-  font-family: var(--font-mono);
-  font-size: var(--text-2xs);
-  text-transform: uppercase;
-  letter-spacing: var(--track-label);
+  font-family: var(--font-sans);
+  font-size: var(--text-xs);
   color: var(--ink-3);
 }
 
@@ -1756,32 +1723,20 @@ th[aria-sort] .sort__mark {
   list-style: none;
   margin: 0;
   padding: 0;
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 19rem), 1fr));
-  gap: var(--space-2);
-}
-
-.batch-examples__set {
-  width: 100%;
-  height: 100%;
-  min-height: 44px;
-  align-content: center;
-  white-space: normal;
-  text-align: left;
-  border-radius: var(--radius);
-  padding: 5px var(--space-3);
-  gap: var(--space-2);
+  display: flex;
   flex-wrap: wrap;
-  row-gap: 0;
+  gap: var(--space-2);
 }
 
-.batch-examples__count {
-  font-weight: var(--weight-strong);
-  color: var(--ink-1);
+.batch-examples__card .hovercard__card {
+  display: grid;
+  gap: var(--space-1);
+  min-width: 260px;
 }
 
 .batch-examples__first {
   color: var(--ink-1);
+  overflow-wrap: anywhere;
 }
 
 .batch-examples__words {
@@ -1790,7 +1745,13 @@ th[aria-sort] .sort__mark {
 }
 
 .batch-form__file-note {
+  margin: 0;
   font-size: var(--text-xs);
+  color: var(--ink-2);
+}
+
+.batch-form__file-note:empty {
+  display: none;
 }
 
 /* Another organism's batch under way or done, said where the person is. */
@@ -1821,46 +1782,8 @@ th[aria-sort] .sort__mark {
 }
 
 .batch-empty__lede {
-  margin: 0 0 var(--space-4);
-  max-width: var(--measure);
-  color: var(--ink-2);
-}
-
-.batch-empty__parts {
-  list-style: none;
   margin: 0;
-  padding: 0;
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: var(--space-4);
-}
-
-.batch-empty__parts > li {
-  display: flex;
-  gap: var(--space-3);
-  align-items: baseline;
-  padding-top: var(--space-3);
-  border-top: 1px solid var(--line-strong);
-}
-
-.batch-empty__part {
-  display: grid;
-  gap: 2px;
-}
-
-.batch-empty__name {
-  font-weight: var(--weight-strong);
-  color: var(--ink-1);
-}
-
-.batch-empty__what {
-  font-size: var(--text-xs);
-  line-height: var(--leading-caption);
-  color: var(--ink-3);
-}
-
-.batch-empty__foot {
-  margin: var(--space-5) 0 0;
+  max-width: var(--measure);
   font-size: var(--text-sm);
   color: var(--ink-2);
 }
@@ -1868,10 +1791,6 @@ th[aria-sort] .sort__mark {
 @media (max-width: 1100px) {
   .batch-releases {
     grid-template-columns: minmax(0, 1fr);
-  }
-
-  .batch-empty__parts {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
@@ -1881,26 +1800,12 @@ th[aria-sort] .sort__mark {
   }
 
   .slegend {
-    grid-template-columns: 12px max-content minmax(0, 1fr);
-    column-gap: var(--space-3);
-  }
-
-  .slegend__meaning {
-    grid-column: 2 / 4;
-    margin-bottom: var(--space-1);
+    column-gap: var(--space-4);
   }
 
   .count {
     grid-template-columns: 3.5ch minmax(0, 1fr) auto;
     column-gap: var(--space-3);
-  }
-
-  .batch-empty {
-    padding: var(--space-5) var(--space-4);
-  }
-
-  .batch-empty__parts {
-    grid-template-columns: minmax(0, 1fr);
   }
 
   .crossed {
@@ -1915,14 +1820,8 @@ th[aria-sort] .sort__mark {
 /* ---- Narrow screens ------------------------------------------------------------------------------------------- */
 
 @media (max-width: 900px) {
-  .batch-form {
+  .batch-form__pair {
     grid-template-columns: minmax(0, 1fr);
-  }
-
-  .batch-form__settings {
-    padding: var(--space-5) 0 0;
-    border-left: 0;
-    border-top: 1px solid var(--line);
   }
 
   .names-form {
@@ -2020,10 +1919,8 @@ th[aria-sort] .sort__mark {
     position: static;
     width: auto;
     grid-row: 1 / span 9;
-    font-family: var(--font-mono);
-    font-size: var(--text-2xs);
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
+    font-family: var(--font-sans);
+    font-size: var(--text-xs);
     color: var(--ink-3);
   }
 
@@ -2418,10 +2315,8 @@ th[aria-sort] .sort__mark {
 }
 
 .counts__none-label {
-  font-family: var(--font-mono);
-  font-size: var(--text-2xs);
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
+  font-family: var(--font-sans);
+  font-size: var(--text-xs);
   margin-right: var(--space-2);
 }
 
@@ -2490,10 +2385,8 @@ th[aria-sort] .sort__mark {
 }
 
 .file__kind {
-  font-family: var(--font-mono);
-  font-size: var(--text-2xs);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
+  font-family: var(--font-sans);
+  font-size: var(--text-xs);
   color: var(--ink-3);
 }
 
@@ -2725,9 +2618,4 @@ th[aria-sort] .sort__mark {
 
 .names-examples:empty {
   min-height: 34px;
-}
-
-/* A panel's heading takes the focus by script when the answer comes (it is no control): no ring. */
-.batch-panel .panel-head__title:focus {
-  outline: none;
 }

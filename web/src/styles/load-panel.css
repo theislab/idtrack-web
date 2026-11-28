@@ -1,83 +1,27 @@
 /* The panel "Server load" (LoadPanel.tsx, loaded on the monitor's first open, with this stylesheet): its sections,
    charts, processes, latency strip and exact values. The masthead's reading is styled in load.css. */
 
-/* ---- The panel ------------------------------------------------------------------------------------------------ */
+/* ---- The panel: a drawer (v2.css), a little wider than the default for its charts and table of processes ---- */
 
-.load-panel {
-  position: fixed;
-  inset: calc(var(--masthead-height) + var(--space-2))
-    max(var(--space-4), calc((100vw - var(--content)) / 2 + var(--space-5))) auto auto;
-  margin: 0;
-  padding: 0;
-  width: min(820px, calc(100vw - 2 * var(--space-4)));
-  max-height: calc(100vh - var(--masthead-height) - var(--space-5));
-  max-height: calc(100dvh - var(--masthead-height) - var(--space-5));
-  overflow: auto;
-  overscroll-behavior: contain;
-  background: var(--surface-raised);
-  color: var(--ink-1);
-  border: 1px solid var(--line-strong);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-pop);
-}
-
-.load-panel::backdrop {
-  background: rgb(14 17 22 / 10%);
-}
-
-:root[data-theme="dark"] .load-panel::backdrop {
-  background: rgb(0 0 0 / 40%);
+.drawer.load-panel {
+  width: min(680px, 100vw);
 }
 
 .load-panel__body {
-  padding: var(--space-5) var(--space-5) var(--space-5);
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   gap: var(--space-5);
 }
 
-.load-panel__head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: var(--space-4);
-}
-
-.load-panel__head .eyebrow a {
+/* The endpoint under the title is code: shown exactly as written. */
+.load-panel__source {
+  font-family: var(--font-mono);
+  font-size-adjust: var(--mono-fit);
   color: inherit;
 }
 
-/* An address in an eyebrow is code: shown exactly as written, never uppercased. */
-.eyebrow__code {
-  font-family: var(--font-mono);
-  text-transform: none;
-  letter-spacing: 0;
-}
-
-.load-panel__title {
-  margin-top: 2px;
-}
-
-.load-panel__close {
-  display: inline-grid;
-  place-items: center;
-  width: 32px;
-  height: 32px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  background: var(--surface);
-  color: var(--ink-2);
-  cursor: pointer;
-}
-
-.load-panel__close:hover {
-  color: var(--ink-1);
-  border-color: var(--ink-3);
-}
-
-.load-panel__close svg {
-  width: 14px;
-  height: 14px;
+.load-panel__expand {
+  border-bottom: 0;
 }
 
 .load-panel__state {
@@ -214,10 +158,8 @@
 }
 
 .load-stat__label {
-  font-family: var(--font-mono);
-  font-size: var(--text-2xs);
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
+  font-family: var(--font-sans);
+  font-size: var(--text-xs);
   color: var(--ink-3);
 }
 
@@ -495,33 +437,8 @@
   height: 28px;
 }
 
-/* A phone: the panel is a sheet from the bottom. */
+/* A phone: the drawer is a sheet from the bottom (v2.css). */
 @media (max-width: 640px) {
-  .load-panel {
-    inset: auto 0 0;
-    width: 100%;
-    max-width: 100%;
-    max-height: 88vh;
-    max-height: 88dvh;
-    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
-    border-bottom: 0;
-  }
-
-  .load-panel__body {
-    padding: var(--space-4);
-  }
-
-  /* The sheet's title and close button stay in reach while it scrolls. */
-  .load-panel__head {
-    position: sticky;
-    top: calc(-1 * var(--space-4));
-    z-index: 1;
-    margin: calc(-1 * var(--space-4)) calc(-1 * var(--space-4)) 0;
-    padding: var(--space-4) var(--space-4) var(--space-3);
-    background: var(--surface-raised);
-    border-bottom: 1px solid var(--line);
-  }
-
   .load-balance {
     grid-template-columns: auto 48px 4ch;
   }

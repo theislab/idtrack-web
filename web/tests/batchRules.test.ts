@@ -155,7 +155,7 @@ describe("the files of a batch", () => {
     });
     expect(sentence).toContain("3 gene identifiers of Homo sapiens were converted from Ensembl release 67 to");
     expect(sentence).toContain("Ensembl release 115");
-    expect(sentence).toContain("idtrack 0.1.2");
+    expect(sentence).toContain("IDTrack 0.1.2");
     expect(sentence).toContain("on 2026-11-27");
     expect(sentence).toContain("converted 2, no_conversion 1.");
   });

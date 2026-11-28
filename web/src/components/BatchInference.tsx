@@ -1,4 +1,4 @@
-// Where a list comes from, before it is converted: idtrack's source inference of the pasted identifiers (`POST
+// Where a list comes from, before it is converted: IDTrack's source inference of the pasted identifiers (`POST
 // …/source-inference`, mode `release`), drawn as a column per release of the graph (as tall as the distinct
 // identifiers found there) on the release axis with the assemblies behind, the band of releases the list cannot tell
 // apart from the best in ink, the best named, and a button that reads the list at the best release. The assemblies'

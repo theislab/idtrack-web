@@ -40,7 +40,7 @@ describe("the type system", () => {
       .split(",")
       .map((s) => s.trim())
       .filter((s) => s && s !== "h2");
-    expect(selectors.length).toBeGreaterThan(8);
+    expect(selectors.length).toBeGreaterThanOrEqual(7);
     for (const { name, text } of sheets.filter((s) => s.name !== "app.css")) {
       for (const rule of rules(text)) {
         const parts = rule.selector.split(",").map((s) => s.trim());

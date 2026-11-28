@@ -1,6 +1,6 @@
 // What a batch's exports carry beside the api's own bytes: a table of one row per identifier made from the answer
 // shown (the person's own columns kept when a table was pasted), as TSV or CSV, and the provenance of the answer (the
-// organism, the versions and commits of the api and idtrack, the graph's content digest, the request as sent and as
+// organism, the versions and commits of the api and IDTrack, the graph's content digest, the request as sent and as
 // the server resolved it, every other request whose answers the table holds, the times), as JSON and as a methods
 // sentence. The api's JSON and TSV are saved as they came and never changed; these files say where they came from.
 // Every code a file writes is defined in it: the api's codes by the vocabulary (`GET /api/v1/vocabulary`), the
@@ -20,14 +20,14 @@ export interface BatchSource {
   column: number;
   /** For each identifier sent, in order: its line of the list (from 1) and every cell of that line. */
   rows: { line: number; cells: string[] }[];
-  /** The release read at, as idtrack's source inference of the list gave it (`POST …/source-inference`). */
+  /** The release read at, as IDTrack's source inference of the list gave it (`POST …/source-inference`). */
   inferred?: InferredRelease | null;
   /** Where each different identifier was sent once (a list over the server's bound by its repeats alone): for each
    *  place of the list, the index of its identifier among those sent. */
   places?: number[] | null;
 }
 
-/** The release of a list from idtrack's source inference: the best release, the band of releases the list cannot
+/** The release of a list from IDTrack's source inference: the best release, the band of releases the list cannot
  *  tell apart from it, the margin, and the request that gave it. */
 export interface InferredRelease {
   release: number;
@@ -85,7 +85,7 @@ export interface BatchProvenance {
   tsv: { request_id: string | null; server_timing: string | null; answered_at: string } | null;
   /** The other requests whose answers the table holds: the names beside the genes, what retired identifiers were. */
   other_requests: OtherRequest[];
-  /** The release read at, where the person took it from idtrack's source inference of the list. */
+  /** The release read at, where the person took it from IDTrack's source inference of the list. */
   source_inference: InferredRelease | null;
   source: string;
   exported_at: string;
@@ -123,7 +123,7 @@ export function batchProvenance({
 }): BatchProvenance {
   return {
     about:
-      "The provenance of a batch conversion of idtrack's web app: the server, the graph and the requests that gave the answer.",
+      "The provenance of a batch conversion of IDTrack's web app: the server, the graph and the requests that gave the answer.",
     organism: description.organism,
     api_version: version?.api_version ?? null,
     idtrack_version: version?.idtrack_version ?? null,
@@ -287,7 +287,7 @@ export function rowTable(
     `# answer request id ${provenance.answer.request_id ?? "none"}; answered ${provenance.answer.answered_at ?? "at an unknown time"}; exported ${provenance.exported_at}`,
     ...(provenance.source_inference
       ? [
-          `# from_release ${String(provenance.source_inference.release)} as idtrack's source inference of the list gave it (POST /api/v1/organisms/${provenance.organism}/source-inference, request id ${provenance.source_inference.requestId ?? "none"}): releases ${provenance.source_inference.band.join(",")} cannot be told apart from it`,
+          `# from_release ${String(provenance.source_inference.release)} as IDTrack's source inference of the list gave it (POST /api/v1/organisms/${provenance.organism}/source-inference, request id ${provenance.source_inference.requestId ?? "none"}): releases ${provenance.source_inference.band.join(",")} cannot be told apart from it`,
         ]
       : []),
     ...provenance.other_requests.map(
@@ -312,7 +312,7 @@ export function rowTable(
 }
 
 /** The sentence of a methods section that says what the batch did, written from the run: the number of identifiers and
- *  the organism, the releases, the database, the settings, idtrack's and the api's versions, the graph's digest, the
+ *  the organism, the releases, the database, the settings, IDTrack's and the api's versions, the graph's digest, the
  *  date, and what came back. */
 export function methodsSentence({
   provenance,
@@ -331,12 +331,12 @@ export function methodsSentence({
   const n = body.identifiers.length;
   const from =
     body.from_release === null
-      ? "each read at the release idtrack inferred for it"
+      ? "each read at the release IDTrack inferred for it"
       : `from Ensembl release ${String(body.from_release)}`;
   const date = (provenance.answer.answered_at ?? provenance.exported_at).slice(0, 10);
   const digest = provenance.graph.content_digest ? provenance.graph.content_digest.slice(0, 12) : "unknown";
   const outcome = counts.map(([status, count]) => statusWords(status, count)).join(", ");
-  return `${String(n)} gene identifier${n === 1 ? "" : "s"} of ${organismName} were converted ${from} to Ensembl release ${String(provenance.request.resolved.to_release)} (${databaseWords}) with idtrack ${provenance.idtrack_version ?? "(version unknown)"} through its web server (api ${provenance.api_version ?? "unknown"}; graph content digest ${digest}; bridges ${body.allow_bridges ? "allowed" : "not allowed"}) on ${date}, with these statuses: ${outcome}.`;
+  return `${String(n)} gene identifier${n === 1 ? "" : "s"} of ${organismName} were converted ${from} to Ensembl release ${String(provenance.request.resolved.to_release)} (${databaseWords}) with IDTrack ${provenance.idtrack_version ?? "(version unknown)"} through its web server (api ${provenance.api_version ?? "unknown"}; graph content digest ${digest}; bridges ${body.allow_bridges ? "allowed" : "not allowed"}) on ${date}, with these statuses: ${outcome}.`;
 }
 
 /** A database's name as a part of a column's name: letters and digits, the rest as `_`. */

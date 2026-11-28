@@ -1,11 +1,11 @@
-// The release a list comes from, as idtrack's source inference reads it (`POST …/source-inference`, mode `release`):
+// The release a list comes from, as IDTrack's source inference reads it (`POST …/source-inference`, mode `release`):
 // every release with the number of the list's distinct identifiers found there, the best release (where most are
-// found), the band of releases the list cannot tell apart from the best (idtrack's one-sided sign test) and the margin
+// found), the band of releases the list cannot tell apart from the best (IDTrack's one-sided sign test) and the margin
 // (the best count minus the best count outside the band). Read from the api's answer alone.
 import type { SourceInferenceResponse } from "../api/types";
 
 export interface ReleaseInference {
-  /** The best release first, then the rest of the band, as idtrack orders it. */
+  /** The best release first, then the rest of the band, as IDTrack orders it. */
   band: number[];
   margin: number | null;
   /** The count of distinct identifiers found at each release. */

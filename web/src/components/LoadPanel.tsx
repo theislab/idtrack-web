@@ -1,7 +1,8 @@
 // The panel "Server load" (loaded on the monitor's first open): the server's CPU and memory against what it may use,
 // every process, the requests and their latency, how each number is measured, and charts of this session's samples.
-// A modal dialog: focus moves into it, Tab stays in it, Escape or a click outside closes it and focus returns to the
-// monitor. A popover under the masthead on a wide screen, a sheet from the bottom on a phone.
+// A drawer (DIRECTION.md, "Load panel"): from the right on a wide screen, from the bottom on a phone; focus moves to
+// its title, Escape (after a shown value's tip), its close button or a press beside it closes it, and focus returns
+// to the monitor.
 import { useEffect, useId, useRef, useState, type KeyboardEvent, type PointerEvent } from "react";
 import type { StatusResponse } from "../api/types";
 import {
@@ -36,7 +37,9 @@ import type { LoadSnapshot } from "../lib/loadStore";
 import { groupedInteger } from "../lib/numbers";
 import { Exact } from "./Exact";
 import { useWidth } from "./figure/useWidth";
-import { Absent, Disclosure, Mono, TableFrame } from "./ui";
+import { Absent, Mono, TableFrame } from "./ui";
+import { Drawer } from "./v2/Drawer";
+import { Expandable } from "./v2/Expandable";
 import "../styles/load-panel.css";
 
 const CHART_H = 104;
@@ -482,32 +485,8 @@ export default function LoadPanel({
   /** How long the request of /status on its way has waited, while the reading is late. */
   lateSeconds: number;
 }) {
-  const dialog = useRef<HTMLDialogElement>(null);
-  const closeButton = useRef<HTMLButtonElement>(null);
-  const title = useRef<HTMLHeadingElement>(null);
+  const drawer = useRef<HTMLDivElement>(null);
   const titleId = useId();
-  useEffect(() => {
-    const element = dialog.current;
-    if (!element) return;
-    if (open && !element.open) {
-      element.showModal();
-      // Focus starts on the dialog's title (a reader hears what opened), not on the link above it.
-      title.current?.focus();
-    }
-    if (!open && element.open) element.close();
-  }, [open]);
-  useEffect(() => {
-    const element = dialog.current;
-    if (!element) return;
-    // A click on the backdrop lands on the dialog itself (its content fills the box): it closes the panel.
-    const onClick = (event: MouseEvent) => {
-      if (event.target === element) onClose();
-    };
-    element.addEventListener("click", onClick);
-    return () => {
-      element.removeEventListener("click", onClick);
-    };
-  }, [onClose]);
 
   const values = useRef<HTMLDivElement>(null);
   const active = useRef<Element | null>(null);
@@ -544,49 +523,29 @@ export default function LoadPanel({
   const memTop = niceTop(Math.max(1, (pssMax / 2 ** 30) * 1.25)) * 2 ** 30;
 
   return (
-    <dialog
-      ref={dialog}
+    <Drawer
       id={id}
+      open={open}
+      onClose={onClose}
       className="load-panel"
-      aria-labelledby={titleId}
-      onCancel={(event) => {
-        event.preventDefault();
+      title="Server load"
+      closeLabel="Close the server load"
+      subtitle={
+        <a href="/api/v1/status" className="load-panel__source">
+          GET /api/v1/status
+        </a>
+      }
+      onEscape={() => {
         // Escape hides an exact value's tip shown by pointing, focus or a press first (WCAG 1.4.13); the next closes.
-        const shown = dialog.current?.querySelector<HTMLElement>(
+        const shown = drawer.current?.querySelector<HTMLElement>(
           ".exact:is(:hover, :focus-visible, .exact--pinned):not(.exact--dismissed)",
         );
-        if (shown) {
-          dismissTip(shown);
-          return;
-        }
-        onClose();
+        if (!shown) return false;
+        dismissTip(shown);
+        return true;
       }}
     >
-      <div className="load-panel__body">
-        <div className="load-panel__head">
-          <div>
-            <p className="eyebrow">
-              <a href="/api/v1/status" className="eyebrow__code">
-                GET /api/v1/status
-              </a>
-            </p>
-            <h2 id={titleId} className="load-panel__title" ref={title} tabIndex={-1}>
-              Server load
-            </h2>
-          </div>
-          <button
-            ref={closeButton}
-            type="button"
-            className="load-panel__close"
-            onClick={onClose}
-            aria-label="Close the server load"
-          >
-            <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
-              <path d="M3.5 3.5l9 9M12.5 3.5l-9 9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-            </svg>
-          </button>
-        </div>
-
+      <div className="load-panel__body" ref={drawer}>
         <div className={`load-panel__state load-panel__state--${state}`}>
           <span className={`load-dot load-dot--${state}`} aria-hidden="true" />
           <div>
@@ -594,9 +553,9 @@ export default function LoadPanel({
               <strong>{STATE_WORDS[state]}.</strong> {STATE_SENTENCES[state]}
             </p>
             {/* The rule of every state, on demand: the numbers come first. */}
-            <Disclosure summary="How the state is judged">
+            <Expandable summary="How the state is judged" className="load-panel__expand">
               <p className="load-panel__rule">{STATE_RULE}</p>
-            </Disclosure>
+            </Expandable>
           </div>
         </div>
 
@@ -870,7 +829,7 @@ export default function LoadPanel({
               </p>
             ) : null}
 
-            <Disclosure summary="How this is measured">
+            <Expandable summary="How it is measured" className="load-panel__expand">
               <ul className="load-method">
                 <li>
                   Each worker writes its own facts into a table of shared memory made before the fork; a thread of each
@@ -899,13 +858,13 @@ export default function LoadPanel({
                   sample only.
                 </li>
               </ul>
-            </Disclosure>
-            <Disclosure summary="The answer as sent">
+            </Expandable>
+            <Expandable summary="The answer as sent" className="load-panel__expand">
               <pre className="raw load-raw">{latest?.raw}</pre>
-            </Disclosure>
+            </Expandable>
           </div>
         ) : null}
       </div>
-    </dialog>
+    </Drawer>
   );
 }

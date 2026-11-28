@@ -1,6 +1,7 @@
 // An expandable row (DIRECTION.md, "The disclosure components"): a summary on one line (what it is, and a quiet count
 // or word) that opens its body below with a height transition. A button with `aria-expanded`; the body a region
-// labelled by the summary, drawn only while open.
+// labelled by the summary, drawn only while open. With `expanded`, the page holds the state (a form opens its folded
+// settings where one of their values is refused).
 import { useId, useState, type ReactNode } from "react";
 
 export function Expandable({
@@ -9,6 +10,8 @@ export function Expandable({
   children,
   open: initial = false,
   className = "",
+  expanded,
+  onExpandedChange,
 }: {
   summary: ReactNode;
   /** A quiet count or word at the row's end ("3 bridges, 1 taken"). */
@@ -16,9 +19,13 @@ export function Expandable({
   children: ReactNode;
   open?: boolean;
   className?: string;
+  /** Open or folded, where the page holds the state (with `onExpandedChange`). */
+  expanded?: boolean;
+  onExpandedChange?: (open: boolean) => void;
 }) {
   const id = useId();
-  const [open, setOpen] = useState(initial);
+  const [own, setOwn] = useState(initial);
+  const open = expanded ?? own;
   return (
     <div className={`expandable${open ? " expandable--open" : ""} ${className}`}>
       <button
@@ -28,7 +35,8 @@ export function Expandable({
         aria-controls={`${id}-body`}
         id={`${id}-summary`}
         onClick={() => {
-          setOpen((o) => !o);
+          if (expanded === undefined) setOwn(!open);
+          onExpandedChange?.(!open);
         }}
       >
         <span className="expandable__chevron" aria-hidden="true" />

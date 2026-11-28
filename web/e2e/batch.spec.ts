@@ -1,7 +1,7 @@
 // The batch's behaviour as a person meets it: a failure says only what will happen (a batch that failed for want of
 // an answer is asked again when the connection returns), work started is never dropped by an organism switch, the
 // answer is kept for the session once (typing does not write it again), a row named in another row is reached by a
-// press, and a large insertion never holds the page.
+// press, and a large insertion never holds the page. The summary and the tabs of the results.
 import { expect, test } from "@playwright/test";
 import { data, expectAccessible, expectWholeAndTyped } from "./helpers";
 
@@ -206,19 +206,23 @@ test("an item read as another item's copy opens the path of that item, whose ans
   await expect(page.locator("main .status").first()).toContainText(word ?? "?");
 });
 
-test("panel a draws only the counts that hold rows; the others are one quiet line", async ({ page }) => {
+test("the summary draws only the counts that hold rows; the others are one quiet line", async ({ page }) => {
   await page.goto(`/batch?organism=${data.organism}`);
   await page.getByLabel("Identifiers", { exact: true }).fill(list());
   await page.getByRole("button", { name: /^Convert/ }).click();
+  // The answer's head is set in the section's tier, and takes the focus when the answer comes.
+  const head = page.locator("#batch-summary");
+  await expect(head).toBeFocused();
+  expect(await head.evaluate((e) => getComputedStyle(e).fontFamily)).toContain("Source Serif");
+  // The counts are one press away, under the statuses; the results are tabs (the table first).
+  await expect(page.locator(".counts")).toHaveCount(0);
+  await page.getByRole("button", { name: /^How the batch was answered/ }).click();
   await expect(page.locator(".counts")).toBeVisible();
   for (const value of await page.locator(".count__value .mono").allInnerTexts())
     expect(value === "…" || Number(value.replace(/\s/g, "")) > 0, `a drawn count is no zero: ${value}`).toBe(true);
-  // The lettered panels are set in the section's tier, as the answer's.
-  const faces = await page
-    .locator(".batch-panel h2.panel-head__title")
-    .evaluateAll((els) => [...new Set(els.map((e) => getComputedStyle(e).fontFamily))]);
-  expect(faces).toHaveLength(1);
-  expect(faces[0]).toContain("Source Serif");
+  await expect(page.getByRole("tab", { name: /^Table/ })).toHaveAttribute("aria-selected", "true");
+  await page.getByRole("tab", { name: "Through the releases" }).click();
+  await expect(page.getByRole("tabpanel")).toContainText("What the best paths crossed");
 });
 
 test("a table that fits its frame scrolls with the page, never in a box of its own", async ({ page }) => {

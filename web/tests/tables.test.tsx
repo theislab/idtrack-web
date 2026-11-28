@@ -203,8 +203,9 @@ describe("the batch's figure", () => {
         expect(rows()[i]?.textContent).toContain(r.query_id);
       });
       expect(screen.queryByText("Server time")).toBeNull();
+      const byStatus = screen.getByRole("group", { name: "Show the rows by status" });
       for (const [status, n] of statusCounts(results, order)) {
-        const chip = screen.getByRole("button", { name: new RegExp(`^${status.replace(/_/g, " ")}`, "i") });
+        const chip = within(byStatus).getByRole("button", { name: new RegExp(`^${status.replace(/_/g, " ")}`, "i") });
         fireEvent.click(chip);
         expect(rows()).toHaveLength(n);
         fireEvent.click(chip);
@@ -231,6 +232,8 @@ describe("the batch's figure", () => {
         />
       </VocabularyContext.Provider>,
     );
+    // The server's times are with the files and the provenance, in the drawer "Download and cite".
+    fireEvent.click(screen.getByRole("button", { name: "Download and cite" }));
     const time = screen.getByRole("button", { name: /^answered in 12\.5 ms on the server/ });
     expect(time.textContent).toBe("12.5\u00a0ms");
     fireEvent.click(time);

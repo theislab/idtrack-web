@@ -11,7 +11,7 @@ import { useRequest } from "../lib/useRequest";
 import { Bands, ReleaseTicks } from "./figure/axis";
 import { GeneBar, StepGlyph } from "./figure/glyphs";
 import { FigureCaption } from "./figure/Legend";
-import { CaptionMore } from "./home/CaptionMore";
+import { CaptionMore } from "./v2/CaptionMore";
 import { assemblyBands, releaseScale } from "./figure/releases";
 import { useWidth } from "./figure/useWidth";
 import { Mono } from "./ui";

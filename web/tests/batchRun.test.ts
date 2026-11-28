@@ -7,7 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ApiError, UnreachableError, type Answer } from "../src/api/client";
 import type { BatchRequest, BatchResponse, ConversionResult, NameMatch } from "../src/api/types";
 import { decodeFile } from "../src/lib/batchList";
-import { exampleSets, exampleWords } from "../src/lib/batchExamples";
+import { exampleKind, exampleSets, exampleWords } from "../src/lib/batchExamples";
 import { batchRun, resetBatchRuns, retryBatch, setBatchAsker, startBatch } from "../src/lib/batchRun";
 import { batchRows, crossedOf, eventsWords, filterRows, summaryOf } from "../src/lib/batchTable";
 import { useFocusMove } from "../src/lib/focus";
@@ -373,6 +373,16 @@ describe("the examples", () => {
       ["D", "E"],
     ]);
     expect(sets[0] ? exampleWords(sets[0], 115) : "").toBe("read at 50 · to 115 · in HGNC Symbol");
-    expect(sets[1] ? exampleWords(sets[1], 115) : "").toBe("read where idtrack infers · to 48 · as Ensembl genes");
+    expect(sets[1] ? exampleWords(sets[1], 115) : "").toBe("read where IDTrack infers · to 48 · as Ensembl genes");
+  });
+
+  it("names a set by the scheme of its identifiers, and a set of several schemes as identifiers", () => {
+    const set = (identifiers: string[]) => ({ identifiers, from: null, to: null, database: null });
+    expect(exampleKind(set(["TP53", "SEPT9"]))).toBe("2 names");
+    expect(exampleKind(set(["ENSG00000141510.5", "ENSG00000184640"]))).toBe("2 Ensembl gene ids");
+    expect(exampleKind(set(["ENSSSCG00000040723.1", "ENSSSCG00000000001"]))).toBe("2 Ensembl gene ids");
+    expect(exampleKind(set(["NM_000546.6", "NP_000537"]))).toBe("2 RefSeq accessions");
+    expect(exampleKind(set(["P04637", "Q9Y6K9"]))).toBe("2 UniProt accessions");
+    expect(exampleKind(set(["TP53", "NM_000546.6", "P04637"]))).toBe("3 identifiers");
   });
 });

@@ -18,6 +18,7 @@ import { BandBackdrop, LaneEnds, RangesText, ReleaseLane, ReleaseScale } from ".
 import { placeLabels, type PlacedLabel } from "./figure/labels";
 import { useWidth } from "./figure/useWidth";
 import { Button, Link, Mono, TableFrame, TextInput } from "./ui";
+import { CaptionMore } from "./v2/CaptionMore";
 
 /** Genes drawn at first, and how many more each press draws. */
 const PAGE = 12;
@@ -111,26 +112,35 @@ export function NameMatches({
         />
       )}
       <figcaption className="fig-caption">
-        {first === "gene" ? (
-          <>
-            One group per gene (an Ensembl id, in each of its versions), with what the databases of its names call it at
-            the graph&rsquo;s last release, <Mono>{description.snapshot_release}</Mono> (converted there by{" "}
-            <Mono>POST …/convert/batch</Mono>); under it one lane per database: the releases at which the database
-            attaches the name to the gene, every version on one lane (a tick where the version changes, the version
-            written above its segment where it has room), filled where the name is the database&rsquo;s name of the
-            gene, hatched where it is one of its synonyms. Where a database&rsquo;s name of the gene becomes a synonym,
-            a mark on the synonym&rsquo;s lane says from which release and what the database names the gene there (that
-            gene version converted into the database at that release). Beside each lane, each version&rsquo;s exact
-            releases (the first two, and the rest on a press).
-          </>
-        ) : (
-          <>
-            One row per attachment: the database attaches the name to the gene at the releases drawn (filled: the name
-            the database gives; hatched: one of its synonyms) and written beside the lane, every release included.
-          </>
-        )}{" "}
-        Behind the lanes, the assemblies that serve the releases; pointing at a lane names the first and last release of
-        each run on the scale. As idtrack lists them, from <Mono>{endpoint}</Mono>.
+        <CaptionMore
+          lead={
+            first === "gene" ? (
+              <>One group per gene, one lane per database: the releases at which it attaches the name to the gene.</>
+            ) : (
+              <>One row per attachment: the releases at which the database attaches the name to the gene.</>
+            )
+          }
+        >
+          {first === "gene" ? (
+            <>
+              Each group is an Ensembl id, in each of its versions, with what the databases of its names call it at the
+              graph&rsquo;s last release, <Mono>{description.snapshot_release}</Mono> (converted there by{" "}
+              <Mono>POST …/convert/batch</Mono>). Every version stands on its database&rsquo;s lane (a tick where the
+              version changes, the version written above its segment where it has room), filled where the name is the
+              database&rsquo;s name of the gene, hatched where it is one of its synonyms. Where a database&rsquo;s name
+              of the gene becomes a synonym, a mark on the synonym&rsquo;s lane says from which release and what the
+              database names the gene there (that gene version converted into the database at that release). Beside each
+              lane, each version&rsquo;s exact releases (the first two, and the rest on a press).
+            </>
+          ) : (
+            <>
+              Filled: the name the database gives; hatched: one of its synonyms; the releases are written beside the
+              lane, every release included.
+            </>
+          )}{" "}
+          Behind the lanes, the assemblies that serve the releases; pointing at a lane names the first and last release
+          of each run on the scale. As IDTrack lists them, from <Mono>{endpoint}</Mono>.
+        </CaptionMore>
       </figcaption>
     </figure>
   );
@@ -405,6 +415,7 @@ function GenesNamed({
                       to={href("/names", {
                         ...address,
                         organism,
+                        ask: "names",
                         gene: group.versions[group.versions.length - 1] ?? group.gene,
                         release: null,
                       })}
@@ -761,7 +772,7 @@ function NamesOf({
                   }}
                 >
                   <td data-label="Name" className="names-subject">
-                    <Link to={href("/names", { ...address, organism, name: m.name })}>
+                    <Link to={href("/names", { ...address, organism, name: m.name, ask: null })}>
                       <Mono>{m.name}</Mono>
                     </Link>
                   </td>

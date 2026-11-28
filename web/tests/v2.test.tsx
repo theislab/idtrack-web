@@ -10,6 +10,8 @@ import { ringsOf } from "../src/components/hero/rings";
 import { HeroMenu } from "../src/components/shell/HeroMenu";
 import { ThemeSwitch } from "../src/components/ThemeSwitch";
 import { nextTheme, themeLabel } from "../src/lib/theme";
+import { Field } from "../src/components/ui";
+import { Drawer } from "../src/components/v2/Drawer";
 import { Expandable } from "../src/components/v2/Expandable";
 import { HoverCard } from "../src/components/v2/HoverCard";
 import { Segmented } from "../src/components/v2/Segmented";
@@ -129,6 +131,119 @@ describe("a hover card", () => {
     expect(screen.getByText("the meaning")).toBeTruthy();
     fireEvent.keyDown(document, { key: "Escape" });
     expect(screen.queryByText("the meaning")).toBeNull();
+  });
+});
+
+describe("a hover card that does something when pressed", () => {
+  it("acts on a press, shows its card to the pointer and to the keyboard's focus, and is described by its text", () => {
+    let pressed = 0;
+    render(
+      <>
+        <HoverCard
+          trigger="10 names"
+          describedBy="about"
+          onPress={() => {
+            pressed += 1;
+          }}
+        >
+          <span>read at 50 · to 115</span>
+        </HoverCard>
+        <span id="about" hidden>
+          read at 50 · to 115
+        </span>
+      </>,
+    );
+    const trigger = screen.getByRole("button", { name: "10 names" });
+    expect(trigger.getAttribute("aria-expanded")).toBeNull();
+    expect(trigger.getAttribute("aria-describedby")).toBe("about");
+    fireEvent.click(trigger);
+    expect(pressed).toBe(1);
+    expect(document.querySelector(".hovercard__card")).toBeNull();
+  });
+});
+
+describe("a field's hint", () => {
+  it("is a card on an (i) beside the label, and the control's description, never printed under it", () => {
+    render(
+      <Field label="From release" hint="The release of the dataset's annotation.">
+        {({ id, describedBy }) => <input id={id} aria-describedby={describedBy} />}
+      </Field>,
+    );
+    const input = screen.getByRole("textbox", { name: "From release" });
+    const described = document.getElementById(input.getAttribute("aria-describedby") ?? "");
+    expect(described?.textContent).toBe("The release of the dataset's annotation.");
+    expect(described?.hidden).toBe(true);
+    // The mark's name never repeats the label (a field is found by its label alone); its description is the hint.
+    expect(screen.getAllByLabelText(/From release/)).toHaveLength(1);
+    const mark = screen.getByRole("button", { name: "Hint" });
+    expect(mark.getAttribute("aria-describedby")).toBe(described?.id);
+    expect(screen.queryByRole("region", { name: "Hint" })).toBeNull();
+    fireEvent.click(mark);
+    expect(screen.getByRole("region", { name: "Hint" }).textContent).toBe("The release of the dataset's annotation.");
+  });
+});
+
+describe("a drawer", () => {
+  it("offers Escape to its content first, and closes on its button", () => {
+    let taken = true;
+    function Open() {
+      const [open, setOpen] = useState(true);
+      return (
+        <Drawer
+          open={open}
+          onClose={() => {
+            setOpen(false);
+          }}
+          title="Server load"
+          closeLabel="Close the server load"
+          onEscape={() => taken}
+        >
+          <p>the readings</p>
+        </Drawer>
+      );
+    }
+    render(<Open />);
+    const dialog = screen.getByRole("dialog", { hidden: true });
+    expect(screen.getByText("the readings")).toBeTruthy();
+    fireEvent(dialog, new Event("cancel", { cancelable: true }));
+    expect(screen.queryByText("the readings")).not.toBeNull();
+    taken = false;
+    fireEvent(dialog, new Event("cancel", { cancelable: true }));
+    expect(screen.queryByText("the readings")).toBeNull();
+  });
+});
+
+describe("tabs and rows the page holds", () => {
+  it("show the tab and the openness the page gives them", () => {
+    function Held() {
+      const [tab, setTab] = useState("decision");
+      const [open, setOpen] = useState(false);
+      return (
+        <>
+          <Tabs items={items} label="The answer" value={tab} onChange={setTab} />
+          <button
+            type="button"
+            onClick={() => {
+              setTab("record");
+              setOpen(true);
+            }}
+          >
+            Show the record
+          </button>
+          <Expandable summary="Setting" expanded={open} onExpandedChange={setOpen}>
+            <p>the fields</p>
+          </Expandable>
+        </>
+      );
+    }
+    render(<Held />);
+    expect(screen.getByRole("tabpanel").textContent).toBe("the decision");
+    expect(screen.queryByText("the fields")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Show the record" }));
+    expect(screen.getByRole("tabpanel").textContent).toBe("the record");
+    expect(screen.getByText("the fields")).toBeTruthy();
+    fireEvent.click(screen.getByRole("tab", { name: /^Path/ }));
+    expect(screen.getByRole("tabpanel").textContent).toBe("the path");
   });
 });
 

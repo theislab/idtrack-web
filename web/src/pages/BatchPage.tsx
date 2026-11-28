@@ -20,6 +20,8 @@ import { BatchInference } from "../components/BatchInference";
 import { BatchResults, type BatchAnswer } from "../components/BatchResults";
 import { ErrorPanel } from "../components/ErrorPanel";
 import { Button, Field, Link, Mono, Select, Skeleton, Switch, TextInput } from "../components/ui";
+import { Expandable } from "../components/v2/Expandable";
+import { HoverCard } from "../components/v2/HoverCard";
 import { announce } from "../lib/announce";
 import {
   BATCH_TEXT_DRAFT,
@@ -30,7 +32,7 @@ import {
   SEPARATOR_WORDS,
   type TableChoice,
 } from "../lib/batchList";
-import { exampleSets, exampleWords, listPlaceholder, type ExampleSet } from "../lib/batchExamples";
+import { exampleKind, exampleSets, exampleWords, listPlaceholder, type ExampleSet } from "../lib/batchExamples";
 import type { InferredRelease } from "../lib/batchExport";
 import { markSeen, retryBatch, startBatch, useBatchRun, useOtherRuns } from "../lib/batchRun";
 import { useShowcase } from "../lib/showcase";
@@ -59,12 +61,8 @@ const LARGE_INSERT_LINES = 200;
 export function BatchHead() {
   return (
     <header className="page-head">
-      <p className="eyebrow">Convert a list</p>
       <h1>Many identifiers, one setting</h1>
-      <p className="lede">
-        Every identifier is converted with one setting, by the rules of a single conversion: the results in the order
-        given, each with its status, its gene, its evidence and the path behind it.
-      </p>
+      <p className="lede">Every identifier is converted with one setting, by the rules of a single conversion.</p>
     </header>
   );
 }
@@ -222,7 +220,7 @@ const ListText = memo(function ListText({
       id={id}
       ref={field}
       className="input input--mono textarea batch-form__textarea"
-      rows={12}
+      rows={8}
       value={text}
       spellCheck={false}
       autoCapitalize="off"
@@ -250,8 +248,10 @@ function BatchForOrganism({ description }: { description: GraphDescription }) {
   const [fileNote, setFileNote] = useState<string | null>(null);
   const [settings, setSettings] = useState<Settings>(() => readDraft(settingsKey, isSettings) ?? NO_SETTINGS);
   const [problem, setProblem] = useState<string | null>(null);
-  // The release read at as idtrack's source inference of the list gave it, while the form holds that release.
+  // The release read at as IDTrack's source inference of the list gave it, while the form holds that release.
   const [inferred, setInferred] = useState<InferredRelease | null>(null);
+  // The setting folds under one line that says it; it opens where one of its values is refused.
+  const [settingOpen, setSettingOpen] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
   const area = useRef<HTMLElement>(null);
   const setText = (value: string) => {
@@ -371,7 +371,7 @@ function BatchForOrganism({ description }: { description: GraphDescription }) {
   const over = limits !== null && distinct > limits.batch_max;
   const onceEach = limits !== null && !over && identifiers.length > limits.batch_max;
   const overWords = limits
-    ? `The list has ${groupedInteger(distinct)} different identifiers; this server converts at most ${groupedInteger(limits.batch_max)} per request. The page does not split a list: a batch's answers can depend on its members (an item that is another item with a separator and a number appended, -1, .2 or _3, is read as that item's copy), and the server's bound is its own. To convert more, use idtrack's convert_many in Python, which takes a list of any length, or the http api in requests of at most ${groupedInteger(limits.batch_max)}, keeping each name with its copies in one request (API page).`
+    ? `The list has ${groupedInteger(distinct)} different identifiers; this server converts at most ${groupedInteger(limits.batch_max)} per request. The page does not split a list: a batch's answers can depend on its members (an item that is another item with a separator and a number appended, -1, .2 or _3, is read as that item's copy), and the server's bound is its own. To convert more, use IDTrack's convert_many in Python, which takes a list of any length, or the http api in requests of at most ${groupedInteger(limits.batch_max)}, keeping each name with its copies in one request (API page).`
     : "";
   const submit = (event: SyntheticEvent) => {
     event.preventDefault();
@@ -404,6 +404,7 @@ function BatchForOrganism({ description }: { description: GraphDescription }) {
     for (const value of [fromRelease, toRelease]) {
       if (value.trim() !== "" && !/^\d+$/.test(value.trim())) {
         setProblem("A release is a whole number.");
+        setSettingOpen(true);
         return;
       }
     }
@@ -470,6 +471,12 @@ function BatchForOrganism({ description }: { description: GraphDescription }) {
         : null,
     [run, batch.source, batch.pathsRefused],
   );
+  const settingWords = [
+    `from ${fromRelease.trim() || "inferred"} to ${toRelease.trim() || String(description.snapshot_release)}`,
+    finalDatabase ? databaseLabel(finalDatabase) : "Ensembl gene",
+    ...(fromDatabase ? [`read in ${databaseLabel(fromDatabase)}`] : []),
+    ...(allowBridges ? [] : ["no bridges"]),
+  ].join(" · ");
   const synonyms = new Set(description.synonym_databases);
   const sources = description.external_databases;
   const otherRelease = limitationAt(LIMITATION_OF.other_release);
@@ -484,7 +491,8 @@ function BatchForOrganism({ description }: { description: GraphDescription }) {
             error={problem}
             hint={
               <>
-                One per line, or a table pasted from a spreadsheet (tab, comma or semicolon between its cells).{" "}
+                One per line, or a table pasted from a spreadsheet (tab, comma or semicolon between its cells); a text,
+                TSV or CSV file is read the same way.{" "}
                 {limits ? (
                   <>
                     This server takes at most {groupedInteger(limits.batch_max)} per request, each of at most{" "}
@@ -506,27 +514,47 @@ function BatchForOrganism({ description }: { description: GraphDescription }) {
               />
             )}
           </Field>
-          <div className="batch-form__meter" aria-hidden={identifiers.length === 0}>
-            <span className={`batch-form__count ${over ? "is-over" : ""}`}>
-              <span className="mono">{groupedInteger(identifiers.length)}</span>
-              {limits ? <span className="muted"> / {groupedInteger(limits.batch_max)}</span> : null}{" "}
-              {identifiers.length === 1 ? "identifier" : "identifiers"}
-              {identifiers.length && distinct !== identifiers.length ? (
-                <span className="muted">
-                  {" "}
-                  · <span className="mono">{groupedInteger(distinct)}</span> distinct
+          <div className="batch-form__under">
+            <div className="batch-form__meter" aria-hidden={identifiers.length === 0}>
+              <span className={`batch-form__count ${over ? "is-over" : ""}`}>
+                <span className="mono">{groupedInteger(identifiers.length)}</span>
+                {limits ? <span className="muted"> / {groupedInteger(limits.batch_max)}</span> : null}{" "}
+                {identifiers.length === 1 ? "identifier" : "identifiers"}
+                {identifiers.length && distinct !== identifiers.length ? (
+                  <span className="muted">
+                    {" "}
+                    · <span className="mono">{groupedInteger(distinct)}</span> distinct
+                  </span>
+                ) : null}
+              </span>
+              {limits ? (
+                <span className="batch-form__gauge" aria-hidden="true">
+                  <span
+                    className={`batch-form__gauge-fill ${over ? "is-over" : ""}`}
+                    style={{ width: `${Math.min(100, (distinct / limits.batch_max) * 100)}%` }}
+                  />
                 </span>
               ) : null}
-            </span>
-            {limits ? (
-              <span className="batch-form__gauge" aria-hidden="true">
-                <span
-                  className={`batch-form__gauge-fill ${over ? "is-over" : ""}`}
-                  style={{ width: `${Math.min(100, (distinct / limits.batch_max) * 100)}%` }}
-                />
-              </span>
-            ) : null}
+            </div>
+            <div className="batch-form__file">
+              <input
+                ref={fileInput}
+                type="file"
+                accept=".txt,.tsv,.csv,text/plain,text/csv,text/tab-separated-values"
+                className="visually-hidden"
+                id="batch-file"
+                aria-label="A file of identifiers"
+                onChange={onFile}
+                tabIndex={-1}
+              />
+              <Button variant="quiet" className="batch-form__upload" onClick={() => fileInput.current?.click()}>
+                Upload a file…
+              </Button>
+            </div>
           </div>
+          <p className="batch-form__file-note" role="status">
+            {fileNote}
+          </p>
           {over && !problem ? <p className="batch-form__over">{overWords}</p> : null}
           {onceEach ? (
             <p className="batch-form__once">
@@ -602,158 +630,155 @@ function BatchForOrganism({ description }: { description: GraphDescription }) {
               </div>
             </div>
           ) : null}
-          <div className="batch-form__file">
-            <input
-              ref={fileInput}
-              type="file"
-              accept=".txt,.tsv,.csv,text/plain,text/csv,text/tab-separated-values"
-              className="visually-hidden"
-              id="batch-file"
-              aria-label="A file of identifiers"
-              onChange={onFile}
-              tabIndex={-1}
-            />
-            <Button onClick={() => fileInput.current?.click()}>Upload a file…</Button>
-            <span className="muted batch-form__file-note" role="status">
-              {fileNote ?? "A text, TSV or CSV file; a table's header and columns are read as above."}
-            </span>
-          </div>
           {examples.length ? (
             <div className="batch-examples" role="group" aria-labelledby="batch-examples-label">
               <span className="batch-examples__label" id="batch-examples-label">
-                Examples, with their settings
+                Try
               </span>
               <ul className="batch-examples__list">
-                {examples.map((set) => (
+                {examples.map((set, k) => (
                   <li key={set.identifiers.join("|")}>
-                    <button
-                      type="button"
-                      className="chip chip--example batch-examples__set"
-                      onClick={() => {
+                    <HoverCard
+                      trigger={exampleKind(set)}
+                      triggerClassName="chip chip--example batch-examples__set"
+                      className="batch-examples__card"
+                      describedBy={`batch-example-${String(k)}`}
+                      onPress={() => {
                         takeExample(set);
                       }}
                     >
-                      <span className="batch-examples__count mono">{groupedInteger(set.identifiers.length)}</span>
                       <span className="batch-examples__first mono">
-                        {set.identifiers.slice(0, 2).join(", ")}
-                        {set.identifiers.length > 2 ? ", …" : ""}
+                        {set.identifiers.slice(0, 3).join(", ")}
+                        {set.identifiers.length > 3 ? ", …" : ""}
                       </span>
                       <span className="batch-examples__words">{exampleWords(set, description.snapshot_release)}</span>
-                    </button>
+                    </HoverCard>
+                    <span id={`batch-example-${String(k)}`} hidden>
+                      {`${set.identifiers.slice(0, 3).join(", ")}${set.identifiers.length > 3 ? ", …" : ""}; ${exampleWords(set, description.snapshot_release)}`}
+                    </span>
                   </li>
                 ))}
               </ul>
             </div>
           ) : null}
         </div>
-        <fieldset className="batch-form__settings">
-          <legend className="batch-form__legend">Setting for every identifier</legend>
-          <div className="batch-form__pair">
-            <Field
-              label="From release"
-              hint={
-                <>
-                  For a dataset, the Ensembl release of its annotation (the release of its GTF, for instance). Empty:
-                  each identifier is read at the release idtrack infers for it alone, a symbol with its meaning there
-                  {otherRelease ? (
-                    <>
-                      {" "}
-                      (
-                      <a href={otherRelease.href} target="_blank" rel="noreferrer">
-                        {otherRelease.title}
-                        <span className="visually-hidden"> (idtrack&apos;s documentation, opens in a new tab)</span>
-                        <span aria-hidden="true"> ↗</span>
-                      </a>
-                      )
-                    </>
-                  ) : null}
-                  .
-                </>
-              }
-            >
-              {({ id, describedBy }) => (
-                <TextInput
-                  id={id}
-                  inputMode="numeric"
-                  className="input--mono"
-                  value={fromRelease}
-                  placeholder="inferred"
-                  aria-describedby={describedBy}
-                  onChange={(e) => {
-                    setFromRelease(e.target.value);
-                  }}
-                />
-              )}
-            </Field>
-            <Field label="To release" hint={`Empty: the graph's last, ${description.snapshot_release}.`}>
-              {({ id, describedBy }) => (
-                <TextInput
-                  id={id}
-                  inputMode="numeric"
-                  className="input--mono"
-                  value={toRelease}
-                  placeholder={String(description.snapshot_release)}
-                  aria-describedby={describedBy}
-                  onChange={(e) => {
-                    setToRelease(e.target.value);
-                  }}
-                />
-              )}
-            </Field>
+        <Expandable
+          className="batch-form__setting"
+          summary="Setting for every identifier"
+          meta={settingWords}
+          expanded={settingOpen}
+          onExpandedChange={setSettingOpen}
+        >
+          <div className="batch-form__settings">
+            <div className="batch-form__pair">
+              <Field
+                label="From release"
+                hint={
+                  <>
+                    For a dataset, the Ensembl release of its annotation (the release of its GTF, for instance). Empty:
+                    each identifier is read at the release IDTrack infers for it alone, a symbol with its meaning there
+                    {otherRelease ? (
+                      <>
+                        {" "}
+                        (
+                        <a href={otherRelease.href} target="_blank" rel="noreferrer">
+                          {otherRelease.title}
+                          <span className="visually-hidden"> (IDTrack&apos;s documentation, opens in a new tab)</span>
+                          <span aria-hidden="true"> ↗</span>
+                        </a>
+                        )
+                      </>
+                    ) : null}
+                    .
+                  </>
+                }
+              >
+                {({ id, describedBy }) => (
+                  <TextInput
+                    id={id}
+                    inputMode="numeric"
+                    className="input--mono"
+                    value={fromRelease}
+                    placeholder="inferred"
+                    aria-describedby={describedBy}
+                    onChange={(e) => {
+                      setFromRelease(e.target.value);
+                    }}
+                  />
+                )}
+              </Field>
+              <Field label="To release" hint={`Empty: the graph's last, ${description.snapshot_release}.`}>
+                {({ id, describedBy }) => (
+                  <TextInput
+                    id={id}
+                    inputMode="numeric"
+                    className="input--mono"
+                    value={toRelease}
+                    placeholder={String(description.snapshot_release)}
+                    aria-describedby={describedBy}
+                    onChange={(e) => {
+                      setToRelease(e.target.value);
+                    }}
+                  />
+                )}
+              </Field>
+            </div>
+            <BatchInference
+              description={description}
+              identifiers={identifiers}
+              bound={limits?.batch_max ?? 1000}
+              current={fromRelease}
+              onUse={(next) => {
+                setFromRelease(String(next.release));
+                setInferred(next);
+              }}
+            />
+            <div className="batch-form__pair">
+              <Field
+                label="Target database"
+                hint="The database of the answers, among those of the target release. Every row also gives the Ensembl gene at that release."
+              >
+                {({ id, describedBy }) => (
+                  <Select
+                    id={id}
+                    value={finalDatabase}
+                    aria-describedby={describedBy}
+                    onChange={(e) => {
+                      setFinalDatabase(e.target.value);
+                    }}
+                  >
+                    <option value="">Ensembl gene (with version), the default</option>
+                    <DatabaseGroups databases={finalOptions.filter((d) => d !== "ensembl_gene")} synonyms={synonyms} />
+                  </Select>
+                )}
+              </Field>
+              <Field
+                label="Source database"
+                hint="The database the identifiers are meant in. Empty: any. Ensembl lists some sources under two names (Vega gene and Vega_gene, for instance): each is a database of its own in Ensembl's tables."
+              >
+                {({ id, describedBy }) => (
+                  <Select
+                    id={id}
+                    value={fromDatabase}
+                    aria-describedby={describedBy}
+                    onChange={(e) => {
+                      setFromDatabase(e.target.value);
+                    }}
+                  >
+                    <option value="">Any database</option>
+                    <DatabaseGroups databases={sources} synonyms={synonyms} />
+                  </Select>
+                )}
+              </Field>
+            </div>
+            <Switch
+              checked={allowBridges}
+              onChange={setAllowBridges}
+              label="Allow bridges"
+              hint="Where Ensembl's history of a gene ends, continue to another gene through an id both carried: IDTrack's inference, not a record of Ensembl, marked in the results."
+            />
           </div>
-          <BatchInference
-            description={description}
-            identifiers={identifiers}
-            bound={limits?.batch_max ?? 1000}
-            current={fromRelease}
-            onUse={(next) => {
-              setFromRelease(String(next.release));
-              setInferred(next);
-            }}
-          />
-          <Field
-            label="Target database"
-            hint="The database of the answers, among those of the target release. Every row also gives the Ensembl gene at that release."
-          >
-            {({ id, describedBy }) => (
-              <Select
-                id={id}
-                value={finalDatabase}
-                aria-describedby={describedBy}
-                onChange={(e) => {
-                  setFinalDatabase(e.target.value);
-                }}
-              >
-                <option value="">Ensembl gene (with version), the default</option>
-                <DatabaseGroups databases={finalOptions.filter((d) => d !== "ensembl_gene")} synonyms={synonyms} />
-              </Select>
-            )}
-          </Field>
-          <Field
-            label="Source database"
-            hint="The database the identifiers are meant in. Empty: any. Ensembl lists some sources under two names (Vega gene and Vega_gene, for instance): each is a database of its own in Ensembl's tables."
-          >
-            {({ id, describedBy }) => (
-              <Select
-                id={id}
-                value={fromDatabase}
-                aria-describedby={describedBy}
-                onChange={(e) => {
-                  setFromDatabase(e.target.value);
-                }}
-              >
-                <option value="">Any database</option>
-                <DatabaseGroups databases={sources} synonyms={synonyms} />
-              </Select>
-            )}
-          </Field>
-          <Switch
-            checked={allowBridges}
-            onChange={setAllowBridges}
-            label="Allow bridges"
-            hint="Where Ensembl's history of a gene ends, continue to another gene through an id both carried: idtrack's inference, not a record of Ensembl, marked in the results."
-          />
-        </fieldset>
+        </Expandable>
         <div className="batch-form__actions">
           <Button type="submit" variant="primary" disabled={run.state === "loading"}>
             {run.state === "loading"
@@ -878,47 +903,13 @@ function DatabaseGroups({ databases, synonyms }: { databases: readonly string[];
   );
 }
 
-/** Before a list is converted: what the answer will hold, panel by panel, and where to begin. */
+/** Before a list is converted: what the answer will hold, and where to convert one identifier. */
 function EmptyBatch({ organism }: { organism: string }) {
-  const parts: [string, string, string][] = [
-    [
-      "a",
-      "What came back",
-      "the statuses in proportion, each with its meaning, and the counts that need a second look",
-    ],
-    [
-      "b",
-      "The results",
-      "one row per identifier in your order: the gene today and its symbol, how it was read, what decided it and with which values, its cautions",
-    ],
-    ["c", "Through the releases", "where each identifier was read, and the steps of Ensembl's history its path took"],
-    [
-      "d",
-      "Download and cite",
-      "a table of one row per identifier (TSV or CSV) with its provenance, the api's own JSON and TSV, and a sentence for a methods section",
-    ],
-  ];
   return (
     <div className="batch-empty">
       <p className="batch-empty__title">No list converted yet</p>
       <p className="batch-empty__lede">
-        Paste identifiers above, upload a file, or try one of the examples. The answer appears here as a figure of four
-        panels:
-      </p>
-      <ol className="batch-empty__parts">
-        {parts.map(([letter, title, what]) => (
-          <li key={letter}>
-            <span className="panel-letter" aria-hidden="true">
-              {letter}
-            </span>
-            <span className="batch-empty__part">
-              <span className="batch-empty__name">{title}</span>
-              <span className="batch-empty__what">{what}</span>
-            </span>
-          </li>
-        ))}
-      </ol>
-      <p className="batch-empty__foot">
+        The answer appears here: what came back, then one row per identifier in your order, each opening to its answer.
         For one identifier with its whole path drawn, use <Link to={href("/convert", { organism })}>Convert</Link>.
       </p>
     </div>

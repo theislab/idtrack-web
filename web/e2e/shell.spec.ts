@@ -208,9 +208,10 @@ test.describe("state that survives", () => {
     await page.goto(`/batch?organism=${data.organism}`);
     const list = page.getByLabel("Identifiers", { exact: true });
     await list.fill(data.batch.join("\n"));
+    await page.getByRole("button", { name: /^Setting for every identifier/ }).click();
     await page.getByLabel("To release").fill("");
     await page.getByRole("button", { name: /^Convert \d/ }).click();
-    await expect(page.getByRole("button", { name: /api.s JSON$/ })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Download and cite" })).toBeVisible();
     await expect.poll(async () => (await focused(page)).tag).toMatch(/^H[23]$/);
     await expect(page.getByRole("status").filter({ hasText: "The batch of" }).first()).toContainText(
       `The batch of ${data.batch.length} identifiers is answered`,
@@ -219,10 +220,10 @@ test.describe("state that survives", () => {
     await expect(page.getByRole("heading", { level: 1, name: /What a name names/ })).toBeVisible();
     await page.goBack();
     await expect(page.getByLabel("Identifiers", { exact: true })).toHaveValue(data.batch.join("\n"));
-    await expect(page.getByRole("button", { name: /api.s JSON$/ })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Download and cite" })).toBeVisible();
     await page.reload();
     await expect(page.getByLabel("Identifiers", { exact: true })).toHaveValue(data.batch.join("\n"));
-    await expect(page.getByRole("button", { name: /api.s JSON$/ })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Download and cite" })).toBeVisible();
   });
 
   test("a pasted column in the Convert field is offered to Batch as a list", async ({ page }, info) => {
