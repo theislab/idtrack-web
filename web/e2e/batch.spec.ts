@@ -285,6 +285,59 @@ test("the status bar is exactly as wide as its column, whatever the shares, and 
   }
 });
 
+test("a list converted without a release is asked where it comes from, and read at its best release in one press", async ({
+  page,
+  request,
+}) => {
+  const dated = data.dated;
+  test.skip(!dated, "no list that dates itself in this graph's data");
+  if (!dated) return;
+  // IDTrack's own answer of where the list comes from: its best release, and a margin (the list dates itself).
+  const inference = (await (
+    await request.post(`/api/v1/organisms/${data.organism}/source-inference`, {
+      data: { identifiers: [...new Set(dated)], mode: "release" },
+    })
+  ).json()) as { inference: { band: number[]; margin: number | null } };
+  expect(inference.inference.margin).not.toBeNull();
+  const best = inference.inference.band[0] ?? 0;
+  const asked: (number | null)[] = [];
+  await page.route("**/convert/batch?format=json", (route) => {
+    const body = route.request().postDataJSON() as { from_release: number | null; identifiers: string[] };
+    if (body.identifiers.join("\n") === dated.join("\n")) asked.push(body.from_release);
+    return route.continue();
+  });
+  await page.goto(`/batch?organism=${data.organism}`);
+  await page.getByLabel("Identifiers", { exact: true }).fill(dated.join("\n"));
+  await page.getByRole("button", { name: /^Convert/ }).click();
+  const line = page.locator(".list-release");
+  await expect(line).toContainText(`These identifiers look like release ${String(best)}`);
+  await expectAccessible(page);
+  await line.getByRole("button", { name: `Read the list at ${String(best)}` }).click();
+  await expect(page.locator(".batch-figure-head__setting")).toContainText(`read at ${String(best)}`);
+  expect(asked).toEqual([null, best]);
+  // The form holds the release now, and a list read at a release is not asked where it comes from again.
+  await expect(page.locator(".list-release")).toHaveCount(0);
+  await page.getByRole("button", { name: /Setting for every identifier/ }).click();
+  await expect(page.getByLabel("From release", { exact: true })).toHaveValue(String(best));
+});
+
+test("Infer it from the list fills From release where the list dates itself", async ({ page }) => {
+  const dated = data.dated;
+  test.skip(!dated, "no list that dates itself in this graph's data");
+  if (!dated) return;
+  await page.goto(`/batch?organism=${data.organism}`);
+  await page.getByLabel("Identifiers", { exact: true }).fill(dated.join("\n"));
+  await page.getByRole("button", { name: /Setting for every identifier/ }).click();
+  const from = page.getByLabel("From release", { exact: true });
+  await expect(from).toHaveValue("");
+  await expect(from).toHaveAttribute("placeholder", "each at its own release");
+  await page.getByRole("button", { name: "Infer it from the list" }).click();
+  await expect(page.locator(".infer__use")).toContainText("holds");
+  const best = (await page.locator(".infer__use .mono").first().innerText()).trim();
+  await expect(from).toHaveValue(best);
+  await expect(page.locator(".batch-form__setting")).toContainText(`from ${best} to`);
+});
+
 test("a table that fits its frame scrolls with the page, never in a box of its own", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 800 });
   await page.goto(`/batch?organism=${data.organism}`);

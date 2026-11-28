@@ -369,6 +369,37 @@
   color: var(--ink-2);
 }
 
+/* Under the head of a list converted without a release: what IDTrack's source inference gives, one quiet line, and the
+   press that reads the list at its best release (an accent link in the sentence, no box). Its place is held while
+   it is asked, so nothing under it moves when it comes. */
+.list-release {
+  margin: var(--space-2) 0 0;
+  min-height: calc(var(--text-sm) * 1.5);
+  font-size: var(--text-sm);
+  line-height: 1.5;
+  color: var(--ink-2);
+}
+
+.list-release .mono {
+  color: var(--ink-1);
+}
+
+.list-release--waiting {
+  color: var(--ink-3);
+}
+
+.button.list-release__press {
+  display: inline;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  font: inherit;
+  font-weight: var(--weight-medium);
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
 /* The summary: the statuses' bar and key, then how the batch was answered, folded. */
 .batch-summary {
   display: grid;

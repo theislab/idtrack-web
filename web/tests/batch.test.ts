@@ -12,6 +12,7 @@ import {
   splitCells,
 } from "../src/lib/batchList";
 import { batchProvenance, rowTable, spreadsheetSafe } from "../src/lib/batchExport";
+import { verdictOf } from "../src/lib/batchInference";
 import { batchRows, filterRows, readKind, sharedAnswers } from "../src/lib/batchTable";
 import { cautionCount, evidenceOf } from "../src/lib/evidence";
 import { windowOf } from "../src/lib/useRowWindow";
@@ -162,6 +163,28 @@ describe("the rows of a batch", () => {
       now: new Date("2026-11-27T01:00:00Z"),
     });
     expect(provenance.request.resolved).toEqual({ to_release: 115, from_release: "inferred for each identifier" });
+    // Every key of the provenance is in the api's style (snake case), the source inference's too.
+    const inferred = batchProvenance({
+      description: graph,
+      version: null,
+      request: { ...request, from_release: 67 },
+      requestId: "r1",
+      serverTiming: null,
+      answeredAt: null,
+      count: list.length,
+      source: {
+        ...source,
+        inferred: { release: 67, band: [67, 66], margin: 13, identifiers: 38, not_found: 2, request_id: "r2" },
+      },
+      resolvedTo: 115,
+      now: new Date("2026-11-27T01:00:00Z"),
+    });
+    const keys = (value: unknown): string[] =>
+      value && typeof value === "object"
+        ? Object.entries(value).flatMap(([k, v]) => (Array.isArray(value) ? keys(v) : [k, ...keys(v)]))
+        : [];
+    expect(keys(inferred).filter((k) => /[A-Z]/.test(k))).toEqual([]);
+    expect(inferred.source_inference).toMatchObject({ not_found: 2, request_id: "r2" });
     const text = rowTable(rows, provenance, source, null);
     const lines = text.trimEnd().split("\n");
     const comments = lines.filter((l) => l.startsWith("#"));
@@ -218,5 +241,25 @@ describe("the drawing window of a long table", () => {
     expect(last.end).toBe(400);
     expect(last.below).toBe(0);
     expect(windowOf(Float64Array.from([0]), 0, 100)).toEqual({ start: 0, end: 0, above: 0, below: 0 });
+  });
+});
+
+describe("where a list comes from, read by IDTrack's rule of the band and the margin", () => {
+  const releases = [56, 57, 58, 59, 60];
+  const of = (band: number[], margin: number | null) => ({
+    band,
+    margin,
+    counts: new Map(band.map((r) => [r, 3])),
+    identifiers: 3,
+    notFound: 0,
+  });
+  it("a margin dates the list: its best release is the reading to offer", () => {
+    expect(verdictOf(of([57, 56, 58], 2), releases)).toBe("dated");
+  });
+  it("no margin and every release in the band: the list does not date itself", () => {
+    expect(verdictOf(of([56, 57, 58, 59, 60], null), releases)).toBe("undated");
+  });
+  it("no margin and a narrower band: only the band finds the list, and it cannot be told apart", () => {
+    expect(verdictOf(of([56, 57, 58], null), releases)).toBe("band");
   });
 });

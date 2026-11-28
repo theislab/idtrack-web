@@ -40,6 +40,18 @@ export function readInference(answer: SourceInferenceResponse): ReleaseInference
   };
 }
 
+/** What the inference allows, by IDTrack's documentation of it ("Where a list comes from"): where some release with
+ *  identifiers found lies outside the band (`margin` is a number), the list dates itself and its best release is the
+ *  reading to offer; where none does (`margin` is null), the list cannot be read at one release on its own: either its
+ *  band holds every release of the graph (it does not date itself), or only the band's releases find any of it and
+ *  they cannot be told apart. */
+export type InferenceVerdict = "dated" | "undated" | "band";
+export function verdictOf(inference: ReleaseInference, releases: readonly number[]): InferenceVerdict {
+  if (inference.margin !== null) return "dated";
+  const band = new Set(inference.band);
+  return releases.every((r) => band.has(r)) ? "undated" : "band";
+}
+
 /** The band as runs of consecutive releases in words ("64–68", "48–54, 76"). */
 export function bandWords(band: readonly number[]): string {
   const sorted = [...band].sort((a, b) => a - b);

@@ -34,8 +34,8 @@ export interface InferredRelease {
   band: number[];
   margin: number | null;
   identifiers: number;
-  notFound: number;
-  requestId: string | null;
+  not_found: number;
+  request_id: string | null;
 }
 
 /** The names of the genes at the target release in another database, from a second batch of the genes. */
@@ -287,7 +287,7 @@ export function rowTable(
     `# answer request id ${provenance.answer.request_id ?? "none"}; answered ${provenance.answer.answered_at ?? "at an unknown time"}; exported ${provenance.exported_at}`,
     ...(provenance.source_inference
       ? [
-          `# from_release ${String(provenance.source_inference.release)} as IDTrack's source inference of the list gave it (POST /api/v1/organisms/${provenance.organism}/source-inference, request id ${provenance.source_inference.requestId ?? "none"}): releases ${provenance.source_inference.band.join(",")} cannot be told apart from it`,
+          `# from_release ${String(provenance.source_inference.release)} as IDTrack's source inference of the list gave it (POST /api/v1/organisms/${provenance.organism}/source-inference, request id ${provenance.source_inference.request_id ?? "none"}): releases ${provenance.source_inference.band.join(",")} cannot be told apart from it`,
         ]
       : []),
     ...provenance.other_requests.map(

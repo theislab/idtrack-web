@@ -28,6 +28,8 @@ export interface Data {
   noTarget: Query;
   noConversion: Query;
   batch: string[];
+  /** A list that dates itself: IDTrack's source inference of it has a margin, so it has a best release to read it at. */
+  dated?: string[];
   name: string;
   /** An identifier whose answer names genes on alternative loci (a graph with such genes only). */
   alternativeLoci?: Query;

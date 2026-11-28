@@ -34,6 +34,7 @@ import {
   type BatchProvenance,
   type BatchSource,
   type GeneNames,
+  type InferredRelease,
   type OtherRequest,
   type TableFormat,
 } from "../lib/batchExport";
@@ -89,6 +90,7 @@ import { limitationAt, LIMITATION_OF } from "../lib/evidence";
 import { EventStrip, ReleaseScale, TravelArcs } from "./ReleaseScale";
 import { lifeText, useRetiredLives, type Life, type Lives } from "../lib/batchLives";
 import type { PathsRefused } from "../lib/batchRun";
+import { ListRelease } from "./BatchInference";
 import { ErrorPanel } from "./ErrorPanel";
 import { ScoreValue } from "./ResultParts";
 import { Toggletip } from "./Toggletip";
@@ -130,9 +132,12 @@ export interface BatchAnswer {
 export const BatchResults = memo(function BatchResults({
   description,
   answer,
+  onReadAt,
 }: {
   description: GraphDescription;
   answer: BatchAnswer;
+  /** Read the list again at the release IDTrack's source inference gives it (a list converted without a release). */
+  onReadAt?: (inferred: InferredRelease) => void;
 }) {
   const { count, request, pathsRefused } = answer;
   // The head is drawn with the answer's first frame; the panels, which read every result and its paths, in a
@@ -144,6 +149,7 @@ export const BatchResults = memo(function BatchResults({
     });
   }, []);
   const [downloads, setDownloads] = useState(false);
+  const limits = useLimits();
   const target = request.to_release ?? description.snapshot_release;
   const distinct = useMemo(() => new Set(answer.results.map((r) => r.query_id)).size, [answer.results]);
   return (
@@ -172,7 +178,7 @@ export const BatchResults = memo(function BatchResults({
             </span>
           ) : null}
           <Setting label="read at">
-            {request.from_release === null ? "the release inferred for each" : <Mono>{request.from_release}</Mono>}
+            {request.from_release === null ? "each one's own release" : <Mono>{request.from_release}</Mono>}
           </Setting>
           <Setting label="to">
             <Mono>{target}</Mono>
@@ -216,6 +222,14 @@ export const BatchResults = memo(function BatchResults({
             )}
           </Setting>
         </p>
+        {request.from_release === null && onReadAt ? (
+          <ListRelease
+            description={description}
+            identifiers={request.identifiers}
+            bound={limits?.batch_max ?? request.identifiers.length}
+            onReadAt={onReadAt}
+          />
+        ) : null}
       </header>
       {ready ? (
         <BatchPanels

@@ -471,8 +471,34 @@ function BatchForOrganism({ description }: { description: GraphDescription }) {
         : null,
     [run, batch.source, batch.pathsRefused],
   );
+  // The list read at the release IDTrack's source inference gives it, from the answer's line: the same batch asked
+  // again at that release, which the form then holds too.
+  const latest = useRef({ run, source: batch.source, setFromRelease });
+  useEffect(() => {
+    latest.current = { run, source: batch.source, setFromRelease };
+  });
+  const readAt = useCallback(
+    (next: InferredRelease) => {
+      const { run: last, source, setFromRelease: setFrom } = latest.current;
+      if (last.state !== "done") return;
+      setFrom(String(next.release));
+      setInferred(next);
+      announce(
+        `Converting ${groupedInteger(last.request.identifiers.length)} identifiers at release ${String(next.release)}…`,
+      );
+      followed.current = startBatch(
+        organism,
+        { ...last.request, from_release: next.release, explain: true },
+        source ? { ...source, inferred: next } : null,
+      );
+      window.requestAnimationFrame(() => {
+        revealArea(area.current);
+      });
+    },
+    [organism, setInferred],
+  );
   const settingWords = [
-    `from ${fromRelease.trim() || "inferred"} to ${toRelease.trim() || String(description.snapshot_release)}`,
+    `${fromRelease.trim() ? `from ${fromRelease.trim()}` : "each from its own release"} to ${toRelease.trim() || String(description.snapshot_release)}`,
     finalDatabase ? databaseLabel(finalDatabase) : "Ensembl gene",
     ...(fromDatabase ? [`read in ${databaseLabel(fromDatabase)}`] : []),
     ...(allowBridges ? [] : ["no bridges"]),
@@ -699,7 +725,7 @@ function BatchForOrganism({ description }: { description: GraphDescription }) {
                     inputMode="numeric"
                     className="input--mono"
                     value={fromRelease}
-                    placeholder="inferred"
+                    placeholder="each at its own release"
                     aria-describedby={describedBy}
                     onChange={(e) => {
                       setFromRelease(e.target.value);
@@ -859,7 +885,7 @@ function BatchForOrganism({ description }: { description: GraphDescription }) {
           </>
         ) : null}
         {run.state === "done" && answer ? (
-          <BatchResults key={batch.id} description={description} answer={answer} />
+          <BatchResults key={batch.id} description={description} answer={answer} onReadAt={readAt} />
         ) : null}
       </section>
     </div>
