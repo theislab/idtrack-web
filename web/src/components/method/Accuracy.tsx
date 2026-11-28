@@ -42,6 +42,130 @@ const plural = (n: number, one: string, many = `${one}s`) => `${groupedInteger(n
 
 type Family = (typeof BENCHMARKS.families)[number];
 
+/** A family's name, with what it is judged against and what it asks in a hover card (also on focus and on a press);
+ *  the families whose truth walks Ensembl's history tagged. */
+function FamilyName({ family }: { family: Family }) {
+  const [first] = familyRows(family);
+  const shared = truthFromIdtrack(family);
+  const t = family.truth;
+  return (
+    <span className="accuracy__family">
+      <span className="accuracy__family-name">{family.title}</span>
+      <HoverCard
+        className="accuracy__about"
+        triggerClassName="accuracy__about-button"
+        label={`What ${family.title} is judged against`}
+        trigger={
+          <svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true" focusable="false">
+            <circle cx="8" cy="8" r="6.6" fill="none" stroke="currentColor" strokeWidth="1.3" />
+            <path d="M8 7.2v4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+            <circle cx="8" cy="4.9" r="0.9" fill="currentColor" />
+          </svg>
+        }
+      >
+        <span className="accuracy__measures">
+          <span className="accuracy__card-line">
+            <strong>Judged against:</strong> <Prose text={t.opening} />
+            {t.items.length ? (
+              <>
+                {" "}
+                Its parts: <Prose text={t.items.map((i) => i.lead).join("; ")} />.
+              </>
+            ) : null}
+          </span>
+          {t.history ? (
+            <span className="accuracy__card-line">
+              <strong>Its truth walks Ensembl&apos;s history.</strong> In the benchmarks&apos; words:{" "}
+              <Prose text={BENCHMARKS.historyCaveat} />
+            </span>
+          ) : null}
+          {shared.map((item) => (
+            <span key={item.lead} className="accuracy__card-line">
+              <strong>
+                <Prose text={capitalised(item.lead)} />:
+              </strong>{" "}
+              <Prose text={firstSentence(item.text)} />
+            </span>
+          ))}
+          <span className="accuracy__card-line">
+            <strong>What it asks:</strong> <Prose text={family.measures} />
+            {first?.judge ? `; judged ${judgeWords(first.judge).split(":")[0] ?? ""}` : ""}.
+          </span>
+          <a className="accuracy__card-link" href={benchmarkFile(t.source)}>
+            Its truth, in full
+          </a>
+        </span>
+      </HoverCard>
+      {t.history ? <span className="accuracy__tag">truth from Ensembl&apos;s history</span> : null}
+    </span>
+  );
+}
+
+/** The share of a row's lines judged, with its counts on focus, pointing or a press. */
+function Judged({ row }: { row: FamilyRow }) {
+  return (
+    <HoverCard
+      className="accuracy__judged"
+      triggerClassName="accuracy__judged-button mono"
+      trigger={<>judged {judgedText(row)}</>}
+    >
+      <span className="accuracy__judged-card">
+        <span className="mono">{groupedInteger(row.right + row.wrong)}</span> of{" "}
+        <span className="mono">{groupedInteger(row.n)}</span> lines judged right or wrong;{" "}
+        <span className="mono">{groupedInteger(row.undetermined)}</span> undetermined (the truth cannot decide), not
+        counted. Wrong: <span className="mono">{groupedInteger(row.wrong)}</span>.
+      </span>
+    </HoverCard>
+  );
+}
+
+/** A rate as published, with the published text and its counts on focus where the page writes it otherwise. */
+function RateValue({ row, className = "" }: { row: FamilyRow; className?: string }) {
+  const r = rateText(row.rate, row);
+  if (!r.rounded) return <span className={`accuracy__rate mono ${className}`}>{r.text}</span>;
+  return (
+    <HoverCard
+      className="accuracy__rated"
+      triggerClassName={`accuracy__rate accuracy__rate--rounded mono ${className}`}
+      trigger={r.text}
+    >
+      <span className="accuracy__judged-card">
+        Published as <span className="mono">{r.published}</span>;{" "}
+        <span className="mono">{groupedInteger(row.wrong)}</span> wrong of{" "}
+        <span className="mono">{groupedInteger(row.right + row.wrong)}</span> judged, so the rate is written below 1.
+      </span>
+    </HoverCard>
+  );
+}
+
+/** A wrong share's mark on the shared axis. */
+function Mark({ row }: { row: FamilyRow }) {
+  const at = wrongPosition(judged(row).wrongShare);
+  return (
+    <span className="accuracy__mark" aria-hidden="true" style={{ "--at": at ?? 0 } as CSSProperties}>
+      <WrongAxis />
+      {at === null ? (
+        <span className="bench__dot bench__dot--none" />
+      ) : (
+        <>
+          <span className="accuracy__stem" />
+          <span className="bench__dot" />
+        </>
+      )}
+    </span>
+  );
+}
+
+/** The axis's head: the measure and its labelled ticks, once for every row under it. */
+function AxisHead() {
+  return (
+    <span className="accuracy__axis-head">
+      <span className="accuracy__axis-name">Wrong / judged, log scale</span>
+      <WrongAxis labels />
+    </span>
+  );
+}
+
 /** The organism of the accuracy chosen: the address's (`?organism=`) where the benchmarks measured it, else the
  *  organism in view where they did, else the first. */
 function useAccuracyOrganism(order: readonly string[]): [string, (organism: string) => void] {

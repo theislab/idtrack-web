@@ -216,15 +216,6 @@
   margin-bottom: var(--space-3);
 }
 
-.method .method-code,
-.method-figure .method-code {
-  display: inline-block;
-  font-size: var(--text-sm);
-  font-size-adjust: none;
-  font-weight: var(--weight-strong);
-  color: var(--ink-1);
-}
-
 /* The lists of terms of a panel, one under the other, each the panel's width and flowing in balanced columns (so that
    a short list beside a long one never leaves a hole). */
 .method-columns {
