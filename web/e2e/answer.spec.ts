@@ -20,10 +20,11 @@ async function open(page: Page, query: string): Promise<void> {
 test("a bridge across assemblies is counted once per bridge the best answer's paths take", async ({ page }) => {
   test.skip(!pig, "the pig graph's bridges");
   await open(page, "id=ENSSSCP00000069370.1&to=56");
-  await expect(page.locator(".answer__cautions")).toContainText("places not compared across assemblies");
-  await expect(page.locator(".answer__cautions")).not.toContainText("steps across assemblies");
+  // Each caution's line leads with its label, in sentence case.
+  await expect(page.locator(".answer__cautions")).toContainText(/places not compared across assemblies/i);
+  await expect(page.locator(".answer__cautions")).not.toContainText(/steps across assemblies/i);
   await open(page, "id=XM_001925116&to=56");
-  await expect(page.locator(".answer__cautions")).toContainText("2 steps across assemblies, places not compared");
+  await expect(page.locator(".answer__cautions")).toContainText(/2 steps across assemblies, places not compared/i);
 });
 
 test("a branch that outranks the id's own continuation is said beside the status", async ({ page }) => {
@@ -33,8 +34,8 @@ test("a branch that outranks the id's own continuation is said beside the status
   const alert = cautions.locator(".answer__caution--alert");
   await expect(alert).toContainText("Another gene may be the one meant");
   await expect(alert).toContainText("the id's own continuation ranks below a branch");
-  // The limitation it falls under is on its triangle's card, a press away.
-  await alert.getByRole("button", { name: /^Caution:/ }).click();
+  // The limitation it falls under is on the card of what it rests on, a press on its (i) away.
+  await alert.getByRole("button", { name: /^What .* rests on$/ }).click();
   await expect(alert.getByRole("link", { name: /A branch can outrank the gene's own continuation/ })).toBeVisible();
   await expectAccessible(page);
 });
