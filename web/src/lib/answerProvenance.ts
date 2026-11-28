@@ -86,10 +86,74 @@ export function citationOf(bibtex: string, version: VersionResponse | null): str
   return version ? bibtex.replace(/version = \{[^}]*\}/, `version = {${version.idtrack_version}}`) : bibtex;
 }
 
+/** The fields of a BibTeX entry (`key = {value}`, one a line, as IDTrack's documentation writes its citation). */
+function bibtexFields(bibtex: string): Record<string, string> {
+  const fields: Record<string, string> = {};
+  for (const match of bibtex.matchAll(/^\s*([a-z]+)\s*=\s*\{(.*)\},?\s*$/gm)) {
+    const [, key, value] = match;
+    if (key && value !== undefined) fields[key] = value;
+  }
+  return fields;
+}
+
+/** The reference as one line of text, from the BibTeX entry's own fields ("Inecik, K. (2026). IDTrack: … (version
+ *  0.1.2) [Software]. https://…"): for a reader whose reference manager takes neither BibTeX nor RIS. */
+export function referenceText(bibtex: string): string {
+  const f = bibtexFields(bibtex);
+  const authors = (f["author"] ?? "")
+    .split(/\s+and\s+/)
+    .filter(Boolean)
+    .map((name) => {
+      const [family = "", given = ""] = name.split(",").map((part) => part.trim());
+      const initials = given
+        .split(/\s+/)
+        .filter(Boolean)
+        .map((g) => `${g.charAt(0)}.`)
+        .join(" ");
+      return initials ? `${family}, ${initials}` : family;
+    })
+    .join(", ");
+  const version = f["version"] ? ` (version ${f["version"]})` : "";
+  const url = f["url"] ? ` ${f["url"]}` : "";
+  return `${authors} (${f["year"] ?? "n.d."}). ${f["title"] ?? ""}${version} [Software].${url}`;
+}
+
+/** The reference in RIS (EndNote, Zotero, Mendeley, Word's managers), from the BibTeX entry's own fields: a computer
+ *  program (`TY  - COMP`), its authors, title, year, version (`ET`) and address. */
+export function referenceRis(bibtex: string): string {
+  const f = bibtexFields(bibtex);
+  const lines = ["TY  - COMP"];
+  for (const author of (f["author"] ?? "").split(/\s+and\s+/).filter(Boolean)) lines.push(`AU  - ${author.trim()}`);
+  if (f["title"]) lines.push(`TI  - ${f["title"]}`);
+  if (f["year"]) lines.push(`PY  - ${f["year"]}`);
+  if (f["version"]) lines.push(`ET  - ${f["version"]}`);
+  if (f["url"]) lines.push(`UR  - ${f["url"]}`);
+  lines.push("ER  - ");
+  return `${lines.join("\n")}\n`;
+}
+
+/** What IDTrack answered, in a few words for a methods sentence: the target (or the targets), a tie of genes with
+ *  their ids, the bridges the best answer passes and its rank among the candidates, or why there is no answer. */
+export function outcomeWords(result: ConversionResult, database: string): string {
+  const bests = result.candidates.filter((c) => c.best);
+  const list = (ids: string[]) =>
+    ids.length <= 5 ? ids.join(", ") : `${ids.slice(0, 5).join(", ")} and ${ids.length - 5} more`;
+  if (!bests.length) return `IDTrack gave no answer (status ${result.status})`;
+  const genes = [...new Set(bests.map((c) => c.gene))];
+  if (result.no_target) return `IDTrack's best answer, ${list(genes)}, has no id in ${database}`;
+  const targets = [...new Set(bests.map((c) => c.target))];
+  const best = bests[0];
+  const bridges = best && best.bridges > 0 ? ` through ${best.bridges} bridge${best.bridges === 1 ? "" : "s"}` : "";
+  if (result.tie && genes.length > 1)
+    return `IDTrack answered a tie of ${genes.length} genes (${list(targets)})${bridges}`;
+  const rank = result.candidates.length > 1 ? `, ranked first of ${result.candidates.length} candidates` : "";
+  return `IDTrack answered ${list(targets)}${bridges}${rank}`;
+}
+
 /** A sentence for a methods section that states this one conversion exactly: the identifier, the organism, the release
  *  it was read at (and how), the release and database asked, the bridges allowed or not, idtrack's and the api's
- *  versions and commit, the graph's releases and content digest, and the date. Every value is the answer's, the
- *  graph's description's or `/version`'s. */
+ *  versions and commit, the graph's releases and content digest, the date, and what IDTrack answered. Every value is
+ *  the answer's, the graph's description's or `/version`'s. */
 export function methodsSentence({
   result,
   description,
@@ -128,6 +192,6 @@ export function methodsSentence({
     `${version.idtrack_commit ? ` (commit ${version.idtrack_commit.slice(0, 7)})` : ""} through its web server` +
     ` (api ${version.api_version}) on ${date}: ${read}, converted to release ${result.to_release} in ${database}` +
     `, ${bridges ? "bridges allowed" : "Ensembl's history alone (no bridges)"}, on the graph of Ensembl releases` +
-    ` ${first ?? ""}–${last ?? ""}${digest}.`
+    ` ${first ?? ""}–${last ?? ""}${digest}; ${outcomeWords(result, database)}.`
   );
 }

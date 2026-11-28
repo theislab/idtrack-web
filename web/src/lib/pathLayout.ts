@@ -2,10 +2,10 @@
 //
 // Two axes. Time (`t`) runs along the releases: a node is drawn over the releases the path holds it, a step from the
 // release at its source side to the release at its target side. Stack (`s`) separates what happens at the same
-// time: the identifier and the forms it is read through above, then one lane per Ensembl gene line, the chosen
-// answer's genes on the first lane, alternatives below, genes of one lineage kept on one lane where they fit.
+// time: the identifier and the forms it is read through above, then one lane per stable gene id, the chosen answer's
+// ids first in the order the walk meets them (a staircase), alternatives below.
 // Horizontal on a wide screen (t = x), vertical on a phone (t = y): the same layout, the axes swapped.
-import { middleCut, placeLabels, type PlacedLabel } from "../components/figure/labels";
+import { middleCut, placeLabels, textWidth, type PlacedLabel } from "../components/figure/labels";
 import type { ModelCandidate, ModelNode, ModelStep, PathModel } from "./pathModel";
 
 export interface LayoutMetrics {
@@ -39,11 +39,13 @@ export const HORIZONTAL_METRICS: LayoutMetrics = {
   lead: 20,
   via: 26,
 };
+// On a phone's timeline the lanes stand side by side across the screen: one per stable id, close enough that a journey
+// through six ids leaves the labels' column its room.
 export const VERTICAL_METRICS: LayoutMetrics = {
   rowGap: 26,
-  laneGap: 30,
-  weakLaneGap: 30,
-  subGap: 20,
+  laneGap: 18,
+  weakLaneGap: 18,
+  subGap: 14,
   pad: 18,
   indent: 14,
   lead: 0,
@@ -194,9 +196,11 @@ function genesOf(model: PathModel, candidate: ModelCandidate): string[] {
   return genes;
 }
 
-/** The lane of each gene: the best candidates' genes on lane 0 where they fit; a gene keeps the lane of the gene it came
- *  from where its releases are free there; alternatives never take lane 0; genes alive at the same releases never share
- *  a lane. */
+/** The lane of each gene: one lane per stable id of the best candidates' paths, in the order the walk meets them (the
+ *  versions of one id on its lane, an id the walk changes to on the next lane: a journey through six ids reads as a
+ *  staircase of six lanes); an alternative's gene takes the lane of its stable id where that id has one and its
+ *  releases are free there, else the first free lane below the best paths' lanes; genes alive at the same releases
+ *  never share a lane. */
 function assignLanes(
   model: PathModel,
   walk: readonly ModelCandidate[],
@@ -204,25 +208,25 @@ function assignLanes(
 ): { laneOf: Map<string, number>; laneIntervals: [number, number][][] } {
   const laneOf = new Map<string, number>();
   const laneIntervals: [number, number][][] = [];
-  const place = (id: string, preferred: number | null, minimum: number) => {
+  const laneOfStable = new Map<string, number>();
+  const fits = (lane: number, interval: [number, number]) => !overlaps(laneIntervals[lane] ?? [], interval);
+  const place = (id: string, minimum: number) => {
     const n = model.nodeById.get(id);
     if (!n || laneOf.has(id)) return;
     const interval: [number, number] = [n.first, n.last];
-    const fits = (lane: number) => !overlaps(laneIntervals[lane] ?? [], interval);
-    let lane = preferred !== null && preferred >= minimum && fits(preferred) ? preferred : minimum;
-    while (!fits(lane)) lane += 1;
+    const stable = baseOf(n.label);
+    const own = laneOfStable.get(stable);
+    let lane = own !== undefined && fits(own, interval) ? own : minimum;
+    if (lane !== own) while (!fits(lane, interval) || [...laneOfStable.values()].includes(lane)) lane += 1;
     laneOf.set(id, lane);
+    if (!laneOfStable.has(stable)) laneOfStable.set(stable, lane);
     (laneIntervals[lane] ??= []).push(interval);
   };
-  for (const candidate of walk) {
-    let previous: number | null = candidate.best ? 0 : null;
-    const minimum = candidate.best ? 0 : 1;
-    for (const id of genesOf(model, candidate)) {
-      if (!visible.has(id)) continue;
-      place(id, previous, minimum);
-      previous = laneOf.get(id) ?? previous;
-    }
-  }
+  for (const candidate of walk.filter((c) => c.best))
+    for (const id of genesOf(model, candidate)) if (visible.has(id)) place(id, 0);
+  const bestLanes = laneIntervals.length;
+  for (const candidate of walk.filter((c) => !c.best))
+    for (const id of genesOf(model, candidate)) if (visible.has(id)) place(id, Math.max(1, bestLanes));
   return { laneOf, laneIntervals };
 }
 
@@ -340,8 +344,7 @@ export function layoutPath(model: PathModel, options: LayoutOptions): PathLayout
       visibleSteps.some((step) => step.api.kind === "bridge_near" && step.api.target === id),
   );
 
-  // Lanes of genes: the best candidates' genes on lane 0 where they fit; a gene keeps the lane of the gene it came
-  // from where its releases are free there; alternatives never take lane 0.
+  // Lanes of genes: one per stable id of the best paths, in the walk's order; alternatives below them.
   const { laneOf, laneIntervals } = assignLanes(model, walk, visibleNodeIds);
   const lanes = laneIntervals.length;
 
@@ -597,8 +600,9 @@ export function pathLabels(
 }
 
 /** The stubs of a split's or merge's other ids leave the event's glyph into the label rows above its lane: toward the
- *  later releases (a split) or from the earlier ones (a merge), along time on the drawing's scale. One or two stubs
- *  stay in the first row; the third rises into the second. */
+ *  later releases (a split) or from the earlier ones (a merge), along time on the drawing's scale, their count after
+ *  them (`+20`, 25 px from the glyph, in 10 px type) with 4 px kept clear of any label. One or two stubs stay in the
+ *  first row; the third rises into the second. */
 function stubExtents(
   edge: EdgePlace,
   laneOf: (id: string | null) => number | null,
@@ -612,7 +616,9 @@ function stubExtents(
     [merges, -1],
   ] as const) {
     if (!n) continue;
-    const span: [number, number] = side > 0 ? [edge.mid.t + 2, edge.mid.t + 34] : [edge.mid.t - 34, edge.mid.t - 2];
+    const reach = 25 + textWidth(`+${n}`, 10) + 4;
+    const span: [number, number] =
+      side > 0 ? [edge.mid.t + 2, edge.mid.t + reach] : [edge.mid.t - reach, edge.mid.t - 2];
     take(`${lane}:a0`, span);
     if (n >= 3) take(`${lane}:a1`, span);
   }

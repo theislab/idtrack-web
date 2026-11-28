@@ -91,9 +91,13 @@ describe("Evidence", () => {
     expect(button).toBeTruthy();
     if (!button) return;
     expect(button.getAttribute("aria-expanded")).toBe("false");
+    expect(button.getAttribute("aria-label")).toMatch(/^Caution: /);
     fireEvent.click(button);
     expect(button.getAttribute("aria-expanded")).toBe("true");
-    expect(document.body.textContent).toContain("Caution");
+    // The card says what the result says, and why the mark is flagged a press further.
+    const mark = evidenceOf(result, vocabulary)[0];
+    expect(document.body.textContent).toContain((mark?.detail ?? "-").replace(/`/g, ""));
+    expect(document.body.textContent).toContain("Why this is flagged");
     fireEvent.keyDown(button, { key: "Escape" });
     expect(button.getAttribute("aria-expanded")).toBe("false");
   });

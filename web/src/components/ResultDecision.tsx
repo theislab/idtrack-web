@@ -7,12 +7,13 @@ import { databaseLabel } from "../lib/databases";
 import type { Highlight } from "../lib/highlight";
 import { groupedInteger } from "../lib/numbers";
 import type { Decision } from "../lib/pathModel";
-import { ABSENT, criterionValue, firstWords, prose, yesNo } from "../lib/values";
+import { ABSENT, criterionValue, firstWords, yesNo } from "../lib/values";
 import { criterionOf, spaced, type Criterion } from "../lib/vocabulary";
 import { useVocabulary } from "../lib/vocabularyContext";
-import { RECORD, SUCCESSOR_CRITERIA } from "../lib/resultWords";
+import { RECORD, shortScore, SUCCESSOR_CRITERIA } from "../lib/resultWords";
 import { IdMenu, SymbolOf, type IdContext } from "./IdMenu";
-import { CriterionValue, ScoreValue, Term } from "./ResultParts";
+import { CriterionTerm, CriterionValue, ScoreValue, Term } from "./ResultParts";
+import { Toggletip } from "./Toggletip";
 import { usePhone } from "../lib/usePhone";
 import { navigate } from "../lib/router";
 import { Button, Mono, Prose, TableFrame } from "./ui";
@@ -29,7 +30,34 @@ function showPath() {
   navigate(`${window.location.pathname}${text ? `?${text}` : ""}`, { replace: true });
 }
 
-export function DecisionText({ decision }: { decision: Decision }) {
+/** A value as the sentence of the decision writes it: every decimal of more than six significant digits cut after
+ *  its sixth with "…" (never rounded), the whole value as IDTrack gave it a press or a pointing away. */
+function SentenceValue({ text, title }: { text: string; title?: string | undefined }) {
+  const cut = text.replace(/\d+\.\d+/g, (m) => shortScore(Number(m)).text);
+  if (cut === text && !title) return <Mono>{text}</Mono>;
+  return (
+    <Toggletip
+      className="decision__value value-tip"
+      tip={
+        <span className="term__card">
+          As IDTrack gave it: <span className="mono">{text}</span>
+          {title ? (
+            <>
+              . <span className="term__meaning">{title}</span>
+            </>
+          ) : null}
+        </span>
+      }
+    >
+      <span className="mono" aria-hidden="true">
+        {cut}
+      </span>
+      <span className="visually-hidden">{text}</span>
+    </Toggletip>
+  );
+}
+
+function DecisionText({ decision, context }: { decision: Decision; context: IdContext }) {
   const vocabulary = useVocabulary();
   const criterion: Criterion = criterionOf(vocabulary, decision.key) ?? {
     code: decision.key,
@@ -41,27 +69,46 @@ export function DecisionText({ decision }: { decision: Decision }) {
   const at = criteria.findIndex((c) => c.code === decision.key);
   const best = decision.best.api;
   const runner = decision.runnerUp.api;
-  const sortKey = criterionValue(criterion, best).sortKey === true;
+  const bestValue = criterionValue(criterion, best);
+  const runnerValue = criterionValue(criterion, runner);
+  const sortKey = bestValue.sortKey === true;
   return (
     <div className="decision">
-      <p className="decision__head">
-        <span className="eyebrow">Decided by</span> <strong className="decision__key">{spaced(decision.key)}</strong>
+      {/* The decision in one sentence: the pair compared, the criterion that decided (its meaning and how it ranks a
+          press or a pointing away), and the values it compared. */}
+      <p className="decision__sentence">
+        <Mono strong>{best.target}</Mono> ranks before the runner-up{" "}
+        <IdMenu id={runner.target} release={context.toRelease} context={context} />
+        <SymbolOf gene={runner.gene} context={context} except={runner.target} lead=" " /> (rank{" "}
+        {decision.runnerUp.index + 1}), decided by{" "}
+        <Toggletip
+          className="decision__key"
+          tip={
+            <span className="term__card">
+              {criterion.meaning ? (
+                <span className="term__meaning decision__meaning">
+                  <Prose text={criterion.meaning} />
+                </span>
+              ) : (
+                <span className="term__meaning decision__meaning muted">The api gives no text for this criterion.</span>
+              )}
+              {criterion.fields.length ? (
+                <span className="decision__rule">{criterion.fields.map(firstWords).join("; ")}.</span>
+              ) : null}{" "}
+              <code className="term__code mono">{criterion.code}</code>
+            </span>
+          }
+        >
+          {spaced(decision.key)}
+        </Toggletip>
         {at >= 0 && vocabulary.criteria.length ? (
-          <span className="decision__position">
-            criterion {at + 1} of the {vocabulary.criteria.length} in IDTrack&apos;s order
-          </span>
+          <>
+            , criterion {at + 1} of the {vocabulary.criteria.length} in IDTrack&apos;s order
+          </>
         ) : null}
+        : <SentenceValue text={bestValue.text} title={bestValue.note} /> against{" "}
+        <SentenceValue text={runnerValue.text} title={runnerValue.note} />.
       </p>
-      {criterion.meaning ? (
-        <p className="decision__meaning">
-          <Prose text={criterion.meaning} />
-        </p>
-      ) : (
-        <p className="decision__meaning muted">The api gives no text for this criterion.</p>
-      )}
-      {criterion.fields.length ? (
-        <p className="decision__rule">{criterion.fields.map(firstWords).join("; ")}.</p>
-      ) : null}
       <div className="decision__compare">
         <table className="compare">
           <caption>
@@ -104,7 +151,7 @@ export function DecisionText({ decision }: { decision: Decision }) {
                 <tr key={c.code} className={`compare__row compare__row--${state}`}>
                   <td className="compare__n mono">{i + 1}</td>
                   <th scope="row" className="compare__criterion">
-                    <span title={c.meaning ? prose(c.meaning) : undefined}>{spaced(c.code)}</span>
+                    <CriterionTerm criterion={c} />
                     {meanings && c.meaning ? (
                       <span className="compare__meaning">
                         <Prose text={c.meaning} />
@@ -163,10 +210,7 @@ function RecordGrid({
   decided: string | null;
 }) {
   const vocabulary = useVocabulary();
-  const meaning = (field: string) => {
-    const text = vocabulary.candidateFields.get(field);
-    return text ? prose(text) : undefined;
-  };
+  const meaning = (field: string) => vocabulary.candidateFields.get(field) ?? null;
   const extra: [string, string, string][] = [
     ["best", yesNo(candidate.best), "best"],
     ["name authority", yesNo(candidate.authority), "authority"],
@@ -188,8 +232,8 @@ function RecordGrid({
       <dl className="record__grid">
         {criteria.map((c, i) => (
           <div key={c.code} className={c.code === decided ? "record__item is-decided" : "record__item"}>
-            <dt title={c.meaning ? prose(c.meaning) : undefined}>
-              <span className="mono record__n">{i + 1}</span> {spaced(c.code)}
+            <dt>
+              <span className="mono record__n">{i + 1}</span> <CriterionTerm criterion={c} />
               {c.code === decided ? <span className="tag tag--decides">decides</span> : null}
             </dt>
             <dd>
@@ -201,7 +245,9 @@ function RecordGrid({
       <dl className="record__grid record__grid--more">
         {extra.map(([label, value, field]) => (
           <div key={label} className="record__item">
-            <dt title={meaning(field)}>{label}</dt>
+            <dt>
+              <Term code={field} meaning={meaning(field)} words={label} />
+            </dt>
             <dd className="mono">{value}</dd>
           </div>
         ))}
@@ -262,12 +308,17 @@ function CandidateRow({
         <td data-label="Target">
           <IdMenu id={c.target} release={context.toRelease} context={context} strong={c.best} answer />
           {rival ? (
-            <span
+            <Toggletip
               className="tag cand__rival"
-              title="It is reached by a bridge from the same gene through ids the bridge taken does not pass; it ranks below only by the bridge's gap in releases (see the caution in panel a)."
+              tip={
+                <span className="term__card">
+                  It is reached by a bridge from the same gene through ids the bridge taken does not pass; it ranks
+                  below only by the bridge&apos;s gap in releases (the verdict&apos;s caution says so).
+                </span>
+              }
             >
               bridged too, through other ids
-            </span>
+            </Toggletip>
           ) : null}
           {c.target === c.gene ? (
             <>
@@ -311,17 +362,19 @@ function CandidateRow({
             <CriterionValue criterion={decider} candidate={c} />
           </td>
         ) : null}
-        <td className="cand__more" data-label="">
+        <td className="cand__path" data-label="On the path">
           {onPath ? (
-            <Button
-              variant="quiet"
+            <button
+              type="button"
               className="cand__on-path"
               aria-label={`Draw candidate ${i + 1}, ${c.target}, strong on the path`}
               onClick={onPath}
             >
-              On the path
-            </Button>
+              <span className="cand__on-path-dot" aria-hidden="true" />
+            </button>
           ) : null}
+        </td>
+        <td className="cand__more" data-label="">
           <Button
             variant="quiet"
             className="cand__toggle"
@@ -374,7 +427,7 @@ function Candidates({
   const fieldText = (field: string) => vocabulary.candidateFields.get(field) ?? null;
   // The gene column only where a target is not the gene itself (a database other than Ensembl's).
   const geneColumn = result.candidates.some((c) => c.target !== c.gene);
-  const columns = 9 + (geneColumn ? 1 : 0) + (decider ? 1 : 0);
+  const columns = 10 + (geneColumn ? 1 : 0) + (decider ? 1 : 0);
   const rows = useMemo(() => {
     const needle = filter.trim().toLowerCase();
     const all = result.candidates.map((c, i) => ({ c, i }));
@@ -467,6 +520,9 @@ function Candidates({
                   <Term code={decider.code} meaning={decider.meaning} /> <span className="cand__decides">decides</span>
                 </th>
               ) : null}
+              <th scope="col" className="cand__path">
+                Path
+              </th>
               <th scope="col" className="cand__more">
                 <span className="visually-hidden">Ranking record</span>
               </th>
@@ -620,7 +676,7 @@ export function DecisionPanelBody({
 }) {
   return (
     <>
-      {decision ? <DecisionText decision={decision} /> : <NoDecision result={result} />}
+      {decision ? <DecisionText decision={decision} context={context} /> : <NoDecision result={result} />}
       <h3 className="figure-panel__subtitle" id={listId}>
         {result.no_target
           ? `Genes reached, ranked (no ${databaseLabel(requestedDatabase ?? "ensembl_gene")} for the best answer; the others not looked up)`

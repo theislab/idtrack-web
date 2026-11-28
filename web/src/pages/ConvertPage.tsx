@@ -3,7 +3,8 @@ import { Suspense, useEffect, useId, useRef, useState, type SyntheticEvent } fro
 import { api, API_BASE, queryString } from "../api/client";
 import type { GraphDescription } from "../api/types";
 import { ConvertEmpty } from "../components/ConvertEmpty";
-import { CaseTour, useCaseTour } from "../components/home/CaseTour";
+import { CaseTour } from "../components/home/CaseTour";
+import { useCaseTour } from "../lib/home/caseTour";
 import { ErrorBoundary } from "../components/ErrorBoundary";
 import { ErrorPanel } from "../components/ErrorPanel";
 import { ResultSkeleton } from "../components/ResultSkeleton";
@@ -31,7 +32,7 @@ import { href, navigate, useLocation } from "../lib/router";
 import { setTitleDetail } from "../lib/title";
 import { useRequest } from "../lib/useRequest";
 import { useLimits } from "../lib/vocabularyContext";
-import { examplesOf, pathSketch, placeholderOf, type Example } from "../lib/home/examples";
+import { examplesOf, MEASURE_WORDS, pathSketch, placeholderOf, type Example } from "../lib/home/examples";
 import { useShowcase } from "../lib/showcase";
 import "../styles/convert.css";
 
@@ -186,7 +187,9 @@ function ConvertForOrganism({
   }, [settled, result, moveFocus]);
   useEffect(() => {
     if (result.state !== "done") return;
-    setTitleDetail(conversionTitle(result.answer.data));
+    // The title is plain text: an identifier's format characters (a mark of direction, a zero-width space) are left out
+    // of it, so that they reorder nothing of the window's title.
+    setTitleDetail(conversionTitle(result.answer.data).replace(/\p{Cf}/gu, ""));
     return () => {
       setTitleDetail(null);
     };
@@ -288,8 +291,11 @@ function ConvertForOrganism({
         {isCancelled ? (
           <div className="notice" role="status">
             <p>
-              The conversion of <span className="mono">{parameters.identifier}</span> was cancelled; nothing more is
-              asked of the api.
+              The conversion of{" "}
+              <span className="mono">
+                <bdi>{parameters.identifier}</bdi>
+              </span>{" "}
+              was cancelled; nothing more is asked of the api.
             </p>
             <div className="notice__actions">
               <Button
@@ -419,8 +425,12 @@ function Waiting({ identifier, onCancel }: { identifier: string; onCancel: () =>
   return (
     <div className="notice convert-waiting">
       <p>
-        Converting <span className="mono">{identifier}</span>… <span className="mono">{seconds}</span> s. A large answer
-        or a busy server takes longer; the server&apos;s load is in the masthead.
+        Converting{" "}
+        <span className="mono">
+          <bdi>{identifier}</bdi>
+        </span>
+        … <span className="mono">{seconds}</span> s. A large answer or a busy server takes longer; the server&apos;s
+        load is in the masthead.
       </p>
       <div className="notice__actions">
         <Button onClick={onCancel}>Cancel</Button>
@@ -567,7 +577,8 @@ function ConvertForm({
     if (focusOnOpen) formRef.current?.querySelector<HTMLInputElement>(".field--identifier input")?.focus();
   }, [focusOnOpen]);
   // The form says a new question once it differs from the address.
-  const changed = identifier.trim() !== parameters.identifier || JSON.stringify(fields) !== JSON.stringify(fieldsOf(parameters));
+  const changed =
+    identifier.trim() !== parameters.identifier || JSON.stringify(fields) !== JSON.stringify(fieldsOf(parameters));
 
   const toNumber = /^\d+$/.test(toRelease.trim()) ? Number(toRelease.trim()) : null;
   const finals = useRequest(`${organism}:${toNumber ?? "snapshot"}`, (signal, fresh) =>
@@ -781,11 +792,7 @@ function ConvertForm({
             {explain ? "" : " · no path"}
           </span>
         </button>
-        <Button
-          type="submit"
-          variant={answered && !changed ? "secondary" : "primary"}
-          className="convert-form__go"
-        >
+        <Button type="submit" variant={answered && !changed ? "secondary" : "primary"} className="convert-form__go">
           Convert
         </Button>
         {hero ? (
@@ -909,7 +916,7 @@ function Examples({
     <div
       className={`convert-examples${examples.length ? "" : " convert-examples--waiting"}`}
       role="group"
-      aria-label="Examples from this graph's showcase, the most convoluted first"
+      aria-label={`Examples from this graph's showcase, the most convoluted first by ${MEASURE_WORDS}`}
     >
       <span className="convert-examples__label" aria-hidden="true">
         Try

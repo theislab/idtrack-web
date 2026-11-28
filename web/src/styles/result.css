@@ -165,9 +165,25 @@
   color: var(--ink-2);
 }
 
+/* The query is a unit: it never breaks inside itself; on a narrow column its type shrinks to the column instead (a
+   query longer than forty characters, which no column holds, wraps). */
 .answer__query-id .mono {
+  font-size: min(1em, 7cqi);
   font-size-adjust: none;
   font-weight: var(--weight-medium);
+  white-space: nowrap;
+}
+
+/* Beside the answer the query's column is at most a third of the verdict. */
+@media (min-width: 900px) {
+  .answer__query-id .mono {
+    font-size: min(1em, 2.6cqi);
+  }
+}
+
+.answer__query-id--long .mono {
+  font-size: 1em;
+  white-space: normal;
   overflow-wrap: anywhere;
 }
 
@@ -483,9 +499,10 @@
   text-decoration: none;
 }
 
+/* The record's nine facts in three columns of three (two on a phone): no value wraps, no fact stands alone on a row. */
 .answer__facts {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 0 var(--space-5);
   row-gap: var(--space-3);
   margin: var(--space-5) 0 0;
@@ -1528,31 +1545,22 @@ a.anatomy__link:hover .anatomy__go {
   gap: var(--space-3);
 }
 
-.decision__head {
-  display: flex;
-  align-items: baseline;
-  flex-wrap: wrap;
-  gap: var(--space-1) var(--space-3);
-}
-
-.decision__key {
-  font-size: var(--text-xl);
-  font-weight: var(--weight-strong);
-  letter-spacing: -0.01em;
-}
-
-.decision__position {
-  color: var(--ink-3);
-  font-size: var(--text-sm);
-}
-
-.decision__meaning {
+/* The decision in one sentence at the text's size: the deciding criterion in its weight (its meaning and how it ranks
+   a press away), the values compared cut after six digits (the whole value a press away). */
+.decision__sentence {
+  margin: 0;
   max-width: 92ch;
   line-height: 1.6;
+  color: var(--ink-1);
 }
 
-.decision__rule {
-  font-size: var(--text-sm);
+.decision__key .toggletip__term {
+  font-weight: var(--weight-strong);
+}
+
+.decision__key .toggletip__card .decision__rule {
+  display: block;
+  margin-top: var(--space-1);
   color: var(--ink-2);
 }
 
@@ -2202,16 +2210,19 @@ a.anatomy__link:hover .anatomy__go {
 
 /* ---- Menus of identifiers, terms and the candidates' pages --------------------------------------------------- */
 
+/* An identifier that opens a menu is marked at rest by a dotted underline in the quiet ink (a finger has no hover to
+   find it by); under the pointer the line is solid. */
 .idmenu .toggletip__term {
-  text-decoration: none;
+  text-decoration: underline dotted var(--ink-3);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
   border-radius: 2px;
 }
 
 @media (hover: hover) {
   .idmenu .toggletip__term:hover {
-    text-decoration: underline;
-    text-decoration-thickness: 1px;
-    text-underline-offset: 3px;
+    text-decoration-style: solid;
+    text-decoration-color: currentcolor;
   }
 }
 
@@ -2681,11 +2692,60 @@ a.anatomy__link:hover .anatomy__go {
   border-color: var(--line-strong);
 }
 
-/* A score cut after six significant digits: the whole value on hover and read out in its place. */
-.score-value {
-  cursor: help;
-  text-decoration: underline dotted var(--line-strong);
-  text-underline-offset: 3px;
+/* A value with more to say (a score cut after six significant digits, a value read from parts): the whole of it a
+   press, a focus or a pointing away, read out in its place. */
+.value-tip .toggletip__term {
+  min-height: 0;
+  text-decoration-color: var(--line-strong);
+}
+
+/* The candidates: the deciding column tinted (no rule beside it), one row height (the path a dot in its own column). */
+.table--candidates .is-decided,
+.table--candidates.table--cards .is-decided {
+  box-shadow: none;
+  background: color-mix(in srgb, var(--ink-1) 4%, transparent);
+}
+
+.cand__path {
+  width: 1%;
+  text-align: center;
+}
+
+th.cand__path {
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+  color: var(--ink-3);
+}
+
+.cand__on-path {
+  display: inline-grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  cursor: pointer;
+}
+
+.cand__on-path-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--ink-2);
+}
+
+@media (hover: hover) {
+  .cand__on-path:hover .cand__on-path-dot {
+    background: var(--hue-history);
+  }
+}
+
+@media (forced-colors: active) {
+  .cand__on-path-dot {
+    background: CanvasText;
+  }
 }
 
 .answer__caution-count .evidence__glyph {
@@ -2752,29 +2812,41 @@ a.anatomy__link:hover .anatomy__go {
 
 /* ---- Cite: idtrack's citation and a sentence for this run ---------------------------------------------------- */
 
+/* The citation (in its drawer): one sentence that says what it is, then each block with its own Copy on its head. */
 .answer__cite {
   display: grid;
+  gap: var(--space-5);
+  min-width: 0;
+}
+
+.answer__cite-lead {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--ink-1);
+}
+
+.answer__cite-block {
+  display: grid;
   gap: var(--space-2);
-  margin-top: var(--space-4);
-  padding-top: var(--space-4);
-  border-top: 1px solid var(--line);
   min-width: 0;
 }
 
 .answer__cite-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.answer__cite-title {
+  margin: 0;
   font-size: var(--text-sm);
   font-weight: var(--weight-medium);
   color: var(--ink-1);
 }
 
-.answer__cite .answer__cite-head {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-2);
-}
-
 .answer__cite-sentence {
+  margin: 0;
   max-width: var(--measure);
   font-size: var(--text-sm);
 }

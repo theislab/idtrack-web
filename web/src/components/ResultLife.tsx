@@ -2,8 +2,9 @@
 // over which releases each gene it named there exists, drawn on the release axis over the assembly bands, with the
 // names the external databases gave each gene there. Read from the api alone: the same identifier converted at the
 // release it is read at, with its path (each gene's `active` releases and places), and the names of each gene at that
-// release (`/names-of`), at most three genes. The end of a gene's life is read from the releases at which it exists,
-// as everywhere in the figures; the result's own reason says why nothing is reached at the target release.
+// release (`/names-of`), at most three genes. The end of a gene's life in the direction asked (its last release for a
+// walk forward, its first for a walk back in time) is read from the releases at which it exists, as everywhere in the
+// figures, with where the gene lies; the result's own reason says why nothing is reached at the target release.
 import type { ConversionResult, GraphDescription, PathNode } from "../api/types";
 import { api } from "../api/client";
 import { assemblyNames, assemblyText } from "../lib/pathReading";
@@ -31,6 +32,17 @@ function lifeText(active: PathNode["active"]): string {
 function lastOf(active: PathNode["active"]): number | null {
   if (!active.length || active.some(([, b]) => b === null)) return null;
   return Math.max(...active.map(([, b]) => b ?? 0));
+}
+
+/** The first release of a gene (null: none known). */
+function firstOf(active: PathNode["active"]): number | null {
+  return active.length ? Math.min(...active.map(([a]) => a)) : null;
+}
+
+/** Where a gene lies at a release, from its places: the sequence region, and whether it is the reference sequence. */
+function placeAt(node: PathNode, release: number): { region: string; reference: boolean } | null {
+  const place = node.places.find((p) => p.releases.some(([a, b]) => release >= a && release <= b));
+  return place ? { region: place.region, reference: place.reference } : null;
 }
 
 function Names({ organism, gene, release }: { organism: string; gene: string; release: number }) {
@@ -86,6 +98,7 @@ export function RetiredLife({ result, description }: { result: ConversionResult;
   // The release asked is named on a row of its own under the axis, clear of the bands' names and the axis's labels.
   const height = axisY + 50;
   const to = result.to_release;
+  const back = to < release;
   return (
     <figure className="life" aria-labelledby={`life-${read}`}>
       <p className="life__words" id={`life-${read}`}>
@@ -95,15 +108,24 @@ export function RetiredLife({ result, description }: { result: ConversionResult;
       </p>
       <ul className="life__genes">
         {shown.map((node) => {
-          const last = lastOf(node.active);
+          // The end of the gene's life in the direction asked: its first release for a walk back in time, its last
+          // for a walk forward; and where it lies at the release read.
+          const end = back ? firstOf(node.active) : lastOf(node.active);
           const assemblies = node.assemblies.map((a) => assemblyText(a, names));
+          const place = placeAt(node, release);
           return (
             <li key={node.id}>
               <Mono strong>{node.label}</Mono>, at releases <Mono>{lifeText(node.active)}</Mono>
               {assemblies.length ? ` (${assemblies.join(", ")})` : ""}
-              {last !== null ? (
+              {place ? (
                 <>
-                  ; its last release is <Mono>{last}</Mono>
+                  , on <Mono>{place.region}</Mono>
+                  {place.reference ? "" : ", outside the reference sequence"}
+                </>
+              ) : null}
+              {end !== null && (back ? end > to : end < to) ? (
+                <>
+                  ; its {back ? "first" : "last"} release is <Mono>{end}</Mono>
                 </>
               ) : null}
               ; <Names organism={organism} gene={node.id} release={release} />.
@@ -122,7 +144,8 @@ export function RetiredLife({ result, description }: { result: ConversionResult;
             <Bands bands={bands} scale={scale} top={0} bottom={axisY} labelY={13} />
             {shown.map((node, i) => {
               const y = TOP + i * ROW + ROW / 2;
-              const last = lastOf(node.active);
+              const end = back ? firstOf(node.active) : lastOf(node.active);
+              const cap = end === null ? null : back ? end - 0.5 : end + 0.5;
               return (
                 <g key={node.id}>
                   {gutter ? (
@@ -133,14 +156,8 @@ export function RetiredLife({ result, description }: { result: ConversionResult;
                   {node.active.map(([a, b], j) => (
                     <GeneBar key={j} x0={scale.x(a - 0.5) + 1} x1={scale.x((b ?? scale.last) + 0.5) - 1} y={y} />
                   ))}
-                  {last !== null ? (
-                    <line
-                      className="life__cap"
-                      x1={scale.x(last + 0.5)}
-                      x2={scale.x(last + 0.5)}
-                      y1={y - 8}
-                      y2={y + 8}
-                    />
+                  {cap !== null ? (
+                    <line className="life__cap" x1={scale.x(cap)} x2={scale.x(cap)} y1={y - 8} y2={y + 8} />
                   ) : null}
                   <StepGlyph glyph="form" x={scale.x(release)} y={y} strong />
                 </g>
@@ -163,8 +180,7 @@ export function RetiredLife({ result, description }: { result: ConversionResult;
         <CaptionMore
           lead={
             <>
-              Each gene is a bar over the releases at which it exists, its last release capped; the open circle is the
-              release read ({release}), the line the release asked ({to}).
+              {`Each gene is a bar over the releases at which it exists, capped at its ${back ? "first" : "last"} release (the end a walk ${back ? "back in time" : "forward"} meets); the open circle is the release read (${release}), the line the release asked (${to}).`}
             </>
           }
         >

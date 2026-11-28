@@ -437,3 +437,10 @@
     white-space: nowrap;
   }
 }
+
+/* Inside the Record tab the facts begin the panel: no rule or room above them. */
+.result__tabs .answer__facts {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: 0;
+}

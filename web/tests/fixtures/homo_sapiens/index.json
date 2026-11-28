@@ -1548,5 +1548,21 @@
   "status": 200,
   "content_type": "application/json",
   "file": "convert_backward_no_conversion.json"
+ },
+ {
+  "name": "convert_backward_life_at_61",
+  "method": "GET",
+  "path": "/organisms/homo_sapiens/convert",
+  "query": {
+   "identifier": "ENSG00000237495.3",
+   "from_release": "61",
+   "to_release": "61",
+   "explain": "true",
+   "allow_bridges": "false"
+  },
+  "body": null,
+  "status": 200,
+  "content_type": "application/json",
+  "file": "convert_backward_life_at_61.json"
  }
 ]

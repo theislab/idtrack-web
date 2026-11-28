@@ -182,8 +182,20 @@ describe.each(named(withPath))("%s", (_, { entry, result }) => {
         expect(a.node.last < b.node.first || b.node.last < a.node.first).toBe(true);
       }
     }
-    // The best candidates' genes come first: none of an alternative's own genes is on lane 0.
-    for (const place of genes) if (!place.best) expect(place.lane).not.toBe(0);
+    // One lane per stable id: the best candidates' ids first; an alternative's gene is on a lane of the best paths only
+    // where its stable id is that lane's (another version of the same id).
+    const stable = (id: string) => id.replace(/\.\d+$/, "");
+    const laneIds = new Map<number, Set<string>>();
+    for (const place of genes)
+      if (place.lane !== null)
+        laneIds.set(place.lane, (laneIds.get(place.lane) ?? new Set()).add(stable(place.node.label)));
+    for (const ids of laneIds.values()) expect(ids.size).toBe(1);
+    const bestLanes = new Set(genes.filter((p) => p.best).map((p) => p.lane));
+    for (const place of genes)
+      if (!place.best && bestLanes.has(place.lane))
+        expect(
+          genes.some((p) => p.best && p.lane === place.lane && stable(p.node.label) === stable(place.node.label)),
+        ).toBe(true);
   });
 
   it("writes every score exactly as the api's text", () => {

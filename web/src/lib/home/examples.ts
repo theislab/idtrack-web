@@ -155,7 +155,8 @@ export function pathSketch(result: ConversionResult): PathSketch | null {
       const at = step.release ?? answered;
       const lane = laneOf(step.target, at);
       if (lane !== null && bridgeFrom) {
-        const [x, y] = bridgeFrom.release <= at ? [bridgeFrom, { lane, release: at }] : [{ lane, release: at }, bridgeFrom];
+        const [x, y] =
+          bridgeFrom.release <= at ? [bridgeFrom, { lane, release: at }] : [{ lane, release: at }, bridgeFrom];
         drawn.push({ from: x.release, to: y.release, laneFrom: x.lane, laneTo: y.lane, fan: false, bridge: true });
       }
       bridgeFrom = null;

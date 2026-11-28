@@ -52,7 +52,7 @@ describe("ResultView", () => {
     expect(best).toBeDefined();
     expect(screen.getAllByText(best?.target ?? "").length).toBeGreaterThan(0);
     openTab(/^Decision/);
-    expect(screen.getAllByText("Decided by").length).toBeGreaterThan(0);
+    expect(document.querySelector(".decision__sentence")?.textContent).toMatch(/, decided by /);
     const table = screen.getByRole("region", { name: "Candidates, ranked" });
     expect(within(table).getAllByRole("row")).toHaveLength(result.candidates.length + 1);
     // Each candidate's score as the api wrote it, beside the steps without a score that the criterion compares first.
@@ -82,7 +82,12 @@ describe("ResultView", () => {
     act(() => {
       first.focus();
     });
-    fireEvent.keyDown(first, { key: "ArrowRight" });
+    // The arrow that points the way the walk runs on the screen moves on (time runs to the right: a walk back in time
+    // runs left); the other one, from the first element, stays.
+    const back = result.from_release !== null && result.to_release < result.from_release;
+    fireEvent.keyDown(first, { key: back ? "ArrowRight" : "ArrowLeft" });
+    expect(document.activeElement).toBe(first);
+    fireEvent.keyDown(first, { key: back ? "ArrowLeft" : "ArrowRight" });
     const tip = screen.getByRole("tooltip");
     expect(tip.textContent.length).toBeGreaterThan(0);
     const focused = document.activeElement;
@@ -145,6 +150,10 @@ describe("ResultView", () => {
     const result = show("sus_scrofa", "convert_decided_by_annotation");
     expect(result.decided_by).toBe("annotation");
     openTab(/^Decision/);
+    // The criterion's meaning and how it ranks are a press away, on the criterion named in the decision's sentence.
+    const key = document.querySelector<HTMLElement>(".decision__key .toggletip__term");
+    expect(key?.textContent).toBe("annotation");
+    if (key) fireEvent.click(key);
     const decision = document.querySelector(".decision")?.textContent ?? "";
     const meaning = vocabulary.criteria.find((c) => c.code === "annotation")?.meaning ?? "-";
     expect(decision).toContain(prose(meaning).replace(/`/g, ""));
@@ -170,7 +179,7 @@ describe("ResultView", () => {
     const evidence = document.querySelector(".answer__cautions")?.textContent ?? "";
     for (const code of entry.result.reasons) {
       if (code === "read_at_another_release")
-        expect(evidence).toContain(`read at release ${entry.result.from_release}`);
+        expect(evidence.toLowerCase()).toContain(`read at release ${entry.result.from_release}`);
       else expect(notes).toContain((vocabulary.reasons.get(code) ?? code).replace(/`/g, ""));
     }
   });

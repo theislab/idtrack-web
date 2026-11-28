@@ -93,7 +93,12 @@ const ROWS_PHONE = 3;
 const ROW_OFFSET: Record<string, number> = { a0: -12, a1: -25 };
 /** Half the gap between two gene bars that meet at a step. */
 const JOINT = 2;
-const REVEAL_MS = 650;
+/** A figure reveals along its time axis once, in the one duration of every figure (DIRECTION.md, `--v2-dur-4`),
+ *  from the release the identifier is read at toward the answer; one light then travels the chosen path. */
+const REVEAL_MS = 900;
+const LIGHT_MS = 1300;
+/** `--v2-ease-out`: things that arrive. */
+const EASE_OUT = "0.16 1 0.3 1";
 /** The height the releases of a drawn path take on a phone's timeline at first, at most (one screen and a little). */
 const PHONE_AXIS = 760;
 
@@ -464,6 +469,11 @@ function Tooltip({
     if (place?.key !== next.key) element.scrollTop = 0;
     if (place?.key !== next.key || place.top !== next.top || place.max !== next.max) setPlace(next);
   }, [item, place, mayScroll]);
+  // A finger has no keys to name: the hint says what a tap does.
+  const coarse = useMemo(() => {
+    const media = (window as { matchMedia?: Window["matchMedia"] }).matchMedia;
+    return typeof media === "function" && media.call(window, "(pointer: coarse)").matches;
+  }, []);
   if (!item) return null;
   // Over the element's column (it starts 20 px before the element), so that the pointer reaches the note by moving
   // straight up or down from the element.
@@ -491,8 +501,12 @@ function Tooltip({
         ))}
       </dl>
       <p className="pv-tip__hint">
-        {pinned ? "Pinned · Esc to close" : "Enter pins · arrows move · Esc hides"}
-        {place?.key === item.key && place.max !== null ? " · PageDown scrolls" : ""}
+        {coarse
+          ? "Tap another mark to read it, or the page to close"
+          : pinned
+            ? "Pinned · Esc to close"
+            : "Enter pins · the arrows follow the path · Esc hides"}
+        {!coarse && place?.key === item.key && place.max !== null ? " · PageDown scrolls" : ""}
       </p>
     </div>
   );
@@ -553,9 +567,20 @@ function useSteadyHover<K>() {
   return { hover, enter, leave, drop, note };
 }
 
-/** Keyboard and pointer focus over the items: one tab stop, arrows move, Enter pins, Escape hides the tip (focus stays
- *  where it is); the tip can be pointed at without vanishing. */
-function useFocus(items: Item[], tipId: string) {
+/** The arrow keys that move to the next element of the path, in the direction the walk runs on the screen: time runs
+ *  to the right on a wide drawing and down a phone's timeline, so a walk back in time runs left (or up). */
+function nextKeys(model: PathModel, vertical: boolean): { next: string[]; previous: string[] } {
+  const back = model.result.from_release !== null && model.result.to_release < model.result.from_release;
+  const [along, alongBack] = vertical ? ["ArrowDown", "ArrowUp"] : ["ArrowRight", "ArrowLeft"];
+  const [across, acrossBack] = vertical ? ["ArrowRight", "ArrowLeft"] : ["ArrowDown", "ArrowUp"];
+  return back
+    ? { next: [alongBack, across], previous: [along, acrossBack] }
+    : { next: [along, across], previous: [alongBack, acrossBack] };
+}
+
+/** Keyboard and pointer focus over the items: one tab stop, the arrows move along the path as it runs on the screen,
+ *  Enter pins, Escape hides the tip (focus stays where it is); the tip can be pointed at without vanishing. */
+function useFocus(items: Item[], tipId: string, keysOf: { next: string[]; previous: string[] }) {
   const [active, setActive] = useState<ItemKey | null>(null);
   const pointer = useSteadyHover<ItemKey>();
   const [focused, setFocused] = useState(false);
@@ -579,10 +604,8 @@ function useFocus(items: Item[], tipId: string) {
     (event: KeyboardEvent) => {
       const index = items.findIndex((i) => i.key === current);
       const keys: Record<string, () => void> = {
-        ArrowRight: () => move(index + 1),
-        ArrowDown: () => move(index + 1),
-        ArrowLeft: () => move(index - 1),
-        ArrowUp: () => move(index - 1),
+        ...Object.fromEntries(keysOf.next.map((k) => [k, () => move(index + 1)])),
+        ...Object.fromEntries(keysOf.previous.map((k) => [k, () => move(index - 1)])),
         Home: () => move(0),
         End: () => move(items.length - 1),
         Enter: () => setPinned((p) => !p),
@@ -608,8 +631,25 @@ function useFocus(items: Item[], tipId: string) {
         action();
       }
     },
-    [items, current, move, pointer, dismiss, tipId],
+    [items, current, move, pointer, dismiss, tipId, keysOf],
   );
+  // A pinned note closes when the page is pressed anywhere but on a mark of the drawing or on the note itself.
+  const drop = pointer.drop;
+  useEffect(() => {
+    if (!pinned) return;
+    const outside = (event: Event) => {
+      const target = event.target as Node | null;
+      if (!target) return;
+      const onMark = [...refs.current.values()].some((element) => element.contains(target));
+      if (onMark || document.getElementById(tipId)?.contains(target)) return;
+      setPinned(false);
+      drop();
+    };
+    document.addEventListener("pointerdown", outside);
+    return () => {
+      document.removeEventListener("pointerdown", outside);
+    };
+  }, [pinned, tipId, drop]);
   const labels = useMemo(() => new Map(items.map((i) => [i.key, i.label])), [items]);
   const bind = (key: ItemKey) => ({
     role: "button" as const,
@@ -750,6 +790,112 @@ function drawnSpan(model: PathModel, limit: number): [number, number] | null {
   return releases.length ? [Math.min(...releases), Math.max(...releases)] : model.span;
 }
 
+/** The zoom of a drawing as two matching stroke icons, out then in (the same order on every figure that zooms). */
+function ZoomButtons({ onOut, onIn, out, into }: { onOut: () => void; onIn: () => void; out: string; into: string }) {
+  const glyph = (plus: boolean) => (
+    <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false">
+      <circle cx="7" cy="7" r="4.6" fill="none" stroke="currentColor" strokeWidth="1.4" />
+      <path d="M10.4 10.4 14 14" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+      <path d={plus ? "M4.8 7h4.4M7 4.8v4.4" : "M4.8 7h4.4"} stroke="currentColor" strokeWidth="1.3" />
+    </svg>
+  );
+  return (
+    <div className="pv-views__zoom" role="group" aria-label="Zoom">
+      <button type="button" className="pv-views__icon" onClick={onOut} aria-label={out} title={out}>
+        {glyph(false)}
+      </button>
+      <button type="button" className="pv-views__icon" onClick={onIn} aria-label={into} title={into}>
+        {glyph(true)}
+      </button>
+    </div>
+  );
+}
+
+/** The clip that reveals a drawing once along its time axis, from the release read (`at`, on the time axis) outward in
+ *  the walk's direction: toward later releases for a walk forward, toward earlier ones for a walk back. */
+function RevealClip({
+  id,
+  at,
+  extent,
+  across,
+  back,
+  vertical,
+}: {
+  id: string;
+  at: number;
+  extent: number;
+  across: number;
+  back: boolean;
+  vertical: boolean;
+}) {
+  const [pos, size] = vertical ? ["y", "height"] : ["x", "width"];
+  const common = { dur: `${REVEAL_MS}ms`, fill: "freeze", calcMode: "spline", keySplines: EASE_OUT, keyTimes: "0;1" };
+  const box = vertical ? { x: 0, width: across } : { y: 0, height: across };
+  return (
+    <clipPath id={id}>
+      {back ? (
+        <rect {...box} {...{ [pos]: at, [size]: extent - at }}>
+          <animate attributeName={pos} from={String(at)} to="0" {...common} />
+          <animate attributeName={size} from={String(extent - at)} to={String(extent)} {...common} />
+        </rect>
+      ) : (
+        <rect {...box} {...{ [pos]: 0, [size]: at }}>
+          <animate attributeName={size} from={String(at)} to={String(extent)} {...common} />
+        </rect>
+      )}
+    </clipPath>
+  );
+}
+
+/** One light that travels the chosen path once as the drawing reveals: from the identifier read, step by step along
+ *  its genes' bars and Ensembl's steps, to the answer. */
+function TravellingLight({
+  layout,
+  toXY,
+  scale,
+  vertical,
+}: {
+  layout: PathLayout;
+  toXY: (t: number, s: number) => [number, number];
+  scale: (r: number) => number;
+  vertical: boolean;
+}) {
+  const best = layout.shown.find((c) => c.best);
+  if (!best) return null;
+  const edgeOf = new Map(layout.edges.map((e) => [e.step.index, e]));
+  let d = "";
+  for (const index of best.steps) {
+    const edge = edgeOf.get(index);
+    if (!edge?.d) continue;
+    const segment = edgePath(edge, layout, scale);
+    d += d ? segment.replace(/^M/, "L") : segment;
+  }
+  if (!d) return null;
+  const swap = vertical ? `translate(${toXY(0, 0)[0]},0) matrix(0,1,1,0,0,0)` : `translate(0,${toXY(0, 0)[1]})`;
+  return (
+    <g transform={swap} aria-hidden="true" className="pv-light">
+      <circle r={3.6} className="pv-light__dot" opacity={0}>
+        <animateMotion
+          dur={`${LIGHT_MS}ms`}
+          fill="freeze"
+          path={d}
+          calcMode="spline"
+          keyPoints="0;1"
+          keyTimes="0;1"
+          keySplines="0.65 0 0.35 1"
+        />
+        <animate
+          attributeName="opacity"
+          values="0;1;1;0"
+          keyTimes="0;0.08;0.85;1"
+          dur={`${LIGHT_MS}ms`}
+          fill="freeze"
+        />
+      </circle>
+    </g>
+  );
+}
+
 function HorizontalPath({
   model,
   description,
@@ -827,7 +973,8 @@ function HorizontalPath({
   const height = plotBottom + BOTTOM;
   const toXY = useCallback((t: number, s: number): [number, number] => [t, s + TOP], []);
   const items = useItems(layout, model, names, toXY);
-  const focus = useFocus(items, tipId);
+  const keysOf = useMemo(() => nextKeys(model, false), [model]);
+  const focus = useFocus(items, tipId, keysOf);
   const shownItem = items.find((i) => i.key === focus.shown) ?? null;
   useStepShown(focus.shown, onStepShown);
 
@@ -868,11 +1015,12 @@ function HorizontalPath({
     const media = (window as { matchMedia?: Window["matchMedia"] }).matchMedia;
     return typeof media === "function" && media.call(window, "(prefers-reduced-motion: reduce)").matches;
   }, []);
-  // The path draws itself once, from its first release to its last (none under reduced motion).
+  // The path draws itself once, from the release it is read at toward the answer, and one light travels the chosen
+  // path (none under reduced motion).
   const [revealed, setRevealed] = useState(reduced);
   useEffect(() => {
     if (revealed) return;
-    const timer = window.setTimeout(() => setRevealed(true), REVEAL_MS + 50);
+    const timer = window.setTimeout(() => setRevealed(true), LIGHT_MS + 50);
     return () => window.clearTimeout(timer);
   }, [revealed]);
   const revealId = useId().replace(/:/g, "");
@@ -978,30 +1126,6 @@ function HorizontalPath({
       <div className="pv-toolbar">
         {lead}
         <div className="pv-toolbar__tools" role="group" aria-label="Zoom of the path">
-          <div className="pv-toolbar__group">
-            <Button
-              variant="quiet"
-              className="pv-tool"
-              onClick={() => {
-                setPreset(null);
-                zoomBy(1 / 1.6);
-              }}
-              aria-label="Zoom out"
-            >
-              −
-            </Button>
-            <Button
-              variant="quiet"
-              className="pv-tool"
-              onClick={() => {
-                setPreset(null);
-                zoomBy(1.6);
-              }}
-              aria-label="Zoom in"
-            >
-              +
-            </Button>
-          </div>
           <Button
             variant="quiet"
             className="pv-tool pv-preset"
@@ -1017,7 +1141,7 @@ function HorizontalPath({
             hover={false}
             className="pv-views"
             triggerClassName="pv-tool pv-views__trigger"
-            label="View: other spans of releases, and the releases in view"
+            label="View: zoom, other spans of releases, and the releases in view"
             trigger={
               <>
                 View
@@ -1036,6 +1160,18 @@ function HorizontalPath({
               };
               return (
                 <div className="pv-views__list">
+                  <ZoomButtons
+                    onOut={() => {
+                      setPreset(null);
+                      zoomBy(1 / 1.6);
+                    }}
+                    onIn={() => {
+                      setPreset(null);
+                      zoomBy(1.6);
+                    }}
+                    out="Zoom out"
+                    into="Zoom in"
+                  />
                   {event ? (
                     <button
                       type="button"
@@ -1108,20 +1244,14 @@ function HorizontalPath({
               <rect x={left} y={0} width={plotR - left + 6} height={height} />
             </clipPath>
             {!revealed ? (
-              <clipPath id={revealId}>
-                <rect x={0} y={0} width={width} height={height}>
-                  <animate
-                    attributeName="width"
-                    from={String(left)}
-                    to={String(width)}
-                    dur={`${REVEAL_MS}ms`}
-                    fill="freeze"
-                    calcMode="spline"
-                    keySplines="0.2 0.7 0.2 1"
-                    keyTimes="0;1"
-                  />
-                </rect>
-              </clipPath>
+              <RevealClip
+                id={revealId}
+                at={Math.min(Math.max(scale(model.result.from_release ?? model.result.to_release), left), width)}
+                extent={width}
+                across={height}
+                back={model.result.to_release < (model.result.from_release ?? model.result.to_release)}
+                vertical={false}
+              />
             ) : null}
           </defs>
           <g clipPath={`url(#${clipId})`}>
@@ -1212,6 +1342,7 @@ function HorizontalPath({
               plot={[left, plotR]}
             />
           </g>
+          {!revealed ? <TravellingLight layout={layout} toXY={toXY} scale={scale} vertical={false} /> : null}
           {gutter > 40 ? (
             <RowTitles layout={layout} model={model} width={gutter} top={TOP} isStrong={isStrong} titles={laneTitles} />
           ) : null}
@@ -1470,8 +1601,10 @@ function VerticalPath({
   const a = all ? r0 : Math.max(r0, span[0] - 1);
   const b = all ? rN : Math.min(rN, span[1] + 1);
   const metrics = VERTICAL_METRICS;
-  const upperCount = model.nodes.filter((n) => n.role === "upper").length;
-  const top = 24 + upperCount * metrics.indent;
+  // The timeline starts 16 px under the toolbar; where the walk runs down from the release read (forward), the forms it
+  // is read through stand in a staircase above that release, and their room is held.
+  const forward = model.result.to_release >= (model.result.from_release ?? model.result.to_release);
+  const top = 16 + (forward ? Math.min(4, drawnUpper(model, limit)) * metrics.indent : 0);
   const scale = useMemo(
     () =>
       scaleLinear()
@@ -1519,17 +1652,19 @@ function VerticalPath({
   // The score track runs down beside the lanes, the labels in a column to its right; where the column would leave a
   // label fewer than sixteen characters, the track gives way (the scores stay in each step's note and the reading).
   const trackX = left + layout.stackSize + 4;
-  const scored = (drawWidth - trackX - 44) / CHAR >= 16 ? allScored : [];
+  // The score track is 40 px across, so that its two ends (1.0 and the lowest score drawn) are labelled apart.
+  const scored = (drawWidth - trackX - 58) / CHAR >= 16 ? allScored : [];
   // The counts of a split's or a merge's other ids stand beside their glyph, right of the lanes: the labels' column
   // starts after the widest of them (stubCounts: 14 px from the glyph, the count in 10 px type).
   const countRoom = useMemo(() => {
     const most = Math.max(0, ...model.steps.map((st) => Math.max(st.api.splits, st.api.merges)));
     return most ? 14 + textWidth(`+${most}`, 10) + 4 : 0;
   }, [model.steps]);
-  const gutter = Math.max(trackX + (scored.length ? 44 : 4), left + layout.stackSize + countRoom + 4);
+  const gutter = Math.max(trackX + (scored.length ? 58 : 4), left + layout.stackSize + countRoom + 4);
   const height = answerT + layout.answers.length * 4 + 40;
   const items = useItems(layout, model, names, toXY);
-  const focus = useFocus(items, tipId);
+  const keysOf = useMemo(() => nextKeys(model, true), [model]);
+  const focus = useFocus(items, tipId, keysOf);
   const shownItem = items.find((i) => i.key === focus.shown) ?? null;
   useStepShown(focus.shown, onStepShown);
   const bands = useMemo(() => assemblyBands(description), [description]);
@@ -1547,6 +1682,8 @@ function VerticalPath({
       if (place.node.role === "gene" && place.lane !== null) {
         text = laneLabel(place.node.label, previousOnLane.get(place.lane) ?? null);
         previousOnLane.set(place.lane, place.node.label);
+        // In the labels' column a version is joined to its id (a bare ".2" there names nothing).
+        if (text !== place.node.label) text = middleCut(place.node.label, 14) ?? place.node.label;
       }
       wanted.push({ key: place.node.id, x, at: y, text, strong: place.best, kind: place.node.role });
     }
@@ -1595,33 +1732,56 @@ function VerticalPath({
     });
   }, [layout, toXY, gutter, drawWidth, bands, scale, a, b]);
   const totalHeight = Math.max(height, (labels[labels.length - 1]?.placed ?? 0) + 30);
+  // The timeline draws itself once from the release read toward the answer, and one light travels the chosen path
+  // (none under reduced motion).
+  const reduced = useMemo(() => {
+    const media = (window as { matchMedia?: Window["matchMedia"] }).matchMedia;
+    return typeof media === "function" && media.call(window, "(prefers-reduced-motion: reduce)").matches;
+  }, []);
+  const [revealed, setRevealed] = useState(reduced);
+  useEffect(() => {
+    if (revealed) return;
+    const timer = window.setTimeout(() => setRevealed(true), LIGHT_MS + 50);
+    return () => window.clearTimeout(timer);
+  }, [revealed]);
+  const revealId = useId().replace(/:/g, "");
 
   return (
     <div className="pv-frame">
       <div className="pv-toolbar">
         {lead}
         <div className="pv-toolbar__tools" role="group" aria-label="Scale of the path">
-          <div className="pv-toolbar__group">
-            <Button
-              variant="quiet"
-              className="pv-tool"
-              onClick={() => setPixels((p) => Math.max(10, p - 8))}
-              aria-label="Close up the releases"
-            >
-              −
-            </Button>
-            <Button
-              variant="quiet"
-              className="pv-tool"
-              onClick={() => setPixels((p) => Math.min(60, p + 8))}
-              aria-label="Spread the releases"
-            >
-              +
-            </Button>
-          </div>
-          <Button variant="quiet" className="pv-tool pv-preset" aria-pressed={all} onClick={() => setAll((v) => !v)}>
-            All releases
-          </Button>
+          <HoverCard
+            hover={false}
+            className="pv-views"
+            triggerClassName="pv-tool pv-views__trigger"
+            label="View: the spacing of the releases, and every release"
+            trigger={
+              <>
+                View
+                <svg viewBox="0 0 10 10" width="10" height="10" aria-hidden="true" focusable="false">
+                  <path d="M2 3.5 5 6.5 8 3.5" fill="none" stroke="currentColor" strokeWidth="1.4" />
+                </svg>
+              </>
+            }
+          >
+            <div className="pv-views__list">
+              <ZoomButtons
+                onOut={() => setPixels((p) => Math.max(10, p - 8))}
+                onIn={() => setPixels((p) => Math.min(60, p + 8))}
+                out="Close up the releases"
+                into="Spread the releases"
+              />
+              <button
+                type="button"
+                className="pv-views__item pv-preset"
+                aria-pressed={all}
+                onClick={() => setAll((v) => !v)}
+              >
+                All releases
+              </button>
+            </div>
+          </HoverCard>
         </div>
       </div>
       <div className={`pv-canvas${drawWidth > width ? " pv-canvas--wide" : ""}`}>
@@ -1668,18 +1828,33 @@ function VerticalPath({
               );
             })}
           </g>
-          <PathMarks
-            layout={layout}
-            model={model}
-            toXY={toXY}
-            scale={(r) => scale(r)}
-            isStrong={isStrong}
-            lit={litStep}
-            focus={focus}
-            range={[a, b]}
-            vertical
-            across={[0, drawWidth]}
-          />
+          {!revealed ? (
+            <defs>
+              <RevealClip
+                id={revealId}
+                at={Math.min(Math.max(scale(model.result.from_release ?? model.result.to_release), 0), totalHeight)}
+                extent={totalHeight}
+                across={drawWidth}
+                back={!forward}
+                vertical
+              />
+            </defs>
+          ) : null}
+          <g clipPath={revealed ? undefined : `url(#${revealId})`}>
+            <PathMarks
+              layout={layout}
+              model={model}
+              toXY={toXY}
+              scale={(r) => scale(r)}
+              isStrong={isStrong}
+              lit={litStep}
+              focus={focus}
+              range={[a, b]}
+              vertical
+              across={[0, drawWidth]}
+            />
+          </g>
+          {!revealed ? <TravellingLight layout={layout} toXY={toXY} scale={(r) => scale(r)} vertical /> : null}
           {scored.length ? (
             <ScoreTrack
               vertical
@@ -1692,7 +1867,7 @@ function VerticalPath({
               x0={scale(a - 0.5)}
               x1={scale(b + 0.5)}
               top={trackX}
-              bottom={trackX + 26}
+              bottom={trackX + 40}
               labelX={scale(a - 0.5) - 6}
             />
           ) : null}

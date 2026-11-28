@@ -10,6 +10,8 @@ export interface Shown {
   title?: string;
   /** The value is the engine's sort key, whose parts the api does not name (shown as given, marked). */
   sortKey?: boolean;
+  /** What is said of this value itself (absent, a tuple as IDTrack gives it), apart from the criterion's rule. */
+  note?: string;
 }
 
 /** A dash for an absent value. */
@@ -83,7 +85,11 @@ export function criterionValue(
     .join("; ");
   const [only] = shown;
   if (only && shown.length === 1 && only.f.field === criterion.code) {
-    return { ...only.v, ...(order ? { title: [only.v.title, order].filter(Boolean).join(". ") } : {}) };
+    return {
+      ...only.v,
+      ...(only.v.title ? { note: only.v.title } : {}),
+      ...(order ? { title: [only.v.title, order].filter(Boolean).join(". ") } : {}),
+    };
   }
   return {
     text: shown.map(({ f, v }) => `${f.field.replace(/_/g, " ")} ${v.text}`).join(", "),

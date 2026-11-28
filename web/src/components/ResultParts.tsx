@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 import type { Candidate } from "../api/types";
 import { MATCH_WORDS } from "../lib/answerLinks";
 import { shortScore } from "../lib/resultWords";
-import { criterionValue } from "../lib/values";
+import { criterionValue, firstWords } from "../lib/values";
 import { matchParts, spaced, type Criterion } from "../lib/vocabulary";
 import { useVocabulary } from "../lib/vocabularyContext";
 import { Toggletip } from "./Toggletip";
@@ -113,21 +113,64 @@ export function Match({ match }: { match: string }) {
   );
 }
 
-/** The criterion's value of a candidate, typed, with the sort-key mark where the api gives no reading of its parts. */
+/** The criterion's value of a candidate, typed, with the sort-key mark where the api gives no reading of its parts;
+ *  what is said of the value itself (absent, a tuple as IDTrack gives it) a press or a pointing away, never a native
+ *  title. How the criterion ranks is said once, by the criterion's name (`CriterionTerm`). */
 export function CriterionValue({ criterion, candidate }: { criterion: Criterion; candidate: Candidate }) {
   const shown = criterionValue(criterion, candidate);
-  return <Mono title={shown.title}>{shown.text}</Mono>;
+  if (!shown.note) return <Mono>{shown.text}</Mono>;
+  return (
+    <Toggletip className="value-tip" tip={<span className="term__card">{shown.note}</span>}>
+      <span className="mono">{shown.text}</span>
+    </Toggletip>
+  );
+}
+
+/** A criterion by its name, opening on a press to IDTrack's meaning, how it ranks (which value of each field it compares
+ *  ranks first) and its code. */
+export function CriterionTerm({ criterion }: { criterion: Criterion }) {
+  if (!criterion.meaning && !criterion.fields.length) return <span className="term">{spaced(criterion.code)}</span>;
+  return (
+    <Toggletip
+      className="term"
+      tip={
+        <span className="term__card">
+          {criterion.meaning ? (
+            <span className="term__meaning">
+              <Prose text={criterion.meaning} />
+            </span>
+          ) : null}
+          {criterion.fields.length ? (
+            <span className="term__rule"> {criterion.fields.map(firstWords).join("; ")}.</span>
+          ) : null}{" "}
+          <code className="term__code mono">{criterion.code}</code>
+        </span>
+      }
+    >
+      {spaced(criterion.code)}
+    </Toggletip>
+  );
 }
 
 /** A score in a table: its first six significant digits and "…" where more follow (`shortScore`); the whole value as
- *  idtrack gave it on hover, read out in place of the shortened text, and in the candidate's record. */
+ *  idtrack gave it a press or a pointing away (also on focus), read out in place of the shortened text, and in the
+ *  candidate's record. */
 export function ScoreValue({ score, strong = false }: { score: number; strong?: boolean }) {
   const { text, exact } = shortScore(score);
   if (text === exact) return <Mono strong={strong}>{exact}</Mono>;
   return (
-    <span className={`score-value mono ${strong ? "mono--strong" : ""}`} title={`As IDTrack gave it: ${exact}`}>
-      <span aria-hidden="true">{text}</span>
+    <Toggletip
+      className={`score-value value-tip ${strong ? "mono--strong" : ""}`}
+      tip={
+        <span className="term__card">
+          As IDTrack gave it: <span className="mono">{exact}</span>
+        </span>
+      }
+    >
+      <span className="mono" aria-hidden="true">
+        {text}
+      </span>
       <span className="visually-hidden">{exact}</span>
-    </span>
+    </Toggletip>
   );
 }

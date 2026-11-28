@@ -6,6 +6,7 @@
 import { memo, useEffect, useId, useMemo, useState, useTransition, type ReactNode } from "react";
 import type { ConversionResult, GraphDescription } from "../api/types";
 import { anatomyOf } from "../lib/anatomy";
+import { bestSteps } from "../lib/home/caseKinds";
 import { evidenceHrefs, evidenceOf, type EvidenceAsk, type EvidenceMark } from "../lib/evidence";
 import { createHighlight } from "../lib/highlight";
 import { indentJson } from "../lib/jsonView";
@@ -18,21 +19,21 @@ import { useVocabulary } from "../lib/vocabularyContext";
 import { BridgesConsidered, RefusedSteps } from "./PathChecks";
 import { FigureCaption } from "./figure/Legend";
 import { PathView } from "./PathView";
-import { AnswerPanel, AnswerRecord, DecisionSentence } from "./ResultAnswer";
+import { AnswerPanel, AnswerRecord } from "./ResultAnswer";
 import { DecisionPanelBody } from "./ResultDecision";
 import { FigurePanel } from "./ResultParts";
 import { Details, GenePlaces, OtherReadings, ReadingPanel } from "./ResultReading";
 import type { IdContext } from "./IdMenu";
 import { Button, CopyButton } from "./ui";
 import { CaptionMore } from "./v2/CaptionMore";
-import { EvidenceCard, EvidenceGlyph, MarkTitle, verdictOrder } from "./Evidence";
+import { EvidenceCard, EvidenceGlyph, MarkTitle } from "./Evidence";
+import { verdictOrder } from "../lib/evidenceWords";
 import { Expandable } from "./v2/Expandable";
 import { Segmented } from "./v2/Segmented";
 import { Tabs, type TabItem } from "./v2/Tabs";
 import "../styles/result.css";
 import "../styles/answer.css";
 
-export { DecisionText } from "./ResultDecision";
 export { ResultSkeleton } from "./ResultSkeleton";
 
 /** The caption of the drawing: what is drawn (its claim), then how to read it, on a press. The marks are named by the
@@ -45,8 +46,12 @@ function PathCaption({ model }: { model: PathModel }) {
       <CaptionMore
         lead={
           <strong className="fig-caption__lead">
-            The path of <span className="mono">{r.query_id}</span> from release{" "}
-            <span className="mono">{r.from_release ?? "—"}</span> to <span className="mono">{r.to_release}</span>.
+            The path of{" "}
+            <span className="mono">
+              <bdi>{r.query_id}</bdi>
+            </span>{" "}
+            from release <span className="mono">{r.from_release ?? "—"}</span> to{" "}
+            <span className="mono">{r.to_release}</span>.
           </strong>
         }
       >
@@ -244,7 +249,10 @@ export const ResultView = memo(function ResultView({
   const [view, setView] = useState<"drawing" | "words">("drawing");
   const id = (panel: string) => `${base}-${panel}`;
   const readingId = id("words");
-  const steps = model.steps.length;
+  // The Path tab counts the journey's steps: the best answer's path as "In words" lists it (lib/home/caseKinds.ts
+  // `bestSteps`), the one count of a journey on every page; without a best answer, every step drawn.
+  const journey = bestSteps(result).length;
+  const steps = journey || model.steps.length;
   const { askHref, readAtHref } = evidenceHrefs(description.organism, result, requestedDatabase);
 
   const viewChoice = (
@@ -282,8 +290,11 @@ export const ResultView = memo(function ResultView({
                 <CaptionMore
                   lead={
                     <strong className="fig-caption__lead">
-                      The reading of <span className="mono">{result.query_id}</span> at release{" "}
-                      <span className="mono">{oneRelease}</span>.
+                      The reading of{" "}
+                      <span className="mono">
+                        <bdi>{result.query_id}</bdi>
+                      </span>{" "}
+                      at release <span className="mono">{oneRelease}</span>.
                     </strong>
                   }
                 >
@@ -321,7 +332,6 @@ export const ResultView = memo(function ResultView({
       count: `${groupedInteger(result.candidates.length)} candidate${result.candidates.length === 1 ? "" : "s"}`,
       panel: () => (
         <FigurePanel title="The decision" id={id("decision")} className="result__candidates">
-          <DecisionSentence model={model} context={context} />
           <DecisionPanelBody
             result={result}
             decision={model.decision}

@@ -26,7 +26,7 @@ import { ABSENT } from "../lib/values";
 import { useVocabulary } from "../lib/vocabularyContext";
 import { IdMenu, type IdContext } from "./IdMenu";
 import { FigurePanel, Match, Reasons, Term } from "./ResultParts";
-import { sameGeneReading } from "./ResultAnswer";
+import { sameGeneReading, visibleCharacters } from "../lib/answerWords";
 import { usePhone } from "../lib/usePhone";
 import { Button, CopyButton, Mono, Readout, Select, TableFrame } from "./ui";
 import { useWidth } from "./figure/useWidth";
@@ -568,7 +568,9 @@ export function OtherReadings({ result, context }: { result: ConversionResult; c
                         </span>
                       ))
                     : "no gene"}
-                  {sameGeneReading(result, reading) ? <span className="muted"> (the answer&apos;s own gene)</span> : null}
+                  {sameGeneReading(result, reading) ? (
+                    <span className="muted"> (the answer&apos;s own gene)</span>
+                  ) : null}
                 </td>
                 <td data-label="At releases">
                   {reading.releases.length ? <Mono>{reading.releases.join(", ")}</Mono> : ABSENT}
@@ -589,8 +591,14 @@ function copyKind(id: string): string {
 
 export function Details({ result }: { result: ConversionResult }) {
   const answers = new Set(result.candidates.filter((c) => c.best).map((c) => c.gene));
+  const typed = visibleCharacters(result.query_id);
   return (
     <dl className="readouts">
+      {result.match?.split(":").includes("unicode") && typed !== result.query_id ? (
+        <Readout label="As typed" wide>
+          <Mono>{typed}</Mono> <span className="muted">(the characters marked were removed before matching)</span>
+        </Readout>
+      ) : null}
       <Readout label="Read as">
         {result.graph_id === null ? "not in the graph" : <Mono>{result.graph_id}</Mono>}
       </Readout>

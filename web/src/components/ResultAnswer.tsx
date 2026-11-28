@@ -7,7 +7,7 @@
 // display size with its symbol, its first targets in small type, "and N more" on request), never as a wall of ids.
 // Under the status, the cautions a reader must weigh (`Evidence`; the notes are on the Evidence tab), then what the
 // string meant at other releases with a way to read it there.
-import { memo, useEffect, useRef, useState, useTransition, type ReactNode } from "react";
+import { memo, useEffect, useState, useTransition, type ReactNode } from "react";
 import { api } from "../api/client";
 import type { Candidate, ConversionResult, GraphDescription } from "../api/types";
 import type { Anatomy } from "../lib/anatomy";
@@ -30,20 +30,22 @@ import type { PathModel } from "../lib/pathModel";
 import { assemblyText, stableId, type AssemblyNames } from "../lib/pathReading";
 import { href, navigate } from "../lib/router";
 import { parseServerTiming } from "../lib/serverTiming";
-import { spaced, statusTitle, criterionOf } from "../lib/vocabulary";
+import { spaced, statusTitle } from "../lib/vocabulary";
 import { useVocabulary } from "../lib/vocabularyContext";
 import { readerText, statusTone } from "../lib/resultWords";
-import { EvidenceCard, lowerFirst, sentenceCase, standingClaim, verdictOrder } from "./Evidence";
+import { EvidenceCard } from "./Evidence";
+import { lowerFirst, sentenceCase, standingClaim, verdictOrder } from "../lib/evidenceWords";
+import { pathEvents, sameGeneReading } from "../lib/answerWords";
 import { IdMenu, SymbolOf, type IdContext } from "./IdMenu";
 import { Reasons, Term } from "./ResultParts";
 import { Drawer } from "./v2/Drawer";
+import { Segmented } from "./v2/Segmented";
 import { HoverCard } from "./v2/HoverCard";
 import { usePhone } from "../lib/usePhone";
 import { answerFileName, kindsText, MATCH_WORDS, pinnedLink, shortDigest } from "../lib/answerLinks";
-import { answerProvenance, citationOf, methodsSentence } from "../lib/answerProvenance";
+import { answerProvenance, citationOf, methodsSentence, referenceRis, referenceText } from "../lib/answerProvenance";
 import { saveText } from "../lib/save";
 import { useRequest } from "../lib/useRequest";
-import { criterionValue } from "../lib/values";
 import { RetiredLife } from "./ResultLife";
 import { Button, CopyButton, Link, Mono, Prose, StatusBadge } from "./ui";
 
@@ -89,38 +91,6 @@ function ReasonNotes({ result }: { result: ConversionResult }) {
         );
       })}
     </ul>
-  );
-}
-
-/** The decision in one sentence, where a criterion decided: from `decided_by` and the pair IDTrack compared (the
- *  criterion's place in IDTrack's order is said once, by the comparison under it). */
-export function DecisionSentence({ model, context }: { model: PathModel; context: IdContext }) {
-  const vocabulary = useVocabulary();
-  const decision = model.decision;
-  if (!decision) return null;
-  const criterion = criterionOf(vocabulary, decision.key);
-  // The values the deciding criterion compared, as the api sent them (never judged: no threshold of the page's own).
-  const best = criterion ? criterionValue(criterion, decision.best.api) : null;
-  const runner = criterion ? criterionValue(criterion, decision.runnerUp.api) : null;
-  return (
-    <p className="answer__decision">
-      <Mono strong>{decision.best.api.target}</Mono> ranks before the runner-up{" "}
-      <IdMenu id={decision.runnerUp.api.target} release={context.toRelease} context={context} />
-      <SymbolOf
-        gene={decision.runnerUp.api.gene}
-        context={context}
-        except={decision.runnerUp.api.target}
-        lead=" "
-      />{" "}
-      (rank {decision.runnerUp.index + 1}) by <strong>{spaced(decision.key)}</strong>
-      {best && runner ? (
-        <>
-          {" "}
-          (<Mono title={best.title}>{best.text}</Mono> against <Mono title={runner.title}>{runner.text}</Mono>)
-        </>
-      ) : null}
-      .
-    </p>
   );
 }
 
@@ -542,13 +512,6 @@ function AnswerTargets({
   );
 }
 
-/** Whether a reading of the string at other releases leads to the best answer's genes alone: the string was then a name
- *  of the same gene (no other meaning a reader must weigh). */
-export function sameGeneReading(result: ConversionResult, reading: ConversionResult["other_readings"][number]): boolean {
-  const best = new Set(result.candidates.filter((c) => c.best).map((c) => c.gene));
-  return reading.genes.length > 0 && reading.genes.every((gene) => best.has(gene));
-}
-
 /** What the string meant at other releases, where it led to another gene than the answer, with a way to read it there
  *  (a list of that time means that gene). A reading that leads to the answer's own gene is no other meaning: it is
  *  stated on the Reading tab, not here. */
@@ -571,7 +534,10 @@ function OtherMeanings({
         const at = reading.releases[reading.releases.length - 1];
         return (
           <li key={`${reading.graph_id}|${reading.releases.join(",")}`}>
-            At releases <Mono>{releaseRanges(reading.releases)}</Mono>, <Mono>{result.query_id}</Mono>{" "}
+            At releases <Mono>{releaseRanges(reading.releases)}</Mono>,{" "}
+            <Mono>
+              <bdi>{result.query_id}</bdi>
+            </Mono>{" "}
             {reading.graph_id === result.query_id && reading.genes.length ? (
               "named another gene"
             ) : reading.graph_id === result.query_id ? (
@@ -598,41 +564,6 @@ function OtherMeanings({
       })}
     </ul>
   );
-}
-
-/** Ensembl's events of a reason on the best path, in the page's words ("split" -> "splits"). */
-const EVENT_WORDS: Record<string, [string, string]> = {
-  split: ["split", "splits"],
-  merge: ["merge", "merges"],
-  split_and_merge: ["split and merge", "splits and merges"],
-  replaced: ["replacement", "replacements"],
-};
-
-/** The events of Ensembl's history on the path of the first best answer, by reason in the order of their first release,
- *  each with the releases it joins in Ensembl's direction (earlier to later), from the path's own steps. */
-export function pathEvents(model: PathModel): { reason: string; words: string; releases: string[] }[] {
-  const best = model.candidates.find((c) => c.best);
-  if (!best) return [];
-  const byReason = new Map<string, { first: number; releases: string[] }>();
-  for (const index of best.steps) {
-    const step = model.steps[index];
-    if (step?.api.kind !== "history" || !(step.api.reason in EVENT_WORDS)) continue;
-    const old = step.api.old_release;
-    const next = step.api.new_release;
-    if (old === null || next === null) continue;
-    const entry = byReason.get(step.api.reason) ?? { first: old, releases: [] };
-    const text = `${old} → ${next}`;
-    if (!entry.releases.includes(text)) entry.releases.push(text);
-    entry.first = Math.min(entry.first, old);
-    byReason.set(step.api.reason, entry);
-  }
-  return [...byReason]
-    .sort((a, b) => a[1].first - b[1].first)
-    .map(([reason, entry]) => {
-      const releases = [...entry.releases].sort((a, b) => Number.parseInt(a, 10) - Number.parseInt(b, 10));
-      const [one, many] = EVENT_WORDS[reason] ?? [reason, reason];
-      return { reason, words: releases.length === 1 ? one : many, releases };
-    });
 }
 
 /** "; its path holds Ensembl's splits at 60 → 61 and 63 → 64 and a merge at 62 → 63", or nothing (`own`: as a
@@ -684,7 +615,10 @@ function StatusSentence({
         Every best target is an id of one gene, <IdMenu id={gene} release={result.to_release} context={context} />{" "}
         <SymbolOf gene={gene} context={context} />: IDTrack converts at the level of the gene, so the answer in{" "}
         {database} is every id that gene carries at release <Mono>{result.to_release}</Mono>, not the counterpart of{" "}
-        <Mono>{result.query_id}</Mono> alone
+        <Mono>
+          <bdi>{result.query_id}</bdi>
+        </Mono>{" "}
+        alone
         <EventsClause model={model} />.
       </span>
     );
@@ -836,20 +770,6 @@ function CiteBlock({
       live = false;
     };
   }, []);
-  // Opened, the citation is brought into view and its first copy takes the focus (the press is answered where the eye is).
-  const ref = useRef<HTMLElement>(null);
-  const shown = citation !== null;
-  useEffect(() => {
-    const section = ref.current;
-    if (!shown || !section) return;
-    const matchMedia = (window as { matchMedia?: Window["matchMedia"] }).matchMedia;
-    const reduced =
-      typeof matchMedia === "function" && matchMedia.call(window, "(prefers-reduced-motion: reduce)").matches;
-    // A document without layout (a test's DOM) has no scrolling.
-    if (typeof section.scrollIntoView === "function")
-      section.scrollIntoView({ block: "nearest", behavior: reduced ? "auto" : "smooth" });
-    section.querySelector<HTMLElement>("button")?.focus({ preventScroll: true });
-  }, [shown]);
   const bibtex = citation ? citationOf(citation.bibtex, known) : "";
   const bridges = new URL(apiUrl ?? "/", "http://page.invalid").searchParams.get("allow_bridges") !== "false";
   const sentence = known
@@ -862,38 +782,56 @@ function CiteBlock({
         date: new Date().toISOString().slice(0, 10),
       })
     : null;
+  const [form, setForm] = useState<"text" | "bibtex" | "ris">("bibtex");
+  const reference = form === "text" ? referenceText(bibtex) : form === "ris" ? referenceRis(bibtex) : bibtex;
+  const formName = form === "text" ? "text" : form === "ris" ? "RIS" : "BibTeX";
   return (
-    <section className="answer__cite" id={id} aria-label="How to cite this conversion" ref={ref}>
+    <section className="answer__cite" id={id} aria-label="How to cite this conversion">
       {citation ? (
         <>
-          <p className="answer__cite-head">
-            Cite IDTrack{" "}
+          <p className="answer__cite-lead">
+            IDTrack&apos;s citation as{" "}
             <a href={citation.source} target="_blank" rel="noreferrer">
-              as its documentation gives it<span className="visually-hidden"> (opens in a new tab)</span>
-              <span aria-hidden="true"> ↗</span>
+              its documentation gives it<span className="visually-hidden"> (opens in a new tab)</span>
+              <span aria-hidden="true">&nbsp;↗</span>
             </a>
-            , with the version that answered here <CopyButton text={bibtex} what="the citation" />
+            , with the version that answered here.
           </p>
-          <pre className="raw raw--cite" role="region" aria-label="Citation in BibTeX" tabIndex={0}>
-            {bibtex}
-          </pre>
+          <div className="answer__cite-block">
+            <div className="answer__cite-head">
+              <Segmented
+                label="The reference as"
+                value={form}
+                onChange={setForm}
+                options={[
+                  { value: "text", label: "Text" },
+                  { value: "bibtex", label: "BibTeX" },
+                  { value: "ris", label: "RIS" },
+                ]}
+              />
+              <CopyButton text={reference} what={`the citation in ${formName}`} />
+            </div>
+            <pre className="raw raw--cite" role="region" aria-label={`Citation in ${formName}`} tabIndex={0}>
+              {reference}
+            </pre>
+          </div>
         </>
       ) : (
         <p className="muted">Reading IDTrack&apos;s citation…</p>
       )}
       {sentence ? (
-        <>
-          <p className="answer__cite-head">
-            For a methods section, this conversion{" "}
+        <div className="answer__cite-block">
+          <div className="answer__cite-head">
+            <h3 className="answer__cite-title">For a methods section, this conversion</h3>
             <CopyButton text={sentence} what="the sentence for a methods section" />
-          </p>
+          </div>
           <p className="answer__cite-sentence">{sentence}</p>
           <p className="muted small">
             Written from this answer, the graph&apos;s description and <span className="mono">GET /api/v1/version</span>
             , with today&apos;s date; the digest names the graph exactly. A batch, or a whole study, is cited from the
             Method page.
           </p>
-        </>
+        </div>
       ) : null}
     </section>
   );
@@ -950,22 +888,31 @@ function NotFoundHints({ result, organism }: { result: ConversionResult; organis
     <>
       {authority ? (
         <p className="answer__next answer__hint">
-          <Mono>{result.query_id}</Mono> has the form of {prefix}&apos;s own id of a gene. IDTrack&apos;s graphs hold
-          the names and ids Ensembl attaches to genes, and not the name authorities&apos; own ids: ask by the
-          gene&apos;s {authority} or its Ensembl id.
+          <Mono>
+            <bdi>{result.query_id}</bdi>
+          </Mono>{" "}
+          has the form of {prefix}&apos;s own id of a gene. IDTrack&apos;s graphs hold the names and ids Ensembl
+          attaches to genes, and not the name authorities&apos; own ids: ask by the gene&apos;s {authority} or its
+          Ensembl id.
           <LimitationLink anchors={LIMITATION_OF.not_held} />
         </p>
       ) : null}
       {scheme ? (
         <p className="answer__next answer__hint">
-          <Mono>{result.query_id}</Mono> has the form of {NOT_HELD_WORDS[scheme].what}. {NOT_HELD_WORDS[scheme].instead}
+          <Mono>
+            <bdi>{result.query_id}</bdi>
+          </Mono>{" "}
+          has the form of {NOT_HELD_WORDS[scheme].what}. {NOT_HELD_WORDS[scheme].instead}
           <LimitationLink anchors={LIMITATION_OF.not_held} />
         </p>
       ) : null}
       {date ? (
         <p className="answer__next answer__hint">
-          <Mono>{result.query_id}</Mono> has the form of a date a spreadsheet makes of a cell: a symbol such as MARCH1
-          or SEPT2 opened in a spreadsheet becomes one. Export the column as text and convert it again.
+          <Mono>
+            <bdi>{result.query_id}</bdi>
+          </Mono>{" "}
+          has the form of a date a spreadsheet makes of a cell: a symbol such as MARCH1 or SEPT2 opened in a spreadsheet
+          becomes one. Export the column as text and convert it again.
         </p>
       ) : null}
       <OtherGraphs result={result} organism={organism} />
@@ -1005,8 +952,10 @@ function OtherGraphs({ result, organism }: { result: ConversionResult; organism:
   if (!holding.length) return null;
   return (
     <p className="answer__next answer__hint answer__elsewhere">
-      <Mono>{result.query_id}</Mono> is an identifier of {holding.length === 1 ? "another graph" : "other graphs"} this
-      server holds:{" "}
+      <Mono>
+        <bdi>{result.query_id}</bdi>
+      </Mono>{" "}
+      is an identifier of {holding.length === 1 ? "another graph" : "other graphs"} this server holds:{" "}
       {holding.map((other, i) => (
         <span key={other}>
           {i ? ", " : ""}
@@ -1145,7 +1094,11 @@ function NoAnswerWaysOn({
       {result.status === "not_found" && !looksLikeSpreadsheetDate(result.query_id) ? (
         <p className="answer__next">
           <Link to={href("/names", { organism, name: result.query_id, fold_case: true })}>
-            Look <Mono>{result.query_id}</Mono> up among the names of the graph
+            Look{" "}
+            <Mono>
+              <bdi>{result.query_id}</bdi>
+            </Mono>{" "}
+            up among the names of the graph
           </Link>{" "}
           <span className="muted">(without letter case)</span>
         </p>
@@ -1267,12 +1220,14 @@ export const AnswerPanel = memo(function AnswerPanel({
               <CautionGlyph /> with {cautions} caution{cautions === 1 ? "" : "s"} to weigh
             </>
           ) : (
-            <a href={docsPage("limitations.html")} target="_blank" rel="noreferrer" className="answer__no-caution">
+            <a
+              href={docsPage("limitations.html")}
+              target="_blank"
+              rel="noreferrer"
+              className="answer__no-caution"
+              aria-label="no caution raised by this site's rules; the limitations IDTrack documents (opens in a new tab)"
+            >
               no caution
-              <span className="visually-hidden">
-                {" "}
-                raised by this site&apos;s rules; the limitations IDTrack documents (opens in a new tab)
-              </span>
             </a>
           )}
         </span>

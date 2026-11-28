@@ -69,8 +69,9 @@ describe("an identifier that converts to nothing", () => {
   it("draws the life of its gene at the release read, its last release and its names, from the api", async () => {
     show("convert_no_conversion_retired");
     const words = await screen.findByText(/its last release is/);
+    // Walked forward, the life ends at its last release; where the gene lies at the release read is said with it.
     expect(words.closest("li")?.textContent).toMatch(
-      /ENSG00000180725\.4, at releases 62–75 \(GRCh37\); its last release is 75/,
+      /ENSG00000180725\.4, at releases 62–75 \(GRCh37\), on \S+; its last release is 75/,
     );
     expect(await screen.findByText("AC015871.1")).toBeTruthy();
     expect(screen.getByRole("img", { name: /ENSG00000180725\.4: 62–75; read at 67, asked at 115/ })).toBeTruthy();
@@ -89,8 +90,8 @@ describe("words that follow the result", () => {
     expect(status).not.toContain("leads to one target");
     // The deciding values are given beside the criterion, with the decision.
     openTab(/^Decision/);
-    expect(document.querySelector(".answer__decision")?.textContent).toMatch(
-      /by score \(unscored steps 0, score 0\.998716 against unscored steps 0, score 0\.997436\)/,
+    expect(document.querySelector(".decision__sentence")?.textContent).toMatch(
+      /decided by score, criterion \d of the \d+ in IDTrack's order: unscored steps 0, score 0\.998716(?:unscored steps 0, score 0\.998716)? against unscored steps 0, score 0\.997436/,
     );
   });
 
@@ -187,7 +188,7 @@ describe("citing one answer", () => {
       date: "2026-11-27",
     });
     expect(sentence).toBe(
-      `The identifier 1898 (Homo sapiens) was converted with IDTrack 0.1.2 (commit 7f71b26) through its web server (api 0.1.2) on 2026-11-27: read at Ensembl release 52 (inferred by IDTrack), converted to release 115 in Ensembl gene (with version), bridges allowed, on the graph of Ensembl releases ${graph.releases[0] ?? ""}–${graph.releases[graph.releases.length - 1] ?? ""}, content digest ${graph.content_digest?.slice(0, 12) ?? ""}.`,
+      `The identifier 1898 (Homo sapiens) was converted with IDTrack 0.1.2 (commit 7f71b26) through its web server (api 0.1.2) on 2026-11-27: read at Ensembl release 52 (inferred by IDTrack), converted to release 115 in Ensembl gene (with version), bridges allowed, on the graph of Ensembl releases ${graph.releases[0] ?? ""}–${graph.releases[graph.releases.length - 1] ?? ""}, content digest ${graph.content_digest?.slice(0, 12) ?? ""}; IDTrack answered a tie of 5 genes (ENSG00000227804.7, ENSG00000230995.7, ENSG00000231737.7, ENSG00000235291.7, ENSG00000238104.7).`,
     );
   });
 
