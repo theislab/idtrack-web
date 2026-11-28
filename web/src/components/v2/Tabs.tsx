@@ -1,7 +1,9 @@
 // Tabs (DIRECTION.md, "The disclosure components"): a list of tabs, each with a label and an optional quiet count, a
 // sliding indicator under the chosen one, and one panel. The arrow keys move between tabs and choose (automatic
 // activation), Home and End go to the ends; Tab leaves to the panel. Only the chosen panel is drawn, and it follows
-// the choice a moment later (a deferred value), so the tab answers at once. With `param`, the choice is kept in the page's address (`?tab=`), so every view can be
+// the choice a moment later (a deferred value), so the tab answers at once. A tab marked `keep` stays drawn, hidden,
+// once it has been chosen (a figure costly to build, such as a WebGL field), so that coming back to it is a paint;
+// hidden, it is out of the reading order like any panel not chosen. With `param`, the choice is kept in the page's address (`?tab=`), so every view can be
 // linked to and survives a reload; an address that names a tab other than the first brings the tab list just under
 // the masthead, so a shared link shows the view it names. With `value`, the page holds the choice (a count that shows
 // its rows chooses the table's tab).
@@ -29,6 +31,8 @@ export interface TabItem {
   /** A quiet count or word after the label ("2", "7 steps"). */
   count?: ReactNode;
   panel: () => ReactNode;
+  /** Keep the panel drawn (hidden) after another tab is chosen. */
+  keep?: boolean;
 }
 
 /** A count's number and its words ("21 steps" -> "21", " steps"), so a phone can show the number alone. */
@@ -99,6 +103,9 @@ export function Tabs({
   const [bar, setBar] = useState<{ left: number; width: number } | null>(null);
   // The panel shown: the choice, drawn after the tabs have answered it.
   const shown = useDeferredValue(chosen);
+  // The kept tabs shown so far (their panels stay drawn).
+  const [kept, setKept] = useState<readonly string[]>([]);
+  if (items.some((t) => t.keep && t.id === shown) && !kept.includes(shown)) setKept([...kept, shown]);
   // A choice made by a press of a tab (not by the address).
   const pressed = useRef(false);
 
@@ -243,18 +250,21 @@ export function Tabs({
           />
         ) : null}
       </div>
-      {current ? (
-        <div
-          key={current.id}
-          role="tabpanel"
-          id={`${base}-panel-${current.id}`}
-          aria-labelledby={`${base}-tab-${current.id}`}
-          className="tabs__panel"
-          tabIndex={0}
-        >
-          {current.panel()}
-        </div>
-      ) : null}
+      {items
+        .filter((t) => t === current || (t.keep && kept.includes(t.id)))
+        .map((t) => (
+          <div
+            key={t.id}
+            role="tabpanel"
+            id={`${base}-panel-${t.id}`}
+            aria-labelledby={`${base}-tab-${t.id}`}
+            className="tabs__panel"
+            tabIndex={0}
+            hidden={t !== current}
+          >
+            {t.panel()}
+          </div>
+        ))}
     </div>
   );
 }
