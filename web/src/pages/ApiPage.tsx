@@ -369,7 +369,14 @@ function FirstRequest({
   origin: string;
   /** The convert endpoint's example request; null while it is not known. */
   spec: RequestSpec | null;
-  organisms: { status: "loading" | "done" | "failed"; held: number; retry: () => void };
+  organisms: {
+    status: "loading" | "done" | "failed";
+    held: number;
+    retry: () => void;
+    /** The organism the examples ask, and whether the document has come (an example could be read from it). */
+    organism: string;
+    ready: boolean;
+  };
 }) {
   const [answer, setAnswer] = useState<Exchange | "asking" | "failed" | null>(null);
   const [shown, setShown] = useState(false);
@@ -466,7 +473,9 @@ function FirstRequest({
                 ? "Reading this server's organisms, to ask with an identifier of one of its graphs…"
                 : organisms.held === 0
                   ? "This server holds no graph, so there is nothing to convert."
-                  : "Reading the API's document, to ask with its example…"}
+                  : organisms.ready
+                    ? `The page knows no identifier of the ${organisms.organism} graph: write one into the console of GET …/convert under Conversion below.`
+                    : "Reading the API's document, to ask with its example…"}
           </p>
           {organisms.status === "failed" ? <Button onClick={organisms.retry}>Try again</Button> : null}
         </div>
@@ -1209,11 +1218,18 @@ export function ApiPage() {
   // The first request: the convert endpoint's example (the document's recorded request where this server can answer
   // it); without the document, the page's own example of the organism, so the first request does not wait on it.
   const convert = list.find((e) => e.key === `GET ${API_BASE}/organisms/{organism}/convert`);
-  const firstSpec: RequestSpec | null = convert
-    ? (examples.get(convert.anchor)?.example ?? null)
-    : document.state === "failed" && example
-      ? fallbackFirst(organism, example)
-      : null;
+  const convertExample = convert ? (examples.get(convert.anchor)?.example ?? null) : null;
+  // Asked only of an organism this server holds, with an identifier to ask.
+  const firstSpec: RequestSpec | null =
+    organismsStatus !== "done"
+      ? null
+      : convertExample
+        ? held.includes(convertExample.values["organism"] ?? "") && convertExample.values["identifier"]
+          ? convertExample
+          : null
+        : document.state === "failed" && example
+          ? fallbackFirst(organism, example)
+          : null;
 
   // Which endpoints are open, which tab of "Using the API" is shown, and where to bring the window once drawn.
   const [open, setOpen] = useState<ReadonlySet<string>>(() => new Set());
@@ -1311,7 +1327,13 @@ export function ApiPage() {
             <FirstRequest
               origin={origin}
               spec={firstSpec}
-              organisms={{ status: organismsStatus, held: held.length, retry: retryOrganisms }}
+              organisms={{
+                status: organismsStatus,
+                held: held.length,
+                retry: retryOrganisms,
+                organism,
+                ready: document.state !== "loading",
+              }}
             />
 
             <Section id="using" title="Using the API">

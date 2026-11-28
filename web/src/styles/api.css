@@ -240,14 +240,6 @@
   justify-self: start;
 }
 
-.api-card__title {
-  display: flex;
-  align-items: baseline;
-  gap: var(--space-2);
-  font-size: var(--heading-panel);
-  font-weight: var(--weight-strong);
-}
-
 .api-card__text,
 .api-prose {
   max-width: var(--measure);
@@ -627,11 +619,6 @@
   gap: var(--space-3);
   min-width: 0;
   align-content: start;
-}
-
-.endpoint__schema-name {
-  font-size: var(--text-sm);
-  color: var(--ink-2);
 }
 
 /* Parameters: each a line (its name, type, whether required, where it goes, and its text's first sentence) that opens
@@ -1830,14 +1817,9 @@
     padding-left: 0;
   }
 
-  /* The API's base is the page's head: a path is the rest of it (still read whole by a screen reader). */
+  /* The API's base is the page's head: a path is the rest of it (no width, and still in the heading's name: inline). */
   .endpoint__base {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip-path: inset(50%);
-    white-space: nowrap;
+    font-size: 0;
   }
 
   .api-local .code-block__pre,
