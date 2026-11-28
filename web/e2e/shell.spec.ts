@@ -246,7 +246,16 @@ test.describe("state that survives", () => {
     await expect(page.getByRole("heading", { level: 1, name: /Convert a list/ })).toBeVisible();
     await expect(page.getByLabel("Identifiers", { exact: true })).toHaveValue(data.batch.slice(0, 3).join("\n"));
     await expect(page.locator("#batch-summary")).toContainText("3 identifiers");
-    // Once: a reload shows the answer kept for the session, and asks nothing again.
+    // Once: a reload shows the answer kept for the session (written once its first frame is drawn), and asks nothing
+    // again.
+    await expect
+      .poll(() =>
+        page.evaluate(
+          (key) => Object.keys(sessionStorage).some((k) => k.endsWith(key)),
+          `batch.result.${data.organism}`,
+        ),
+      )
+      .toBe(true);
     let asked = 0;
     await page.route("**/convert/batch?format=json", (route) => {
       // The list's own asks (the answer then asks the names beside its genes, which is no ask of the list).
