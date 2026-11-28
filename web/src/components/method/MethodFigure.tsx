@@ -34,10 +34,13 @@ function Meaning({ text }: { text: string | null | undefined }) {
 
 /** How a stage works, in a paragraph folded behind one line under the stage's head: the stage's sentence above the
  *  tabs' panel says it in brief. */
-function StageAbout({ children }: { children: ReactNode }) {
+function StageAbout({ children, docs }: { children: ReactNode; docs: string }) {
   return (
     <Expandable className="method-panel__about" summary="How this stage works">
       <p className="method-panel__about-text">{children}</p>
+      <a className="method-panel__docs" href={docs}>
+        This stage in IDTrack&apos;s documentation
+      </a>
     </Expandable>
   );
 }
@@ -121,9 +124,6 @@ function StageHead({ id, stage }: { id: string; stage: StageInfo }) {
         <h3 id={id}>{stage.heading}</h3>
         <p className="method-panel__claim">{stage.claim}</p>
       </div>
-      <a className="method-panel__docs" href={stage.docs}>
-        IDTrack&apos;s documentation
-      </a>
     </div>
   );
 }
@@ -140,19 +140,18 @@ function ReadPanel({ v }: { v: Vocabulary }) {
       <StageHead id="method-read" stage={stage} />
       <StageCase
         stage="read"
-        claim="Each step of a match in IDTrack's order, as this answer took them."
+        claim="The steps of a match in IDTrack's order, as this answer took them: hollow found nothing, filled matched, faint were not needed."
         caption={
           <>
-            The steps above the one that matched found nothing, the one that matched names the identifier of the graph,
-            those below were not needed; beside them, the release the string was read at and the databases that attach
-            it there. A step&apos;s name opens what it compares.
+            The step that matched names the identifier of the graph; beside the ladder, the release the string was read
+            at and the databases that attach it there. What each step compares opens from the ladder&apos;s label.
           </>
         }
       >
         {({ result }) => <ReadFigure result={result} />}
       </StageCase>
       <StageMore>
-        <StageAbout>
+        <StageAbout docs={stage.docs}>
           Before anything is looked up, the typed string is read as a person who pasted it meant it: where it is read
           (the starting release), what is cleaned from it, how it is matched against the identifiers of the graph. The
           steps of a match are tried in IDTrack&apos;s order, each on names, then on synonyms, before the next; the
@@ -203,7 +202,7 @@ function WalkPanel({ v }: { v: Vocabulary }) {
         )}
       </StageCase>
       <StageMore>
-        <StageAbout>
+        <StageAbout docs={stage.docs}>
           From the gene an identifier names at the starting release (its entry gene), the search follows Ensembl&apos;s
           history forward or backward to the target release. Each history step is a version event of Ensembl. In
           IDTrack&apos;s words: <Prose text={docs.mappingScore.text} />{" "}
@@ -293,7 +292,7 @@ function BridgePanel({ v }: { v: Vocabulary }) {
         )}
       </StageCase>
       <StageMore>
-        <StageAbout>
+        <StageAbout docs={stage.docs}>
           No record of Ensembl states a bridge: it is IDTrack&apos;s inference that one gene became the other, so it is
           taken only where the identifier is evidence of that. With the path, a result lists every bridge the search
           considered, taken or refused, with its rule.
@@ -345,7 +344,7 @@ function RankPanel({ v }: { v: Vocabulary }) {
         {({ result }) => <RankFigure result={result} />}
       </StageCase>
       <StageMore>
-        <StageAbout>
+        <StageAbout docs={stage.docs}>
           The search returns every candidate it reached: a gene at the target release and its target. The candidates are
           ranked by the criteria in this order; the first criterion in which two candidates differ decides between them,
           and a result names the one that put the best answer before the runner-up. Nothing is chosen by position or by
@@ -394,7 +393,7 @@ function AnswerPanel({ v }: { v: Vocabulary }) {
         {({ result }) => <AnswerFigure result={result} />}
       </StageCase>
       <StageMore>
-        <StageAbout>
+        <StageAbout docs={stage.docs}>
           With a target database the answer is first a gene: the genes are ranked as Ensembl genes, and a target is an
           id that the database attaches at the target release to a gene of that best answer, through the gene itself or
           its transcripts and translations. Where no gene of the best answer has one, the result is the genes

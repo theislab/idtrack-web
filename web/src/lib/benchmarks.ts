@@ -392,7 +392,7 @@ export function taskWords(c: ReturnType<typeof taskComparison>): string {
           const hi = sorted[sorted.length - 1];
           return lo && hi
             ? lo.truly === hi.truly
-              ? ` Of their disagreements read, ${String(lo.truly)} % are truly wrong for each tool.`
+              ? ` Of the disagreements read of ${sorted.map((t) => t.tool).join(" and ")}, ${String(lo.truly)} % are truly wrong for each.`
               : ` Of their disagreements read, from ${String(lo.truly)} % (${lo.tool}) to ${String(hi.truly)} % (${hi.tool}) are truly wrong.`
             : "";
         })()
