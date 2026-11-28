@@ -334,7 +334,9 @@ export function JourneysFigure({
         moveRow(j + 1);
       },
       ArrowUp: () => {
-        moveRow(j - 1);
+        // Above the first row, the marks of the release-wide events.
+        if (j === 0 && events.length) svgRef.current?.querySelector<SVGGElement>('[data-event="0"]')?.focus();
+        else moveRow(j - 1);
       },
       ArrowRight: () => {
         setFocus({ j, k: Math.min(count - 1, k + 1) });
@@ -578,7 +580,7 @@ export function JourneysFigure({
         aria-label={
           waiting
             ? `The releases ${first} to ${last} of the ${organismName(graph.organism)} graph over its assemblies; the journeys are on their way.`
-            : `${list.length} of the ${every.length} journeys of the ${organismName(graph.organism)} graph through the releases ${first} to ${last}. Arrow keys move between journeys and along their steps; Enter opens a journey's full answer.`
+            : `${list.length} of the ${every.length} journeys of the ${organismName(graph.organism)} graph through the releases ${first} to ${last}. Arrow keys move between journeys and along their steps; Enter opens a journey's full answer${events.length ? "; above the first journey, the releases where many of them step" : ""}.`
         }
         onPointerLeave={() => {
           pointer.leave();
@@ -586,7 +588,7 @@ export function JourneysFigure({
         }}
       >
         {/* The assembly bands, one column each from their names down to the axis */}
-        <Bands bands={bands} scale={scale} top={0} bottom={bottom} labelY={13} outerY={27} />
+        <Bands bands={bands} scale={scale} top={0} bottom={bottom} labelY={13} outerY={27} ranges={false} />
         <ReleaseTicks scale={scale} y={axisY} releases={releases} bounds={[0, width]} />
         {/* Release-wide events: a mark over the rows, each a link to that release of the graph's history; on pointing
             at its column or focusing it, its leader and its guides through the sets whose journeys take it, and its
@@ -622,8 +624,12 @@ export function JourneysFigure({
                     )}
                   </g>
                 ) : null}
-                <a
-                  href={`${at}#history`}
+                {/* A link reached from the rows by the keyboard (↑ from the first row; ← → between the marks; ↓ back),
+                    so that the figure stays one stop of the tab order. */}
+                <g
+                  role="link"
+                  tabIndex={-1}
+                  data-event={n}
                   className="jr-event__link"
                   aria-label={`${words}: Ensembl's id history of the ${organismName(graph.organism)} graph, release by release`}
                   onFocus={() => {
@@ -632,14 +638,36 @@ export function JourneysFigure({
                   onBlur={() => {
                     setFocusedEvent((f) => (f === n ? null : f));
                   }}
-                  onClick={(event) => {
-                    event.preventDefault();
+                  onClick={() => {
                     navigate(`${at}#history`);
+                  }}
+                  onKeyDown={(event) => {
+                    const go: Record<string, () => void> = {
+                      Enter: () => {
+                        navigate(`${at}#history`);
+                      },
+                      ArrowLeft: () => {
+                        svgRef.current?.querySelector<SVGGElement>(`[data-event="${Math.max(0, n - 1)}"]`)?.focus();
+                      },
+                      ArrowRight: () => {
+                        svgRef.current
+                          ?.querySelector<SVGGElement>(`[data-event="${Math.min(events.length - 1, n + 1)}"]`)
+                          ?.focus();
+                      },
+                      ArrowDown: () => {
+                        svgRef.current?.querySelector<SVGGElement>(`[data-journey="${current}"]`)?.focus();
+                      },
+                    };
+                    const action = go[event.key];
+                    if (action) {
+                      event.preventDefault();
+                      action();
+                    }
                   }}
                 >
                   <rect x={x - 10} y={eventLineY - 10} width={20} height={20} className="fig-hit" />
                   <StepGlyph glyph={e.kind} x={x} y={eventLineY + (e.kind === "loop" ? 4 : 0)} size="thin" />
-                </a>
+                </g>
               </g>
             );
           })}
@@ -875,21 +903,56 @@ function Waiting() {
 /** The stubs of a row's splits and merges: at a step whose earlier id passed to other ids too, a stub for each (at
  *  most `STUBS`) leaving the step above the line toward later releases; at a step whose later id received other ids
  *  too, a stub for each entering it below the line from earlier releases, in the event's hue. */
-export function Forks({ marks, x, y }: { marks: readonly JourneyMark[]; x: (release: number) => number; y: number }) {
+function Forks({ marks, x, y }: { marks: readonly JourneyMark[]; x: (release: number) => number; y: number }) {
   return (
     <g className="jr-forks" aria-hidden="true">
-      {marks.flatMap((mk, k) => {
-        const s = mk.step;
-        if (s.kind !== "history" || (!s.splits && !s.merges)) return [];
-        const at = x(mk.at);
-        const out = Array.from({ length: Math.min(STUBS, s.splits) }, (_, i) => (
-          <line key={`s${k}-${i}`} x1={at + 2} y1={y - 1.5} x2={at + 7} y2={y - 4 - 2.2 * i} className="jr-fork" />
-        ));
-        const into = Array.from({ length: Math.min(STUBS, s.merges) }, (_, i) => (
-          <line key={`m${k}-${i}`} x1={at - 7} y1={y + 4 + 2.2 * i} x2={at - 2} y2={y + 1.5} className="jr-fork" />
-        ));
-        return [...out, ...into];
-      })}
+      {marks.map((mk, k) =>
+        mk.step.kind === "history" ? (
+          <ForkStubs key={k} x={x(mk.at)} y={y} splits={mk.step.splits} merges={mk.step.merges} />
+        ) : null,
+      )}
+    </g>
+  );
+}
+
+/** The stubs of one split or merge at (x, y): a stub for each other id (at most `STUBS`), leaving above the line
+ *  toward later releases (a split) or entering below it from earlier ones (a merge); `reach` scales their length. */
+export function ForkStubs({
+  x,
+  y,
+  splits,
+  merges,
+  reach = 1,
+}: {
+  x: number;
+  y: number;
+  splits: number;
+  merges: number;
+  reach?: number;
+}) {
+  if (!splits && !merges) return null;
+  return (
+    <g className="jr-fork-group" aria-hidden="true">
+      {Array.from({ length: Math.min(STUBS, splits) }, (_, i) => (
+        <line
+          key={`s${i}`}
+          x1={x + 2 * reach}
+          y1={y - 1.5 * reach}
+          x2={x + 7 * reach}
+          y2={y - (4 + 2.2 * i) * reach}
+          className="jr-fork"
+        />
+      ))}
+      {Array.from({ length: Math.min(STUBS, merges) }, (_, i) => (
+        <line
+          key={`m${i}`}
+          x1={x - 7 * reach}
+          y1={y + (4 + 2.2 * i) * reach}
+          x2={x - 2 * reach}
+          y2={y + 1.5 * reach}
+          className="jr-fork"
+        />
+      ))}
     </g>
   );
 }

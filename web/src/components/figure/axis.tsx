@@ -14,6 +14,7 @@ export function Bands({
   top,
   bottom,
   labels = true,
+  ranges = true,
   labelY,
   outerY,
   view,
@@ -23,6 +24,8 @@ export function Bands({
   top: number;
   bottom: number;
   labels?: boolean;
+  /** Write each band's releases after its name where it has room (false: the name alone; the axis gives them). */
+  ranges?: boolean;
   labelY?: number;
   outerY?: number;
   view?: [number, number];
@@ -37,7 +40,7 @@ export function Bands({
   const inside: LabelRequest[] = bands.map((band) => {
     const { l, r } = extent(band);
     const name = band.name;
-    const forms = [`${name} ${bandRange(band)}`, name, short.get(name) ?? name].filter(
+    const forms = [...(ranges ? [`${name} ${bandRange(band)}`] : []), name, short.get(name) ?? name].filter(
       (f, i, all) => all.indexOf(f) === i,
     );
     return {

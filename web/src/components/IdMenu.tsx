@@ -96,10 +96,22 @@ export function IdMenu({
     ),
   });
   if (gene)
-    items.push({
-      key: "names",
-      node: <Link to={href("/names", { organism, gene: id, release: at })}>Its names at release {at}</Link>,
-    });
+    items.push(
+      {
+        key: "names",
+        node: <Link to={href("/names", { organism, gene: id, release: at })}>Its names at release {at}</Link>,
+      },
+      {
+        key: "history",
+        node: (
+          <Link
+            to={`${href(`/organisms/${organism}`, { tab: "history", id: id.replace(/\.\d+$/, ""), release: at })}#history`}
+          >
+            In the graph&apos;s history at release {at}
+          </Link>
+        ),
+      },
+    );
   else if (!ensembl)
     items.push({
       key: "named",

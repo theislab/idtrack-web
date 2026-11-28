@@ -2,7 +2,9 @@
 // sliding indicator under the chosen one, and one panel. The arrow keys move between tabs and choose (automatic
 // activation), Home and End go to the ends; Tab leaves to the panel. Only the chosen panel is drawn. With `param`,
 // the choice is kept in the page's address (`?tab=`), so every view can be linked to and survives a reload; with
-// `value`, the page holds the choice (a count that shows its rows chooses the table's tab).
+// `value`, the page holds the choice (a count that shows its rows chooses the table's tab). A tab marked `keep` stays
+// drawn, hidden, once it has been chosen (a figure costly to build, such as a WebGL field), so that coming back to it
+// is a paint; hidden, it is out of the reading order like any panel not chosen.
 import { useCallback, useId, useLayoutEffect, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import { navigate, useLocation } from "../../lib/router";
 
@@ -12,6 +14,8 @@ export interface TabItem {
   /** A quiet count or word after the label ("2", "7 steps"). */
   count?: ReactNode;
   panel: () => ReactNode;
+  /** Keep the panel drawn (hidden) after another tab is chosen. */
+  keep?: boolean;
 }
 
 export function Tabs({
@@ -42,6 +46,9 @@ export function Tabs({
   const chosen = items.some((t) => t.id === wanted) ? wanted : (items[0]?.id ?? "");
   const list = useRef<HTMLDivElement>(null);
   const [bar, setBar] = useState<{ left: number; width: number } | null>(null);
+  // The kept tabs chosen so far (their panels stay drawn).
+  const [kept, setKept] = useState<readonly string[]>([]);
+  if (items.some((t) => t.keep && t.id === chosen) && !kept.includes(chosen)) setKept([...kept, chosen]);
 
   const choose = useCallback(
     (id: string) => {
@@ -120,18 +127,21 @@ export function Tabs({
         })}
         {bar ? <span className="tabs__bar" aria-hidden="true" style={{ left: bar.left, width: bar.width }} /> : null}
       </div>
-      {current ? (
-        <div
-          key={current.id}
-          role="tabpanel"
-          id={`${base}-panel-${current.id}`}
-          aria-labelledby={`${base}-tab-${current.id}`}
-          className="tabs__panel"
-          tabIndex={0}
-        >
-          {current.panel()}
-        </div>
-      ) : null}
+      {items
+        .filter((t) => t === current || (t.keep && kept.includes(t.id)))
+        .map((t) => (
+          <div
+            key={t.id}
+            role="tabpanel"
+            id={`${base}-panel-${t.id}`}
+            aria-labelledby={`${base}-tab-${t.id}`}
+            className="tabs__panel"
+            tabIndex={0}
+            hidden={t !== current}
+          >
+            {t.panel()}
+          </div>
+        ))}
     </div>
   );
 }

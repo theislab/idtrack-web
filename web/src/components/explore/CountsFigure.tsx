@@ -1,15 +1,16 @@
 // The composition of a graph: the counts of its build, as the graph file records them (`counts` of
 // /organisms/{organism}), by IDTrack's names, each as a bar on a logarithmic axis (the counts run from none to
-// millions) beside its exact value, and under its name what IDTrack says the counted things are (its concepts' page,
-// or the docstring of the member of the same name of its graph or its record: src/generated/idtrack_docs.json); the
-// counts IDTrack says nothing more of are named once, under the figure, not under each row. A count of zero has no place
-// on a logarithmic axis: it is written, with no bar. The decades are gridlines that run through every row, behind the
-// bars. The rows are text, not controls: everything they hold is visible.
+// millions) beside its exact value, each row one line; what IDTrack says the counted things are (its concepts' page,
+// or the docstring of the member of the same name of its graph or its record: src/generated/idtrack_docs.json) is a
+// hover card on an (i) after the name; the counts IDTrack says nothing more of are named once, under the figure. A
+// count of zero has no place on a logarithmic axis: it is written, with no bar. The decades are gridlines that run
+// through every row, behind the bars.
 import type { CSSProperties } from "react";
 import docs from "../../generated/idtrack_docs.json";
 import { groupedInteger } from "../../lib/numbers";
 import { spaced } from "../../lib/vocabulary";
 import { Prose } from "../ui";
+import { HoverCard } from "../v2/HoverCard";
 
 const MEANINGS = new Map(docs.counts.items.map((c) => [c.key, c.meaning]));
 
@@ -30,9 +31,16 @@ export function CountsFigure({ counts }: { counts: Record<string, number> }) {
               <span className="counts__name">
                 {spaced(key)}
                 {meaning ? (
-                  <span className="counts__meaning">
-                    <Prose text={meaning} />
-                  </span>
+                  <HoverCard
+                    className="hint counts__about"
+                    triggerClassName="hint__trigger"
+                    label={`What IDTrack counts as ${spaced(key)}`}
+                    trigger={<span className="hint__mark" aria-hidden="true" />}
+                  >
+                    <p className="counts__meaning">
+                      <Prose text={meaning} />
+                    </p>
+                  </HoverCard>
                 ) : null}
               </span>
               <span className="counts__track" aria-hidden="true">

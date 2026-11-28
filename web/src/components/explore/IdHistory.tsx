@@ -144,15 +144,18 @@ export function IdHistory({
   const top = compact ? 6 : NAMES + 12 + markH;
   const genesH = compact ? 0 : 64;
   const gap = compact ? 0 : 26;
-  const upH = compact ? 46 : 104;
-  const downH = compact ? 26 : 50;
+  // The room of the changed ids above the line and of the created ids below it; the two are drawn on one scale (one
+  // number of ids per pixel), so that bars facing each other compare by their length: the side of the smaller nice
+  // maximum takes less than its room.
+  const upRoom = compact ? 46 : 104;
+  const downRoom = compact ? 26 : 50;
   const fanGap = compact ? 8 : 26;
   const fanH = fans ? (compact ? 9 : 26) : 0;
   const keptGap = compact ? 0 : 22;
   const keptH = compact ? 0 : 36;
   const genesTop = top;
-  const base = top + genesH + gap + upH;
-  const fanMid = base + downH + fanGap + fanH;
+  const base = top + genesH + gap + upRoom;
+  const fanMid = base + downRoom + fanGap + fanH;
   const keptTop = fanMid + (fans ? fanH : 0) + keptGap;
   const keptBase = keptTop + keptH;
   const axisY = (compact ? fanMid + fanH : keptBase) + 6;
@@ -160,6 +163,9 @@ export function IdHistory({
   const drawn = columns.filter((c) => !c.first);
   const upMax = share ? 1 : niceMax(Math.max(0, ...columns.map(changed)));
   const downMax = share ? 1 : niceMax(Math.max(0, ...drawn.map((c) => c.created)));
+  const perPixel = Math.max(upMax / upRoom, downMax / downRoom) || 1;
+  const upH = upMax / perPixel;
+  const downH = downMax / perPixel;
   const fanMaxShare = Math.max(0, ...shareOf.map((s) => Math.max(s.fanOut ?? 0, s.fanIn ?? 0)));
   const fanMax = share
     ? fanMaxShare <= FAN_SHARE

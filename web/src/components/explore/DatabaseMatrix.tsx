@@ -1,10 +1,13 @@
 // What a conversion to each release can end in: one row per database, one column per release, a mark where the
 // release's final databases include the database; the assembly bands behind the columns. The matrix is one tab stop:
 // the arrow keys move from cell to cell (Home and End along a row), and the cell's value is announced and shown; the
-// pointer shows the same note.
+// pointer shows the same note. Every row leads on: its name opens Convert set to end in that database (at its last
+// release), and Enter or a press on a marked cell opens Convert set to end in it at that release.
 import { useCallback, useMemo, useState, type KeyboardEvent, type PointerEvent } from "react";
 import type { GraphDescription } from "../../api/types";
+import { convertHref } from "../../lib/convertParameters";
 import { databaseLabel } from "../../lib/databases";
+import { navigate } from "../../lib/router";
 import type { DatabaseMatrix as Matrix } from "../../lib/explore/databaseMatrix";
 import { runs } from "../../lib/explore/runs";
 import { releaseRanges } from "../../lib/numbers";
@@ -12,7 +15,7 @@ import { assemblyBands, releaseScale } from "../figure/releases";
 import { Bands, ReleaseTicks } from "../figure/axis";
 import { FigureNote } from "../figure/FigureNote";
 import { useWidth } from "../figure/useWidth";
-import { Button } from "../ui";
+import { Button, Link } from "../ui";
 
 const HEAD = 34;
 const FOOT = 30;
@@ -78,8 +81,32 @@ export function DatabaseMatrix({ matrix: full, description }: { matrix: Matrix; 
     [matrix, sets, first],
   );
 
+  // A conversion set to end in a database at a release (no identifier yet: the form waits for one).
+  const into = (name: string, release: number) =>
+    convertHref(description.organism, {
+      identifier: "",
+      fromRelease: null,
+      toRelease: release,
+      finalDatabase: name,
+      fromDatabase: null,
+      allowBridges: true,
+      explain: true,
+    });
+  // The row a database is: one of the matrix's own (the folded row of every release's databases is none).
+  const real = (row: number) => !(folded && row === matrix.databases.length - 1);
+  const open = (cell: { row: number; col: number }) => {
+    const db = matrix.databases[cell.row];
+    const release = first + cell.col;
+    if (db && real(cell.row) && sets[cell.row]?.has(release)) navigate(into(db.name, release));
+  };
+
   const onKeyDown = (event: KeyboardEvent<SVGSVGElement>) => {
     const at = active ?? { row: 0, col: 0 };
+    if (event.key === "Enter") {
+      event.preventDefault();
+      open(at);
+      return;
+    }
     const rows = matrix.databases.length;
     const moves: Record<string, () => { row: number; col: number }> = {
       ArrowRight: () => ({ row: at.row, col: Math.min(columns - 1, at.col + 1) }),
@@ -131,7 +158,22 @@ export function DatabaseMatrix({ matrix: full, description }: { matrix: Matrix; 
                 style={{ height: ROW }}
                 className={`${shown?.row === i ? "dbm__label--on" : ""}${i === matrix.partial && i > 0 ? " dbm__label--every" : ""}`}
               >
-                {label(i, d.name)}
+                {real(i) && d.releases.length ? (
+                  // The pointer's way (the list for screen readers below holds the same links, in the reading order).
+                  <a
+                    href={into(d.name, Math.max(...d.releases))}
+                    className="dbm__link"
+                    tabIndex={-1}
+                    onClick={(event) => {
+                      event.preventDefault();
+                      navigate(into(d.name, Math.max(...d.releases)));
+                    }}
+                  >
+                    {label(i, d.name)}
+                  </a>
+                ) : (
+                  label(i, d.name)
+                )}
               </li>
             ))}
           </ul>
@@ -160,6 +202,9 @@ export function DatabaseMatrix({ matrix: full, description }: { matrix: Matrix; 
               }}
               onPointerMove={onPointerMove}
               onPointerDown={onPointerMove}
+              onClick={() => {
+                if (hover) open(hover);
+              }}
               onPointerLeave={() => {
                 setHover(null);
               }}
@@ -236,6 +281,9 @@ export function DatabaseMatrix({ matrix: full, description }: { matrix: Matrix; 
                 Releases <span className="mono">{releaseRanges(shownDb.releases)}</span>
                 {shownDb.form ? ` · through the ${shownDb.form}` : ""}
               </p>
+              {real(shown.row) && sets[shown.row]?.has(first + shown.col) ? (
+                <p className="fig-note__quiet">Enter or a press: Convert into it at this release</p>
+              ) : null}
             </FigureNote>
           ) : null}
         </div>
@@ -245,7 +293,12 @@ export function DatabaseMatrix({ matrix: full, description }: { matrix: Matrix; 
         <ul className="visually-hidden" aria-label="The matrix, one database a line">
           {full.databases.map((d) => (
             <li key={d.name}>
-              {databaseLabel(d.name)}: releases {releaseRanges(d.releases)}
+              {d.releases.length ? (
+                <Link to={into(d.name, Math.max(...d.releases))}>{databaseLabel(d.name)}</Link>
+              ) : (
+                databaseLabel(d.name)
+              )}
+              : releases {releaseRanges(d.releases)}
             </li>
           ))}
         </ul>

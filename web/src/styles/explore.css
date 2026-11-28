@@ -18,6 +18,31 @@
   white-space: nowrap;
 }
 
+/* On a phone, the graph is chosen in one menu. */
+.stories-organism--select {
+  display: grid;
+  gap: var(--space-1);
+  overflow: visible;
+}
+
+/* The folded primer for a reader new to gene ids, under the journeys. */
+.stories-primer {
+  max-width: 48rem;
+  margin-top: calc(-1 * var(--space-6));
+}
+
+.stories-primer .expandable__body p {
+  max-width: var(--measure);
+  font-size: var(--text-sm);
+  color: var(--ink-2);
+}
+
+/* The quiet way on, under the stories: every id of the graph, a line. */
+.stories-onward {
+  margin: calc(-1 * var(--space-6)) 0 0;
+  font-size: var(--text-sm);
+}
+
 .stories {
   display: grid;
   gap: var(--space-9);
@@ -28,7 +53,7 @@
 /* ---- The journeys, Explore's first figure (components/explore/Journeys.tsx) ------------------------------------- */
 
 /* The figure's room: the window less the page's head and the tabs, within bounds (it never grows with the figure):
-   the frame within it holds the drawing, the legend right under it and the caption, from the top. */
+   the frame within it holds the drawing and its caption; the filter stands under the room, below the first screen. */
 .journeys-story__figure {
   position: relative;
   min-width: 0;
@@ -66,6 +91,7 @@
 
 /* Under the caption: a quiet filter of the journeys drawn and "Draw all". */
 .journeys-story__tools {
+  margin-top: var(--space-5);
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -190,17 +216,32 @@
   min-height: max(100svh, 1200px);
 }
 
+/* The graphs' tab: its lede, then the sums of the graphs (the tab list's rule above is the only one). */
 .explore-graphs {
   display: grid;
   gap: var(--space-5);
   margin-bottom: var(--space-6);
-  padding-top: var(--space-5);
-  border-top: 1px solid var(--ink-1);
 }
 
-.explore-graphs__head {
-  display: grid;
-  gap: var(--space-2);
+.fact__label {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.fact__definition {
+  margin: 0;
+  max-width: 28rem;
+  font-size: var(--text-xs);
+  color: var(--ink-2);
+}
+
+.facts__sources {
+  margin: 0;
+  padding-left: var(--space-4);
+  max-width: 34rem;
+  font-size: var(--text-xs);
+  color: var(--ink-2);
 }
 
 .explore-graphs__lede {
@@ -428,13 +469,19 @@ a.organism-switch__item:hover {
   padding: var(--space-2) 0 var(--space-2) var(--space-2);
 }
 
-/* What idtrack says the counted things are, under the count's name. */
+/* A count's name and, after it, its (i): what IDTrack says the counted things are, in a hover card. */
+.counts__name {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
 .counts__meaning {
-  display: block;
-  margin-top: 2px;
+  margin: 0;
+  max-width: 36rem;
   font-size: var(--text-xs);
   line-height: var(--leading-caption);
-  color: var(--ink-3);
+  color: var(--ink-2);
 }
 
 /* The track takes the row's whole height, so that the decades' gridlines run unbroken from the first row to the axis;
@@ -535,6 +582,23 @@ a.organism-switch__item:hover {
   line-height: 1.1;
   color: var(--ink-2);
   white-space: nowrap;
+}
+
+.dbm__link {
+  color: inherit;
+  text-decoration: none;
+}
+
+@media (hover: hover) {
+  .dbm__link:hover {
+    color: var(--ink-1);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+}
+
+.dbm__svg {
+  cursor: pointer;
 }
 
 .dbm__labels .dbm__label--on {
@@ -1212,13 +1276,107 @@ a.organism-switch__item:hover {
   grid-template-columns: minmax(0, 1fr) auto;
 }
 
-/* The organism's figure, then its assemblies as expandable rows. */
-.assembly-rows {
+/* The organism's figure: each assembly one expandable row, its name at its bar, the rows' strips on one release axis
+   (the chevron, the strip, and a fixed column for what it serves), the axis under the last row in the same columns. */
+.astrips {
   border-top: 1px solid var(--line);
 }
 
-.assembly-row .expandable__meta {
+.astrips__row .expandable__summary,
+.astrips__axis {
+  display: grid;
+  grid-template-columns: 8px minmax(0, 1fr) 5rem;
+  align-items: center;
+  column-gap: var(--space-3);
+}
+
+.astrips__row .expandable__summary {
+  min-height: 48px;
+  padding: var(--space-1) 0;
+}
+
+.astrips__row .expandable__title {
+  min-width: 0;
+}
+
+.astrips__row .expandable__meta {
+  margin-left: 0;
   font-size: var(--text-sm);
+  text-align: right;
+}
+
+.astrips__axis-room {
+  grid-column: 2;
+  display: block;
+  min-width: 0;
+}
+
+.astrip {
+  display: block;
+  width: 100%;
+}
+
+.astrip__svg {
+  display: block;
+}
+
+.astrip__track {
+  stroke: var(--line);
+  stroke-width: 1;
+}
+
+.astrip__held {
+  stroke: var(--ink-3);
+  stroke-width: 1.5;
+  stroke-linecap: round;
+}
+
+.astrip__serve {
+  fill: var(--ink-1);
+}
+
+.astrip__name {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  fill: var(--ink-1);
+}
+
+/* In the dark theme the serving rule glows a little, as the home's lines do. */
+:root[data-theme="dark"] .astrip__serve {
+  filter: drop-shadow(0 0 3px color-mix(in srgb, var(--ink-1) 45%, transparent));
+}
+
+@media (prefers-color-scheme: dark) {
+  :root[data-theme="system"] .astrip__serve {
+    filter: drop-shadow(0 0 3px color-mix(in srgb, var(--ink-1) 45%, transparent));
+  }
+}
+
+@media (max-width: 640px) {
+  .astrips__row .expandable__summary,
+  .astrips__axis {
+    grid-template-columns: 8px minmax(0, 1fr);
+    row-gap: 0;
+  }
+
+  .astrips__row .expandable__meta {
+    grid-column: 2;
+    text-align: left;
+    flex-basis: auto;
+    margin-left: 0;
+  }
+}
+
+@media (forced-colors: active) {
+  .astrip__serve,
+  .astrip__name {
+    fill: CanvasText;
+  }
+
+  .astrip__held,
+  .astrip__track {
+    stroke: CanvasText;
+  }
 }
 
 .assembly-row__facts {
@@ -1305,13 +1463,12 @@ a.organism-switch__item:hover {
   min-width: 40px;
 }
 
+/* The field on the paper itself, as on the home: no card around it. */
 .lineage-field__box {
   position: relative;
   height: clamp(22rem, 56svh, 34rem);
   overflow: hidden;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-md);
-  background: var(--surface);
+  background: var(--paper);
   cursor: crosshair;
   touch-action: pan-y;
   user-select: none;
@@ -1341,17 +1498,63 @@ a.organism-switch__item:hover {
   outline-offset: var(--focus-offset);
 }
 
+/* The lifted id, in ink on a halo of the paper, as the home lifts it. */
+.lineage-field__halo {
+  fill: none;
+  stroke: var(--paper);
+  stroke-width: 5;
+  stroke-linejoin: round;
+  opacity: 0.85;
+}
+
 .lineage-field__line {
   fill: none;
-  stroke: var(--accent);
-  stroke-width: 2;
+  stroke: var(--ink-1);
+  stroke-width: 1.5;
   stroke-linejoin: round;
 }
 
 .lineage-field__at {
-  fill: var(--surface);
-  stroke: var(--accent);
-  stroke-width: 2;
+  fill: var(--paper);
+  stroke: var(--ink-1);
+  stroke-width: 1.5;
+}
+
+/* Find an id: a small field and its button among the tools. */
+.lineage-field__find {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.lineage-field__find-input {
+  width: 13rem;
+  min-height: 32px;
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+}
+
+/* The caption's key: the home's marks. */
+.lineage-field__key {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.lineage-field__key-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--hue-history);
+}
+
+.lineage-field__key-curve {
+  width: 16px;
+  height: 8px;
+  border: 1.5px solid var(--hue-event);
+  border-color: var(--hue-event) transparent transparent;
+  border-radius: 50% 50% 0 0;
+  transform: translateY(2px);
 }
 
 /* The release axis under the field: each assembly's first release and name, the last release; the changes as faint
@@ -1371,6 +1574,11 @@ a.organism-switch__item:hover {
   font-size: var(--text-xs);
   color: var(--ink-3);
   white-space: nowrap;
+}
+
+/* A label that would meet the one before it stands on a second line under it. */
+.lineage-field__tick--low {
+  bottom: -2px;
 }
 
 .lineage-field__tick--last {
@@ -1407,6 +1615,10 @@ a.organism-switch__item:hover {
   .lineage-field__line,
   .lineage-field__at {
     stroke: Highlight;
+  }
+
+  .lineage-field__halo {
+    stroke: Canvas;
   }
 }
 

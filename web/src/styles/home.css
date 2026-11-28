@@ -148,15 +148,17 @@
 
 /* ---- d: the cases --------------------------------------------------------------------------------------------- */
 
-/* The cards flow in columns, each card as tall as what it holds, one after another down a column (a masonry of
-   cards): no card is stretched to a neighbour's height, so the gallery holds no band of empty paper. Each card stands
-   on its own, raised a step from the paper, with air between them. */
+/* The cards stand on a grid of rows of one height: every sketch takes the room of the tallest (it is drawn at the
+   top of it), so the kinds' names of a row share one line. Each card stands on its own, raised a step from the paper,
+   with air between them. */
 .cases {
   list-style: none;
   margin: 0;
   padding: 0;
-  columns: 3;
-  column-gap: var(--space-4);
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-auto-rows: 1fr;
+  gap: var(--space-4);
 }
 
 /* A card: its sketch, the kind's name with its (i), one line, and the answer's cautions (never folded); the rest is in
@@ -168,7 +170,7 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
-  margin: 0 0 var(--space-4);
+  margin: 0;
   padding: var(--space-4) var(--space-5);
   border: 1px solid var(--line);
   border-radius: var(--radius-md);
@@ -178,7 +180,6 @@
     box-shadow var(--dur-2) var(--ease-out),
     border-color var(--dur-1);
   min-width: 0;
-  break-inside: avoid;
 }
 
 @media (hover: hover) {
@@ -560,7 +561,7 @@
   }
 
   .cases {
-    columns: 2;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   /* Seven facts on four columns: the last takes the rest of its row. */
@@ -588,7 +589,8 @@
   }
 
   .cases {
-    columns: 1;
+    grid-template-columns: minmax(0, 1fr);
+    grid-auto-rows: auto;
   }
 
   .hero-figure {
@@ -702,7 +704,8 @@
 }
 
 /* A journey's line, one segment per stable id: the tone alternates where the id changes. */
-.jr-line--b {
+.journeys__svg .jr-line--b,
+.fig-swatch .jr-line--b {
   fill: var(--ink-3);
 }
 
@@ -863,12 +866,38 @@
   font-size: var(--text-sm);
 }
 
+/* The step the replay stands on: a sentence first, its ids and values on a quieter line under it. */
 .replay__readout {
   flex: 1 1 24rem;
-  min-height: 1.5em;
-  font-size: var(--text-xs);
+  display: grid;
+  gap: 2px;
+  min-height: 3em;
+  font-size: var(--text-sm);
   color: var(--ink-1);
   overflow-wrap: anywhere;
+}
+
+.replay__values {
+  font-size: var(--text-xs);
+  color: var(--ink-2);
+}
+
+/* A value cut for reading, its exact value one press away (a hover card). */
+.replay__exact-button {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-decoration: underline dotted;
+  text-decoration-color: var(--ink-3);
+  text-underline-offset: 3px;
+  cursor: help;
+}
+
+/* The answer's cautions under the title of the journey up close, as on the verdict. */
+.hero-figure__cautions {
+  margin: calc(-1 * var(--space-2)) 0 var(--space-3);
 }
 
 /* The product of Ensembl's scores so far, under the score track: a line that steps down at each scored step to the
@@ -899,21 +928,17 @@
   stroke-width: 1.5;
 }
 
-.replay__veil,
-.replay__cursor,
+/* The cursor, its ring and the veil move as one group; the ring also glides between lanes. */
+.replay__marks {
+  transition: transform 300ms var(--ease-in-out);
+}
+
 .replay__ring {
-  transition:
-    x 300ms var(--ease),
-    width 300ms var(--ease),
-    x1 300ms var(--ease),
-    x2 300ms var(--ease),
-    cx 300ms var(--ease),
-    cy 300ms var(--ease);
+  transition: cy 300ms var(--ease-in-out);
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .replay__veil,
-  .replay__cursor,
+  .replay__marks,
   .replay__ring {
     transition: none;
   }

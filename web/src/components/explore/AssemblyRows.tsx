@@ -30,6 +30,9 @@ export interface AssemblyRow {
 const ROW = 54;
 const ROW_UNDER = 70;
 const BAR_UNDER = 22;
+/** The height of each line of names under the bars past the second (a row has as many lines as it has assemblies at
+ *  most, so that every name finds one). */
+const LINE_UNDER = 14;
 const AXIS = 30;
 
 export function AssemblyRows({
@@ -53,9 +56,9 @@ export function AssemblyRows({
     row.assemblies.map((a, j) => ({ row, rowIndex: i, assembly: a, shade: j % 2 === 1 })),
   );
   // Every bar is named by its whole name, in one place for the whole figure: inside the bar where every bar has room
-  // for its name; else under its bar, from the bar's start, on the first of two lines where it meets no other name (a
-  // name is never shortened, and never stands above one bar and below another). The name is also in its note and the
-  // table.
+  // for its name; else under its bar, from the bar's start (or ending there, where it has no room after it), on the
+  // first of as many lines as the row needs where it meets no other name: a name is moved, never shortened, never
+  // dropped, and never stands above one bar and below another. The name is also in its note and the table.
   const nameOf = (it: (typeof items)[number]) => it.assembly.name ?? String(it.assembly.assembly);
   const requests: LabelRequest[] = [];
   items.forEach((it, index) => {
@@ -75,9 +78,6 @@ export function AssemblyRows({
   const fitted = placeLabels(requests, { bounds: [2, width - 2] });
   const under = requests.length > 0 && fitted.size < requests.length;
   const inside = under ? new Map<string, never>() : fitted;
-  const rowH = under ? ROW_UNDER : ROW;
-  const barY = (rowIndex: number) => rowIndex * rowH + (under ? BAR_UNDER : rowH / 2);
-  const height = rows.length * rowH + AXIS;
   const below = under
     ? placeLabels(
         items.flatMap((it, index) =>
@@ -86,12 +86,22 @@ export function AssemblyRows({
             anchor: scale.x(p - 0.5) + 1,
             forms: [nameOf(it)],
             align: "start" as const,
-            rows: [`u1-${it.rowIndex}`, `u2-${it.rowIndex}`],
+            flip: true,
+            rows: Array.from(
+              { length: Math.max(2, it.row.assemblies.length) },
+              (_, line) => `u${line + 1}-${it.rowIndex}`,
+            ),
           })),
         ),
         { bounds: [2, width - 2], gap: 10 },
       )
     : new Map<string, PlacedLabel>();
+  // The lines the names take under the bars: a row is as tall as its most crowded row needs.
+  const lineOf = (label: PlacedLabel) => Number(/^u(\d+)/.exec(label.row)?.[1] ?? "1");
+  const lines = Math.max(2, ...[...below.values()].map(lineOf));
+  const rowH = under ? ROW_UNDER + (lines - 2) * LINE_UNDER : ROW;
+  const barY = (rowIndex: number) => rowIndex * rowH + (under ? BAR_UNDER : rowH / 2);
+  const height = rows.length * rowH + AXIS;
   const above = below;
   const svg = useCallback(() => ref.current?.querySelector("svg") ?? null, [ref]);
   const roving = useRoving(items.length, svg);
@@ -161,7 +171,7 @@ export function AssemblyRows({
                       {outer ? (
                         <text
                           x={outer.x}
-                          y={outer.row.startsWith("u1") ? y + 23 : y + 37}
+                          y={y + 23 + (lineOf(outer) - 1) * LINE_UNDER}
                           textAnchor={outer.anchor}
                           className="fig-text arows__name--out"
                         >

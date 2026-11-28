@@ -1,6 +1,8 @@
 // One journey up close: the showcase's case of kind `lineage` (a path over every assembly of the graph), drawn as its
 // gene versions over the releases with Ensembl's scores under them, with a replay that walks the path step by step.
-// Every value is the case's answer, as the server's showcase gives it.
+// The answer's cautions stand under the title, as on the answer's verdict (they never fold); a step that is not
+// Ensembl's history (a reading through another id, a bridge: IDTrack's inference) is named in the key. Every value is
+// the case's answer, as the server's showcase gives it.
 import { Suspense, useId, useMemo } from "react";
 import type { ConversionResult, GraphDescription } from "../../api/types";
 import { figureHeight, figureModel, reasonCounts } from "../../lib/explore/figureModel";
@@ -12,7 +14,9 @@ import { organismName } from "../../lib/organismNames";
 import { prose } from "../../lib/values";
 import { spaced } from "../../lib/vocabulary";
 import { useVocabulary } from "../../lib/vocabularyContext";
-import { FigureLegend } from "../figure/Legend";
+import { evidenceOf } from "../../lib/evidence";
+import { Evidence } from "../Evidence";
+import { FigureLegend, type LegendEntry } from "../figure/Legend";
 import { CaptionMore } from "../v2/CaptionMore";
 import { FigureReserve } from "./FigureReserve";
 import { Link, Mono } from "../ui";
@@ -25,6 +29,7 @@ export function JourneyUpClose({
   graph,
   letter = "b",
   level = 2,
+  longest = null,
 }: {
   query: CaseQuery;
   result: ConversionResult;
@@ -32,6 +37,8 @@ export function JourneyUpClose({
   /** The panel's letter in the page it stands on (none: no letter). */
   letter?: string | null;
   level?: 2 | 3;
+  /** The most steps of Ensembl's history any answer of the graph's showcase takes (said where it is one). */
+  longest?: number | null;
 }) {
   const H = level === 2 ? "h2" : "h3";
   const vocabulary = useVocabulary();
@@ -43,6 +50,9 @@ export function JourneyUpClose({
   const order = [...vocabulary.stepReasons.keys()];
   const history = model.steps.filter((st) => st.family !== "cross");
   const reading = model.steps.filter((st) => st.family === "cross");
+  const bridged = reading.some((st) => st.step.kind === "bridge_near" || st.step.kind === "bridge_far");
+  const readThrough = reading.some((st) => st.step.kind !== "bridge_near" && st.step.kind !== "bridge_far");
+  const cautions = evidenceOf(result, vocabulary).filter((m) => m.tone === "caution");
   const counts = reasonCounts(history, order);
   const readingCounts = reasonCounts(reading, order);
   const handoffs = model.steps.filter((s) => s.handoff).length;
@@ -76,6 +86,17 @@ export function JourneyUpClose({
           Open this answer
         </Link>
       </div>
+      {cautions.length ? (
+        <div className="hero-figure__cautions">
+          <Evidence
+            result={result}
+            marks={cautions}
+            compact
+            max={cautions.length}
+            label={`Cautions of ${result.query_id}'s answer`}
+          />
+        </div>
+      ) : null}
       <Suspense fallback={<FigureReserve height={() => figureHeight(model.lanes, history.length > 0)} />}>
         <HistoryFigure model={model} description={graph} />
       </Suspense>
@@ -86,6 +107,24 @@ export function JourneyUpClose({
           { key: "event", glyph: "event", text: "A split or a merge" },
           { key: "loop", glyph: "loop", text: "A re-mapping of a gene to itself" },
           { key: "handoff", glyph: "handoff", text: "A step across an assembly change" },
+          ...(readThrough
+            ? [
+                {
+                  key: "read",
+                  glyph: "read",
+                  text: "A reading through another id of the gene, not Ensembl's history",
+                } as LegendEntry,
+              ]
+            : []),
+          ...(bridged
+            ? [
+                {
+                  key: "bridge",
+                  glyph: "bridge",
+                  text: "A bridge, IDTrack's inference (no Ensembl score)",
+                } as LegendEntry,
+              ]
+            : []),
           ...(history.length
             ? [
                 {
@@ -124,6 +163,13 @@ export function JourneyUpClose({
               <em>{organismName(graph.organism)}</em> graph and converted to release {result.to_release}:{" "}
               <Mono>{model.answer.target}</Mono>, each gene version over the releases the path holds it, Ensembl&apos;s
               score of each step under them.
+              {longest !== null && longest <= 1 ? (
+                <>
+                  {" "}
+                  No answer of this graph&apos;s showcase takes more than {longest === 1 ? "one step" : "a step"} of
+                  Ensembl&apos;s history.
+                </>
+              ) : null}
             </>
           }
         >
@@ -155,8 +201,8 @@ export function JourneyUpClose({
           <Mono>{pythonFloat(model.answer.score)}</Mono>, which is{" "}
           {scoreMeaning ? lowerFirst(prose(scoreMeaning)) : "its score"}. Replay walks the path step by step and writes
           each step&apos;s score and the product so far (the page&apos;s own product, cut after six decimals: the
-          candidate&apos;s score is IDTrack&apos;s). Focus the figure and use the arrow keys for each element&apos;s
-          exact values (on a touch screen, tap a mark). Source:{" "}
+          candidate&apos;s score is IDTrack&apos;s; the exact value, one press away). Focus the figure and use the arrow
+          keys for each element&apos;s exact values (on a touch screen, tap a mark). Source:{" "}
           <Mono>GET /api/v1/organisms/{graph.organism}/showcase</Mono>, the answer{" "}
           <a href={apiAddress(query)}>
             <Mono>GET {apiAddress(query).replace(/\?.*/, "")}</Mono>

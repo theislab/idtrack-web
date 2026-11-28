@@ -128,7 +128,6 @@ function Overview({
   const firstAll = all[0] ?? 0;
   const lastAll = all[all.length - 1] ?? 0;
   const overview = releaseScale(all, OVERVIEW_INSET, width - OVERVIEW_INSET);
-  const whole = lo === firstAll && hi === lastAll;
   const a = overview.x(lo - 0.5);
   const b = overview.x(hi + 0.5);
   return (
@@ -151,13 +150,9 @@ function Overview({
         />
       ))}
       <rect x={a} y={y - 2} width={Math.max(3, b - a)} height={4} className="case-sketch__window" />
-      {whole ? null : (
-        <>
-          {/* Down from the stretch's ends until clear of the written releases, then open to the view's top corners. */}
-          <polyline points={`${a},${y + 2} ${a},${ty + 7} ${scale.x0},${VIEW_TOP - 4}`} className="case-sketch__zoom" />
-          <polyline points={`${b},${y + 2} ${b},${ty + 7} ${scale.x1},${VIEW_TOP - 4}`} className="case-sketch__zoom" />
-        </>
-      )}
+      {/* Down from the stretch's ends until clear of the written releases, then open to the view's top corners. */}
+      <polyline points={`${a},${y + 2} ${a},${ty + 7} ${scale.x0},${VIEW_TOP - 4}`} className="case-sketch__zoom" />
+      <polyline points={`${b},${y + 2} ${b},${ty + 7} ${scale.x1},${VIEW_TOP - 4}`} className="case-sketch__zoom" />
     </g>
   );
 }
@@ -168,10 +163,13 @@ export function CaseSketch({
   label,
   life = null,
   symbols = null,
+  room = null,
 }: {
   result: ConversionResult;
   graph: GraphDescription;
   label: string;
+  /** The height the sketch stands in (the gallery's tallest), drawn at its top; none: its own height. */
+  room?: number | null;
   /** For an answer that reaches nothing: the life of the gene the identifier names where it is read. */
   life?: SketchLife | null;
   /** The symbols of the Ensembl genes the card names, by id (where the name authority gives one). */
@@ -189,11 +187,13 @@ export function CaseSketch({
   const { VIEW_TOP } = SKETCH;
   const lo = releases[0] ?? all[0] ?? 0;
   const hi = releases[releases.length - 1] ?? lastAll;
+  // The overview strip only where the sketch is a stretch of the axis; a sketch of the whole axis is its own overview.
+  const zoomed = lo !== all[0] || hi !== lastAll;
   return (
-    <div className="case-sketch fig" ref={ref} style={{ height: layout.height }}>
+    <div className="case-sketch fig" ref={ref} style={{ height: Math.max(layout.height, room ?? 0) }}>
       {near ? (
         <svg width={width} height={layout.height} role="img" aria-label={label} className="case-sketch__svg">
-          <Overview all={all} bands={bands} scale={scale} width={width} lo={lo} hi={hi} />
+          {zoomed ? <Overview all={all} bands={bands} scale={scale} width={width} lo={lo} hi={hi} /> : null}
           <Bands
             bands={bands}
             scale={scale}

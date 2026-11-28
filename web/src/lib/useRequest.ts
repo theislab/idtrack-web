@@ -1,7 +1,7 @@
 // A request's state for a view: idle, loading, done or failed; a newer request cancels the one before it. A read that
 // failed because nothing answered is asked again by itself when the browser is back online or the tab is shown again;
 // a refusal that names its wait (`Retry-After`, a rate limit or a busy server) is asked again once after that wait.
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import {
   answersGeneration,
   onAnswersGeneration,
@@ -44,7 +44,9 @@ function useLatest<T>(value: T) {
 
 /** Run `load` whenever `key` changes (null: nothing to load), and again when the server's graphs change (a new
  *  generation of the answers held, api/client.ts). The state is the answer of the current key only. `fresh` is true on
- *  a retry: the answer is asked of the api again even when one is held. */
+ *  a retry: the answer is asked of the api again even when one is held. The object returned is the same from one
+ *  render to the next until the state changes, so that what a view builds from it (a layout, a renderer) is built once
+ *  per answer. */
 export function useRequest<T>(
   asked: string | null,
   load: (signal: AbortSignal, fresh: boolean) => Promise<Answer<T>>,
@@ -76,15 +78,15 @@ export function useRequest<T>(
   const retry = useCallback(() => {
     setTries((t) => ({ key, n: (t.key === key ? t.n : 0) + 1 }));
   }, [key]);
-  const state: RequestState<T> =
-    key === null
-      ? { state: "idle" }
-      : settled?.key === key && settled.attempt === attempt
-        ? settled.state
-        : { state: "loading" };
+  const current = key !== null && settled?.key === key && settled.attempt === attempt ? settled.state : null;
+  const phase = key === null ? "idle" : current ? null : "loading";
+  const state = useMemo<RequestState<T>>(
+    () => current ?? (phase === "idle" ? { state: "idle" } : { state: "loading" }),
+    [current, phase],
+  );
   const failure = state.state === "failed" ? state.error : null;
   useRecovery(key, state.state, failure, retry);
-  return { ...state, retry };
+  return useMemo(() => ({ ...state, retry }), [state, retry]);
 }
 
 /** Ask again by itself where waiting is the remedy: back online or shown again after nothing answered; once (per key,

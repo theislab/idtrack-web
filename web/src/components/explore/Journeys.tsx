@@ -159,7 +159,6 @@ function JourneysOf({ graph }: { graph: GraphDescription }) {
   const id = useId();
   const answer = useShowcase(graph.organism);
   const [roomRef, roomHeight] = useHeight<HTMLDivElement>();
-  const [toolsRef, toolsHeight] = useHeight<HTMLDivElement>();
   const [captionRef, captionHeight] = useHeight<HTMLElement>();
   const [drawn, setDrawn] = useState<JourneysDrawn | null>(null);
   const [listed, setListed] = useState(false);
@@ -182,11 +181,8 @@ function JourneysOf({ graph }: { graph: GraphDescription }) {
   const endpoint = `GET /api/v1/organisms/${graph.organism}/showcase`;
   const first = graph.releases[0];
   const last = graph.snapshot_release;
-  // The figure fills the room less its caption, its tools and the air between them.
-  const fit =
-    roomHeight !== null && toolsHeight !== null && captionHeight !== null
-      ? Math.max(160, roomHeight - toolsHeight - captionHeight - 2 * 12 - 2)
-      : null;
+  // The figure fills the room less its caption and the air between them (its tools stand under the room).
+  const fit = roomHeight !== null && captionHeight !== null ? Math.max(160, roomHeight - captionHeight - 12 - 2) : null;
   const listId = `${id}-list`;
   const some = drawn !== null && drawn.drawn < drawn.of;
   const filtered = filter !== "all";
@@ -221,12 +217,12 @@ function JourneysOf({ graph }: { graph: GraphDescription }) {
                       {drawn && some
                         ? `${drawn.drawn} of the ${filtered ? `${kept.length} kept` : all.length}`
                         : `The ${filtered ? `${kept.length} kept of the ${all.length}` : all.length}`}{" "}
-                      journeys of the <em>{name}</em> graph{some ? ", the most convoluted" : ""}, each along its best
-                      answer&apos;s path through releases {first}–{last}.
+                      journeys of the <em>{name}</em> graph{some ? ", the most convoluted first" : ""}.
                     </>
                   }
                 >
-                  Answered by this server when it started (<Mono>{endpoint}</Mono>). The journeys of a set share their
+                  Each is drawn along its best answer&apos;s path through releases {first}–{last}, as this server
+                  answered it when it started (<Mono>{endpoint}</Mono>). The journeys of a set share their
                   request&apos;s parameters; {CONVOLUTION_WORDS}, and the sets by their most convoluted journey. A
                   journey&apos;s steps are those of its best answer&apos;s path, as the answer&apos;s &quot;In
                   words&quot; lists them. At rest the rows are drawn without their ids:{" "}
@@ -283,31 +279,27 @@ function JourneysOf({ graph }: { graph: GraphDescription }) {
               </>
             )}
           </figcaption>
-          <div
-            className="journeys-story__tools"
-            ref={toolsRef}
-            hidden={answer.state === "failed" || (showcase !== null && !all.length)}
-          >
-            <Segmented
-              className="journeys-story__filter"
-              label="Journeys drawn"
-              value={filter}
-              onChange={setFilter}
-              options={FILTERS.map((f) => ({ value: f.value, label: f.label }))}
-            />
-            <button
-              type="button"
-              className="journeys-story__all"
-              aria-pressed={drawAll}
-              onClick={() => {
-                setDrawAll((d) => !d);
-              }}
-            >
-              {drawAll ? "Fit to the screen" : `Draw all ${kept.length}`}
-            </button>
-          </div>
         </div>
       </figure>
+      <div className="journeys-story__tools" hidden={answer.state === "failed" || (showcase !== null && !all.length)}>
+        <Segmented
+          className="journeys-story__filter"
+          label="Journeys drawn"
+          value={filter}
+          onChange={setFilter}
+          options={FILTERS.map((f) => ({ value: f.value, label: f.label }))}
+        />
+        <button
+          type="button"
+          className="journeys-story__all"
+          aria-pressed={drawAll}
+          onClick={() => {
+            setDrawAll((d) => !d);
+          }}
+        >
+          {drawAll ? "Fit to the screen" : `Draw all ${kept.length}`}
+        </button>
+      </div>
       {showcase ? (
         <ol
           id={listId}

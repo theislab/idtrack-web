@@ -27,7 +27,7 @@ import { useRequest } from "../../lib/useRequest";
 import { Link, Mono } from "../ui";
 import { CaseSketch, type SketchLife } from "./CaseSketch";
 import { GeneBar, GlyphSwatch } from "../figure/glyphs";
-import { keyMarks, lastRelease, type KeyMark } from "../../lib/explore/sketch";
+import { keyMarks, lastRelease, sketchLayout, type KeyMark } from "../../lib/explore/sketch";
 
 type ShowcaseCase = ShowcaseResponse["cases"][number];
 
@@ -528,6 +528,8 @@ export function CaseGallery({
   const lifeOf = (result: ConversionResult) =>
     lives.state === "done" ? (lives.answer.data.get(result) ?? null) : null;
   const drawn = keyMarks(shown.map((c) => c.result));
+  // Every sketch stands in the room of the tallest, so that the cards of a row share their lines.
+  const room = Math.max(0, ...shown.map((c) => sketchLayout(c.result).height));
   if (!shown.length) return null;
   if (!ready) return <div className="stories-reserve stories-reserve--cases" aria-busy="true" />;
   return (
@@ -558,9 +560,10 @@ export function CaseGallery({
           }
         >
           <p className="cases-key__lead">
-            Each sketch draws its case&apos;s answer on the stretch of releases it spans, zoomed: the line above it is
-            the graph&apos;s whole axis ({graph.releases[0]}–{graph.snapshot_release}, a tick at each change of
-            assembly) with the stretch marked, two hairlines opening from it to the view. The cards are drawn from{" "}
+            Each sketch draws its case&apos;s answer on the stretch of releases it spans, zoomed: where that is a
+            stretch of the axis, the line above it is the graph&apos;s whole axis ({graph.releases[0]}–
+            {graph.snapshot_release}, a tick at each change of assembly) with the stretch marked, two hairlines opening
+            from it to the view. The cards are drawn from{" "}
             <span className="mono">GET /api/v1/organisms/{graph.organism}/showcase</span>.
           </p>
           <ul className="case-key" aria-label="The marks of the sketches">
@@ -587,6 +590,7 @@ export function CaseGallery({
                 label={sketchLabel(item.kind, item.result, lifeOf(item.result))}
                 life={lifeOf(item.result)}
                 symbols={symbols}
+                room={room}
               />
               <div className="case__head">
                 <Card className="case__title">
@@ -657,7 +661,7 @@ export function CaseGallery({
                     result={item.result}
                     marks={cautions}
                     compact
-                    max={1}
+                    max={cautions.length}
                     label={`Cautions of ${query.identifier}'s answer`}
                   />
                 </div>

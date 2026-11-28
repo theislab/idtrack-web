@@ -17,6 +17,7 @@ import {
 } from "../../lib/explore/figureModel";
 import { shortProduct } from "../../lib/explore/sketch";
 import { groupedInteger, pythonFloat } from "../../lib/numbers";
+import { ensemblSteps, stepSentence } from "../../lib/path/steps";
 import { prose } from "../../lib/values";
 import { spaced } from "../../lib/vocabulary";
 import { useVocabulary } from "../../lib/vocabularyContext";
@@ -26,11 +27,16 @@ import { FigureNote } from "../figure/FigureNote";
 import { GeneBar, StepGlyph } from "../figure/glyphs";
 import { isEvent, type Glyph } from "../figure/glyph";
 import { placeLabels } from "../figure/labels";
+import { HoverCard } from "../v2/HoverCard";
+import { ForkStubs } from "./JourneysFigure";
 import { ScoreTrack } from "../figure/ScoreTrack";
 import { useRoving } from "../figure/roving";
 import { useWidth } from "../figure/useWidth";
 
 let played = false;
+
+/** A step of the two sides of a bridge (IDTrack's inference: no Ensembl score). */
+const isBridge = (s: FigureStep) => s.step.kind === "bridge_near" || s.step.kind === "bridge_far";
 
 /** How long a step stays in view while the path replays (ms). */
 const REPLAY_STEP = 900;
@@ -104,6 +110,17 @@ export function HistoryFigure({ model, description }: { model: FigureModel; desc
     // labels there never meet.
     const rowKey = (lane: number, r: string) =>
       r.startsWith("b") ? `gap${r.slice(1)}:${lane}` : lane > 0 ? `gap${r.slice(1)}:${lane - 1}` : `top${r.slice(1)}`;
+    // A reading step's glyph stands above its lane (its leader down to the lane): no label covers it.
+    const taken = new Map<string, [number, number][]>();
+    for (const st of model.steps) {
+      if (st.family !== "cross" || isBridge(st)) continue;
+      const lane = laneOf.get(st.step.target) ?? laneOf.get(st.step.source ?? "") ?? 0;
+      const x = jointX(st);
+      for (const r of ["a0", "a1"]) {
+        const key = rowKey(lane, r);
+        taken.set(key, [...(taken.get(key) ?? []), [x - 7, x + 7]]);
+      }
+    }
     const labels = placeLabels(
       model.genes.map((g, i) => {
         // A label is read along its lane: a gene keeps only its version (".6") where the bar before it on the same lane
@@ -120,7 +137,7 @@ export function HistoryFigure({ model, description }: { model: FigureModel; desc
           weight: i === 0 ? 600 : 400,
         };
       }),
-      { bounds: [scale.x0 - scale.step / 2, scale.x1 + scale.step / 2] },
+      { bounds: [scale.x0 - scale.step / 2, scale.x1 + scale.step / 2], taken },
     );
     return model.genes.map((g, i) => {
       const label = labels.get(String(i));
@@ -277,29 +294,57 @@ export function HistoryFigure({ model, description }: { model: FigureModel; desc
   };
   const cursorStep = cursor !== null && cursor < total ? model.steps[cursor] : null;
   const cursorX = cursor === null ? null : cursorStep ? jointX(cursorStep) : scale.x1 + scale.step / 2;
+  // Each step in words first (what Ensembl recorded, or what the walk did, in Ensembl's terms), then its ids and values
+  // on a quieter line; at the end, the answer and the candidate's score, cut for reading with its exact value one press
+  // away.
+  const directions = useMemo(() => new Map(ensemblSteps(model.result).map((e) => [e.step, e.backward])), [model]);
   const readout = (() => {
-    if (cursor === null) return "";
+    if (cursor === null) return null;
     if (!cursorStep) {
-      return `The answer at release ${model.result.to_release}: ${model.answer.target}; the candidate's score, the product of Ensembl's scores along the path, ${pythonFloat(model.answer.score)}.`;
+      const score = pythonFloat(model.answer.score);
+      const short = shortProduct(score);
+      return {
+        words: `The answer at release ${model.result.to_release}: ${model.answer.target}. Its score is the product of Ensembl's scores along the path.`,
+        values: (
+          <>
+            {model.answer.target} · score{" "}
+            {short === score ? (
+              short
+            ) : (
+              <HoverCard
+                className="replay__exact"
+                triggerClassName="replay__exact-button mono"
+                label={`Score ${short}: the exact value`}
+                trigger={short}
+              >
+                <p className="mono">{score}</p>
+                <p className="small muted">The candidate&apos;s score as the api gives it.</p>
+              </HoverCard>
+            )}
+          </>
+        ),
+      };
     }
     const st = cursorStep.step;
-    const releasesText =
-      st.old_release !== null && st.new_release !== null
-        ? `${st.old_release} → ${st.new_release}`
-        : st.release !== null
-          ? `release ${st.release}`
-          : "";
-    return `Step ${cursorStep.number} of ${total} · ${releasesText} · ${st.source ?? "—"} → ${st.target} · ${spaced(st.reason)}${
-      cursorStep.family === "cross"
-        ? ""
-        : st.weight === null
-          ? " · no score"
-          : ` · Ensembl's score ${pythonFloat(st.weight)}`
-    }${cursorStep.handoff ? ` · ${assemblyName(st.old_assembly)} → ${assemblyName(st.assembly)}` : ""}${
-      products.has(cursorStep.number)
-        ? ` · product so far ${shortProduct(pythonFloat(products.get(cursorStep.number) ?? 1))}`
-        : ""
-    }`;
+    const handoff: [string, string] | null = cursorStep.handoff
+      ? [assemblyName(st.old_assembly), assemblyName(st.assembly)]
+      : null;
+    return {
+      words: `Step ${cursorStep.number} of ${total}. ${stepSentence(st, { backward: directions.get(st) ?? false, assembly: handoff })}`,
+      values: `${st.source ?? "—"} → ${st.target}${
+        cursorStep.family === "cross" || isBridge(cursorStep)
+          ? st.databases.length
+            ? ` · ${st.databases.join(", ")}`
+            : ""
+          : st.weight === null
+            ? " · no score"
+            : ` · Ensembl's score ${pythonFloat(st.weight)}`
+      }${
+        products.has(cursorStep.number)
+          ? ` · product so far ${shortProduct(pythonFloat(products.get(cursorStep.number) ?? 1))}`
+          : ""
+      }`,
+    };
   })();
 
   const svg = useCallback(() => ref.current?.querySelector("svg") ?? null, [ref]);
@@ -322,11 +367,12 @@ export function HistoryFigure({ model, description }: { model: FigureModel; desc
           {hasScores ? (
             <ScoreTrack
               items={model.steps
-                .filter((st) => st.family !== "cross")
+                .filter((st) => st.family !== "cross" || st.step.kind === "bridge_near")
                 .map((st) => ({
                   key: String(st.number),
                   x: jointX(st),
-                  weight: st.step.weight,
+                  // A bridge has no score of Ensembl's: its open mark.
+                  weight: st.family === "cross" ? null : st.step.weight,
                   hue: st.family === "event" ? ("event" as const) : ("history" as const),
                 }))}
               x0={scale.x0}
@@ -401,8 +447,28 @@ export function HistoryFigure({ model, description }: { model: FigureModel; desc
                     : s.family === "cross"
                       ? "read"
                       : "version";
+              // The far side of a bridge: its target's lane, where the walk enters the other gene.
+              const far =
+                s.step.kind === "bridge_near"
+                  ? model.steps.find(
+                      (o) => o.number > s.number && o.step.kind === "bridge_far" && laneOf.has(o.step.target),
+                    )
+                  : undefined;
               const mark: ReactNode =
-                s.family === "cross" ? (
+                s.step.kind === "bridge_far" ? null : s.step.kind === "bridge_near" ? (
+                  <>
+                    {far ? (
+                      <line
+                        x1={x}
+                        x2={jointX(far)}
+                        y1={y}
+                        y2={laneY(laneOf.get(far.step.target) ?? 0)}
+                        className="fig-cross fig-bridge"
+                      />
+                    ) : null}
+                    <StepGlyph glyph="bridge" x={x} y={y} />
+                  </>
+                ) : s.family === "cross" ? (
                   <>
                     <line x1={x} x2={x} y1={y - 22} y2={y - 5} className="fig-cross" />
                     <StepGlyph glyph="read" x={x} y={y - 26} />
@@ -412,6 +478,7 @@ export function HistoryFigure({ model, description }: { model: FigureModel; desc
                     {s.family !== "self" && s.hi - s.lo > 1 ? (
                       <line x1={scale.x(s.lo + 0.5)} x2={scale.x(s.hi - 0.5)} y1={y} y2={y} className="fig-link" />
                     ) : null}
+                    <ForkStubs x={x} y={y} splits={s.step.splits} merges={s.step.merges} reach={1.5} />
                     <StepGlyph glyph={glyph} x={x} y={y} event={glyph === "handoff" && isEvent(s.step)} />
                   </>
                 );
@@ -446,18 +513,16 @@ export function HistoryFigure({ model, description }: { model: FigureModel; desc
             )}
           </g>
           {cursorX !== null ? (
-            <g className="replay__marks" aria-hidden="true">
-              <rect
-                x={cursorX + 6}
-                y={0}
-                width={Math.max(0, width - cursorX - 6)}
-                height={axisY}
-                className="replay__veil"
-              />
-              <line x1={cursorX} x2={cursorX} y1={18} y2={axisY} className="replay__cursor" />
-              {cursorStep ? (
-                <circle cx={cursorX} cy={laneY(stepLane(cursorStep))} r={11} className="replay__ring" />
-              ) : null}
+            // The cursor, its ring and the veil over the releases ahead move as one, by a transform (an SVG line's
+            // ends are attributes, which do not move smoothly); the svg clips the veil at its edge.
+            <g
+              className="replay__marks"
+              aria-hidden="true"
+              style={{ transform: `translateX(${cursorX.toFixed(1)}px)` }}
+            >
+              <rect x={6} y={0} width={width} height={axisY} className="replay__veil" />
+              <line x1={0} x2={0} y1={18} y2={axisY} className="replay__cursor" />
+              {cursorStep ? <circle cx={0} cy={laneY(stepLane(cursorStep))} r={11} className="replay__ring" /> : null}
             </g>
           ) : null}
           {roving.focused !== null && items[roving.focused] ? (
@@ -502,8 +567,13 @@ export function HistoryFigure({ model, description }: { model: FigureModel; desc
         >
           Next step
         </button>
-        <output className="replay__readout mono" aria-live="polite">
-          {readout}
+        <output className="replay__readout" aria-live="polite">
+          {readout ? (
+            <>
+              <span className="replay__words">{readout.words}</span>{" "}
+              <span className="replay__values mono">{readout.values}</span>
+            </>
+          ) : null}
         </output>
       </div>
     </>

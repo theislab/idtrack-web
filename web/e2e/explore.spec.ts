@@ -1,8 +1,10 @@
 // Explore and Method against the real server: every stage of the Method page drawn on the real answer its case claims
 // (each case converted here and its property read from the api's answer); the benchmarks' rates as the generated file
 // holds them, and whether the graphs measured are this server's; Ensembl's id history drawn from the server's own
-// counts, and left out where the server does not count it; the assembly changes with their mapping in idtrack's
-// words; the database matrix in its order and what each name holds.
+// counts, and a failed history said with a way to ask again; the assembly changes with their mapping in IDTrack's
+// words; the database matrix in its order, what each name holds and a conversion into each; the stories' sentences
+// in Ensembl's direction, the journeys ranked, the journey up close with its cautions; the lineage field moved by
+// buttons, found by id, and an address's bad release said.
 import { expect, test, type Page } from "@playwright/test";
 import type { ConversionResult, DatabasesResponse, GraphDescription, HistoryResponse } from "../src/api/types";
 import { databaseLabel } from "../src/lib/databases";
@@ -11,6 +13,7 @@ import { BENCHMARKS, comparable, familyRows, measuredGraph, rateText } from "../
 import { handoffsOf, MAPPING_WORDS } from "../src/lib/explore/handoffs";
 import { historyColumns } from "../src/lib/explore/history";
 import { apiQuery } from "../src/lib/home/links";
+import { ensemblSteps, walksBack } from "../src/lib/path/steps";
 import { holdsStage, STAGE_CASES, stageCase } from "../src/lib/method/cases";
 import { groupedInteger, releaseRanges } from "../src/lib/numbers";
 import { data, expectAccessible, shot } from "./helpers";
@@ -149,10 +152,9 @@ test("Explore: Ensembl's id history from the server's counts, and the assembly c
   expect(graph).toBeDefined();
   if (!graph) return;
   const response = await page.request.get(`/api/v1/organisms/${data.organism}/history`);
+  expect(response.status()).toBe(200);
   await page.goto("/organisms?tab=graphs");
-  if (response.status() === 200) {
-    await expect(page.getByRole("heading", { name: "Ensembl's id history, release by release" })).toBeVisible();
-  }
+  await expect(page.getByRole("heading", { name: "Ensembl's id history, release by release" })).toBeVisible();
   await page.goto(`/organisms/${data.organism}`);
   // The assemblies: every change of the serving assembly, with whether Ensembl maps it, in IDTrack's words, in the
   // assembly's row opened.
@@ -160,7 +162,7 @@ test("Explore: Ensembl's id history from the server's counts, and the assembly c
   await expect(assemblies.locator(".expandable__summary").first()).toBeVisible();
   for (const row of await assemblies.locator(".expandable__summary").all()) await row.click();
   for (const h of handoffsOf(graph)) await expect(assemblies).toContainText(MAPPING_WORDS[h.mapping]);
-  if (response.status() === 200) {
+  {
     await page.getByRole("tab", { name: "History" }).click();
     await page.getByRole("radio", { name: "Counts per release" }).click();
     const history = (await response.json()) as HistoryResponse;
@@ -202,7 +204,7 @@ test("Explore: Ensembl's id history from the server's counts, and the assembly c
   await shot(page, info, "30-organism-history");
 });
 
-test("Explore: without the server's history the panel is left out, the rest drawn", async ({ page }) => {
+test("Organism: a history the server refuses is said where it is drawn, with a way to ask again", async ({ page }) => {
   await page.route("**/api/v1/organisms/*/history", (route) =>
     route.fulfill({
       status: 404,
@@ -223,8 +225,8 @@ test("Explore: without the server's history the panel is left out, the rest draw
   await expect(page.locator(".dbm svg")).toBeVisible();
   await page.goto(`/organisms/${data.organism}?tab=history`);
   await page.getByRole("radio", { name: "Counts per release" }).click();
-  await expect(page.getByText("This server does not count the history of its graphs.")).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Ensembl's id history, release by release" })).toHaveCount(0);
+  await expect(page.getByText("The history could not be read")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Try again" })).toBeVisible();
 });
 
 test("Explore: a graph whose history fails says so in its row, with a way to ask again; shares on one axis", async ({
@@ -232,8 +234,7 @@ test("Explore: a graph whose history fails says so in its row, with a way to ask
 }) => {
   const graphs = await organisms(page);
   const failing = graphs[0]?.organism ?? data.organism;
-  const counted = (await page.request.get(`/api/v1/organisms/${failing}/history`)).status() === 200;
-  test.skip(!counted, "this server does not count the history");
+  expect((await page.request.get(`/api/v1/organisms/${failing}/history`)).status()).toBe(200);
   await page.route(`**/api/v1/organisms/${failing}/history`, (route) => route.abort());
   await page.goto("/organisms?tab=graphs");
   const rows = page.locator(".idh-rows > li");
@@ -284,7 +285,7 @@ test("Explore: another name of a graph shows its page at the graph's own address
 
 test("Organism: an address that names a release of the history shows that release's exact counts", async ({ page }) => {
   const response = await page.request.get(`/api/v1/organisms/${data.organism}/history`);
-  test.skip(response.status() !== 200, "this server does not count the history");
+  expect(response.status()).toBe(200);
   const columns = historyColumns((await response.json()) as HistoryResponse).filter((c) => !c.first);
   const column = columns[Math.floor(columns.length / 2)];
   if (!column) return;
@@ -301,12 +302,20 @@ test("Explore: the page's title says what it holds; the stories, then the graphs
   if (graphsHeld > 1) await expect(page.getByRole("radiogroup", { name: "Stories of the graph" })).toBeVisible();
   await page.getByRole("tab", { name: /^The graphs/ }).click();
   await expect(page).toHaveURL(/tab=graphs/);
-  await expect(page.getByRole("heading", { level: 2, name: "The graphs this server holds" })).toBeVisible();
-  // The sums say what idtrack counts: the history's markers of creation and retirement are among them.
-  await expect(page.locator(".home-facts")).toContainText("with the markers of an id's creation and retirement");
-  await expect(page.locator(".home-facts")).toContainText(
+  // The tab's name is not said again as a heading; its sums in a few words each, what each counts in a hover card:
+  // the history's markers of creation and retirement are among what IDTrack counts.
+  await expect(page.getByRole("heading", { name: "The graphs this server holds" })).toHaveCount(0);
+  await expect(page.locator(".home-facts")).toContainText("identifiers");
+  await page.getByRole("button", { name: 'What "identifiers" counts' }).click();
+  await expect(page.locator(".fact__definition")).toContainText("with the markers of an id's creation and retirement");
+  await page.keyboard.press("Escape");
+  await page.getByRole("button", { name: 'What "history edges" counts' }).click();
+  await expect(page.locator(".fact__definition")).toContainText(
     "from each id's creation to its retirement or the last release",
   );
+  await page.keyboard.press("Escape");
+  await page.getByRole("button", { name: "How each is summed" }).click();
+  await expect(page.locator(".facts__sources")).toContainText("counts.nodes");
   await expectAccessible(page);
 });
 
@@ -333,7 +342,10 @@ test("Organism: the counts are text, not stops; the build says how to check a gr
   await page.goto(`/organisms/${data.organism}`);
   await expect(page.locator(".counts__row").first()).toBeVisible();
   await expect(page.locator(".counts__row[tabindex]")).toHaveCount(0);
+  // Each row one line; what IDTrack says a count is, in a hover card on its (i).
+  await page.locator(".counts__about .hint__trigger").first().click();
   await expect(page.locator(".counts__meaning").first()).not.toBeEmpty();
+  await page.keyboard.press("Escape");
   await page.getByRole("tab", { name: "Build" }).click();
   await expect(page.getByText("idtrack verify <graph file>")).toBeVisible();
   await expect(page.locator("main")).not.toContainText("[graphs.main]");
@@ -368,7 +380,7 @@ test("Organism: the History tab's lineage field, by keyboard: a line's words rea
   page,
 }, info) => {
   const lineages = await page.request.get(`/api/v1/organisms/${data.organism}/lineages?limit=50`);
-  test.skip(lineages.status() !== 200, "this server does not give the lineages");
+  expect(lineages.status()).toBe(200);
   await page.goto(`/organisms/${data.organism}?tab=history`);
   await expect(page.getByRole("radio", { name: "Every id, a line" })).toBeChecked();
   const field = page.getByRole("application", { name: /^The lineages of [\d  ,]+ gene ids of the/ });
@@ -392,4 +404,148 @@ test("Organism: the History tab's lineage field, by keyboard: a line's words rea
   expect(first.length).toBeGreaterThan(0);
   await page.keyboard.press("Enter");
   await expect(page).toHaveURL(new RegExp(`/convert\\?organism=${data.organism}&id=${id}&from=\\d+`));
+});
+
+test("Explore: every gallery sentence writes a step in Ensembl's direction, and a walk back in time as one", async ({
+  page,
+}) => {
+  const showcase = (await (await page.request.get(`/api/v1/organisms/${data.organism}/showcase`)).json()) as {
+    cases: { kind: string; result: ConversionResult | null }[];
+  };
+  await page.goto(`/organisms?organism=${data.organism}`);
+  const cards = page.locator("li.case");
+  await expect(cards.first()).toBeVisible();
+  for (const c of showcase.cases) {
+    const r = c.result;
+    if (!r || !["merge", "replaced", "split"].includes(c.kind)) continue;
+    const card = page.locator(`li.case[data-kind="${c.kind}"]`).first();
+    await card.getByRole("button", { name: /^About this case/ }).click();
+    const story = page.locator(".case__story").first();
+    const steps = ensemblSteps(r);
+    const reasons =
+      c.kind === "split"
+        ? ["split", "split_and_merge"]
+        : c.kind === "merge"
+          ? ["merge", "split_and_merge"]
+          : ["replaced"];
+    const s = reasons.map((reason) => steps.find((e) => e.step.reason === reason)).find(Boolean);
+    if (s) {
+      // The later id is the merge's product or the replacement, whichever way the walk went.
+      if (c.kind === "replaced") await expect(story).toContainText(`replaced ${s.earlier ?? ""} by ${s.later}`);
+      else await expect(story).toContainText(` into ${s.later}`);
+      if (s.backward) await expect(story).toContainText(`the walk followed it back, from ${s.later}`);
+    }
+    if (c.kind === "split") await expect(story).not.toContainText(walksBack(r) ? "descend" : "ancestors");
+    if (walksBack(r)) await expect(page.locator(".case__concept").first()).toContainText("the walk runs back in time");
+    await page.keyboard.press("Escape");
+  }
+  // The cards stand on rows of one height: the kinds' names of one row share their line.
+  const tops = await page
+    .locator("li.case .case__title")
+    .evaluateAll((els) => els.map((e) => Math.round(e.getBoundingClientRect().top + window.scrollY)));
+  const columns = await page
+    .locator("ol.cases")
+    .evaluate((el) => getComputedStyle(el).gridTemplateColumns.split(" ").length);
+  for (let k = 0; k + columns <= tops.length; k += columns)
+    expect(new Set(tops.slice(k, k + columns)).size, `row ${k / columns + 1}`).toBe(1);
+  await expectAccessible(page);
+});
+
+test("Explore: the journeys drawn are the most convoluted, without their ids at rest; all of them one press away", async ({
+  page,
+}, info) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto(`/organisms?organism=${data.organism}`);
+  const figure = page.locator(".journeys__svg");
+  await expect(figure.locator(".jr-row").first()).toBeVisible();
+  // At rest, no id is written on the rows; pointing at one names it.
+  await expect(page.locator(".jr-names text")).toHaveCount(0);
+  const drawn = await figure.locator(".jr-row").count();
+  await figure.locator(".jr-row").first().focus();
+  await expect(page.locator(".jr-names text").first()).toBeVisible();
+  // Its key is a hover card.
+  await page.getByRole("button", { name: "Key: reading the journeys" }).click();
+  await expect(page.getByRole("list", { name: "The marks of the journeys" })).toBeVisible();
+  await page.keyboard.press("Escape");
+  // "Draw all" draws every journey; the filter keeps those of one kind.
+  const all = page.getByRole("button", { name: /^Draw all \d+/ });
+  const total = Number((await all.innerText()).replace(/\D+/g, ""));
+  await all.click();
+  await expect(figure.locator(".jr-row")).toHaveCount(total);
+  expect(total).toBeGreaterThanOrEqual(drawn);
+  await page.getByRole("radio", { name: "Back in time" }).click();
+  for (const row of await figure.locator(".jr-row").all()) await expect(row).toHaveClass(/jr-row--back/);
+  await shot(page, info, "32-explore-journeys");
+});
+
+test("Explore: the journey up close states its answer's cautions and names a bridge in its key", async ({ page }) => {
+  const showcase = (await (await page.request.get(`/api/v1/organisms/${data.organism}/showcase`)).json()) as {
+    cases: { kind: string; result: ConversionResult | null }[];
+  };
+  const lineage = showcase.cases.find((c) => c.kind === "lineage" && c.result)?.result;
+  await page.goto(`/organisms?organism=${data.organism}`);
+  if (!lineage) return;
+  const up = page.locator("figure.hero-figure");
+  await expect(up).toBeVisible();
+  for (const caution of lineage.cautions.filter((c) => c.tone === "caution"))
+    await expect(up.locator(".hero-figure__cautions")).toContainText(caution.label);
+  const bridged = ensemblSteps(lineage).some((s) => s.step.kind === "bridge_near");
+  if (bridged) await expect(up.locator(".fig-legend")).toContainText("A bridge, IDTrack's inference");
+  // The replay writes each step as a sentence, its ids on a line of their own.
+  await up.getByRole("button", { name: "Next step" }).click();
+  await expect(page.locator(".replay__words")).toContainText(/^Step 1 of \d+\./);
+  await expect(page.locator(".replay__values")).not.toBeEmpty();
+});
+
+test("Organism: the tabs start on the first screen; the lineage field moves by buttons, finds an id, and the address's bad release is said", async ({
+  page,
+}) => {
+  for (const [width, height] of [
+    [1440, 900],
+    [1366, 768],
+  ] as const) {
+    await page.setViewportSize({ width, height });
+    await page.goto(`/organisms/${data.organism}`);
+    const tabs = page.getByRole("tablist", { name: /graph in detail$/ });
+    await expect(tabs).toBeVisible();
+    const box = await tabs.boundingBox();
+    expect(box && box.y + box.height, `${width}x${height}`).toBeLessThanOrEqual(height);
+  }
+  // Each assembly is named once, at its bar; its row opens it.
+  const graph = (await organisms(page)).find((g) => g.organism === data.organism);
+  for (const a of graph?.assemblies ?? [])
+    if (a.name) await expect(page.locator(".astrip__name", { hasText: a.name })).toHaveCount(1);
+  // A release the graph does not hold, in the address: said, as Convert says it.
+  await page.goto(`/organisms/${data.organism}?tab=history&release=abc`);
+  await expect(page.getByRole("alert")).toContainText("Not a release: abc");
+  await page.goto(`/organisms/${data.organism}?tab=history&release=0`);
+  await expect(page.getByRole("alert")).toContainText("Not a release of this graph: 0");
+  await page.getByRole("button", { name: "Show every release" }).click();
+  await expect(page.getByRole("alert")).toHaveCount(0);
+  // The field: zoomed in, the earlier and later buttons move the view by half of it, without a drag.
+  await page.getByRole("radio", { name: "Every id, a line" }).click();
+  await page.getByRole("button", { name: "Zoom in" }).click();
+  const view = page.locator(".lineage-field__view");
+  const before = await view.innerText();
+  await page.getByRole("button", { name: "Earlier releases" }).click();
+  await expect(view).not.toHaveText(before);
+  await page.getByRole("button", { name: "Later releases" }).click();
+  await expect(view).toHaveText(before);
+  // An id found by its name is lifted and read out.
+  const lineages = (await (await page.request.get(`/api/v1/organisms/${data.organism}/lineages?limit=50`)).json()) as {
+    ids: string[];
+  };
+  const id = lineages.ids[0];
+  if (id) {
+    await page.getByRole("searchbox", { name: "An id of this graph" }).fill(id.toLowerCase());
+    await page.getByRole("button", { name: "Find" }).click();
+    await expect(page.locator(".lineage-field__readout")).toContainText(id);
+    await page.goto(`/organisms/${data.organism}?tab=history&id=${id}`);
+    await expect(page.locator(".lineage-field__readout")).toContainText(id);
+  }
+  // A database row leads to a conversion into it.
+  await page.goto(`/organisms/${data.organism}?tab=databases`);
+  const link = page.getByRole("list", { name: "The matrix, one database a line" }).getByRole("link").first();
+  await expect(link).toHaveAttribute("href", /\/convert\?organism=[^&]+&to=\d+&db=/);
+  await expectAccessible(page);
 });

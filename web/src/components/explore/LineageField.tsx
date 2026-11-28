@@ -1,16 +1,18 @@
 // An organism's History tab, its first view: the lineage field of the home (`GET /organisms/{organism}/lineages`,
-// drawn by the home's renderer, components/hero/field.ts), here to be read: every line one gene id of whole families
-// over the releases at which a version of it is active, a dot at each new version, a curve for each history edge to
-// another id. The pointer lifts the family under it and names its id; a press (or Enter) opens that id in Convert at
-// the release pointed at. The view zooms and pans along the releases (the buttons, a drag, the + and − keys). An SVG
-// over the canvas holds the keyboard's focus: the arrow keys move along a line's releases (← →) and between the lines
-// of a release (↑ ↓), Home and End to the line's first and last release, and its words are read out under the figure.
-// Every value is the api's.
+// laid out by the home's worker, lib/hero/lineageLoad.ts, and drawn by the home's renderer, components/hero/field.ts),
+// here to be read: every line one gene id of whole families over the releases at which a version of it is active, a
+// dot at each new version, a curve for each history edge to another id. The field is built once per answer (the
+// request's state is stable from one render to the next) and its tab keeps it drawn while another tab is shown. The
+// pointer lifts the family under it and names its id; a press (or Enter) opens that id in Convert at the release
+// pointed at; an id can be found by name, and the address's `?id=` lifts it at once. The view zooms and pans along the
+// releases (the buttons, earlier and later by half a view; a drag; the + and − keys). An SVG over the canvas holds the
+// keyboard's focus: the arrow keys move along a line's releases (← →) and between the lines of a release (↑ ↓), Home
+// and End to the line's first and last release, and its words are read out under the figure. Every value is the api's.
 import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent, type PointerEvent } from "react";
-import { api } from "../../api/client";
 import type { GraphDescription } from "../../api/types";
 import { convertHref, plainConversion } from "../../lib/convertParameters";
-import { idAt, layoutLineages, type LineageLayout } from "../../lib/hero/lineageLayout";
+import { idAt, runsOf, type LineageLayout } from "../../lib/hero/lineageLayout";
+import { loadLineageLayout } from "../../lib/hero/lineageLoad";
 import {
   keyMove,
   LEAST_SPAN,
@@ -27,6 +29,7 @@ import { navigate } from "../../lib/router";
 import { usePhone } from "../../lib/usePhone";
 import { useRequest } from "../../lib/useRequest";
 import { createField, fieldAt, placeOf, type Field, type FieldColours, type FieldFrame } from "../hero/field";
+import { textWidth } from "../figure/labels";
 import { assemblyBands } from "../figure/releases";
 import { ErrorPanel } from "../ErrorPanel";
 import { CaptionMore } from "../v2/CaptionMore";
@@ -55,49 +58,95 @@ function inks(element: Element): FieldColours {
     (theme === "system" &&
       typeof window.matchMedia === "function" &&
       window.matchMedia("(prefers-color-scheme: dark)").matches);
-  return { ink: rgb("--ink-1"), history: rgb("--hue-history"), event: rgb("--hue-event"), dark };
+  // In the light theme the version dots (the history hue) are set lighter, a step toward the paper, so that the
+  // columns of dots of a busy release do not read as a grid over the lines.
+  const history = rgb("--hue-history");
+  const paper = rgb("--paper");
+  const lighter = dark ? history : (history.map((c, i) => c + ((paper[i] ?? 1) - c) * 0.35) as typeof history);
+  return { ink: rgb("--ink-1"), history: lighter, event: rgb("--hue-event"), dark };
 }
 
 const reducedMotion = () =>
   typeof window.matchMedia === "function" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-export function LineageField({ description }: { description: GraphDescription }) {
+export function LineageField({
+  description,
+  id = null,
+  release = null,
+}: {
+  description: GraphDescription;
+  /** An id to lift at once (the address's `?id=`), at `release` where it is active there. */
+  id?: string | null;
+  release?: number | null;
+}) {
   const phone = usePhone();
   const limit = phone ? NARROW_LIMIT : WIDE_LIMIT;
   const organism = description.organism;
-  const answer = useRequest(`lineages|${organism}|${limit}`, (signal) => api.lineages(organism, limit, { signal }));
   const bands = useMemo(() => assemblyBands(description), [description]);
-  const layout = useMemo(
-    () =>
-      answer.state === "done"
-        ? layoutLineages(
-            answer.answer.data,
-            bands.slice(1).map((b) => b.first),
-          )
-        : null,
-    [answer, bands],
+  const eras = bands
+    .slice(1)
+    .map((b) => b.first)
+    .join(",");
+  // The layout is the request's answer (made in the worker): one per organism, size and assembly changes.
+  const answer = useRequest(`lineage-layout|${organism}|${limit}|${eras}`, (signal, fresh) =>
+    loadLineageLayout(organism, limit, eras.split(",").filter(Boolean).map(Number), signal, fresh),
   );
   if (answer.state === "failed")
     return <ErrorPanel error={answer.error} onRetry={answer.retry} context="The lineages of this graph" level={3} />;
-  if (!layout) return <Skeleton height={phone ? 360 : 480} />;
-  return <FieldView description={description} layout={layout} bands={bands} />;
+  if (answer.state !== "done") return <Skeleton height={phone ? 360 : 480} />;
+  return (
+    <FieldView description={description} layout={answer.answer.data} bands={bands} asked={id} askedRelease={release} />
+  );
+}
+
+/** An id of the layout by its name, with or without its version, in any letter case (-1: not drawn). */
+function idIndex(layout: LineageLayout, name: string): number {
+  const wanted = name
+    .trim()
+    .replace(/\.\d+$/, "")
+    .toUpperCase();
+  if (!wanted) return -1;
+  return layout.ids.findIndex((x) => x.toUpperCase() === wanted);
+}
+
+/** An id picked at a release: the release given where the id is active there, else its last release. */
+function pickAt(layout: LineageLayout, id: number, release: number | null): Picked {
+  const k = release === null ? -1 : layout.releases.indexOf(release);
+  const n = layout.releases.length;
+  if (k >= 0 && !Number.isNaN(layout.y[id * n + k] ?? Number.NaN)) return { id, k };
+  const runs = runsOf(layout, id);
+  const last = runs[runs.length - 1]?.[1];
+  return { id, k: Math.max(0, last === undefined ? n - 1 : layout.releases.indexOf(last)) };
 }
 
 function FieldView({
   description,
   layout,
   bands,
+  asked,
+  askedRelease,
 }: {
   description: GraphDescription;
   layout: LineageLayout;
   bands: ReturnType<typeof assemblyBands>;
+  asked: string | null;
+  askedRelease: number | null;
 }) {
   const id = useId();
   const box = useRef<HTMLDivElement>(null);
   const field = useRef<Field | null>(null);
   const [size, setSize] = useState<{ width: number; height: number } | null>(null);
   const [view, setView] = useState<[number, number]>([0, 1]);
-  const [picked, setPicked] = useState<Picked | null>(null);
+  // The id the address names, lifted at once where it is drawn.
+  const askedIndex = asked === null ? -1 : idIndex(layout, asked);
+  const [picked, setPicked] = useState<Picked | null>(() =>
+    askedIndex >= 0 ? pickAt(layout, askedIndex, askedRelease) : null,
+  );
+  const [found, setFound] = useState<{ name: string; drawn: boolean } | null>(() =>
+    asked === null ? null : { name: asked, drawn: askedIndex >= 0 },
+  );
+  const [query, setQuery] = useState(asked ?? "");
+  const touch = typeof window.matchMedia === "function" && window.matchMedia("(pointer: coarse)").matches;
   const [focused, setFocused] = useState(false);
   const [mode, setMode] = useState<string | null>(null);
   const drag = useRef<{ x: number; view: [number, number]; moved: boolean } | null>(null);
@@ -201,6 +250,18 @@ function FieldView({
   const zoom = (factor: number, at?: number) => {
     setView((v) => moveView(v, { factor, at }));
   };
+  const pan = (direction: -1 | 1) => {
+    setView((v) => moveView(v, { delta: (direction * (v[1] - v[0])) / 2 }));
+  };
+  const find = () => {
+    const i = idIndex(layout, query);
+    setFound({ name: query.trim(), drawn: i >= 0 });
+    if (i < 0) return;
+    const p = pickAt(layout, i, null);
+    setPicked(p);
+    const x = n > 1 ? p.k / (n - 1) : 0.5;
+    if (x < view[0] || x > view[1]) setView((v) => moveView(v, { delta: x < v[0] ? x - v[0] : x - v[1] }));
+  };
 
   const onPointerDown = (event: PointerEvent<HTMLDivElement>) => {
     if (event.button !== 0) return;
@@ -285,16 +346,51 @@ function FieldView({
           Releases <Mono>{shownFrom}</Mono>–<Mono>{shownTo}</Mono>
           {whole ? null : <span className="muted"> of {`${layout.releases[0] ?? ""}–${last ?? ""}`}</span>}
         </p>
-        <div className="lineage-field__zoom" role="group" aria-label="Zoom along the releases">
+        <form
+          className="lineage-field__find"
+          role="search"
+          aria-label="Find an id in the field"
+          onSubmit={(event) => {
+            event.preventDefault();
+            find();
+          }}
+        >
+          <input
+            type="search"
+            className="input lineage-field__find-input"
+            aria-label="An id of this graph"
+            placeholder="Find an id"
+            spellCheck={false}
+            autoComplete="off"
+            value={query}
+            onChange={(event) => {
+              setQuery(event.target.value);
+            }}
+          />
+          <Button variant="quiet" type="submit">
+            Find
+          </Button>
+        </form>
+        <div className="lineage-field__zoom" role="group" aria-label="Move along the releases">
           <Button
             variant="quiet"
             onClick={() => {
-              zoom(0.5);
+              pan(-1);
             }}
-            disabled={view[1] - view[0] <= LEAST_SPAN + 1e-9}
-            aria-label="Zoom in"
+            disabled={view[0] <= 1e-9}
+            aria-label="Earlier releases"
           >
-            +
+            ←
+          </Button>
+          <Button
+            variant="quiet"
+            onClick={() => {
+              pan(1);
+            }}
+            disabled={view[1] >= 1 - 1e-9}
+            aria-label="Later releases"
+          >
+            →
           </Button>
           <Button
             variant="quiet"
@@ -305,6 +401,16 @@ function FieldView({
             aria-label="Zoom out"
           >
             −
+          </Button>
+          <Button
+            variant="quiet"
+            onClick={() => {
+              zoom(0.5);
+            }}
+            disabled={view[1] - view[0] <= LEAST_SPAN + 1e-9}
+            aria-label="Zoom in"
+          >
+            +
           </Button>
           <Button
             variant="quiet"
@@ -349,8 +455,9 @@ function FieldView({
         >
           {overlay ? (
             <>
+              <path d={overlay.d} className="lineage-field__halo" />
               <path d={overlay.d} className="lineage-field__line" />
-              <circle cx={overlay.at.x} cy={overlay.at.y} r={5} className="lineage-field__at" />
+              <circle cx={overlay.at.x} cy={overlay.at.y} r={4.5} className="lineage-field__at" />
             </>
           ) : null}
         </svg>
@@ -370,6 +477,16 @@ function FieldView({
             </Link>
             <span className="visually-hidden">; at release {pickedRelease}</span>
           </>
+        ) : found && !found.drawn ? (
+          <span className="muted">
+            <Mono>{found.name}</Mono> is not among the <Mono>{groupedInteger(layout.shown)}</Mono> ids drawn (whole
+            families, those of the showcase first);{" "}
+            <Link to={convertHref(organism, plainConversion(found.name))}>convert it</Link> to see its path.
+          </span>
+        ) : touch ? (
+          <span className="muted">
+            Tap a line to name it, again to open it in Convert; the buttons move along the releases.
+          </span>
         ) : (
           <span className="muted">
             Point at a line, or focus the field and use the arrow keys; a press opens its id in Convert. Drag or use the
@@ -383,7 +500,14 @@ function FieldView({
             <>
               <Mono>{groupedInteger(layout.shown)}</Mono> of the <Mono>{groupedInteger(layout.genes)}</Mono> gene ids of
               the <em>{organismName(organism)}</em> graph, each a line over the releases at which a version of it is
-              active.
+              active ·{" "}
+              <span className="lineage-field__key">
+                <span className="lineage-field__key-dot" aria-hidden="true" /> a new version
+              </span>{" "}
+              ·{" "}
+              <span className="lineage-field__key">
+                <span className="lineage-field__key-curve" aria-hidden="true" /> an edge to another id
+              </span>
             </>
           }
         >
@@ -416,6 +540,17 @@ function FieldAxis({
 }) {
   const n = layout.releases.length;
   const xOf = (release: number) => placeOf(frame, n > 1 ? layout.releases.indexOf(release) / (n - 1) : 0.5, 0).x;
+  // Each assembly's label on the first of two lines where it meets no label before it (a narrow band's name is set
+  // under the one before it, never over it).
+  const ends: number[] = [];
+  const rows = bands.map((band) => {
+    const x = xOf(band.first);
+    const w = textWidth(`${band.first} ${band.name}`, 12, "sans") + 14;
+    const row = ends.findIndex((end) => x > end + 4);
+    const r = row < 0 ? Math.min(1, ends.length) : row;
+    ends[r] = x + w;
+    return r;
+  });
   return (
     <>
       <div className="lineage-field__axis" aria-hidden="true">
@@ -425,7 +560,7 @@ function FieldAxis({
           return (
             <span
               key={band.assembly}
-              className={`lineage-field__tick${i === 0 ? " lineage-field__tick--first" : ""}`}
+              className={`lineage-field__tick${i === 0 ? " lineage-field__tick--first" : ""}${rows[i] ? " lineage-field__tick--low" : ""}`}
               style={{ left: x }}
             >
               <span className="mono">{band.first}</span> {band.name}

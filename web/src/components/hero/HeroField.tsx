@@ -14,10 +14,10 @@
 // sentence for screen readers gives the counts. The pointer only lights it.
 import { useEffect, useMemo, useRef, useState } from "react";
 import { api, API_BASE } from "../../api/client";
-import lineageWorkerUrl from "../../lib/hero/lineageWorker.ts?worker&url";
 import type { GraphDescription, HistoryResponse } from "../../api/types";
 import { useHeroChoice } from "../../lib/hero/choice";
 import { idAt, layoutLineages, runsOf, type LineageLayout } from "../../lib/hero/lineageLayout";
+import { workerScript } from "../../lib/hero/lineageLoad";
 import { groupedInteger } from "../../lib/numbers";
 import { organismName } from "../../lib/organismNames";
 import { useShowcase } from "../../lib/showcase";
@@ -96,27 +96,6 @@ function footOf(element: Element): number {
  *  path even where WebGL draws in software, time stepped by `window.__heroTime(seconds)`, the frame's GPU work read
  *  by `window.__heroWork()`. */
 const STEPPED = import.meta.env.DEV && new URLSearchParams(window.location.search).has("hero-frames");
-
-/** The address of the page's worker, passed through the page's one Trusted Types policy of its own
- *  (`idtrack-worker`, the server's Content-Security-Policy), which lets that address alone through. */
-const WORKER_URL = new URL(lineageWorkerUrl, window.location.href).href;
-let workerPolicy: { createScriptURL: (url: string) => unknown } | null | undefined;
-function workerScript(): string | URL {
-  const types = (
-    window as unknown as {
-      trustedTypes?: { createPolicy: (name: string, rules: { createScriptURL: (url: string) => string }) => unknown };
-    }
-  ).trustedTypes;
-  if (!types) return WORKER_URL;
-  workerPolicy ??= types.createPolicy("idtrack-worker", {
-    createScriptURL: (url: string) => {
-      if (url !== WORKER_URL) throw new TypeError("Not the page's worker.");
-      return url;
-    },
-  }) as { createScriptURL: (url: string) => unknown };
-  // A TrustedScriptURL, which the Worker constructor takes where a string is refused.
-  return workerPolicy.createScriptURL(WORKER_URL) as string;
-}
 
 /** The lineages of the graph laid out, off the page's thread where the browser runs the page's worker
  *  (lib/hero/lineageWorker.ts), else here. */

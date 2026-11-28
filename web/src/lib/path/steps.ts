@@ -138,3 +138,52 @@ export function conceptClauses(kind: CaseKind, result: ConversionResult): string
     clauses.push("Its path also passes through a bridge: IDTrack's inference, which no record of Ensembl states.");
   return clauses;
 }
+
+/** A step of a path as a sentence without its ids (they go beside it, on a line of their own), in Ensembl's terms:
+ *  what Ensembl recorded between the two releases (every count the api's), or what the walk did through another id;
+ *  a history step the walk took from the later id to the earlier says it was followed back. `assembly` names the two
+ *  assemblies of a step across a change of assembly. */
+export function stepSentence(
+  step: PathStep,
+  { backward = false, assembly = null }: { backward?: boolean; assembly?: [string, string] | null } = {},
+): string {
+  const others = (n: number) => `${n} other ${n === 1 ? "id" : "ids"}`;
+  const at =
+    step.old_release !== null && step.new_release !== null
+      ? `At releases ${step.old_release}→${step.new_release}`
+      : step.release !== null
+        ? `At release ${step.release}`
+        : "";
+  const across = assembly ? `, across the change of assembly from ${assembly[0]} to ${assembly[1]}` : "";
+  const back = backward ? ", and the walk followed it back in time" : "";
+  const lead = at ? `${at} ` : "";
+  switch (step.reason) {
+    case "new_version":
+      return `${lead}Ensembl gave the gene a new version${across}${back}.`;
+    case "replaced":
+      return `${lead}Ensembl replaced the id by another${across}${back}.`;
+    case "split":
+    case "merge":
+    case "split_and_merge": {
+      const parts = [
+        step.splits ? `split the earlier id, which passed to ${others(step.splits)} too` : "",
+        step.merges ? `merged ${others(step.merges)} into the later id` : "",
+      ].filter(Boolean);
+      return `${lead}Ensembl ${parts.length ? parts.join(" and ") : step.reason.replace(/_/g, " ")}${across}${back}.`;
+    }
+    case "self_loop":
+      return `${lead}Ensembl re-mapped the gene to itself, with a score${across}.`;
+    case "bridge_near":
+      return `${lead}Ensembl's history of the gene goes no further; the walk leaves it through an id it carries.`;
+    case "bridge_far":
+      return `${lead}The walk enters a gene that carries the same id: a bridge, IDTrack's inference, which no record of Ensembl states.`;
+    case "entry":
+      return `${lead}The identifier is read as the gene it names.`;
+    case "final":
+      return `${lead}The gene's id in the database asked.`;
+    case "identity":
+      return `${lead}The gene is its own answer.`;
+    default:
+      return `${lead}${step.reason.replace(/_/g, " ")}.`;
+  }
+}
