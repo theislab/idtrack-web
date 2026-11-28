@@ -121,7 +121,9 @@ test.describe("never a white page", () => {
 });
 
 test.describe("focus and one sentence per outcome", () => {
-  test("a conversion keeps the form, focuses its answer and says it in one sentence", async ({ page }) => {
+  test("a conversion folds the form into its answer's query, focuses its answer and says it in one sentence", async ({
+    page,
+  }) => {
     await page.goto(`/convert?organism=${data.organism}`);
     const field = page.getByRole("textbox", { name: "Identifier", exact: true });
     await field.fill(data.symbol.identifier);
@@ -137,8 +139,11 @@ test.describe("focus and one sentence per outcome", () => {
     expect(app, "the answer carries Server-Timing").toBeTruthy();
     await page.getByRole("tab", { name: "Record" }).click();
     await expect(page.locator(".answer__facts")).toContainText(`${app ?? "-"} ms`);
-    // The form was not made anew: the field still holds what was sent.
+    // The form is folded into the verdict's query; Edit unfolds it, its field holding what was sent.
+    await expect(page.locator(".answer__query-id")).toHaveText(data.symbol.identifier);
+    await page.getByRole("button", { name: "Edit the conversion" }).click();
     await expect(field).toHaveValue(data.symbol.identifier);
+    await expect(field).toBeFocused();
     await expect(page.locator(".result-area")).not.toHaveAttribute("aria-live", /.+/);
     await expect(page.getByRole("status").filter({ hasText: data.symbol.identifier }).first()).toContainText(
       `: ${data.symbol.identifier}`,
@@ -172,6 +177,8 @@ test.describe("focus and one sentence per outcome", () => {
     const convert = page.getByRole("button", { name: "Convert", exact: true });
     await convert.click();
     await expect(page.locator(".result-area")).toHaveAttribute("aria-busy", "true");
+    // While it is on its way the form is folded into the waiting verdict's query: unfolded, Convert asks nothing more.
+    await page.getByRole("button", { name: "Edit the conversion" }).click();
     await convert.click();
     await convert.click();
     release();

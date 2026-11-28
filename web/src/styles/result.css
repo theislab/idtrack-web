@@ -2874,3 +2874,21 @@ th.cand__path {
 .table--candidates tr th.is-decided {
   background: color-mix(in srgb, var(--ink-1) 4%, transparent);
 }
+
+/* The light that travels the chosen path once as the drawing reveals: in the history hue, glowing, never in the way
+   of the pointer (it passes over the marks without taking their pointing). */
+.pv-light {
+  pointer-events: none;
+}
+
+.pv-light__dot {
+  fill: var(--hue-history);
+  filter: drop-shadow(0 0 3px var(--hue-history)) drop-shadow(0 0 7px var(--hue-history));
+}
+
+@media (forced-colors: active) {
+  .pv-light__dot {
+    fill: Highlight;
+    filter: none;
+  }
+}
