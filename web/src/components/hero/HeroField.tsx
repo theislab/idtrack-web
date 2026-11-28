@@ -690,18 +690,17 @@ function Caption({
     return (
       <p className="hero2__caption">
         <span>
-          The <span className="mono">{rings.releases.length}</span> releases of the <em>{name}</em> graph as rings, the
-          first at the centre; each turns at the pace of its changes
+          The <span className="mono">{rings.releases.length}</span> releases of the <em>{name}</em> graph, each ring
+          turning at the pace of its changes
         </span>
         <span className="hero2__key">
-          <span className="hero2__key-tick hero2__key-tick--out" aria-hidden="true" /> {unit} {ids} new at the release
+          <span className="hero2__key-tick hero2__key-tick--out" aria-hidden="true" /> {unit} new {ids}
         </span>
         <span className="hero2__key">
-          <span className="hero2__key-tick" aria-hidden="true" /> {unit} retired on the way in
+          <span className="hero2__key-tick" aria-hidden="true" /> {unit} retired
         </span>
         <span className="hero2__key">
-          <span className="hero2__key-line hero2__key-line--event" aria-hidden="true" /> a gene version whose edges fan
-          out or in
+          <span className="hero2__key-line hero2__key-line--event" aria-hidden="true" /> a fan of Ensembl&apos;s mapping
         </span>
         <span className="hero2__source mono">GET /api/v1/organisms/{description.organism}/history</span>
         <span className="visually-hidden">
