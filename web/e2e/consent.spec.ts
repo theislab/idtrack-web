@@ -190,6 +190,8 @@ test("every hit carries the page's path and name alone: no query, identifier or 
   await expect(page.locator("article.result")).toBeVisible();
   await notice(page).getByRole("button", { name: "Accept" }).click();
   await expect.poll(() => hits.length).toBeGreaterThan(0);
+  // Over an answer the form is folded into the verdict's query: Edit unfolds it.
+  await page.getByRole("button", { name: "Edit the conversion" }).click();
   await page.getByLabel("Identifier").fill(data.long.identifier);
   await page.getByLabel("Identifier").press("Enter");
   await expect(page).toHaveURL(new RegExp(data.long.identifier));
