@@ -216,6 +216,11 @@
   color: var(--ink-3);
 }
 
+/* The facts said to a screen reader where they are not shown (a phone). */
+.convert-example__facts-said {
+  display: none;
+}
+
 /* An example's sketch: the path's shape in the answer's grammar (each stable id a lane, steps as diagonals). */
 .convert-example__sketch {
   align-self: center;
@@ -265,14 +270,49 @@
   }
 }
 
-/* On a phone the sketch shows the travel: the releases go (they are in the answer). */
+/* On a phone each example is its sketch beside its id and its kind: the sketch shows the travel (the releases, and the
+   facts its answer states, are said to a screen reader and in the answer). */
 @media (max-width: 640px) {
   .convert-examples__list {
-    grid-template-columns: max-content max-content minmax(0, 1fr);
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-1);
   }
 
-  .convert-example__at {
+  .convert-examples__list > li {
+    display: block;
+  }
+
+  .convert-example {
+    grid-template-columns: 72px minmax(0, 1fr);
+    grid-template-areas:
+      "sketch id"
+      "sketch kind";
+    align-items: center;
+    row-gap: 0;
+    width: 100%;
+  }
+
+  .convert-example__sketch {
+    grid-area: sketch;
+    width: 72px;
+  }
+
+  .convert-example .convert-example__id {
+    grid-area: id;
+  }
+
+  .convert-example .convert-example__kind {
+    grid-area: kind;
+  }
+
+  .convert-example__at,
+  .convert-example__facts {
     display: none;
+  }
+
+  .convert-example__facts-said {
+    display: inline;
   }
 }
 

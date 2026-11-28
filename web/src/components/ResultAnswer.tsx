@@ -67,8 +67,11 @@ function openTab(tab: string) {
   navigate(tabHref(tab), { replace: true });
   window.requestAnimationFrame(() => {
     const list = document.querySelector<HTMLElement>(".result__tabs [role='tablist']");
-    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    list?.scrollIntoView({ block: "start", behavior: reduced ? "auto" : "smooth" });
+    // A browser has matchMedia and layout; a test's DOM may have neither.
+    const media = (window as { matchMedia?: Window["matchMedia"] }).matchMedia;
+    const reduced = typeof media === "function" && media.call(window, "(prefers-reduced-motion: reduce)").matches;
+    if (typeof list?.scrollIntoView === "function")
+      list.scrollIntoView({ block: "start", behavior: reduced ? "auto" : "smooth" });
     list?.querySelector<HTMLElement>("[aria-selected='true']")?.focus({ preventScroll: true });
   });
 }

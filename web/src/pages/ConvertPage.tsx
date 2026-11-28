@@ -943,6 +943,9 @@ function Examples({
                 <span className="visually-hidden">: </span>
                 {e.title}
                 {e.facts.length ? <span className="convert-example__facts"> · {e.facts.join(" · ")}</span> : null}
+                {e.facts.length ? (
+                  <span className="convert-example__facts-said visually-hidden">{`: ${e.facts.join(", ")}`}</span>
+                ) : null}
               </span>
             </button>
           </li>
