@@ -974,13 +974,16 @@ def connections_waiting(sockets: list[socket.socket]) -> int | None:
     """Return the connections waiting in the listen queues of *sockets*, as the kernel counts them.
 
     For a listening TCP socket, Linux reports the length of its queue of connections not yet taken in the field
-    ``tcpi_unacked`` of ``TCP_INFO`` (bytes 24 to 28 of ``struct tcp_info``).
+    ``tcpi_unacked`` of ``TCP_INFO`` (bytes 24 to 28 of ``struct tcp_info``). A server that is stopping closes its
+    listeners while the sampler may still run: a closed listener (gunicorn's wrapper of it then holds no socket, and
+    asking it fails with ``AttributeError``; a plain socket fails with ``OSError``) has no queue to tell.
 
     Args:
         sockets: Listening sockets.
 
     Returns:
-        int | None: The number; ``None`` without sockets or where the kernel does not tell it.
+        int | None: The number; ``None`` without sockets, where the kernel does not tell it, or once a listener is
+        closed.
     """
     if not sockets or not hasattr(socket, "TCP_INFO"):
         return None
@@ -988,7 +991,7 @@ def connections_waiting(sockets: list[socket.socket]) -> int | None:
     for sock in sockets:
         try:
             info = sock.getsockopt(socket.IPPROTO_TCP, socket.TCP_INFO, 32)
-        except OSError:
+        except (OSError, AttributeError):
             return None
         if len(info) < 28:
             return None

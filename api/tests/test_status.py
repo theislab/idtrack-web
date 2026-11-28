@@ -8,14 +8,17 @@ from __future__ import annotations
 
 import getpass
 import json
+import logging
 import os
 import re
 import socket
 import time
 from pathlib import Path
+from types import SimpleNamespace
 from typing import TYPE_CHECKING, Any
 
 import pytest
+from gunicorn.sock import TCPSocket
 
 from idtrack_web_api.monitor import (
     CACHE_SECONDS,
@@ -225,6 +228,20 @@ def test_connections_waiting_is_the_kernels_listen_queue() -> None:
         finally:
             for client in clients:
                 client.close()
+
+
+def test_connections_waiting_of_a_closed_listener_is_not_measured() -> None:
+    """A server that is stopping closes its listeners while its sampler may still run: a closed listener, plain or
+    in gunicorn's wrapper (which then holds no socket), has no queue to tell, and asking it raises nothing."""
+    listening = socket.socket()
+    listening.bind(("127.0.0.1", 0))
+    listening.listen(16)
+    listening.close()
+    assert connections_waiting([listening]) is None
+    wrapped = TCPSocket(("127.0.0.1", 0), SimpleNamespace(reuse_port=False, backlog=16), logging.getLogger(__name__))
+    assert connections_waiting([wrapped]) == 0
+    wrapped.close()
+    assert connections_waiting([wrapped]) is None
 
 
 # ------------------------------------------------------------------------------------------------------------------

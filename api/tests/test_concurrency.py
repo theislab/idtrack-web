@@ -31,7 +31,7 @@ from tests.conftest import without_cautions
 from tests.test_endpoints import sample_identifiers
 
 if TYPE_CHECKING:
-    from collections.abc import Iterator
+    from collections.abc import Callable, Iterator
 
     from idtrack.api import API
 
@@ -218,6 +218,16 @@ def status_of(base: str) -> dict[str, Any]:
     assert status == 200, body
     data: dict[str, Any] = json.loads(body)
     return data
+
+
+def until_status(base: str, holds: Callable[[dict[str, Any]], bool], seconds: float = 30) -> dict[str, Any]:
+    """Return ``requests`` of ``/status`` once *holds* is true of it; fail after *seconds*."""
+    deadline = time.monotonic() + seconds
+    while True:
+        requests: dict[str, Any] = status_of(base)["requests"]
+        if holds(requests):
+            return requests
+        assert time.monotonic() < deadline, requests
 
 
 def parent_of(pid: int) -> int:
@@ -600,15 +610,17 @@ def test_queued_searches_are_answered_when_the_server_stops(cut_store: Path) -> 
     """A graceful stop (SIGTERM) answers the searches still in the queue `503 server_busy` with `Retry-After`, and
     finishes the searches running."""
     with serving(cut_store, 0, 1, slow=True) as (base, master), ThreadPoolExecutor(6) as pool:
+        # The two long searches hold the worker's places; the stop comes while they run and the two short ones wait,
+        # each state read from /status (never assumed from a sleep, which a loaded machine stretches).
         running = [
-            pool.submit(get, f"{base}{P}/organisms/pig/convert?identifier=SLOW3.{'0' * i}", 60) for i in range(2)
+            pool.submit(get, f"{base}{P}/organisms/pig/convert?identifier=SLOW10.{'0' * i}", 60) for i in range(2)
         ]
-        time.sleep(0.5)
+        until_status(base, lambda requests: requests["searches_running"] == 2)
         queued = [
             pool.submit(get, f"{base}{P}/organisms/pig/convert?identifier={GENE}&to_release={r}", 60) for r in (80, 90)
         ]
-        time.sleep(0.5)
-        assert status_of(base)["requests"]["searches_queued"] == 2
+        requests = until_status(base, lambda requests: requests["searches_queued"] == 2)
+        assert requests["searches_running"] == 2, requests
         stopped = time.monotonic()
         os.kill(master, signal.SIGTERM)
         answers = [f.result() for f in queued]
