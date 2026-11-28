@@ -350,3 +350,96 @@ test.describe("the page never asks twice", () => {
     expect(asked).toEqual([]);
   });
 });
+
+test("the first visit of each page whose code comes on demand moves the focus to its heading", async ({
+  browser,
+}, info) => {
+  test.skip(!info.project.name.startsWith("desktop"), "the sections are in the masthead's row from 861 px");
+  // Each in a context of its own: the page's code and stylesheet are fetched for the first time (a cold load).
+  const targets: [string, string, RegExp][] = [
+    ["masthead", "Explore", /^\/organisms/],
+    ["masthead", "Method", /^\/method/],
+    ["masthead", "API", /^\/developers/],
+    ["Convert", "A list", /^\/batch/],
+    ["Convert", "Names", /^\/names/],
+  ];
+  for (const [where, name, path] of targets) {
+    const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+    const page = await context.newPage();
+    await page.goto(`/convert?organism=${data.organism}`);
+    await expect(page.locator("footer.foot")).toBeVisible();
+    const nav = where === "masthead" ? page.locator("header.mast") : page.getByRole("navigation", { name: "Convert" });
+    await nav.getByRole("link", { name, exact: true }).focus();
+    await page.keyboard.press("Enter");
+    await expect(page).toHaveURL((url) => path.test(url.pathname));
+    await expect(page.locator("main h1"), `${name}: the focus on the new page's heading`).toBeFocused();
+    await context.close();
+  }
+});
+
+test.describe("counting visits, only with consent", () => {
+  /** The page as a server that counts visits sends it: its preloaded `/version` names a measurement id, and (for this
+   *  test only) no policy stops the tag; Google's hosts are intercepted, so nothing leaves the machine. */
+  async function counting(page: Page, google: string[]): Promise<void> {
+    await page.route(
+      /^https:\/\/([a-z0-9-]+\.)*(googletagmanager\.com|google-analytics\.com|analytics\.google\.com)\//,
+      (route) => {
+        google.push(route.request().url());
+        return route.abort();
+      },
+    );
+    await page.route(
+      (url) => url.pathname === "/convert" || url.pathname === "/batch" || url.pathname === "/names",
+      async (route) => {
+        if (route.request().resourceType() !== "document") return route.continue();
+        const response = await route.fetch();
+        const headers = { ...response.headers() };
+        delete headers["content-security-policy"];
+        const body = (await response.text()).replace('analytics_id\\":null', 'analytics_id\\":\\"G-E2ETEST\\"');
+        return route.fulfill({ response, headers, body });
+      },
+    );
+  }
+
+  test("after Accept then Decline, a page change sends nothing to Google, and its cookies are gone", async ({
+    page,
+  }) => {
+    const google: string[] = [];
+    await counting(page, google);
+    await page.goto(`/convert?organism=${data.organism}&id=${data.symbol.identifier}`);
+    const notice = page.getByRole("region", { name: "Counting visits" });
+    await notice.getByRole("button", { name: "Accept" }).click();
+    await expect.poll(() => google.length).toBeGreaterThan(0);
+    // The count of a page holds its path and its name, never the identifier converted (in the tab's title).
+    const counted = () =>
+      page.evaluate(() =>
+        ((window as unknown as { dataLayer?: IArguments[] }).dataLayer ?? [])
+          .map((a) => Array.from(a as ArrayLike<unknown>))
+          .filter((a) => a[0] === "event"),
+      );
+    await expect.poll(async () => (await counted()).length).toBeGreaterThan(0);
+    expect(JSON.stringify(await counted())).not.toContain(data.symbol.identifier);
+    expect((await counted())[0]?.[2]).toMatchObject({ page_path: "/convert", page_title: "Convert · IDTrack" });
+    await page.context().addCookies([
+      { name: "_ga", value: "GA1.1.1.1", url: page.url() },
+      { name: "_ga_E2ETEST", value: "GS1.1.1", url: page.url() },
+    ]);
+    // Withdrawn: the footer asks again, and the visitor declines.
+    await page.getByRole("button", { name: "Cookie settings" }).click();
+    await notice.getByRole("button", { name: "Decline" }).click();
+    expect(await page.evaluate(() => (window as unknown as Record<string, unknown>)["ga-disable-G-E2ETEST"])).toBe(
+      true,
+    );
+    const cookies = (await page.context().cookies()).map((c) => c.name);
+    expect(cookies).not.toContain("_ga");
+    expect(cookies).not.toContain("_ga_E2ETEST");
+    const before = { requests: google.length, events: (await counted()).length };
+    await page.getByRole("navigation", { name: "Convert" }).getByRole("link", { name: "A list" }).click();
+    await expect(page.getByRole("heading", { level: 1, name: "Many identifiers, one setting" })).toBeVisible();
+    await page.getByRole("navigation", { name: "Convert" }).getByRole("link", { name: "Names" }).click();
+    await expect(page.getByRole("heading", { level: 1, name: /What a name names/ })).toBeVisible();
+    await page.waitForTimeout(500);
+    expect(google.length).toBe(before.requests);
+    expect((await counted()).length).toBe(before.events);
+  });
+});

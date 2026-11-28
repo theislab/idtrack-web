@@ -587,6 +587,7 @@ describe("the constellation", () => {
 describe("counting visits", () => {
   it("loads Google's tag once, with signals and ad personalisation off, and counts a page by its path alone", async () => {
     const { countPage, setConsent, startAnalytics } = await import("../src/lib/analytics");
+    const { pageNameOf } = await import("../src/lib/title");
     setConsent("granted");
     expect(window.localStorage.getItem("idtrack-consent")).toBe("granted");
     startAnalytics("G-TEST1234");
@@ -602,10 +603,45 @@ describe("counting visits", () => {
       allow_google_signals: false,
       allow_ad_personalization_signals: false,
     });
-    countPage("/convert");
+    // An answer's page shows the identifier in the tab's title: the count names the page alone.
+    document.title = "TP53 → ENSG00000141510.20 · Convert · IDTrack";
+    countPage("/convert", pageNameOf("/convert"));
     const view = layer.map((a): unknown[] => Array.from(a as ArrayLike<unknown>)).find((a) => a[0] === "event");
-    expect(view?.[2]).toMatchObject({ page_path: "/convert", page_location: `${window.location.origin}/convert` });
+    expect(view?.[2]).toEqual({
+      page_path: "/convert",
+      page_location: `${window.location.origin}/convert`,
+      page_title: "Convert · IDTrack",
+    });
+    expect(JSON.stringify(view)).not.toContain("TP53");
     setConsent(null);
     expect(window.localStorage.getItem("idtrack-consent")).toBeNull();
+  });
+
+  it("names a page by its route alone, an organism's by its name, never by what the address asks", async () => {
+    const { pageNameOf } = await import("../src/lib/title");
+    expect(pageNameOf("/convert")).toBe("Convert");
+    expect(pageNameOf("/organisms/homo_sapiens")).toBe("Homo sapiens");
+    expect(pageNameOf("/organisms/<script>")).toBe("An unknown graph");
+  });
+
+  it("stops Google's tag and deletes its cookies when a consent is withdrawn, and counts nothing after", async () => {
+    const { countPage, startAnalytics, stopAnalytics } = await import("../src/lib/analytics");
+    startAnalytics("G-TEST1234");
+    document.cookie = "_ga=GA1.1.1.1; path=/";
+    document.cookie = "_ga_TEST1234=GS1.1.1; path=/";
+    document.cookie = "kept=1; path=/";
+    stopAnalytics("G-TEST1234");
+    expect((window as unknown as Record<string, unknown>)["ga-disable-G-TEST1234"]).toBe(true);
+    expect(document.cookie).not.toContain("_ga");
+    expect(document.cookie).toContain("kept=1");
+    const layer = (window as unknown as { dataLayer: IArguments[] }).dataLayer;
+    const before = layer.length;
+    countPage("/batch", "Batch");
+    expect(layer.length).toBe(before);
+    // Accepted again: the tag counts again.
+    startAnalytics("G-TEST1234");
+    expect((window as unknown as Record<string, unknown>)["ga-disable-G-TEST1234"]).toBe(false);
+    countPage("/batch", "Batch");
+    expect(layer.length).toBe(before + 1);
   });
 });

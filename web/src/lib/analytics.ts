@@ -1,7 +1,10 @@
 // Counting visits (the server's `IDTRACK_WEB_ANALYTICS_ID`, reported by `/version` as `analytics_id`): Google
-// Analytics, loaded only after the visitor accepts, and asked to count the page's path alone (never its query, which
-// holds what is converted), with Google signals and ad personalisation off. The choice is kept in the browser.
+// Analytics, loaded only after the visitor accepts, and asked to count the page's path and the page's name alone (never
+// its query or what an answer page shows, which hold what is converted), with Google signals and ad personalisation
+// off. A consent withdrawn stops the tag (Google's `ga-disable-<id>`) and deletes its cookies. The choice is kept in the
+// browser.
 import { useSyncExternalStore } from "react";
+import { documentTitle } from "./title";
 
 export type Consent = "granted" | "denied" | null;
 
@@ -54,8 +57,12 @@ interface Tagged {
 
 let started: string | null = null;
 
-/** Load Google's tag for `id`, once. */
+/** Google's switch that stops its tag for one measurement id. */
+const disabled = (id: string) => `ga-disable-${id}`;
+
+/** Load Google's tag for `id`, once (and let it count again where a consent was withdrawn before). */
 export function startAnalytics(id: string): void {
+  (window as unknown as Record<string, unknown>)[disabled(id)] = false;
   if (started === id) return;
   started = id;
   const w = window as unknown as Tagged;
@@ -85,12 +92,26 @@ export function startAnalytics(id: string): void {
   document.head.append(script);
 }
 
-/** Count one page: its path only. */
-export function countPage(path: string): void {
+/** Count one page: its path (no query) and its name ("Convert"), never what the page shows of a conversion. */
+export function countPage(path: string, name: string): void {
   const w = window as unknown as Tagged;
+  if ((window as unknown as Record<string, unknown>)[disabled(started ?? "")] === true) return;
   w.gtag?.("event", "page_view", {
     page_location: `${window.location.origin}${path}`,
     page_path: path,
-    page_title: document.title,
+    page_title: documentTitle(name),
   });
+}
+
+/** Stop counting for `id` (a consent withdrawn, or never given): Google's tag is told to send nothing more, and its
+ *  cookies (`_ga`, `_ga_<the id without "G-">`) are deleted on the site's host, its domain and the domain above it. */
+export function stopAnalytics(id: string): void {
+  (window as unknown as Record<string, unknown>)[disabled(id)] = true;
+  const host = window.location.hostname;
+  const labels = host.split(".");
+  const domains = new Set<string | null>([null, host, `.${host}`]);
+  if (labels.length > 2) domains.add(`.${labels.slice(1).join(".")}`);
+  for (const name of ["_ga", `_ga_${id.replace(/^G-/, "")}`])
+    for (const domain of domains)
+      document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/${domain ? `; domain=${domain}` : ""}`;
 }

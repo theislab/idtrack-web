@@ -1,7 +1,9 @@
 // The visitor's choice about counting visits, asked once in a calm notice where the server counts visits at all
-// (`analytics_id` of `/version`); and, once accepted, each page counted by its path (lib/analytics.ts).
+// (`analytics_id` of `/version`); once accepted, each page counted by its path and its name (lib/analytics.ts); declined
+// or withdrawn, Google's tag stopped and its cookies deleted.
 import { useEffect } from "react";
-import { countPage, setConsent, startAnalytics, useConsent } from "../../lib/analytics";
+import { countPage, setConsent, startAnalytics, stopAnalytics, useConsent } from "../../lib/analytics";
+import { pageNameOf } from "../../lib/title";
 import { useOrganisms } from "../../lib/organisms";
 import { useLocation } from "../../lib/router";
 import { Button } from "../ui";
@@ -12,10 +14,12 @@ export function Consent() {
   const consent = useConsent();
   const location = useLocation();
   useEffect(() => {
-    if (id && consent === "granted") startAnalytics(id);
+    if (!id) return;
+    if (consent === "granted") startAnalytics(id);
+    else stopAnalytics(id);
   }, [id, consent]);
   useEffect(() => {
-    if (id && consent === "granted") countPage(location.path);
+    if (id && consent === "granted") countPage(location.path, pageNameOf(location.path));
   }, [id, consent, location.path]);
   if (!id || consent !== null) return null;
   return (

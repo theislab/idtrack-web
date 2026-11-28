@@ -16,7 +16,7 @@ import { organismName } from "./lib/organismNames";
 import { OrganismsProvider, useOrganisms } from "./lib/organisms";
 import { routeOf } from "./lib/routes";
 import { navigate, useLocation } from "./lib/router";
-import { setPageTitle } from "./lib/title";
+import { organismLike, pageNameOf, setPageTitle } from "./lib/title";
 import { ConvertPage } from "./pages/ConvertPage";
 import { HomePage } from "./pages/HomePage";
 import {
@@ -44,12 +44,6 @@ function PageLoading() {
   );
 }
 
-/** Whether text from an address reads as an organism's name (an Ensembl production name, or a common name such as
- *  "pig"): at most 40 letters and underscores. Anything else is never echoed into the page. */
-function organismLike(text: string): boolean {
-  return /^[A-Za-z][A-Za-z_]{0,39}$/.test(text);
-}
-
 /** A lazily loaded page, inside its boundary (started again at another address) and its loading frame. */
 function Part({ path, children }: { path: string; children: ReactNode }) {
   return (
@@ -64,12 +58,7 @@ function Page() {
   const { status, error, retry, unknownRequested, organisms } = useOrganisms();
   const path = location.path;
   const route = routeOf(path);
-  const pageName =
-    route.page === "organism"
-      ? organismLike(route.organism)
-        ? organismName(route.organism)
-        : "An unknown graph"
-      : route.title;
+  const pageName = pageNameOf(path);
   const redirectTo = route.page === "redirect" ? route.to : null;
   useEffect(() => {
     setPageTitle(pageName);

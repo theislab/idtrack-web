@@ -15,8 +15,8 @@ function focusInView(element: HTMLElement): void {
   }
 }
 
-/** Focus the first element of `root` that matches `selector` as soon as it is there (a part of the page may still
- *  be loading); gives up after `timeout` ms or when cancelled (the returned function). */
+/** Focus the first element of `root` that matches `selector` as soon as it is there and shown (a part of the page may
+ *  still be loading); gives up after `timeout` ms or when cancelled (the returned function). */
 export function focusWhenThere(root: () => HTMLElement | null, selector: string, timeout = 10_000): () => void {
   let observer: MutationObserver | null = null;
   let timer = 0;
@@ -25,11 +25,14 @@ export function focusWhenThere(root: () => HTMLElement | null, selector: string,
     observer = null;
     window.clearTimeout(timer);
   };
+  // An element drawn but not yet shown (a page whose code came for the first time is held hidden by React until its
+  // stylesheet has loaded) cannot take the focus: it is waited for until it is shown and the focus has really moved.
   const tryNow = () => {
     const element = root()?.querySelector<HTMLElement>(selector);
-    if (!element) return false;
-    stop();
+    if (!element || (typeof element.checkVisibility === "function" && !element.checkVisibility())) return false;
     focusInView(element);
+    if (document.activeElement !== element) return false;
+    stop();
     return true;
   };
   if (!tryNow()) {
@@ -40,7 +43,7 @@ export function focusWhenThere(root: () => HTMLElement | null, selector: string,
       childList: true,
       subtree: true,
       attributes: true,
-      attributeFilter: ["aria-busy"],
+      attributeFilter: ["aria-busy", "style", "hidden"],
     });
     timer = window.setTimeout(stop, timeout);
   }
