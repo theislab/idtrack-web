@@ -129,9 +129,15 @@
   }
 }
 
+/* A caution's card and the tie's guidance open from their trigger at the verdict's left side: rightwards, as wide as
+   the window leaves (never aligned to the trigger's right, which would run them off the window's left edge). */
 .answer__caution-card .hovercard__card,
-.answer__guidance .hovercard__card {
-  width: min(440px, calc(100vw - 32px));
+.answer__guidance .hovercard__card,
+.answer__caution-card .hovercard__card--right,
+.answer__guidance .hovercard__card--right {
+  left: 0;
+  right: auto;
+  width: min(440px, calc(100vw - 64px));
 }
 
 /* What a tie of genes means for a list: a quiet term after the status sentence, its card a press or a pointing away. */
