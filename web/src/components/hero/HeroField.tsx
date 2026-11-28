@@ -636,12 +636,13 @@ function Caption({
         <span>
           {stars.journeys.length === 1 ? (
             <>
-              The path of the only answer of the <em>{name}</em> showcase that has one, about the axis of time,{" "}
+              The path of the only answer of the <em>{name}</em> showcase that has one,{" "}
+              <span className="hero2__wide">about the axis of time, </span>
             </>
           ) : (
             <>
               The paths of the <span className="mono">{stars.journeys.length}</span> most convoluted answers of the{" "}
-              <em>{name}</em> showcase about the axis of time,{" "}
+              <em>{name}</em> showcase<span className="hero2__wide"> about the axis of time</span>,{" "}
             </>
           )}
           <span className="mono">{`${stars.first}–${stars.last}`}</span>

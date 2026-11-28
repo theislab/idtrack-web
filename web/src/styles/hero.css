@@ -390,6 +390,13 @@
     margin-left: 0;
   }
 
+  /* On a phone the constellation's caption says less (its sentence for screen readers says all), and the releases at
+     the axis's ends are left to the caption. */
+  .hero2__wide,
+  .hero2__axis-end {
+    display: none;
+  }
+
   .hero2__tick-name {
     display: none;
   }
