@@ -40,16 +40,13 @@ export function readInference(answer: SourceInferenceResponse): ReleaseInference
   };
 }
 
-/** What the inference allows, by IDTrack's documentation of it ("Where a list comes from"): where some release with
- *  identifiers found lies outside the band (`margin` is a number), the list dates itself and its best release is the
- *  reading to offer; where none does (`margin` is null), the list cannot be read at one release on its own: either its
- *  band holds every release of the graph (it does not date itself), or only the band's releases find any of it and
- *  they cannot be told apart. */
-export type InferenceVerdict = "dated" | "undated" | "band";
-export function verdictOf(inference: ReleaseInference, releases: readonly number[]): InferenceVerdict {
-  if (inference.margin !== null) return "dated";
-  const band = new Set(inference.band);
-  return releases.every((r) => band.has(r)) ? "undated" : "band";
+/** What the inference allows, by IDTrack's documentation of it ("Where a list comes from") and the api's texts: the
+ *  margin decides. A number (some release that finds the list lies outside the band) dates the list, and its best
+ *  release is the reading to send as `from_release`; null (no release lies outside the band) is a list that does not
+ *  date itself, sent with no `from_release`, each identifier read at its own release. */
+export type InferenceVerdict = "dated" | "undated";
+export function verdictOf(inference: ReleaseInference): InferenceVerdict {
+  return inference.margin === null ? "undated" : "dated";
 }
 
 /** The band as runs of consecutive releases in words ("64–68", "48–54, 76"). */

@@ -44,7 +44,7 @@ export function BatchInference({
   const answer = asking.state === "done" ? asking.answer : null;
   const inference = answer ? readInference(answer.data) : null;
   const best = inference?.band[0] ?? null;
-  const verdict = inference ? verdictOf(inference, description.releases) : null;
+  const verdict = inference ? verdictOf(inference) : null;
   // The list dates itself: its best release fills From release, once per answer (the person may change it after).
   const filled = useRef<unknown>(null);
   const use = useRef(onUse);
@@ -100,10 +100,8 @@ export function BatchInference({
                 ) : null}
                 .{" "}
                 {verdict === "undated"
-                  ? "Every release of the graph finds it alike: the list does not date itself, so From release stays empty."
-                  : verdict === "band"
-                    ? "No release outside them finds any of it, so From release stays empty."
-                    : ""}{" "}
+                  ? "No release outside them finds any of it: the list does not date itself, so From release stays empty and each identifier is read at its own release."
+                  : ""}{" "}
                 Where you know the release of its annotation, give that one.
               </>
             ) : inference.margin !== null ? (
@@ -260,39 +258,34 @@ export function ListRelease({
   const inference = readInference(answer.answer.data);
   const best = inference?.band[0];
   if (!inference || best === undefined) return null;
-  const verdict = verdictOf(inference, description.releases);
+  const verdict = verdictOf(inference);
   const found = inference.counts.get(best) ?? 0;
   return (
     <p className="list-release">
       {verdict === "undated" ? (
         <>
-          The list does not date itself: IDTrack&rsquo;s source inference finds it alike at every release, so each
-          identifier is read at its own release.
+          The list does not date itself: IDTrack&rsquo;s source inference finds no release outside{" "}
+          <Mono>{bandWords(inference.band)}</Mono> that finds any of it, so each identifier is read at its own release.
         </>
       ) : (
         <>
-          {verdict === "dated"
-            ? "These identifiers look like release"
-            : "These identifiers are found alike at releases"}{" "}
-          <Mono>{verdict === "dated" ? String(best) : bandWords(inference.band)}</Mono>:{" "}
-          <Mono>{groupedInteger(found)}</Mono> of the <Mono>{groupedInteger(inference.identifiers)}</Mono> found
-          {verdict === "dated" && inference.band.length > 1 ? (
+          These identifiers look like release <Mono>{best}</Mono>: <Mono>{groupedInteger(found)}</Mono> of the{" "}
+          <Mono>{groupedInteger(inference.identifiers)}</Mono> found
+          {inference.band.length > 1 ? (
             <>
               , and <Mono>{bandWords(inference.band)}</Mono> cannot be told apart
             </>
           ) : null}
-          {verdict === "band" ? ", which cannot be told apart; give the release of its annotation" : ""}.{" "}
-          {verdict === "dated" ? (
-            <Button
-              variant="quiet"
-              className="list-release__press"
-              onClick={() => {
-                onReadAt(inferredOf(inference, answer.answer.requestId));
-              }}
-            >
-              Read the list at {best}
-            </Button>
-          ) : null}
+          .{" "}
+          <Button
+            variant="quiet"
+            className="list-release__press"
+            onClick={() => {
+              onReadAt(inferredOf(inference, answer.answer.requestId));
+            }}
+          >
+            Read the list at {best}
+          </Button>
         </>
       )}
     </p>

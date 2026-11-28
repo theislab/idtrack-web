@@ -244,8 +244,7 @@ describe("the drawing window of a long table", () => {
   });
 });
 
-describe("where a list comes from, read by IDTrack's rule of the band and the margin", () => {
-  const releases = [56, 57, 58, 59, 60];
+describe("where a list comes from: the margin decides, as IDTrack's documentation and the api's texts say", () => {
   const of = (band: number[], margin: number | null) => ({
     band,
     margin,
@@ -253,13 +252,11 @@ describe("where a list comes from, read by IDTrack's rule of the band and the ma
     identifiers: 3,
     notFound: 0,
   });
-  it("a margin dates the list: its best release is the reading to offer", () => {
-    expect(verdictOf(of([57, 56, 58], 2), releases)).toBe("dated");
+  it("a margin dates the list: its best release is the reading to send", () => {
+    expect(verdictOf(of([57, 56, 58], 2))).toBe("dated");
   });
-  it("no margin and every release in the band: the list does not date itself", () => {
-    expect(verdictOf(of([56, 57, 58, 59, 60], null), releases)).toBe("undated");
-  });
-  it("no margin and a narrower band: only the band finds the list, and it cannot be told apart", () => {
-    expect(verdictOf(of([56, 57, 58], null), releases)).toBe("band");
+  it("no margin: the list does not date itself, whether its band holds every release or fewer", () => {
+    expect(verdictOf(of([56, 57, 58, 59, 60], null))).toBe("undated");
+    expect(verdictOf(of([56, 57, 58], null))).toBe("undated");
   });
 });
