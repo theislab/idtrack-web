@@ -158,9 +158,12 @@ test("a refusal that names its wait is asked again once by itself, then left to 
 test("a refusal for time is waited out with the paths, and asked without them only at the person's word", async ({
   page,
 }) => {
+  // The batch's own asks only: the result page then asks batches of its own (the names beside each gene, at the
+  // target release), which are no ask of the list again.
   const explains: boolean[] = [];
   await page.route("**/convert/batch?format=json", (route) => {
-    const body = route.request().postDataJSON() as { explain: boolean };
+    const body = route.request().postDataJSON() as { explain: boolean; identifiers: string[] };
+    if (body.identifiers.join("\n") !== list()) return route.continue();
     explains.push(body.explain);
     if (body.explain)
       return route.fulfill({
@@ -191,6 +194,9 @@ test("a refusal for time is waited out with the paths, and asked without them on
   expect(explains).toEqual([true, true]);
   await page.getByRole("button", { name: "Ask without the paths" }).click();
   await expect(page.locator(".batch-figure-head__line")).toBeVisible();
+  // Once, and never again by itself: still once after a wait longer than the refusal's.
+  expect(explains).toEqual([true, true, false]);
+  await page.waitForTimeout(2000);
   expect(explains).toEqual([true, true, false]);
   await expect(page.locator(".batch-figure-head__setting")).toContainText("not sent (why?)");
 });
