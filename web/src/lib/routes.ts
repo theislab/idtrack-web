@@ -2,8 +2,12 @@
 // address that is no page is said at once. The api's server answers every one of these paths with the app; any
 // other path is "No such page".
 
+/** The site's own pages (the legal notice and the privacy page each in English and in German, the licences, the
+ *  accessibility statement): they need no organism. */
+export type SitePage = "legal" | "legal-de" | "privacy" | "privacy-de" | "licences" | "accessibility";
+
 export type Route =
-  | { page: "home" | "convert" | "batch" | "names" | "organisms" | "developers" | "method"; title: string }
+  | { page: "home" | "convert" | "batch" | "names" | "organisms" | "developers" | "method" | SitePage; title: string }
   | { page: "organism"; title: string; organism: string }
   | { page: "redirect"; title: string; to: string }
   | { page: "none"; title: string };
@@ -16,7 +20,16 @@ const PAGES: Record<string, { page: Exclude<Route["page"], "organism" | "redirec
   "/organisms": { page: "organisms", title: "Explore" },
   "/developers": { page: "developers", title: "API" },
   "/method": { page: "method", title: "Method" },
+  "/legal": { page: "legal", title: "Legal notice" },
+  "/legal/de": { page: "legal-de", title: "Impressum" },
+  "/privacy": { page: "privacy", title: "Privacy" },
+  "/privacy/de": { page: "privacy-de", title: "Datenschutz" },
+  "/licences": { page: "licences", title: "Licences" },
+  "/accessibility": { page: "accessibility", title: "Accessibility" },
 };
+
+/** The paths of the pages (the server answers each with the page and 200; the sitemap lists them). */
+export const PAGE_PATHS: readonly string[] = Object.keys(PAGES);
 
 /** The page of a path. A trailing slash names the same page (`/batch/` is `/batch`); `/organisms/<name>` is one
  *  graph's page, and anything deeper is no page. */

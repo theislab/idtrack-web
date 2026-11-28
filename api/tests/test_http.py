@@ -286,6 +286,8 @@ def test_one_request_one_log_line(client: TestClient, caplog: pytest.LogCaptureF
     line = record.getMessage()
     assert "\n" not in line and "\x1b" not in line
     assert "%0a" in line or "\\n" in line
+    # The client's address is the proxy's to keep (for a bounded time), never the api's log line's.
+    assert line.startswith("GET /api/v1/x") and "testclient" not in line
 
 
 def test_a_slow_body_is_408(cut_settings: Any) -> None:

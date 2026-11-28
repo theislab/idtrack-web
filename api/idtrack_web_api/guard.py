@@ -31,7 +31,8 @@ In the order a request meets it:
    closed, and a worker holds at most ``sending_max_bytes`` of answers not yet taken (a larger answer is refused,
    ``503 server_busy``).
 10. **After**: the request is counted in the load monitor (``/status`` in a count of its own), its search time
-    charged to the client, and one line logged, with every value from the client escaped (one request, one line).
+    charged to the client, and one line logged (method, path, status, seconds, request id; not the client's address),
+    with every value from the client escaped (one request, one line).
 
 No exception leaves it: an error after the answer started is logged and the connection closed; one before is
 answered as ``500 internal_error`` with the request's id (the traceback goes to the log only).
@@ -762,8 +763,10 @@ class Guard:
                 connection.release_search()
             raw = scope.get("raw_path") or path.encode("utf-8", "surrogateescape")
             given = _header(scope, b"x-request-id")
+            # The client's address is not written: the proxy in front keeps it in its own log, for a bounded time
+            # (deploy/Caddyfile), and the request id ties a line of one log to the other.
             access_log.info(
-                "%s %s %s %d %.3fs %s%s", printable(str(host)), "HEAD" if head else scope.get("method"),
+                "%s %s %d %.3fs %s%s", "HEAD" if head else scope.get("method"),
                 printable(raw.decode("latin-1")), status["code"], seconds, request_id,
                 "" if given is None or given == request_id else f" (client's id refused: {printable(given[:80])})",
             )  # fmt: skip

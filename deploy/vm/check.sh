@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # The weekly check of the virtual machine (SETUP.md, section 10.10): the service, the disk, updates and reboots, the
-# certificate. Run from the repository as root: `sudo deploy/vm/check.sh`. It prints what it read and ends with
+# certificate, the logs' bound and security.txt's expiry. Run from the repository as root: `sudo deploy/vm/check.sh`. It prints what it read and ends with
 # "check: ok", or with each problem found and exit status 1.
 set -uo pipefail
 deploy="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -52,6 +52,22 @@ elif [[ -n "$domain" ]]; then
         echo "$domain: valid until $end ($days days)"
         (( days >= 14 )) || problems+=("the certificate of $domain ends in $days days")
     fi
+fi
+
+echo "== logs and the site's own files"
+# Caddy's access and error logs: a file a day, none older than seven days (the privacy page says so).
+docker compose exec -T caddy sh -c 'du -sh /data/logs; ls /data/logs | tail -n 4' 2>/dev/null
+old_logs="$(docker compose exec -T caddy find /data/logs -type f -mtime +7 2>/dev/null | tr '\n' ' ')"
+[[ -z "$old_logs" ]] || problems+=("Caddy keeps log files older than seven days: $old_logs")
+# security.txt must not expire (RFC 9116): each build writes an Expires a year ahead, so a site not rebuilt for a year
+# would serve a stale one.
+expires="$(docker compose exec -T api python -c "import urllib.request; print(urllib.request.urlopen('http://127.0.0.1:8000/.well-known/security.txt', timeout=4).read().decode())" 2>/dev/null | sed -n 's/^Expires: //p' | tr -d '\r')"
+if [[ -z "$expires" ]]; then
+    problems+=("/.well-known/security.txt is not served")
+else
+    days=$(( ($(date -d "$expires" +%s) - $(date +%s)) / 86400 ))
+    echo "security.txt: expires $expires ($days days)"
+    (( days >= 30 )) || problems+=("security.txt expires in $days days: build and deploy the current version (10.11)")
 fi
 
 if (( ${#problems[@]} )); then

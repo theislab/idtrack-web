@@ -25,9 +25,15 @@ for no request of the api; its ``ETag`` is that of the page as sent (file, answe
 server with other graphs is a new tag.
 
 Each address gets the page with its **frame** (:py:data:`FRAMES_FILE`, written by the build's ``scripts/prerender.ts``):
-the masthead and the page's head as HTML inside the page's root, drawn before any code has arrived, and in its head the
+the masthead and the page's head as HTML inside the page's root, drawn before any code has arrived, in its head the
 links that fetch that page's own code beside the entry (:py:func:`frame_of` picks it by the address, as the page's
-routes do). The app replaces the frame when it first renders. A build without the file is sent without frames.
+routes do), and the page's own title, description, canonical address and the cards of its link (Open Graph, Twitter),
+into which the server writes the site's address (``public_url``, else the request's) and the page's canonical path. The
+app replaces the frame when it first renders. A build without the file is sent without frames.
+
+The build also lists its pages (``pages`` of :py:data:`FRAMES_FILE`, from the page's routes), from which the server
+makes ``/sitemap.xml`` with each graph's page added; ``/robots.txt`` allows every page and names the sitemap
+(:py:func:`robots_txt`, :py:func:`sitemap_xml`).
 """
 
 from __future__ import annotations
@@ -35,6 +41,7 @@ from __future__ import annotations
 import base64
 import gzip
 import hashlib
+import html
 import json
 import mimetypes
 import re
@@ -60,8 +67,16 @@ HASHED_FOLDER = "assets"
 IMMUTABLE = "public, max-age=31536000, immutable"
 #: The routes of the page (``web/src/lib/routes.ts``: each page, with or without a trailing slash, and one graph's page
 #: ``/organisms/<name>``): any other path without a file extension is answered with the page and ``404``.
-PAGE_ROUTES = re.compile(r"^/(convert|batch|names|organisms|developers|method)?/?$|^/organisms/[^/]+/?$")
+PAGE_ROUTES = re.compile(
+    r"^/(convert|batch|names|organisms|developers|method|legal|privacy|licences|accessibility)?/?$"
+    r"|^/(legal|privacy)/de/?$|^/organisms/[^/]+/?$"
+)
 _INLINE_SCRIPT = re.compile(rb"<script(?![^>]*\bsrc=)[^>]*>(.*?)</script>", re.DOTALL | re.IGNORECASE)
+#: The page's own title and description, replaced by a frame's.
+_TITLE = re.compile(rb"\s*<title>.*?</title>", re.DOTALL)
+_DESCRIPTION = re.compile(rb'\s*<meta\s+name="description"[^>]*>', re.DOTALL)
+#: The most forms of the page kept in memory (each frame by site address and canonical path).
+PAGES_HELD = 64
 REVALIDATE = "no-cache"
 #: The id of the page's block of the answers written into it (``<script type="application/json" id=...>``): a JSON
 #: object of each answer's path (``/api/v1/organisms``) and its text as the api sends it.
@@ -79,7 +94,19 @@ _FRAME_OF_PATH = {
     "organisms": "organisms",
     "developers": "developers",
     "method": "method",
+    "legal": "legal",
+    "legal/de": "legal-de",
+    "privacy": "privacy",
+    "privacy/de": "privacy-de",
+    "licences": "licences",
+    "accessibility": "accessibility",
 }
+#: The places in a frame's ``meta`` the server fills: the site's address and the page's canonical path.
+ORIGIN_SLOT = "%ORIGIN%"
+PATH_SLOT = "%PATH%"
+#: How long a client may keep ``/robots.txt`` and ``/sitemap.xml`` before it asks again (they change with a new build
+#: or another set of graphs).
+SITE_TEXT_CACHE = "public, max-age=3600"
 
 
 def frame_of(path: str, *, has_identifier: bool) -> str:
@@ -286,10 +313,25 @@ class Frontend:
                 frames = {}
             self._frames = (stamp, frames if isinstance(frames, dict) else {})
         frame = self._frames[1].get(name) or {}
-        return json.dumps([frame.get("head", ""), frame.get("html", "")]).encode()
+        return json.dumps([frame.get("head", ""), frame.get("html", ""), frame.get("meta", "")]).encode()
 
-    def _answer_page(self, headers: Headers, status: int, frame: str | None = None) -> Response:
-        sent, packed, digest = self.page(frame)
+    def pages(self) -> list[str]:
+        """Return the paths of the build's pages (``pages`` of :py:data:`FRAMES_FILE`; none without the file).
+
+        Returns:
+            list[str]: The paths, as the build lists them.
+        """
+        path = self.root / FRAMES_FILE
+        try:
+            listed = json.loads(path.read_text(encoding="utf-8")).get("pages", [])
+        except (OSError, ValueError, AttributeError):
+            return []
+        return [p for p in listed if isinstance(p, str) and p.startswith("/")] if isinstance(listed, list) else []
+
+    def _answer_page(
+        self, headers: Headers, status: int, frame: str | None = None, site: str = "", canonical: str = "/"
+    ) -> Response:
+        sent, packed, digest = self.page(frame, site, canonical)
         coding = "gzip" if accepts_gzip(headers.get("accept-encoding")) else None
         etag = f'"{digest}{"-gzip" if coding else ""}"'
         common = {"Cache-Control": REVALIDATE, "ETag": etag, "Vary": "Accept-Encoding"}
@@ -306,35 +348,53 @@ class Frontend:
             )
         return Response(content=sent, status_code=status, media_type="text/html", headers=common)
 
-    def page(self, frame: str | None = None) -> tuple[bytes, bytes, str]:
+    def page(self, frame: str | None = None, site: str = "", canonical: str = "/") -> tuple[bytes, bytes, str]:
         """Return ``index.html`` as it is sent: with the answers and the frame written in, compressed, and its tag.
 
-        They are made again when the file on disk or the build's frames change.
+        They are made again when the file on disk or the build's frames change. A frame's own title and description
+        take the place of the page's; its canonical address and link cards get the site's address and the path.
 
         Args:
             frame: The name of the page's frame (:py:func:`frame_of`); ``None``: none.
+            site: The site's address for absolute links (``https://host``; empty: links relative to the site).
+            canonical: The page's canonical path.
 
         Returns:
             tuple[bytes, bytes, str]: The page, its gzip form, and its ``ETag`` digest.
         """
         file = self._page()
         parts = self._frame(frame) if frame is not None else b""
-        key = frame or ""
+        key = f"{frame or ''} {site} {canonical}"
         held = self._pages_sent.get(key)
         if held is None or held[0] != file or held[1] != parts:
-            links, markup = json.loads(parts) if parts else ("", "")
+            links, markup, meta = json.loads(parts) if parts else ("", "", "")
             sent = file
             if markup and _ROOT in sent:
                 sent = sent.replace(_ROOT, b'<div id="root">' + markup.encode() + b"</div>", 1)
+            if meta:
+                sent = _TITLE.sub(b"", sent, count=1)
+                sent = _DESCRIPTION.sub(b"", sent, count=1)
+                meta = meta.replace(ORIGIN_SLOT, html.escape(site)).replace(PATH_SLOT, html.escape(canonical))
             head = sent.find(b"</head>")
             if head >= 0:
-                sent = sent[:head] + links.encode() + self.preload + sent[head:]
+                sent = sent[:head] + meta.encode() + links.encode() + self.preload + sent[head:]
             digest = hashlib.blake2b(sent, digest_size=12).hexdigest()
             held = (file, parts, sent, gzip.compress(sent, compresslevel=9, mtime=0), digest)
-            self._pages_sent[key] = held
+            # A bounded number of forms (frames by site address and path: a few dozen on a server); others are made
+            # at each request.
+            if len(self._pages_sent) < PAGES_HELD or key in self._pages_sent:
+                self._pages_sent[key] = held
         return held[2], held[3], held[4]
 
-    def answer(self, target: Path, headers: Headers, status: int = 200, frame: str | None = None) -> Response:
+    def answer(
+        self,
+        target: Path,
+        headers: Headers,
+        status: int = 200,
+        frame: str | None = None,
+        site: str = "",
+        canonical: str = "/",
+    ) -> Response:
         """Return the answer for a file of the build.
 
         Args:
@@ -342,6 +402,8 @@ class Frontend:
             headers: The request's headers.
             status: The status of a full answer (``404`` for the page at a path that is none of its routes).
             frame: For the page: the name of its frame (:py:func:`frame_of`); ``None``: none.
+            site: For the page: the site's address, written into its canonical address and link cards.
+            canonical: For the page: its canonical path.
 
         Returns:
             Response: The file, compressed when the client accepts it, with ``Cache-Control``, ``ETag`` and
@@ -350,7 +412,7 @@ class Frontend:
         relative = target.relative_to(self.root)
         cache = IMMUTABLE if relative.parts[0] == HASHED_FOLDER and len(relative.parts) > 1 else REVALIDATE
         if target == self.index and target.is_file():
-            return self._answer_page(headers, status, frame)
+            return self._answer_page(headers, status, frame, site, canonical)
         if not target.is_file():  # a hashed file of the build at the start, since removed from disk
             data = self._kept[target]
             media = media_type(target)
@@ -388,6 +450,46 @@ class Frontend:
         return FileResponse(target, status_code=status, headers=common, media_type=media_type(target))
 
 
+def robots_txt(site: str) -> str:
+    """Return ``/robots.txt``: every page may be fetched; the sitemap's address.
+
+    Args:
+        site: The site's address (``https://host``).
+
+    Returns:
+        str: The file.
+    """
+    return (
+        "# IDTrack's web app: every page and the api may be fetched (the api's searches are bounded per client:\n"
+        "# /api/v1/limits). The pages are listed in the sitemap.\n"
+        "User-agent: *\n"
+        "Allow: /\n"
+        "\n"
+        f"Sitemap: {site}/sitemap.xml\n"
+    )
+
+
+def sitemap_xml(site: str, pages: list[str], organisms: list[str]) -> str:
+    """Return ``/sitemap.xml``: the build's pages, then each graph's page.
+
+    Args:
+        site: The site's address (``https://host``).
+        pages: The build's pages (:py:meth:`Frontend.pages`).
+        organisms: The production names of the graphs the server holds.
+
+    Returns:
+        str: The sitemap (sitemaps.org's protocol 0.9).
+    """
+    paths = [*pages, *(f"/organisms/{o}" for o in organisms if f"/organisms/{o}" not in pages)]
+    urls = "".join(f"<url><loc>{html.escape(site + p, quote=False)}</loc></url>\n" for p in paths)
+    return (
+        '<?xml version="1.0" encoding="UTF-8"?>\n'
+        '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
+        f"{urls}"
+        "</urlset>\n"
+    )
+
+
 def _preload_block(answers: dict[str, bytes]) -> bytes:
     r"""Return the page's block of answers: a JSON object of each path and the answer's text.
 
@@ -412,4 +514,6 @@ __all__ = [
     "accepts",
     "accepts_gzip",
     "frame_of",
+    "robots_txt",
+    "sitemap_xml",
 ]

@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex" />
+    <meta name="color-scheme" content="light dark" />
+    <title>Back in a moment · IDTrack</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        --paper: #fafaf8;
+        --ink-1: #0e1116;
+        --ink-2: #3b424c;
+        --line: #e3e3de;
+        --history: #2f5fd0;
+        --sans: "Inter Variable", "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+        --serif: "Source Serif 4 Variable", "Source Serif 4", "Iowan Old Style", Georgia, serif;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --paper: #0b0d10;
+          --ink-1: #eceef1;
+          --ink-2: #b9bec6;
+          --line: #262b32;
+          --history: #5b8def;
+        }
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html {
+        background: var(--paper);
+        color: var(--ink-1);
+        font: 400 1rem/1.6 var(--sans);
+      }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        padding: 2rem 1rem;
+      }
+      main {
+        width: min(100%, 34rem);
+      }
+      .mark {
+        display: block;
+        width: 3.5rem;
+        height: auto;
+        color: var(--ink-1);
+      }
+      .line {
+        display: block;
+        width: 100%;
+        height: 1.5rem;
+        margin: 2.5rem 0 1.5rem;
+      }
+      .line .kept {
+        stroke: var(--history);
+        stroke-width: 2;
+        stroke-linecap: round;
+      }
+      .line .gap {
+        stroke: var(--ink-2);
+        stroke-width: 1.5;
+        stroke-dasharray: 1 6;
+        stroke-linecap: round;
+      }
+      .line circle {
+        fill: var(--history);
+      }
+      h1 {
+        font: 400 2.25rem/1.15 var(--serif);
+        letter-spacing: -0.015em;
+        margin: 0 0 1rem;
+      }
+      p {
+        margin: 0 0 1rem;
+        color: var(--ink-2);
+      }
+      p.de {
+        margin-top: 2rem;
+        padding-top: 1rem;
+        border-top: 1px solid var(--line);
+        font-size: 0.875rem;
+      }
+      a {
+        color: var(--ink-1);
+        text-underline-offset: 0.2em;
+      }
+      a:focus-visible {
+        outline: 2px solid var(--history);
+        outline-offset: 2px;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <svg class="mark" viewBox="0 0 758 571" role="img" aria-label="IDTrack">
+        <path
+          d="M151 136L250 278M40 274L250 278M250 278L196 471M250 278L463 343M463 343L440 73M463 343L706 288M706 288L631 84M463 343L581 531"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="17"
+          stroke-linecap="round"
+        />
+        <g fill="currentColor">
+          <circle cx="151" cy="136" r="40" />
+          <circle cx="40" cy="274" r="40" />
+          <circle cx="250" cy="278" r="68" />
+          <circle cx="196" cy="471" r="40" />
+          <circle cx="463" cy="343" r="100" />
+          <circle cx="440" cy="73" r="40" />
+          <circle cx="631" cy="84" r="84" />
+          <circle cx="706" cy="288" r="52" />
+          <circle cx="581" cy="531" r="40" />
+        </g>
+      </svg>
+      <!-- An id's line through the releases, interrupted for a moment and taken up again. -->
+      <svg class="line" viewBox="0 0 544 24" preserveAspectRatio="none" aria-hidden="true">
+        <line class="kept" x1="4" y1="12" x2="300" y2="12" />
+        <circle cx="300" cy="12" r="4" />
+        <line class="gap" x1="316" y1="12" x2="420" y2="12" />
+        <circle cx="436" cy="12" r="4" />
+        <line class="kept" x1="436" y1="12" x2="540" y2="12" />
+      </svg>
+      <h1>Back in a moment</h1>
+      <p>
+        IDTrack&rsquo;s server is not answering just now: it restarts for a minute or two after an update or the
+        weekly maintenance of its machine. Please try again shortly, at the same address.
+      </p>
+      <p>
+        Meanwhile, IDTrack&rsquo;s <a href="https://idtrack.readthedocs.io/en/stable/">documentation</a> and
+        <a href="https://github.com/theislab/idtrack">source</a> are on their own sites.
+      </p>
+      <p class="de" lang="de">
+        Der Server von IDTrack antwortet gerade nicht: Er startet nach einem Update oder der wöchentlichen Wartung neu.
+        Bitte versuchen Sie es in ein bis zwei Minuten erneut.
+      </p>
+    </main>
+  </body>
+</html>

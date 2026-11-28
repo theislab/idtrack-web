@@ -223,7 +223,10 @@ def test_a_hashed_file_of_the_build_at_the_start_is_kept(make_client: Callable[.
 @pytest.mark.parametrize(
     ("path", "status"),
     [("/", 200), ("/batch", 200), ("/batch/", 200), ("/organisms/", 200), ("/organisms/pig", 200),
-     ("/organisms/pig/", 200), ("/method", 200), ("/organisms/pig/extra", 404), ("/nothing", 404)],
+     ("/organisms/pig/", 200), ("/method", 200), ("/organisms/pig/extra", 404), ("/nothing", 404),
+     ("/legal", 200), ("/legal/de", 200), ("/legal/de/", 200), ("/privacy", 200), ("/privacy/de", 200),
+     ("/licences", 200), ("/accessibility", 200), ("/legal/fr", 404), ("/licences/de", 404),
+     ("/organisms/homo_sapiens", 404)],
 )  # fmt: skip
 def test_the_page_routes(web: TestClient, path: str, status: int) -> None:
     assert web.get(path).status_code == status
@@ -244,8 +247,11 @@ FRAMES = {
         "html": f"<header>masthead</header><main><h1>{name}</h1></main>",
         "head": f'<link rel="modulepreload" href="/assets/{name}.js">',
     }
-    for name in ("home", "convert", "answer", "batch", "names", "organisms", "organism", "developers", "method", "none")
-}
+    for name in (
+        "home", "convert", "answer", "batch", "names", "organisms", "organism", "developers", "method", "none",
+        "legal", "legal-de", "privacy", "privacy-de", "licences", "accessibility",
+    )
+}  # fmt: skip
 
 
 @pytest.mark.parametrize(
@@ -254,7 +260,9 @@ FRAMES = {
      ("/convert?organism=pig&id=TP53", "answer", 200), ("/batch", "batch", 200),
      ("/batch/", "batch", 200), ("/names", "names", 200), ("/organisms", "organisms", 200),
      ("/organisms/pig", "organism", 200), ("/developers", "developers", 200), ("/method", "method", 200),
-     ("/nothing", "none", 404), ("/organisms/pig/extra", "none", 404)],
+     ("/nothing", "none", 404), ("/organisms/pig/extra", "none", 404), ("/legal", "legal", 200),
+     ("/legal/de", "legal-de", 200), ("/privacy/", "privacy", 200), ("/privacy/de", "privacy-de", 200),
+     ("/licences", "licences", 200), ("/accessibility", "accessibility", 200)],
 )  # fmt: skip
 def test_each_page_is_sent_with_its_frame(
     make_client: Callable[..., TestClient], dist: Path, path: str, frame: str, status: int
@@ -296,3 +304,70 @@ def test_a_brotli_form_the_build_made_is_sent_where_br_is_taken(
     status, headers, body = raw_get(web, "/assets/index-3f9a1c.js", "br;q=0, gzip")
     assert headers["content-encoding"] == "gzip"
     assert web.get("/assets/index-3f9a1c.js.br").status_code == 404
+
+
+PAGE_WITH_HEAD = (
+    '<!doctype html><html><head><meta charset="UTF-8" />\n    <meta\n      name="description"\n      content="The '
+    'page\'s own."\n    />\n    <title>idtrack</title></head><body><div id="root"></div>'
+    + "<p>x</p>" * 80
+    + "</body></html>"
+)
+META = (
+    '<title>{title}</title><meta name="description" content="{title}, described.">'
+    '<link rel="canonical" href="%ORIGIN%%PATH%"><meta property="og:url" content="%ORIGIN%%PATH%">'
+)
+
+
+@pytest.mark.parametrize(
+    ("path", "title", "canonical"),
+    [("/legal", "Legal notice", "/legal"), ("/legal/de/", "Impressum", "/legal/de"),
+     ("/organisms/pig", "A graph", "/organisms/sus_scrofa"),
+     ("/organisms/SUS_SCROFA/", "A graph", "/organisms/sus_scrofa")],
+)  # fmt: skip
+def test_a_frame_brings_its_title_description_and_canonical_address(
+    make_client: Callable[..., TestClient], dist: Path, path: str, title: str, canonical: str
+) -> None:
+    """A frame's title and description take the page's place; the site's address (``public_url``) and the page's
+    canonical path (a graph's by its production name, whatever name the address used) are written into its tags."""
+    (dist / "index.html").write_text(PAGE_WITH_HEAD, encoding="utf-8")
+    frames = {name: {"html": "<main></main>", "head": "", "meta": META.format(title=title)} for name in FRAMES}
+    (dist / "frames.json").write_text(json.dumps({"frames": frames}), encoding="utf-8")
+    web = make_client(rate_per_minute=0, static_dir=dist, public_url="https://idtrack.example")
+    page = web.get(path).text
+    assert page.count("<title>") == 1 and f"<title>{title}</title>" in page
+    assert page.count('name="description"') == 1 and "The page's own." not in page
+    assert f'<link rel="canonical" href="https://idtrack.example{canonical}">' in page
+    assert f'<meta property="og:url" content="https://idtrack.example{canonical}">' in page
+
+
+def test_robots_and_the_sitemap(make_client: Callable[..., TestClient], dist: Path) -> None:
+    """``/robots.txt`` allows every page and names the sitemap; ``/sitemap.xml`` lists the build's pages and each
+    graph's page, by the site's address; both are cached for an hour and revalidated by their tags."""
+    pages = ["/", "/batch", "/legal", "/legal/de"]
+    (dist / "frames.json").write_text(json.dumps({"frames": {}, "pages": pages}), encoding="utf-8")
+    web = make_client(rate_per_minute=0, static_dir=dist, public_url="https://idtrack.example")
+    robots = web.get("/robots.txt")
+    assert robots.headers["content-type"] == "text/plain; charset=utf-8"
+    assert "User-agent: *\nAllow: /\n" in robots.text
+    assert robots.text.endswith("Sitemap: https://idtrack.example/sitemap.xml\n")
+    sitemap = web.get("/sitemap.xml")
+    assert sitemap.headers["content-type"] == "application/xml"
+    assert sitemap.headers["cache-control"] == "public, max-age=3600"
+    locs = re.findall(r"<loc>(.*?)</loc>", sitemap.text)
+    assert locs == [*(f"https://idtrack.example{p}" for p in pages), "https://idtrack.example/organisms/sus_scrofa"]
+    assert sitemap.text.startswith('<?xml version="1.0" encoding="UTF-8"?>')
+    again = web.get("/sitemap.xml", headers={"If-None-Match": sitemap.headers["etag"]})
+    assert again.status_code == 304
+
+
+def test_the_files_beside_the_page_go_with_their_types(make_client: Callable[..., TestClient], dist: Path) -> None:
+    """security.txt (under ``.well-known``, the one hidden folder served), the web manifest and the icons."""
+    (dist / ".well-known").mkdir()
+    (dist / ".well-known" / "security.txt").write_text("Contact: https://example.org\n", encoding="utf-8")
+    (dist / "site.webmanifest").write_text('{"name": "IDTrack"}', encoding="utf-8")
+    (dist / "apple-touch-icon.png").write_bytes(b"\x89PNG\r\n\x1a\n" + bytes(64))
+    web = make_client(rate_per_minute=0, static_dir=dist)
+    assert web.get("/.well-known/security.txt").headers["content-type"] == "text/plain; charset=utf-8"
+    assert web.get("/site.webmanifest").headers["content-type"] == "application/manifest+json"
+    assert web.get("/apple-touch-icon.png").headers["content-type"] == "image/png"
+    assert web.get("/.hidden/security.txt").status_code == 404

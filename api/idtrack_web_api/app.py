@@ -19,7 +19,7 @@ import re
 import sys
 import threading
 import time
-from collections.abc import AsyncIterator, Callable
+from collections.abc import AsyncIterator, Callable, Iterable
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Annotated, Any, Literal, TypeVar
@@ -41,7 +41,7 @@ from idtrack_web_api import contract, docs, history, lineages, schemas, service,
 from idtrack_web_api.adapter import FORMAT_VERSION, idtrack_commit, idtrack_version, organism_aliases
 from idtrack_web_api.config import DOCS_URL, Settings
 from idtrack_web_api.errors import ApiError, error_json, listed
-from idtrack_web_api.frontend import Frontend, accepts_gzip, frame_of
+from idtrack_web_api.frontend import SITE_TEXT_CACHE, Frontend, accepts_gzip, frame_of, robots_txt, sitemap_xml
 from idtrack_web_api.graphs import LoadedGraph, Registry
 from idtrack_web_api.guard import API_PREFIX, CONNECTION, SEND_MIN_RATE, STATUS_PATH, Guard
 from idtrack_web_api.limits import READ_SHARE, RateLimiter, SearchSlot
@@ -1596,13 +1596,20 @@ def create_app(  # noqa: PLR0915 - every endpoint, in one place
             f"{API_PREFIX}/vocabulary": vocabulary_body,
             f"{API_PREFIX}/limits": limits_body,
         }
+
+        def resolve(name: str) -> str | None:
+            graph = registry.get(name)
+            return None if graph is None else graph.organism
+
         _serve_frontend(
             app,
             settings.static_dir,
             methods_at,
             not_allowed,
-            lambda name: registry.get(name) is not None,
+            resolve,
             preload,
+            base_url,
+            list(registry.graphs),
             analytics=settings.analytics_id is not None,
         )
     return app
@@ -1613,8 +1620,10 @@ def _serve_frontend(
     root: Path,
     methods_at: Callable[[str], list[str]],
     not_allowed: Callable[..., ApiError],
-    holds: Callable[[str], bool] = lambda _name: True,
+    resolve: Callable[[str], str | None] = lambda name: name,
     preload: dict[str, bytes] | None = None,
+    site_of: Callable[[Request], str] = lambda _request: "",
+    organisms: Iterable[str] = (),
     *,
     analytics: bool = False,
 ) -> None:
@@ -1625,10 +1634,40 @@ def _serve_frontend(
     gets ``index.html`` with ``200``; any other path without a file extension gets it with ``404`` (the page says
     so), so that the status tells crawlers and link checkers the truth; so does the page of an organism the server does
     not hold (``/organisms/<name>``: ``404``). Every path under ``/api`` that is no endpoint
-    is a JSON ``404`` (``405`` with ``Allow`` where the path takes other methods).
+    is a JSON ``404`` (``405`` with ``Allow`` where the path takes other methods). ``/robots.txt`` and
+    ``/sitemap.xml`` are made from the site's address, the build's pages and the graphs held.
+
+    Args:
+        app: The application.
+        root: The built frontend.
+        methods_at: The methods an api path takes.
+        not_allowed: The refusal of a method a path does not take.
+        resolve: The production name of an organism by any of its names (``None``: not held).
+        preload: The answers written into the page.
+        site_of: The site's address for absolute links, for a request.
+        organisms: The production names of the graphs held (their pages are in the sitemap).
+        analytics: Whether the site counts visits (the page's policy then allows Google's hosts).
     """
     files = Frontend(root, preload, analytics=analytics)
     app.state.frontend = files
+    held = sorted(organisms)
+
+    def site_text(request: Request, body: str, media: str) -> Response:
+        data = body.encode("utf-8")
+        tag = f'"{hashlib.blake2b(data, digest_size=12).hexdigest()}"'
+        headers = {"Cache-Control": SITE_TEXT_CACHE, "ETag": tag}
+        wanted = [t.strip().removeprefix("W/") for t in request.headers.get("if-none-match", "").split(",")]
+        if tag in wanted:
+            return Response(status_code=304, headers=headers)
+        return Response(content=data, media_type=media, headers=headers)
+
+    @app.get("/robots.txt", include_in_schema=False)
+    async def robots(request: Request) -> Response:
+        return site_text(request, robots_txt(site_of(request)), "text/plain; charset=utf-8")
+
+    @app.get("/sitemap.xml", include_in_schema=False)
+    async def sitemap(request: Request) -> Response:
+        return site_text(request, sitemap_xml(site_of(request), files.pages(), held), "application/xml")
 
     @app.get("/{path:path}", include_in_schema=False, name="frontend")
     async def frontend(request: Request, path: str) -> Response:
@@ -1643,11 +1682,23 @@ def _serve_frontend(
             return files.answer(target, request.headers)
         if "." not in Path(path).name and files.index.is_file():
             page = files.is_page(f"/{path}")
+            canonical = "/" + path.strip("/")
             organism = ORGANISM_PAGE.match(f"/{path}")
-            if organism is not None and not holds(organism.group(1)):
-                page = False  # the page of a graph this server does not hold: the page says so, the status too
+            if organism is not None:
+                name = resolve(organism.group(1))
+                if name is None:
+                    page = False  # the page of a graph this server does not hold: the page says so, the status too
+                else:
+                    canonical = f"/organisms/{name}"  # its production name, whatever name the address used
             frame = frame_of(f"/{path}", has_identifier="id" in request.query_params) if page else "none"
-            return files.answer(files.index, request.headers, status=200 if page else 404, frame=frame)
+            return files.answer(
+                files.index,
+                request.headers,
+                status=200 if page else 404,
+                frame=frame,
+                site=site_of(request),
+                canonical=canonical,
+            )
         msg = "not_found"
         raise ApiError(msg, f"There is no file /{path}.")
 

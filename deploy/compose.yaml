@@ -73,6 +73,9 @@ services:
       net.ipv4.ip_local_port_range: "1024 65535"
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      # The page Caddy answers with while the api cannot answer (the Caddyfile's handle_errors).
+      - ./maintenance.html:/etc/caddy/maintenance.html:ro
+      # Certificates, and the access and error logs (/data/logs: a file a day, seven days kept; the Caddyfile's log).
       - caddy-data:/data
       - caddy-config:/config
     networks: [web]

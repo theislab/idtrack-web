@@ -13,6 +13,22 @@
 		}
 		max_header_size 64KB
 	}
+	# Caddy's own messages (start, certificates) go to its output; a request's error, which names the client, goes to
+	# a file of its own, kept as long as the access log below.
+	log default {
+		output stderr
+		exclude http.log.error
+	}
+	log errors {
+		output file {$IDTRACK_WEB_LOG_DIR:/data/logs}/errors.log {
+			roll_at 00:00
+			roll_size 100MiB
+			roll_keep 6
+			roll_keep_for 144h
+		}
+		format console
+		include http.log.error
+	}
 }
 
 {$IDTRACK_WEB_DOMAIN} {
@@ -45,8 +61,42 @@
 		}
 	}
 
+	# The access log: one line per request (the time, the client's address, the method, the address asked for with its
+	# query, the request's headers but cookies and credentials, the status, the size, the time taken, the answer's
+	# headers). A new file each midnight (UTC) and six earlier days kept: a line is deleted at most seven days after it
+	# was written (the site's privacy page says so).
 	log {
-		output stdout
+		output file {$IDTRACK_WEB_LOG_DIR:/data/logs}/access.log {
+			roll_at 00:00
+			roll_size 100MiB
+			roll_keep 6
+			roll_keep_for 144h
+		}
 		format console
+	}
+
+	# When the api cannot answer (stopped, restarting, or failing its health checks): the site's page of maintenance,
+	# or for a program the api's own error (503 server_busy), never a bare error of the proxy. No script: the page
+	# holds one style, allowed by its hash (api/tests/test_deploy.py keeps it equal to the file).
+	handle_errors 502 503 504 {
+		header {
+			Retry-After 60
+			Cache-Control no-store
+			Strict-Transport-Security "max-age=31536000; includeSubDomains"
+			-Server
+		}
+		@program path /api /api/* /llms.txt /llms-full.txt
+		handle @program {
+			header Content-Type "application/json"
+			respond `{"error":{"code":"server_busy","message":"The server is not answering at the moment (it restarts after an update or a maintenance); send the request again in a minute.","argument":null,"allowed":null,"details":null,"request_id":null,"retry_after":60,"allowance":null}}` 503
+		}
+		handle {
+			header Content-Security-Policy "default-src 'none'; style-src 'sha256-gF2/K71BBGcqjGbwkbSp8hMJvL1LBZQExvXL14ihL8o='; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
+			root * {$IDTRACK_WEB_MAINTENANCE_DIR:/etc/caddy}
+			rewrite * /maintenance.html
+			file_server {
+				status 503
+			}
+		}
 	}
 }
