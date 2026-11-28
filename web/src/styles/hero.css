@@ -343,10 +343,11 @@
   margin: 0 2px;
 }
 
+/* Keys of 2 px: at 1.5 px a screen of one device pixel to the CSS pixel draws them 1 px wide, too thin for their hue. */
 .hero2__key-line {
   width: 16px;
   height: 0;
-  border-top: 1.5px solid var(--hue-history);
+  border-top: 2px solid var(--hue-history);
 }
 
 .hero2__key-line--event {
@@ -445,7 +446,7 @@
 }
 
 .hero2__key-tick {
-  width: 1.5px;
+  width: 2px;
   height: 9px;
   background: var(--ink-3);
 }
