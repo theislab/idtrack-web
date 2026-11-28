@@ -9,7 +9,7 @@ import { isCaseKind } from "../src/lib/home/caseKinds";
 import { caseHref, caseQueryOf } from "../src/lib/home/links";
 import { convolutedAnswers } from "../src/lib/hero/constellationModel";
 import { examplesOf } from "../src/lib/home/examples";
-import { convertUrl, data, expectAccessible, shot, waitForResult } from "./helpers";
+import { convertUrl, data, expectAccessible, isPhone, shot, waitForResult } from "./helpers";
 
 async function showcaseOf(page: Page, organism: string): Promise<ShowcaseResponse> {
   return (await (await page.request.get(`/api/v1/organisms/${organism}/showcase`)).json()) as ShowcaseResponse;
