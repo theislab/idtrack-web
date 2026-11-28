@@ -1,9 +1,9 @@
-// The site's icons and its card, rendered from the logo as the site draws it (src/components/logoPaths.ts, IDTrack's
-// mark and wordmark): the touch icon (180 px), the web manifest's icons (192 and 512 px) and the card a link to the
-// site shows (1200 x 630 px, the mark and the wordmark with one line of text in Source Serif 4), each a PNG in public/,
-// drawn by Chromium (Playwright's) from SVG. scripts/icons.lock.json records the digest of what they are made from and
-// of each file, so that the check needs no browser: it fails when the logo, the face or this script changed since the
-// files were made, or a file was changed by hand.
+// The site's icons and its card, rendered from the mark as the site draws it (src/components/logoPaths.ts, IDTrack's
+// mark): the touch icon (180 px), the web manifest's icons (192 and 512 px) and the card a link to the site shows
+// (1200 x 630 px: the mark and the name IDTrack set in Inter, as the masthead sets them, with a line in Source Serif 4),
+// each a PNG in public/, drawn by Chromium (Playwright's) from SVG. scripts/icons.lock.json records the digest of what
+// they are made from and of each file, so that the check needs no browser: it fails when the mark, a face or this
+// script changed since the files were made, or a file was changed by hand.
 //
 //   npm run icons          render the files (needs Playwright's Chromium: `npx playwright install chromium`)
 //   npm run icons:check    fail when the files are not what the current logo and script give
@@ -14,6 +14,7 @@ import { fileURLToPath } from "node:url";
 const web = fileURLToPath(new URL("..", import.meta.url));
 const lockFile = `${web}scripts/icons.lock.json`;
 const FACE = `${web}node_modules/@fontsource-variable/source-serif-4/files/source-serif-4-latin-wght-normal.woff2`;
+const SANS = `${web}node_modules/@fontsource-variable/inter/files/inter-latin-wght-normal.woff2`;
 const LOGO = `${web}src/components/logoPaths.ts`;
 
 const PAPER = "#fafaf8";
@@ -23,16 +24,14 @@ const LINE = "#c3c5c9";
 const HISTORY = "#2f5fd0";
 
 interface Logo {
-  viewBox: string;
   markWidth: number;
   markHeight: number;
   edges: string;
   stroke: number;
   nodes: (readonly [number, number, number])[];
-  wordmark: string;
 }
 
-/** The logo's paths, read from the module the site draws it from. */
+/** The mark's paths, read from the module the site draws it from. */
 export function readLogo(source: string): Logo {
   const text = (name: string) => {
     const found = new RegExp(`export const ${name} =\\s*"([^"]+)"`).exec(source)?.[1];
@@ -45,13 +44,11 @@ export function readLogo(source: string): Logo {
   ].map((m) => [Number(m[1]), Number(m[2]), Number(m[3])] as const);
   if (!nodes.length) throw new Error("logoPaths.ts holds no MARK_NODES");
   return {
-    viewBox: text("LOGO_VIEWBOX"),
     markWidth: number("MARK_WIDTH"),
     markHeight: number("MARK_HEIGHT"),
     edges: text("MARK_EDGES"),
     stroke: number("MARK_STROKE"),
     nodes,
-    wordmark: text("WORDMARK"),
   };
 }
 
@@ -78,12 +75,11 @@ export function iconSvg(logo: Logo, size: number): string {
   );
 }
 
-/** The card (1200 x 630): the logo and one line on paper, and on the right ids running through the releases, one of
+/** The card (1200 x 630): the mark and the name, and one line, on paper, and on the right ids running through the releases, one of
  *  them ending, in the figure grammar of the site. */
 export function cardSvg(logo: Logo): string {
-  const [, , w, h] = logo.viewBox.split(" ").map(Number);
-  const width = 560;
-  const scale = width / (w ?? 2523);
+  const height = 112;
+  const scale = height / logo.markHeight;
   const lines = [
     [800, 1150, 96, false],
     [760, 1150, 140, false],
@@ -106,9 +102,11 @@ export function cardSvg(logo: Logo): string {
     .join("");
   return (
     `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">` +
-    `<style>@font-face{font-family:"Source Serif 4";src:url("face.woff2") format("woff2");font-weight:200 900}</style>` +
+    `<style>@font-face{font-family:"Source Serif 4";src:url("face.woff2") format("woff2");font-weight:200 900}` +
+    `@font-face{font-family:"Inter";src:url("sans.woff2") format("woff2");font-weight:100 900}</style>` +
     `<rect width="1200" height="630" fill="${PAPER}"/>` +
-    `<g transform="translate(80 ${String(250 - ((h ?? 571) * scale) / 2)}) scale(${scale.toFixed(5)})">${markShapes(logo, INK)}<path fill="${INK}" d="${logo.wordmark}"/></g>` +
+    `<g transform="translate(80 194) scale(${scale.toFixed(5)})">${markShapes(logo, INK)}</g>` +
+    `<text x="${String(80 + logo.markWidth * scale + 30)}" y="282" font-family="Inter" font-size="104" font-weight="640" letter-spacing="-1" fill="${INK}">IDTrack</text>` +
     `<text x="80" y="370" font-family="'Source Serif 4'" font-size="40" font-weight="420" fill="${INK}">Every gene id has a history.</text>` +
     `<text x="80" y="420" font-family="'Source Serif 4'" font-size="26" font-weight="400" fill="${INK_2}">Gene identifiers followed through Ensembl’s releases,</text>` +
     `<text x="80" y="456" font-family="'Source Serif 4'" font-size="26" font-weight="400" fill="${INK_2}">with the evidence for every step.</text>` +
@@ -130,10 +128,10 @@ function files(logo: Logo): [string, string, number, number][] {
 
 const sha256 = (data: Buffer | string) => createHash("sha256").update(data).digest("hex");
 
-/** The digest of everything the files are made from: the logo's module, the face, this script. */
+/** The digest of everything the files are made from: the mark's module, the faces, this script. */
 function sourceDigest(): string {
   return sha256(
-    [readFileSync(LOGO), readFileSync(FACE), readFileSync(fileURLToPath(import.meta.url))]
+    [readFileSync(LOGO), readFileSync(FACE), readFileSync(SANS), readFileSync(fileURLToPath(import.meta.url))]
       .map((b) => sha256(b))
       .join(""),
   );
@@ -144,11 +142,13 @@ async function render(): Promise<void> {
   const logo = readLogo(readFileSync(LOGO, "utf8"));
   const browser = await chromium.launch();
   const face = readFileSync(FACE);
+  const sans = readFileSync(SANS);
   const record: Record<string, string> = {};
   try {
     for (const [name, svg, width, height] of files(logo)) {
       const page = await browser.newPage({ viewport: { width, height }, deviceScaleFactor: 1 });
       await page.route("**/face.woff2", (route) => route.fulfill({ body: face, contentType: "font/woff2" }));
+      await page.route("**/sans.woff2", (route) => route.fulfill({ body: sans, contentType: "font/woff2" }));
       await page.route("http://icons.local/", (route) =>
         route.fulfill({
           body: `<!doctype html><html><head><meta charset="utf-8"></head><body style="margin:0">${svg}</body></html>`,
@@ -176,7 +176,7 @@ function check(): void {
   const lock = JSON.parse(readFileSync(lockFile, "utf8")) as { source: string; files: Record<string, string> };
   const problems: string[] = [];
   if (lock.source !== sourceDigest())
-    problems.push("the logo, the face or scripts/icons.ts changed since the files were made");
+    problems.push("the mark, a face or scripts/icons.ts changed since the files were made");
   for (const [name, digest] of Object.entries(lock.files)) {
     let found = "";
     try {

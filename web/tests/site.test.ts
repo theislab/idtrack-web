@@ -134,10 +134,10 @@ describe("security.txt", () => {
 describe("the icons and the card", () => {
   const logo = readLogo(readFileSync(join(web, "src", "components", "logoPaths.ts"), "utf8"));
 
-  it("read the mark and the wordmark from the module the site draws its logo from", () => {
+  it("read the mark from the module the site draws it from", () => {
     expect(logo.nodes).toHaveLength(9);
     expect(logo.edges).toMatch(/^M\d/);
-    expect(logo.wordmark.length).toBeGreaterThan(1000);
+    expect(logo.markWidth).toBeGreaterThan(0);
   });
 
   it("draw the mark on paper, inside the safe zone of a maskable icon", () => {
@@ -147,6 +147,7 @@ describe("the icons and the card", () => {
     expect(Math.min(x ?? 0, y ?? 0)).toBeGreaterThanOrEqual(512 * 0.1);
     expect((scale ?? 0) * logo.markWidth).toBeLessThanOrEqual(512 * 0.8);
     expect(cardSvg(logo)).toContain('width="1200" height="630"');
+    expect(cardSvg(logo)).toContain(">IDTrack</text>");
   });
 
   it("are the files the script made from the current logo (scripts/icons.lock.json)", () => {
