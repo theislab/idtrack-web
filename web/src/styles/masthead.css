@@ -86,9 +86,20 @@
     color var(--dur-1);
 }
 
+/* The current section: the ink and a hairline under its word, never a filled box (the first screen's boxes are the
+   page's own: DIRECTION.md, the first principle). A border, so that forced colours keep it. */
 .mast__link[aria-current="page"] {
   color: var(--ink-1);
-  background: color-mix(in srgb, var(--ink-1) 7%, transparent);
+}
+
+.mast__link[aria-current="page"]::after {
+  content: "";
+  position: absolute;
+  left: var(--space-3);
+  right: var(--space-3);
+  bottom: 5px;
+  border-bottom: 1.5px solid currentcolor;
+  border-radius: 1px;
 }
 
 @media (hover: hover) {
