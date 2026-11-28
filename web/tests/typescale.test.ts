@@ -50,7 +50,15 @@ describe("the type system", () => {
       .split(",")
       .map((s) => s.trim())
       .filter((s) => s && s !== "h2");
-    expect(selectors.length).toBeGreaterThanOrEqual(6);
+    // The registry is read whole: every heading of a section the pages draw (a selector of a class no page names is
+    // removed with it: scripts/unused-classes.ts).
+    expect(selectors).toEqual([
+      ".api-section__head h2",
+      ".figure-panel__title",
+      ".home-section-head h3",
+      ".hero-figure__title h3",
+      ".explore-head h2",
+    ]);
     for (const { name, text } of sheets.filter((s) => s.name !== "app.css")) {
       for (const rule of rules(text)) {
         const parts = rule.selector.split(",").map((s) => s.trim());
