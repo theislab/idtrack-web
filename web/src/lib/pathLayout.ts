@@ -112,15 +112,25 @@ interface LayoutOptions {
   scale: (release: number) => number;
   answerT: number;
   metrics: LayoutMetrics;
-  /** How many candidates to draw (the best ones always). */
+  /** How many candidates to draw (the best ones always, up to `maxBest`). */
   limit: number;
+  /** At most this many of the best candidates (in the api's order), where the drawing's width holds no more lanes. */
+  maxBest?: number;
   /** At most this many answers drawn per lane (one gene with hundreds of targets); the rest are counted, not drawn. */
   rowsPerLane?: number;
 }
 
-/** The candidates drawn: every best one, then the others in the api's order, up to `limit` in all. */
-export function shownCandidates(model: PathModel, limit: number): ModelCandidate[] {
-  const bests = model.candidates.filter((c) => c.best);
+/** The candidates drawn: every best one (the first `maxBest` of them), then the others in the api's order, up to
+ *  `limit` in all. */
+export function shownCandidates(
+  model: PathModel,
+  limit: number,
+  maxBest: number = Number.POSITIVE_INFINITY,
+): ModelCandidate[] {
+  const all = model.candidates.filter((c) => c.best);
+  const bests = all.slice(0, maxBest);
+  // Where not every best answer has room, no other candidate takes it.
+  if (bests.length < all.length) return bests;
   const others = model.candidates.filter((c) => !c.best);
   return [...bests, ...others.slice(0, Math.max(0, limit - bests.length))].sort((a, b) => a.index - b.index);
 }
@@ -297,7 +307,7 @@ function lanePlaces(
 
 export function layoutPath(model: PathModel, options: LayoutOptions): PathLayout {
   const { scale, metrics, answerT } = options;
-  const shown = shownCandidates(model, options.limit);
+  const shown = shownCandidates(model, options.limit, options.maxBest);
   const shownSteps = new Set(shown.flatMap((c) => c.steps));
   const visibleSteps = model.steps.filter((s) => shownSteps.has(s.index));
   const visibleNodeIds = new Set<string>();
@@ -624,9 +634,9 @@ export function scoreSteps(
 }
 
 /** The kinds of mark the drawn candidates' paths hold: the legend keys these, the rest behind "Key to every mark". */
-export function presentMarks(model: PathModel, limit: number): Set<string> {
+export function presentMarks(model: PathModel, limit: number, maxBest: number = Number.POSITIVE_INFINITY): Set<string> {
   const present = new Set<string>();
-  const shown = shownCandidates(model, limit);
+  const shown = shownCandidates(model, limit, maxBest);
   const seenSteps = new Set<number>();
   const seenGenes = new Set<string>();
   if (shown.some((c) => !c.best)) present.add("weak");

@@ -230,6 +230,18 @@ describe("the candidates drawn by default", () => {
       Math.max(Math.min(4, model.candidates.length), model.candidates.filter((c) => c.best).length),
     );
   });
+
+  it("draws the first best answers alone where the width holds fewer lanes than the best answers (a phone)", () => {
+    const tie = withPath.find(({ result }) => result.candidates.filter((c) => c.best).length > 2);
+    expect(tie).toBeDefined();
+    if (!tie) return;
+    const model = buildModel(tie.result);
+    const bests = model.candidates.filter((c) => c.best);
+    const shown = shownCandidates(model, 4, 2);
+    expect(shown).toEqual(bests.slice(0, 2));
+    // Every best answer drawn: the others follow up to the limit, as before.
+    expect(shownCandidates(model, 4, bests.length)).toEqual(shownCandidates(model, 4));
+  });
 });
 
 describe("answers without a path", () => {

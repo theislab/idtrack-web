@@ -866,6 +866,11 @@ a.anatomy__link:hover .anatomy__go {
   overflow: clip visible;
 }
 
+/* Every candidate of a wide tie drawn on a phone: the drawing scrolls sideways inside its frame. */
+.pv-canvas--wide {
+  overflow-x: auto;
+}
+
 .pv-svg {
   display: block;
   cursor: grab;

@@ -202,7 +202,10 @@ export function PathView({
   const limit = showAll ? Number.POSITIVE_INFINITY : vertical ? LIMIT_PHONE : LIMIT_WIDE;
   const rowsPerLane = showAll ? Number.POSITIVE_INFINITY : vertical ? ROWS_PHONE : ROWS_WIDE;
   const [drawn, setDrawn] = useState<number | null>(null);
-  const present = useMemo(() => presentMarks(model, limit), [model, limit]);
+  const bestCount = model.candidates.filter((c) => c.best).length;
+  // The key names the marks of the candidates drawn (on a phone a wide tie draws the first of its best answers).
+  const drawnBest = drawn !== null && drawn < bestCount ? drawn : Number.POSITIVE_INFINITY;
+  const present = useMemo(() => presentMarks(model, limit, drawnBest), [model, limit, drawnBest]);
 
   return (
     <div className="pv fig" ref={wrapper}>
@@ -247,7 +250,9 @@ export function PathView({
         <p className="pv__more">
           {showAll
             ? `All ${model.candidates.length} candidates are drawn.`
-            : `${drawn ?? 0} of ${model.candidates.length} candidates are drawn (the best and the next in rank, at most ${rowsPerLane} targets per gene); the reading and the table list all.`}{" "}
+            : (drawn ?? 0) < bestCount
+              ? `${drawn ?? 0} of the ${bestCount} best answers are drawn (as many lanes as the width holds)${bestCount < model.candidates.length ? `, of ${model.candidates.length} candidates` : ""}; the reading and the table list all.`
+              : `${drawn ?? 0} of ${model.candidates.length} candidates are drawn (the best and the next in rank, at most ${rowsPerLane} targets per gene); the reading and the table list all.`}{" "}
           <Button
             variant="quiet"
             onClick={() => {
@@ -1453,14 +1458,34 @@ function VerticalPath({
     [a, b, top, pixels],
   );
   const answerT = top + (b - a + 1) * pixels + 30;
-  const layout = useMemo(
-    () => layoutPath(model, { scale: (r) => scale(r), answerT, metrics, limit, rowsPerLane }),
-    [model, scale, answerT, metrics, limit, rowsPerLane],
-  );
+  const left = 46;
+  // The lanes stand side by side across the phone: a tie of many genes draws as many of its best answers as leave the
+  // labels' column room (sixteen characters and the score track), the first in the api's order (the line under the
+  // drawing says how many; "Draw all" draws every one, and the drawing then scrolls sideways).
+  const layout = useMemo(() => {
+    const at = (maxBest: number) =>
+      layoutPath(model, { scale: (r) => scale(r), answerT, metrics, limit, rowsPerLane, maxBest });
+    const fits = (l: PathLayout) => left + l.stackSize + 4 + 44 + 16 * CHAR <= width;
+    const whole = at(Number.POSITIVE_INFINITY);
+    if (!Number.isFinite(limit) || fits(whole)) return whole;
+    let lo = 1;
+    let hi = model.candidates.filter((c) => c.best).length - 1;
+    let found = at(1);
+    while (lo <= hi) {
+      const mid = Math.floor((lo + hi) / 2);
+      const l = at(mid);
+      if (fits(l)) {
+        found = l;
+        lo = mid + 1;
+      } else hi = mid - 1;
+    }
+    return found;
+  }, [model, scale, answerT, metrics, limit, rowsPerLane, width]);
+  // The drawing's own width: the frame's, or wider where every candidate is drawn and the lanes need it.
+  const drawWidth = Math.max(width, Math.ceil(left + layout.stackSize + 4 + 44 + 16 * CHAR));
   useEffect(() => {
     onDrawn(layout.shown.length);
   }, [layout.shown.length, onDrawn]);
-  const left = 46;
   const toXY = useCallback((t: number, s: number): [number, number] => [s + left, t], []);
   const isStrong = useCallback(
     (candidates: number[], best: boolean) => (highlight === null ? best : candidates.includes(highlight)),
@@ -1470,7 +1495,7 @@ function VerticalPath({
   // The score track runs down beside the lanes, the labels in a column to its right; where the column would leave a
   // label fewer than sixteen characters, the track gives way (the scores stay in each step's note and the reading).
   const trackX = left + layout.stackSize + 4;
-  const scored = (width - trackX - 44) / CHAR >= 16 ? allScored : [];
+  const scored = (drawWidth - trackX - 44) / CHAR >= 16 ? allScored : [];
   const gutter = trackX + (scored.length ? 44 : 4);
   const height = answerT + layout.answers.length * 4 + 40;
   const items = useItems(layout, model, names, toXY);
@@ -1519,7 +1544,7 @@ function VerticalPath({
         kind: "band",
       });
     }
-    const room = (width - gutter - 4) / CHAR;
+    const room = (drawWidth - gutter - 4) / CHAR;
     const shorts = shortNames(bands.map((band) => band.name));
     const bandText = (band: Band) =>
       [`${band.name} ${bandRange(band)}`, band.name, `${shorts.get(band.name) ?? band.name} ${bandRange(band)}`].find(
@@ -1538,7 +1563,7 @@ function VerticalPath({
       const text = middleCut(w.text, Math.floor(room));
       return text === null ? [] : [{ ...w, text }];
     });
-  }, [layout, toXY, gutter, width, bands, scale, a, b]);
+  }, [layout, toXY, gutter, drawWidth, bands, scale, a, b]);
   const totalHeight = Math.max(height, (labels[labels.length - 1]?.placed ?? 0) + 30);
 
   return (
@@ -1569,10 +1594,10 @@ function VerticalPath({
           </Button>
         </div>
       </div>
-      <div className="pv-canvas">
+      <div className={`pv-canvas${drawWidth > width ? " pv-canvas--wide" : ""}`}>
         <svg
           className="pv-svg pv-svg--vertical"
-          width={width}
+          width={drawWidth}
           height={totalHeight}
           role="group"
           aria-label={`Path of ${model.result.query_id} from release ${model.result.from_release ?? "—"} to ${model.result.to_release}, as a timeline from top to bottom. Arrow keys move between its elements; the reading below says every step.`}
@@ -1588,10 +1613,10 @@ function VerticalPath({
                   className={i % 2 ? "fig-band fig-band--b" : "fig-band"}
                   x={0}
                   y={y0}
-                  width={width}
+                  width={drawWidth}
                   height={Math.max(0, y1 - y0)}
                 />
-                <line className="fig-band__edge" x1={0} x2={width} y1={y0} y2={y0} />
+                <line className="fig-band__edge" x1={0} x2={drawWidth} y1={y0} y2={y0} />
               </g>
             );
           })}
@@ -1623,7 +1648,7 @@ function VerticalPath({
             focus={focus}
             range={[a, b]}
             vertical
-            across={[0, width]}
+            across={[0, drawWidth]}
           />
           {scored.length ? (
             <ScoreTrack
