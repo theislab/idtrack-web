@@ -20,7 +20,7 @@ export function BenchmarkProvenance({ organism, digest }: { organism: string; di
       )}
       with idtrack&apos;s code at its release {release}, whose answers are the release&apos;s; their results are
       published by <a href={`${BENCHMARKS_META.repository}/tree/${BENCHMARKS_META.commit}`}>idtrack-reproducibility</a>.{" "}
-      {asked ? <Link to="/method#method-evidence">How often it agrees with its truth</Link> : null}
+      {asked ? <Link to="/method?accuracy=family">How often it agrees with its truth</Link> : null}
     </span>
   );
 }

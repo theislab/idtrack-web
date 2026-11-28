@@ -26,10 +26,7 @@
 }
 
 .bench-dl dt {
-  font-family: var(--font-mono);
   font-size: var(--text-2xs);
-  letter-spacing: var(--track-label);
-  text-transform: uppercase;
   color: var(--ink-3);
   padding-top: 2px;
 }
@@ -71,8 +68,6 @@
   font-size: var(--text-2xs);
   font-weight: var(--weight-medium);
   color: var(--ink-3);
-  text-transform: uppercase;
-  letter-spacing: var(--track-label);
   border-bottom: 0;
   padding-bottom: 0;
 }
@@ -611,10 +606,7 @@
     content: attr(data-label);
     display: block;
     margin-bottom: var(--space-1);
-    font-family: var(--font-mono);
     font-size: var(--text-2xs);
-    letter-spacing: var(--track-label);
-    text-transform: uppercase;
     color: var(--ink-3);
   }
 
@@ -752,116 +744,139 @@
   }
 }
 
-/* ---- The evidence in brief, at the top of the Method page (components/method/EvidenceSummary.tsx) ------------ */
+/* ---- How often it is right, one organism at a time (components/method/Accuracy.tsx) ---------------------------- */
 
-.evidence {
+.accuracy {
   display: grid;
   gap: var(--space-4);
-  margin: 0 0 var(--space-7);
-  padding-top: var(--space-4);
-  border-top: 1px solid var(--ink-1);
 }
 
-.evidence__head {
-  display: grid;
-  gap: var(--space-2);
+.accuracy__organisms {
+  max-width: 100%;
+  overflow-x: auto;
+  scrollbar-width: none;
+  margin-bottom: var(--space-4);
 }
 
-.evidence__lede,
-.evidence__note {
-  max-width: var(--measure);
-  color: var(--ink-2);
+.accuracy__organisms .segmented__option {
+  white-space: nowrap;
 }
 
-.evidence__frame {
+.accuracy__frame {
   overflow-x: auto;
 }
 
-.evidence__table {
+.accuracy__table {
   width: 100%;
+  max-width: 44rem;
   border-collapse: collapse;
   font-size: var(--text-sm);
   font-variant-numeric: tabular-nums;
 }
 
-.evidence__table th,
-.evidence__table td {
-  padding: var(--space-2) var(--space-3);
-  border-bottom: 1px solid var(--line);
-  text-align: left;
-  vertical-align: top;
+.accuracy__table--all {
+  max-width: none;
 }
 
-.evidence__table thead th {
-  font-family: var(--font-mono);
-  font-size: var(--text-2xs);
+.accuracy__table th,
+.accuracy__table td {
+  padding: var(--space-3) var(--space-3);
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+  vertical-align: middle;
+}
+
+.accuracy__table thead th {
+  font-size: var(--text-xs);
   font-weight: var(--weight-medium);
-  letter-spacing: var(--track-label);
-  text-transform: uppercase;
   color: var(--ink-3);
 }
 
-.evidence__table thead th:first-child {
-  inline-size: 38%;
-}
-
-.evidence__table tbody th {
+.accuracy__table tbody th {
   font-weight: var(--weight-regular);
 }
 
-.evidence__family {
-  display: block;
+.accuracy__family {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.accuracy__family-name {
   font-weight: var(--weight-strong);
   color: var(--ink-1);
 }
 
-.evidence__measures {
-  display: block;
-  font-size: var(--text-xs);
-  line-height: var(--leading-caption);
+.accuracy__about-button {
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: none;
   color: var(--ink-3);
 }
 
-.evidence__rate {
+.accuracy__about-button[aria-expanded="true"] {
+  color: var(--ink-1);
+  background: color-mix(in srgb, var(--ink-1) 8%, transparent);
+}
+
+@media (hover: hover) {
+  .accuracy__about-button:hover {
+    color: var(--ink-1);
+    background: color-mix(in srgb, var(--ink-1) 8%, transparent);
+  }
+}
+
+.accuracy__measures {
+  display: block;
+  width: min(340px, calc(100vw - 48px));
+}
+
+.accuracy__rate {
   display: block;
   color: var(--ink-1);
 }
 
-.evidence__mark {
+.accuracy__mark {
   position: relative;
   display: block;
   block-size: 10px;
   inline-size: 100%;
   max-inline-size: 7rem;
   margin-top: var(--space-1);
+  margin-inline-start: auto;
   border-bottom: 1px solid var(--line-strong);
 }
 
-.evidence__mark .bench__dot {
+.accuracy__mark .bench__dot {
   inset-block-start: 1px;
   inline-size: 7px;
   block-size: 7px;
   inset-inline-start: calc(var(--at) * (100% - 7px));
 }
 
-.evidence__none {
+.accuracy__none {
   font-size: var(--text-xs);
 }
 
-.evidence__sub {
-  margin-top: var(--space-2);
+.accuracy__note {
+  max-width: var(--measure);
+  color: var(--ink-3);
 }
 
-.evidence__tasks {
+.accuracy__tasks {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 34rem), 1fr));
   gap: 0 var(--space-6);
-  margin: 0;
+  margin: 0 0 var(--space-6);
   padding: 0;
   list-style: none;
 }
 
-.evidence__task {
+.accuracy__task {
   display: grid;
   align-content: start;
   gap: var(--space-1);
@@ -871,17 +886,17 @@
   font-size: var(--text-sm);
 }
 
-.evidence__task-name {
+.accuracy__task-name {
   color: var(--ink-1);
   font-weight: var(--weight-medium);
 }
 
-.evidence__task-words {
+.accuracy__task-words {
   color: var(--ink-2);
 }
 
 @media (max-width: 760px) {
-  .evidence__table thead {
+  .accuracy__table--all thead {
     position: absolute;
     inline-size: 1px;
     block-size: 1px;
@@ -889,38 +904,40 @@
     clip-path: inset(50%);
   }
 
-  .evidence__table,
-  .evidence__table tbody {
+  .accuracy__table--all,
+  .accuracy__table--all tbody {
     display: block;
   }
 
-  .evidence__table tbody tr {
+  .accuracy__table--all tbody tr {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
     border-bottom: 1px solid var(--line);
     padding-bottom: var(--space-2);
   }
 
-  .evidence__table tbody th {
+  .accuracy__table--all tbody th {
     grid-column: 1 / -1;
     border: 0;
     padding-inline: 0;
   }
 
-  .evidence__table tbody td {
+  .accuracy__table--all tbody td {
     min-width: 0;
     border: 0;
     padding: var(--space-1) var(--space-2) var(--space-1) 0;
+    text-align: left;
   }
 
-  .evidence__table tbody td::before {
+  .accuracy__table--all tbody td::before {
     content: attr(data-label);
     display: block;
-    font-family: var(--font-mono);
-    font-size: var(--text-2xs);
-    letter-spacing: var(--track-label);
-    text-transform: uppercase;
+    font-size: var(--text-xs);
     color: var(--ink-3);
+  }
+
+  .accuracy__table--all .accuracy__mark {
+    margin-inline-start: 0;
   }
 }
 

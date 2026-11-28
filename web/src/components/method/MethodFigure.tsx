@@ -1,6 +1,6 @@
-// How idtrack answers, as one figure of five lettered panels: (a) read the identifier, (b) walk Ensembl's history,
-// (c) bridge through an id two genes carried, (d) rank the candidates, (e) answer in the database asked. Each panel draws
-// its stage on a real answer of this server (StageCase: asked when the panel comes into view, linked to its answer),
+// How IDTrack answers, as a stepper of five stages, one at a time: read the identifier, walk Ensembl's history, bridge
+// through an id two genes carried, rank the candidates, answer in the database asked. Each stage draws itself on a
+// real answer of this server (StageCase: asked when the panel comes into view, linked to its answer),
 // with the figure grammar of every page, and beside it the terms of the stage, every word of meaning idtrack's: the
 // api's vocabulary (`GET /api/v1/vocabulary`, idtrack's own tables) or idtrack's documentation at the pinned commit
 // (src/generated/idtrack_docs.json), linked.
@@ -12,8 +12,11 @@ import { firstWords } from "../../lib/values";
 import { spaced, type Vocabulary } from "../../lib/vocabulary";
 import { useVocabulary } from "../../lib/vocabularyContext";
 import { Term } from "../ResultParts";
-import { useEffect, useRef, useState, type ReactNode } from "react";
-import { Disclosure, Prose, StatusBadge } from "../ui";
+import type { ReactNode } from "react";
+import { navigate } from "../../lib/router";
+import { Expandable } from "../v2/Expandable";
+import { Tabs } from "../v2/Tabs";
+import { Button, Disclosure, Prose, StatusBadge } from "../ui";
 import { AnswerFigure } from "./AnswerFigure";
 import { BridgeChecks } from "./BridgeChecks";
 import { HistoryKinds } from "./HistoryKinds";
@@ -28,15 +31,12 @@ function Meaning({ text }: { text: string | null | undefined }) {
   return <Prose text={text} />;
 }
 
-function PanelHead({ letter, id, title, docs }: { letter: string; id: string; title: string; docs: string }) {
+function PanelHead({ id, title, docs }: { id: string; title: string; docs: string }) {
   return (
     <div className="method-panel__head">
-      <span className="panel-letter" aria-hidden="true">
-        {letter}
-      </span>
-      <h2 id={id}>{title}</h2>
+      <h3 id={id}>{title}</h3>
       <a className="method-panel__docs" href={docs}>
-        idtrack&apos;s documentation
+        IDTrack&apos;s documentation
       </a>
     </div>
   );
@@ -101,19 +101,16 @@ function TermList({
 function Glossary({ lists, children }: { lists: [string, number][]; children: ReactNode }) {
   const words = lists.map(([what, n]) => (n ? `${what} (${n})` : what)).join(", ");
   return (
-    <div className="method-glossary">
-      <Disclosure summary={<span className="method-glossary__summary">The terms of this stage: {words}</span>}>
-        {children}
-      </Disclosure>
-    </div>
+    <Expandable className="method-glossary" summary="The terms of this stage" meta={words}>
+      {children}
+    </Expandable>
   );
 }
 
 function ReadPanel({ v }: { v: Vocabulary }) {
   return (
-    <section className="panel method-panel" aria-labelledby="method-read">
+    <section className="method-panel" aria-labelledby="method-read">
       <PanelHead
-        letter="a"
         id="method-read"
         title="Read the identifier"
         docs={docsPage("reading.html#reading-matching")}
@@ -158,9 +155,8 @@ function ReadPanel({ v }: { v: Vocabulary }) {
 
 function WalkPanel({ v }: { v: Vocabulary }) {
   return (
-    <section className="panel method-panel" aria-labelledby="method-walk">
+    <section className="method-panel" aria-labelledby="method-walk">
       <PanelHead
-        letter="b"
         id="method-walk"
         title="Walk Ensembl's history"
         docs={docsPage("concepts.html#concept-history")}
@@ -249,9 +245,8 @@ const PLACES_LIMITATION = "places-across-an-assembly-change";
 function BridgePanel({ v }: { v: Vocabulary }) {
   const rules = [...v.bridgeRules.entries()];
   return (
-    <section className="panel method-panel" aria-labelledby="method-bridge">
+    <section className="method-panel" aria-labelledby="method-bridge">
       <PanelHead
-        letter="c"
         id="method-bridge"
         title="Bridge through an id two genes carried"
         docs={docsPage("concepts.html#concept-bridges")}
@@ -312,9 +307,8 @@ function BridgePanel({ v }: { v: Vocabulary }) {
 
 function RankPanel({ v }: { v: Vocabulary }) {
   return (
-    <section className="panel method-panel" aria-labelledby="method-rank">
+    <section className="method-panel" aria-labelledby="method-rank">
       <PanelHead
-        letter="d"
         id="method-rank"
         title="Rank the candidates"
         docs={docsPage("concepts.html#concept-ranking")}
@@ -362,7 +356,7 @@ function RankPanel({ v }: { v: Vocabulary }) {
           );
         })}
       </ol>
-      <Disclosure summary="Each criterion in idtrack's full words">
+      <Expandable summary="Each criterion in IDTrack's full words" meta={`${v.criteria.length} criteria`}>
         <dl className="method-terms method-terms--full">
           {v.criteria.map((c) => (
             <div key={c.code}>
@@ -375,16 +369,15 @@ function RankPanel({ v }: { v: Vocabulary }) {
             </div>
           ))}
         </dl>
-      </Disclosure>
+      </Expandable>
     </section>
   );
 }
 
 function AnswerPanel({ v }: { v: Vocabulary }) {
   return (
-    <section className="panel method-panel" aria-labelledby="method-answer">
+    <section className="method-panel" aria-labelledby="method-answer">
       <PanelHead
-        letter="e"
         id="method-answer"
         title="Answer in the database asked"
         docs={docsPage("concepts.html#concept-statuses")}
@@ -427,118 +420,125 @@ function AnswerPanel({ v }: { v: Vocabulary }) {
   );
 }
 
-const STAGES: [string, string, string, string][] = [
-  ["a", "method-read", "Read", "The typed string, matched to an identifier of the graph at the release it is read at"],
-  [
-    "b",
-    "method-walk",
-    "Walk",
-    "Ensembl's version events, forward or backward, from the entry gene to the target release",
-  ],
-  [
-    "c",
-    "method-bridge",
-    "Bridge",
-    "Where the history reaches no gene: through an id two genes carried, where a rule allows it",
-  ],
-  [
-    "d",
-    "method-rank",
-    "Rank",
-    "Every candidate reached, by idtrack's criteria in order: the first that differs decides",
-  ],
-  [
-    "e",
-    "method-answer",
-    "Answer",
-    "The best answer's gene, or its id in the database asked; a tie, not a guess, where the evidence is equal",
-  ],
+/** The five stages, in order: each a tab of the stepper (its words the tab's hint), kept in the address (`?stage=`). */
+const STAGES: { id: string; title: string; words: string; panel: (v: Vocabulary) => ReactNode }[] = [
+  {
+    id: "read",
+    title: "Read",
+    words: "The typed string, matched to an identifier of the graph at the release it is read at",
+    panel: (v) => <ReadPanel v={v} />,
+  },
+  {
+    id: "walk",
+    title: "Walk",
+    words: "Ensembl's version events, forward or backward, from the entry gene to the target release",
+    panel: (v) => <WalkPanel v={v} />,
+  },
+  {
+    id: "bridge",
+    title: "Bridge",
+    words: "Where the history reaches no gene: through an id two genes carried, where a rule allows it",
+    panel: (v) => <BridgePanel v={v} />,
+  },
+  {
+    id: "rank",
+    title: "Rank",
+    words: "Every candidate reached, by IDTrack's criteria in order: the first that differs decides",
+    panel: (v) => <RankPanel v={v} />,
+  },
+  {
+    id: "answer",
+    title: "Answer",
+    words: "The best answer's gene, or its id in the database asked; a tie, not a guess, where the evidence is equal",
+    panel: (v) => <AnswerPanel v={v} />,
+  },
 ];
 
-/** The way back to the page's contents, once they are scrolled past: a long page is never thirty swipes from its
- *  index. Read from the scroll position on each frame that scrolls (an observer of intersections is told nothing when
- *  a jump carries the contents from below the window to above it). */
-function useAway<E extends Element>() {
-  const ref = useRef<E>(null);
-  const [away, setAway] = useState(false);
-  useEffect(() => {
-    let frame = 0;
-    const read = () => {
-      frame = 0;
-      const element = ref.current;
-      if (element) setAway(element.getBoundingClientRect().bottom < 0);
-    };
-    const onScroll = () => {
-      if (!frame) frame = window.requestAnimationFrame(read);
-    };
-    read();
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => {
-      window.removeEventListener("scroll", onScroll);
-      if (frame) window.cancelAnimationFrame(frame);
-    };
-  }, []);
-  return { ref, away };
+/** The way on from a stage: the previous and the next, each a button that chooses its tab, brings the stepper's
+ *  top into view and moves the focus to the chosen tab (the arrow keys of the tab list do the same). */
+function StageSteps({ at }: { at: number }) {
+  const go = (i: number) => {
+    const search = new URLSearchParams(window.location.search);
+    if (i === 0) search.delete("stage");
+    else search.set("stage", STAGES[i]?.id ?? "");
+    const text = search.toString();
+    navigate(`${window.location.pathname}${text ? `?${text}` : ""}`, { replace: true });
+    window.setTimeout(() => {
+      const stepper = document.querySelector(".method-stepper");
+      stepper?.scrollIntoView({ block: "start" });
+      stepper?.querySelector<HTMLElement>('[role="tab"][aria-selected="true"]')?.focus({ preventScroll: true });
+    }, 0);
+  };
+  const previous = STAGES[at - 1];
+  const next = STAGES[at + 1];
+  return (
+    <div className="method-steps">
+      {previous ? (
+        <Button
+          variant="quiet"
+          onClick={() => {
+            go(at - 1);
+          }}
+        >
+          <span aria-hidden="true">← </span>
+          {at}. {previous.title}
+        </Button>
+      ) : (
+        <span />
+      )}
+      {next ? (
+        <Button
+          variant="secondary"
+          onClick={() => {
+            go(at + 1);
+          }}
+        >
+          Next: {at + 2}. {next.title}
+          <span aria-hidden="true"> →</span>
+        </Button>
+      ) : null}
+    </div>
+  );
 }
 
-export function MethodFigure() {
+/** How IDTrack answers, as a stepper of five stages, one shown at a time, each drawn on a real answer of this
+ *  server. */
+export function MethodStages() {
   const v = useVocabulary();
-  const { ref: contents, away } = useAway<HTMLElement>();
   return (
     <div className="method-figure">
-      <ol className="method-stages" aria-label="The stages of an answer">
-        {STAGES.map(([letter, id, title, words]) => (
-          <li key={letter}>
-            <a href={`#${id}`} className="method-stage">
-              <span className="method-stage__letter">{letter}</span>
-              <span className="method-stage__title">{title}</span>
-              <span className="method-stage__words">{words}</span>
-            </a>
-          </li>
-        ))}
-      </ol>
-      <nav className="method-contents" aria-label="Also on this page" id="method-contents" ref={contents}>
-        <span className="label">Also on this page</span>
-        <ul>
-          {[
-            ["method-evidence", "f", "How often idtrack agrees with Ensembl's records"],
-            ["method-tools", "g", "The same lines asked of other tools"],
-            ["cite", "", "How to cite"],
-            ["data", "", "The data this server answers from"],
-            ["known-limitations", "", "What idtrack does not do yet"],
-            ["limits", "", "Limits"],
-          ].map(([id, letter, words]) => (
-            <li key={id}>
-              <a href={`#${id ?? ""}`}>
-                {letter ? <span className="method-contents__letter">{letter}</span> : null}
-                {words}
-              </a>
-            </li>
-          ))}
-        </ul>
-      </nav>
       {v.available ? null : (
         <p className="notice" role="status">
           The api&apos;s vocabulary could not be read: the codes below are shown without their meanings.
         </p>
       )}
-      {away ? (
-        <a href="#method-contents" className="method-back">
-          Contents
-          <svg viewBox="0 0 12 12" aria-hidden="true" focusable="false">
-            <path d="M6 10V2M2.5 5.5 6 2l3.5 3.5" fill="none" stroke="currentColor" strokeWidth="1.4" />
-          </svg>
-        </a>
-      ) : null}
-      <ReadPanel v={v} />
-      <WalkPanel v={v} />
-      <BridgePanel v={v} />
-      <RankPanel v={v} />
-      <AnswerPanel v={v} />
+      <Tabs
+        label="The stages of an answer"
+        param="stage"
+        className="method-stepper"
+        items={STAGES.map((stage, i) => ({
+          id: stage.id,
+          label: (
+            <>
+              <span className="method-stepper__n" aria-hidden="true">
+                {i + 1}
+              </span>
+              {stage.title}
+            </>
+          ),
+          panel: () => (
+            <>
+              <p className="method-stepper__words">{stage.words}.</p>
+              {stage.panel(v)}
+              <StageSteps at={i} />
+            </>
+          ),
+        }))}
+      />
       <p className="method-source">
-        Meanings: <span className="mono">GET /api/v1/vocabulary</span> (idtrack&apos;s own tables; the statuses in the
-        api&apos;s words, marked by it as such), and idtrack&apos;s documentation,{" "}
-        <a href={docsPage("concepts.html")}>How idtrack Answers</a> and{" "}
+        Meanings: <span className="mono">GET /api/v1/vocabulary</span> (IDTrack&apos;s own tables; the statuses in the
+        api&apos;s words, marked by it as such), and IDTrack&apos;s documentation,{" "}
+        <a href={docsPage("concepts.html")}>How IDTrack Answers</a> and{" "}
         <a href={docsPage("reading.html")}>How an Identifier Is Read</a>.
       </p>
     </div>

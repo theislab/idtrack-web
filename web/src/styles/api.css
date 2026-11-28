@@ -27,9 +27,7 @@
 }
 
 .api-facts dt {
-  font-family: var(--font-mono);
   font-size: var(--text-2xs);
-  text-transform: uppercase;
   letter-spacing: 0.12em;
   color: var(--ink-3);
 }
@@ -101,9 +99,7 @@
 }
 
 .api-toc__head {
-  font-family: var(--font-mono);
   font-size: var(--text-2xs);
-  text-transform: uppercase;
   letter-spacing: 0.12em;
   color: var(--ink-3);
   margin-bottom: var(--space-2);
@@ -591,10 +587,8 @@
 }
 
 .endpoint__label {
-  font-family: var(--font-mono);
   font-size: var(--text-2xs);
   font-weight: var(--weight-medium);
-  text-transform: uppercase;
   letter-spacing: 0.12em;
   color: var(--ink-3);
   margin: var(--space-2) 0 0;
@@ -734,9 +728,7 @@
 .params__flag {
   font-size: var(--text-2xs);
   color: var(--ink-3);
-  text-transform: uppercase;
   letter-spacing: 0.08em;
-  font-family: var(--font-mono);
 }
 
 .params__flag--required {
@@ -785,10 +777,8 @@
 }
 
 .answers-fold__label {
-  font-family: var(--font-mono);
   font-size: var(--text-2xs);
   font-weight: var(--weight-medium);
-  text-transform: uppercase;
   letter-spacing: 0.12em;
   color: var(--ink-3);
   margin-right: var(--space-2);
@@ -928,8 +918,6 @@
   margin-left: var(--space-2);
   font-size: var(--text-2xs);
   color: var(--ink-3);
-  font-family: var(--font-mono);
-  text-transform: uppercase;
   letter-spacing: 0.08em;
 }
 
@@ -1018,10 +1006,8 @@
 }
 
 .code-block__label {
-  font-family: var(--font-mono);
   font-size: var(--text-2xs);
   font-size-adjust: none;
-  text-transform: uppercase;
   letter-spacing: 0.12em;
   color: var(--ink-3);
   padding: var(--space-2) var(--space-4) 0;
@@ -1135,9 +1121,7 @@
 }
 
 .exchange__fact dt {
-  font-family: var(--font-mono);
   font-size: var(--text-2xs);
-  text-transform: uppercase;
   letter-spacing: 0.1em;
   color: var(--ink-3);
 }
@@ -1605,10 +1589,7 @@
 }
 
 .exchange__error dt {
-  font-family: var(--font-mono);
   font-size: var(--text-2xs);
-  text-transform: uppercase;
-  letter-spacing: var(--track-label);
   color: var(--ink-3);
 }
 

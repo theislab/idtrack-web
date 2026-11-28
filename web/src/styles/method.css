@@ -1,72 +1,111 @@
-/* Method (pages/MethodPage.tsx, components/method/MethodFigure.tsx): how idtrack answers, as a figure of five
-   lettered panels, then the server's data, the citation, the known limitations and the bounds. */
+/* Method (pages/MethodPage.tsx, components/method/MethodFigure.tsx): how IDTrack answers, as a stepper of five
+   stages, how often it is right (styles/benchmarks.css), then using its answers: tabs and the citation's drawer. */
+
+/* ---- The page's sections ------------------------------------------------------------------------------------- */
+
+.method-section,
+.accuracy {
+  margin-top: var(--space-9);
+}
+
+.method-section:first-of-type {
+  margin-top: var(--space-6);
+}
+
+.method-section__head {
+  display: grid;
+  gap: var(--space-2);
+  margin-bottom: var(--space-4);
+}
+
+.method-section__head--row {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: var(--space-3) var(--space-5);
+}
+
+.method-section__lede {
+  margin: 0;
+  max-width: var(--measure);
+  color: var(--ink-2);
+}
+
+/* ---- The stepper: five stages, one shown --------------------------------------------------------------------- */
+
+.method-stepper .tabs__tab {
+  gap: var(--space-2);
+}
+
+.method-stepper__n {
+  display: inline-grid;
+  margin-right: var(--space-2);
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-pill);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--ink-3);
+  transition:
+    background var(--dur-2) var(--ease-out),
+    color var(--dur-1),
+    border-color var(--dur-1);
+}
+
+.method-stepper .tabs__tab[aria-selected="true"] .method-stepper__n {
+  border-color: var(--ink-1);
+  background: var(--ink-1);
+  color: var(--paper);
+}
+
+.method-stepper__words {
+  margin: 0 0 var(--space-5);
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  line-height: 1.35;
+  color: var(--ink-1);
+  max-width: 48rem;
+}
+
+.method-steps {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-top: var(--space-7);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--line);
+}
+
+/* ---- Using its answers, and the citation's drawer ------------------------------------------------------------- */
+
+.method-cite {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.method-cite p {
+  margin: 0;
+}
+
+.method-cite__copy {
+  justify-self: start;
+}
+
+@media (max-width: 640px) {
+  .method-section__head--row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .method-section__head--row .button {
+    justify-self: start;
+  }
+}
 
 .method-figure {
   display: grid;
   gap: var(--space-5);
   min-width: 0;
-}
-
-/* The five stages, as one strip of the figure: each a link to its panel. */
-.method-stages {
-  list-style: none;
-  margin: 0 0 var(--space-3);
-  padding: 0;
-  display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  border-top: 1px solid var(--ink-1);
-  border-bottom: 1px solid var(--line);
-  counter-reset: stage;
-}
-
-.method-stages li + li .method-stage {
-  border-left: 1px solid var(--line);
-}
-
-.method-stage {
-  position: relative;
-  display: grid;
-  gap: var(--space-1);
-  height: 100%;
-  padding: var(--space-4) var(--space-4) var(--space-5);
-  text-decoration: none;
-  color: var(--ink-1);
-  border-radius: 0;
-}
-
-.method-stage:hover {
-  background: var(--surface-sunk);
-}
-
-.method-stages li + li .method-stage::before {
-  content: "→";
-  position: absolute;
-  left: -0.55em;
-  top: var(--space-4);
-  padding: 0 2px;
-  background: var(--paper);
-  color: var(--ink-3);
-  font-size: var(--text-sm);
-  line-height: 1.4;
-}
-
-.method-stage__letter {
-  font-weight: var(--weight-strong);
-  font-size: var(--text-md);
-}
-
-.method-stage__title {
-  font-family: var(--font-display);
-  font-size: var(--text-2xl);
-  font-weight: var(--weight-medium);
-  letter-spacing: -0.015em;
-  line-height: 1.1;
-}
-
-.method-stage__words {
-  font-size: var(--text-xs);
-  color: var(--ink-2);
-  line-height: 1.5;
 }
 
 .method-panel {
@@ -76,11 +115,11 @@
   scroll-margin-top: calc(var(--masthead-height) + var(--space-4));
 }
 
-/* A panel's head: its letter on the first line of its title (a long title wraps beside the letter, never under it),
-   the link to its documentation at the right, or under the title where there is no room. */
+/* A stage's head: its title, the link to its documentation at the right, or under the title where there is no
+   room. */
 .method-panel__head {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: baseline;
   gap: var(--space-1) var(--space-3);
 }
@@ -90,8 +129,8 @@
 }
 
 @media (max-width: 640px) {
-  .method-panel__docs {
-    grid-column: 2 / -1;
+  .method-panel__head {
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 
@@ -105,10 +144,6 @@
   margin-top: var(--space-2);
 }
 
-.method-glossary__summary {
-  font-weight: var(--weight-medium);
-}
-
 /* What an example's evidence leaves open, said under its figure. */
 .method-caveat {
   max-width: var(--measure);
@@ -116,32 +151,6 @@
   border-left: 2px solid var(--state-warn);
   font-size: var(--text-sm);
   color: var(--ink-2);
-}
-
-/* The way back to the contents of a long page, once they are scrolled past. */
-.method-back {
-  position: fixed;
-  right: var(--space-4);
-  bottom: var(--space-4);
-  z-index: 15;
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-  min-height: 44px;
-  padding: 0 var(--space-4);
-  border: 1px solid var(--line-strong);
-  border-radius: 999px;
-  background: var(--surface-raised);
-  color: var(--ink-1);
-  box-shadow: var(--shadow);
-  font-size: var(--text-sm);
-  font-weight: var(--weight-medium);
-  text-decoration: none;
-}
-
-.method-back svg {
-  width: 12px;
-  height: 12px;
 }
 
 .method-sub {
@@ -216,37 +225,6 @@
 .method-terms--full dt code {
   font-size: var(--text-xs);
   overflow-wrap: anywhere;
-}
-
-/* The page's other parts, named under the stages. */
-.method-contents {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: var(--space-2) var(--space-4);
-  margin: calc(-1 * var(--space-3)) 0 var(--space-6);
-  font-size: var(--text-sm);
-  scroll-margin-top: calc(var(--masthead-height) + var(--space-6));
-}
-
-.method-contents ul {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-1) var(--space-4);
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.method-contents a {
-  color: var(--ink-2);
-}
-
-.method-contents__letter {
-  margin-right: var(--space-1);
-  font-family: var(--font-display);
-  font-weight: var(--weight-strong);
-  color: var(--ink-1);
 }
 
 /* b: the kinds of history step, each drawn as a small schematic beside what Ensembl recorded; a row of the
@@ -386,9 +364,7 @@
 }
 
 .method-ladder__group {
-  font-family: var(--font-mono);
   font-size: var(--text-2xs);
-  text-transform: uppercase;
   letter-spacing: 0.08em;
   color: var(--ink-3);
   text-align: right;
@@ -399,40 +375,7 @@
   color: var(--ink-3);
 }
 
-.method-after {
-  margin-top: var(--space-7);
-  grid-auto-flow: row dense;
-}
-
-/* The data and the limitations need the width; the citation and the bounds share a row. */
-.method-after > [aria-labelledby="data"],
-.method-after > [aria-labelledby="known-limitations"] {
-  grid-column: 1 / -1;
-}
-
 @media (max-width: 760px) {
-  .method-stages {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .method-stages li + li .method-stage {
-    border-left: none;
-    border-top: 1px solid var(--line);
-  }
-
-  .method-stages li + li .method-stage::before {
-    content: none;
-  }
-
-  .method-stage {
-    grid-template-columns: 1.5em auto;
-    padding: var(--space-3) 0;
-  }
-
-  .method-stage__words {
-    grid-column: 2;
-  }
-
   .method-columns {
     grid-template-columns: minmax(0, 1fr);
     gap: var(--space-4);
@@ -467,10 +410,10 @@
   }
 }
 
-/* The page's scope, under the lede. */
+/* The page's scope, above its limitations. */
 .method-scope {
   max-width: var(--measure);
-  margin-top: var(--space-4);
+  margin-top: 0;
   padding-left: var(--space-3);
   border-left: 2px solid var(--line-strong);
   font-size: var(--text-sm);
@@ -687,8 +630,6 @@
 
 .bridge-checks__verdict {
   font-size: var(--text-xs);
-  text-transform: uppercase;
-  letter-spacing: var(--track-label);
 }
 
 .bridge-checks__places {
@@ -717,8 +658,6 @@
   font-size: var(--text-2xs);
   font-weight: var(--weight-medium);
   color: var(--ink-3);
-  text-transform: uppercase;
-  letter-spacing: var(--track-label);
 }
 
 .rank-fig__table thead th .mono {
@@ -878,8 +817,6 @@
 .answer-fig__head {
   font-size: var(--text-2xs);
   fill: var(--ink-3);
-  text-transform: uppercase;
-  letter-spacing: var(--track-label);
 }
 
 .answer-fig__edge {

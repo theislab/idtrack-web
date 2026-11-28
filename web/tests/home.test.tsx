@@ -1,15 +1,15 @@
 // @vitest-environment jsdom
-// The Convert page's figures, Explore's matrix and the Method figure, on recorded answers of the real api: each model
+// Explore's journeys and cases, its matrix and the Method figure, on recorded answers of the real api: each model
 // keeps every step of the best answer, in order, with the api's values; the journeys are the showcase's in sets of
 // equal parameters, and the release-wide events are counted from them; the facts are the sums of what /organisms
 // sent; a case's kind is read from its answer, and its card says the answer's own values; the Method figure states
 // every code of the api's vocabulary it names, with the api's meaning.
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import type { ConversionResult, DatabasesResponse, ShowcaseResponse } from "../src/api/types";
 import { CaseGallery } from "../src/components/explore/CaseGallery";
 import { sketchRows, atOneRelease, genesNotDrawn, sketchWindow } from "../src/lib/explore/sketch";
-import { MethodFigure } from "../src/components/method/MethodFigure";
+import { MethodStages } from "../src/components/method/MethodFigure";
 import { readMatrix } from "../src/lib/explore/databaseMatrix";
 import { runs } from "../src/lib/explore/runs";
 import { releaseScale, shortNames } from "../src/components/figure/releases";
@@ -427,6 +427,10 @@ describe("the kinds of the cases", () => {
     // The cards are drawn once what changes their words has come (here: requests that fail at once).
     expect(await screen.findByRole("link", { name: /A tie, not a guess/ }, { timeout: 4000 })).toBeTruthy();
     const card = document.querySelector(".case");
+    // On its surface: the kind, the identifier and its releases; the concept and the values in its hover card.
+    expect(card?.querySelector(".case__line")?.textContent).toContain(tie.query_id);
+    expect(card?.textContent).not.toContain(KIND_TEXT.tie.concept);
+    fireEvent.click(screen.getByRole("button", { name: /^About this case: a tie, not a guess/ }));
     for (const target of new Set(
       tie.candidates
         .filter((c) => c.best)
@@ -546,11 +550,22 @@ describe("the Method figure", () => {
     render(
       <OrganismsProvider>
         <VocabularyContext.Provider value={vocabulary}>
-          <MethodFigure />
+          <MethodStages />
         </VocabularyContext.Provider>
       </OrganismsProvider>,
     );
-    const text = document.body.textContent;
+    // One stage at a time: each tab chosen in turn, every folded row of its panel opened, the words gathered.
+    let text = "";
+    let order: (string | null)[] = [];
+    for (const tab of screen.getAllByRole("tab")) {
+      fireEvent.click(tab);
+      for (const row of screen.getByRole("tabpanel").querySelectorAll<HTMLElement>('button[aria-expanded="false"]'))
+        if (row.classList.contains("expandable__summary")) fireEvent.click(row);
+      text += document.body.textContent;
+      const ladder = screen.queryByRole("list", { name: "The criteria, in the order they decide" });
+      if (ladder)
+        order = [...ladder.querySelectorAll(".method-ladder__body .method-code")].map((e) => e.textContent);
+    }
     const plain = (t: string) => prose(t).replace(/`/g, "");
     for (const [code, meaning] of [
       ...vocabulary.matchSteps,
@@ -584,15 +599,13 @@ describe("the Method figure", () => {
       expect(text).toContain(plain(meaning ?? ""));
     }
     for (const [, meaning] of vocabulary.statuses) if (meaning) expect(text).toContain(plain(meaning));
-    const ladder = screen.getByRole("list", { name: "The criteria, in the order they decide" });
-    const order = [...ladder.querySelectorAll(".method-ladder__body .method-code")].map((e) => e.textContent);
     expect(order).toEqual(vocabulary.criteria.map((c) => spaced(c.code)));
   });
 
   it("says so when the vocabulary could not be read", () => {
     render(
       <OrganismsProvider>
-        <MethodFigure />
+        <MethodStages />
       </OrganismsProvider>,
     );
     expect(screen.getByRole("status").textContent).toContain("could not be read");
