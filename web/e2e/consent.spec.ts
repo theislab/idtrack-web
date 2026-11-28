@@ -199,7 +199,8 @@ test("every hit carries the page's path and name alone: no query, identifier or 
   await page.mouse.wheel(0, 4000);
   await page.waitForTimeout(1500);
   await page.getByRole("contentinfo").getByRole("link", { name: "API", exact: true }).click();
-  await expect(page).toHaveURL(/\/developers$/);
+  // The sections keep the organism in view (`?organism=`); the hits must still carry the path alone.
+  await expect(page).toHaveURL(/\/developers(\?organism=[a-z_]+)?$/);
   // A few seconds on the page, so that the tag has time of engagement to report when the tab is hidden.
   await page.waitForTimeout(3000);
   await page.evaluate(() => {
