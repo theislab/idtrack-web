@@ -9,7 +9,9 @@ const PAGES: [string, string, (page: Page) => Promise<void>][] = [
     "home",
     "/",
     async (page) => {
-      await expect(page.locator(".hero2__caption")).toBeVisible();
+      // The headline, and the picture's caption drawn (a window too short for it leaves the caption out).
+      await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+      await expect(page.locator(".hero2__caption")).toBeAttached();
     },
   ],
   [

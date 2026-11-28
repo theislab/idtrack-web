@@ -17,6 +17,11 @@ declare global {
     trustedTypes?: {
       createPolicy(name: string, rules: { createScriptURL(url: string): string }): TrustedTypePolicy;
     };
+    /** Google's data layer, which its tag reads (lib/analytics.ts; only after a visitor's consent): the arguments of
+     *  each call of `gtag`, in order. */
+    dataLayer?: IArguments[];
+    /** Google's call that queues a command for its tag (lib/analytics.ts). */
+    gtag?: (...args: unknown[]) => void;
     /** Development only (components/hero/canvas.ts, `?hero-frames`): draw the home's picture at a moment, in seconds. */
     __heroTime?: (seconds: number) => void;
     /** Development only: the GPU work of the picture's last frame. */

@@ -95,38 +95,30 @@ export function pageFields(path: string): { page_location: string; page_title: s
   };
 }
 
-interface Tagged {
-  dataLayer?: unknown[];
-  gtag?: (...args: unknown[]) => void;
-  trustedTypes?: { createPolicy: (name: string, rules: { createScriptURL: (url: string) => string }) => unknown };
-}
-
-/** The window's own properties, where Google's tag reads its switches. */
-const flags = () => window as unknown as Record<string, unknown>;
-
 /** The measurement id whose tag this page loaded (null: none yet). */
 let started: string | null = null;
 
-/** Google's switch that stops its tag for one measurement id. */
+/** Google's switch that stops its tag for one measurement id: a property of the window named after the id (so not a
+ *  name a type can declare: it is set and read by its name). */
 const disabled = (id: string) => `ga-disable-${id}`;
+const setDisabled = (id: string, value: boolean) => Reflect.set(window, disabled(id), value);
+const isDisabled = (id: string) => Reflect.get(window, disabled(id)) === true;
 
 /** Load Google's tag for `id`, once, with the fields of the page at `path` (and let it count again where a consent was
  *  withdrawn before). */
 export function startAnalytics(id: string, path: string): void {
-  flags()[disabled(id)] = false;
+  setDisabled(id, false);
   if (started === id) return;
   started = id;
-  const w = window as unknown as Tagged;
-  w.dataLayer = w.dataLayer ?? [];
-  const layer = w.dataLayer;
-  w.gtag = function gtag() {
+  const layer = (window.dataLayer ??= []);
+  window.gtag = function gtag() {
     // eslint-disable-next-line prefer-rest-params -- Google's tag reads only an arguments object from its data layer.
     layer.push(arguments);
   };
   const fields = pageFields(path);
-  w.gtag("js", new Date());
-  w.gtag("set", fields);
-  w.gtag("config", id, {
+  window.gtag("js", new Date());
+  window.gtag("set", fields);
+  window.gtag("config", id, {
     ...fields,
     send_page_view: false,
     cookie_domain: "none",
@@ -135,26 +127,26 @@ export function startAnalytics(id: string, path: string): void {
   });
   const url = `https://www.googletagmanager.com/gtag/js?id=${encodeURIComponent(id)}`;
   // The page's Trusted Types allow one policy of its own, which passes the tag's address and nothing else.
-  const policy = w.trustedTypes?.createPolicy("idtrack-analytics", {
+  const policy = window.trustedTypes?.createPolicy("idtrack-analytics", {
     createScriptURL: (value: string) => {
       if (value !== url) throw new TypeError("Not the address of Google's tag.");
       return value;
     },
-  }) as { createScriptURL: (value: string) => string } | undefined;
+  });
   const script = document.createElement("script");
   script.async = true;
-  script.src = policy ? policy.createScriptURL(url) : url;
+  // The policy's trusted address itself is given to the element (its type names a string; the browser takes either).
+  Reflect.set(script, "src", policy ? policy.createScriptURL(url) : url);
   document.head.append(script);
 }
 
 /** Count the page at `path`: the tag is first given the page's fields (so that its own hits from now on carry them),
  *  then the page is counted with them. */
 export function countPage(path: string): void {
-  const w = window as unknown as Tagged;
-  if (started === null || flags()[disabled(started)] === true) return;
+  if (started === null || isDisabled(started)) return;
   const fields = pageFields(path);
-  w.gtag?.("set", fields);
-  w.gtag?.("event", "page_view", fields);
+  window.gtag?.("set", fields);
+  window.gtag?.("event", "page_view", fields);
 }
 
 /** Stop counting for `id` where this page started its tag (a consent withdrawn here or in another tab): Google's tag is
@@ -162,7 +154,7 @@ export function countPage(path: string): void {
  *  `cookie_domain: "none"` keeps them. A page that never counted touches nothing. */
 export function stopAnalytics(id: string): void {
   if (started !== id) return;
-  flags()[disabled(id)] = true;
+  setDisabled(id, true);
   for (const name of ["_ga", `_ga_${id.replace(/^G-/, "")}`])
     document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/`;
 }

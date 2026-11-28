@@ -15,10 +15,10 @@ async function fresh(): Promise<typeof Analytics> {
   return import("../src/lib/analytics");
 }
 
-const layer = () =>
-  ((window as unknown as { dataLayer?: IArguments[] }).dataLayer ?? []).map((a): unknown[] =>
-    Array.from(a as ArrayLike<unknown>),
-  );
+/** Google's switch that stops the tag of the test's id (a property of the window named after the id). */
+const FLAG = "ga-disable-G-TEST1234";
+
+const layer = () => (window.dataLayer ?? []).map((a): unknown[] => Array.from(a as ArrayLike<unknown>));
 
 function clearCookies(): void {
   for (const pair of document.cookie.split(";")) {
@@ -28,8 +28,8 @@ function clearCookies(): void {
 }
 
 beforeEach(() => {
-  delete (window as unknown as { dataLayer?: unknown }).dataLayer;
-  delete (window as unknown as Record<string, unknown>)["ga-disable-G-TEST1234"];
+  delete window.dataLayer;
+  Reflect.deleteProperty(window, FLAG);
   for (const s of document.head.querySelectorAll("script")) s.remove();
 });
 
@@ -133,7 +133,7 @@ describe("a consent withdrawn", () => {
     document.cookie = "_ga_TEST1234=GS1.1.1; path=/";
     document.cookie = "kept=1; path=/";
     stopAnalytics("G-TEST1234");
-    expect((window as unknown as Record<string, unknown>)["ga-disable-G-TEST1234"]).toBe(true);
+    expect(Reflect.get(window, FLAG)).toBe(true);
     expect(document.cookie).not.toContain("_ga");
     expect(document.cookie).toContain("kept=1");
     const before = layer().length;
@@ -141,7 +141,7 @@ describe("a consent withdrawn", () => {
     expect(layer().length).toBe(before);
     // Accepted again: the tag counts again.
     startAnalytics("G-TEST1234", "/batch");
-    expect((window as unknown as Record<string, unknown>)["ga-disable-G-TEST1234"]).toBe(false);
+    expect(Reflect.get(window, FLAG)).toBe(false);
     countPage("/batch");
     expect(layer().length).toBe(before + 2);
   });
@@ -151,7 +151,7 @@ describe("a consent withdrawn", () => {
     document.cookie = "_ga=GA1.1.other-site; path=/";
     stopAnalytics("G-TEST1234");
     expect(document.cookie).toContain("_ga=GA1.1.other-site");
-    expect((window as unknown as Record<string, unknown>)["ga-disable-G-TEST1234"]).toBeUndefined();
+    expect(Reflect.get(window, FLAG)).toBeUndefined();
   });
 
   it("in another tab reaches this one (the browser's storage event)", async () => {
@@ -159,7 +159,7 @@ describe("a consent withdrawn", () => {
     await fresh();
     const { Consent } = await import("../src/components/shell/Consent");
     render(<Consent />);
-    expect((window as unknown as Record<string, unknown>)["ga-disable-G-TEST1234"]).toBe(false);
+    expect(Reflect.get(window, FLAG)).toBe(false);
     // The other tab removes the choice ("Cookie settings"): this tab stops and asks again.
     window.localStorage.removeItem("idtrack-consent");
     act(() => {
@@ -167,7 +167,7 @@ describe("a consent withdrawn", () => {
         new StorageEvent("storage", { key: "idtrack-consent", oldValue: "granted", newValue: null }),
       );
     });
-    expect((window as unknown as Record<string, unknown>)["ga-disable-G-TEST1234"]).toBe(true);
+    expect(Reflect.get(window, FLAG)).toBe(true);
     expect(screen.getByRole("region", { name: "Counting visits" })).toBeTruthy();
   });
 });
