@@ -162,7 +162,7 @@ function TocGroup({
       <summary className="api-toc__group-name">
         {title} <span className="api-toc__count">{count}</span>
       </summary>
-      {children}
+      {open ? children : null}
     </details>
   );
 }
@@ -741,16 +741,18 @@ export function ApiPage() {
                 <Mono>{version?.idtrack_version ?? ""}</Mono>
               </Fact>
             </dl>
+            <p className="api-facts__files">
+              <a href={`${API_BASE}/openapi.json`} download="idtrack-openapi.json">
+                Download the OpenAPI document
+              </a>
+              <a href={API_BASE}>The api&apos;s index (JSON)</a>
+            </p>
           </HoverCard>
         </div>
         <nav className="api-links" aria-label="The api as text, for programs and agents">
           <a href="/llms.txt">llms.txt</a>
           <a href="/llms-full.txt">llms-full.txt</a>
           <a href={`${API_BASE}/openapi.json`}>openapi.json</a>
-          <a href={`${API_BASE}/openapi.json`} download="idtrack-openapi.json">
-            Download the OpenAPI document
-          </a>
-          <a href={API_BASE}>The api&apos;s index (JSON)</a>
         </nav>
 
         <PhoneContents groups={groups} count={list.length} />

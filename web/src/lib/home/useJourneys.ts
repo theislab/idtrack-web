@@ -224,7 +224,7 @@ export function headHeight(events: number): number {
 
 /** A set's parameters in words, as a short line with the figure's arrow: what is read, at which release, and what it is
  *  answered as, at which release ("HGNC Symbol at 50 → HGNC Symbol at 115"; the api's defaults named: an Ensembl id read
- *  at the release idtrack infers, an Ensembl gene at the graph's last release); a set whose journeys walk back in time
+ *  at the release IDTrack infers, an Ensembl gene at the graph's last release); a set whose journeys walk back in time
  *  (`back`) says so. */
 export function setWords(
   set: { from: number | null; to: number | null; db: string | null },
@@ -233,7 +233,7 @@ export function setWords(
   back = false,
 ): string {
   const what = readIn.length ? readIn.join(" and ") : "Ensembl ids";
-  const from = set.from !== null ? `at ${set.from}` : "at the release idtrack infers";
+  const from = set.from !== null ? `at ${set.from}` : "at the release IDTrack infers";
   const to = set.to ?? snapshot;
   const backward = back || (set.from !== null && to < set.from);
   const db = set.db ?? "Ensembl gene";

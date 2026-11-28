@@ -231,17 +231,19 @@ test("the api page's contents mark the entry just followed", async ({ page }, in
   const count = Object.values(document.paths).reduce((n, item) => n + Object.keys(item).length, 0);
   await expect(page.locator("article.endpoint")).toHaveCount(count); // every endpoint drawn
   const toc = page.getByRole("navigation", { name: "On this page" }).first();
-  for (const [name, id] of [
-    ["Reading an answer", "reading"],
-    ["…/convert/batch", "post-organisms-organism-convert-batch"],
-    ["Error codes", "errors"],
-    ["…/names-of", "get-organisms-organism-names-of"],
+  for (const [name, id, group] of [
+    ["Reading an answer", "reading", null],
+    ["…/convert/batch", "post-organisms-organism-convert-batch", "Conversion"],
+    ["Error codes", "errors", null],
+    ["…/names-of", "get-organisms-organism-names-of", "Names"],
   ] as const) {
-    const link = toc.locator(`a[href="#${id}"]`);
     // An endpoint's group is folded in the contents until one of its entries is read: opened here.
-    const group = link.locator("xpath=ancestor::details[1]");
-    if ((await group.count()) && !(await group.evaluate((d) => (d as HTMLDetailsElement).open)))
-      await group.locator(":scope > summary").click();
+    if (group) {
+      const details = toc.locator("details", { has: page.locator("summary", { hasText: group }) });
+      if (!(await details.evaluate((d) => (d as HTMLDetailsElement).open)))
+        await details.locator(":scope > summary").click();
+    }
+    const link = toc.locator(`a[href="#${id}"]`);
     await link.click();
     await expect(link, `following ${name}`).toHaveAttribute("aria-current", "location");
     expect(await toc.locator('[aria-current="location"]').count()).toBe(1);
@@ -316,6 +318,7 @@ test("the api page lists every endpoint of the server's OpenAPI document", async
     await expect(page.getByRole("heading", { level: 3, name: `${method} ${path}`, exact: true })).toBeVisible();
   }
   await expect(page.getByText(`${new URL(page.url()).origin}/api/v1`, { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: /^OpenAPI / }).click();
   await expect(page.getByRole("link", { name: "Download the OpenAPI document" })).toHaveAttribute(
     "href",
     "/api/v1/openapi.json",

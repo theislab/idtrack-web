@@ -252,7 +252,7 @@
 
 .case__about .hovercard__card,
 .cases-key .hovercard__card {
-  width: min(360px, calc(100vw - 32px));
+  width: min(360px, calc(100vw - 64px));
   display: grid;
   gap: var(--space-3);
 }

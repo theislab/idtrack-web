@@ -1158,8 +1158,10 @@ a.organism-switch__item:hover {
 
 /* ---- v2: the tabs of Explore and of an organism's page ---------------------------------------------------------- */
 
+/* The tabs of the page never widen it: a tab list wider than the window scrolls inside itself. */
 .explore-tabs,
 .organism-tabs {
+  min-width: 0;
   margin-top: var(--space-5);
 }
 
@@ -1219,8 +1221,8 @@ a.organism-switch__item:hover {
 .digest .hovercard__card {
   display: grid;
   gap: var(--space-2);
-  width: min(560px, calc(100vw - 32px));
-  max-width: min(560px, calc(100vw - 32px));
+  width: min(560px, calc(100vw - 64px));
+  max-width: min(560px, calc(100vw - 64px));
 }
 
 .digest__whole {
@@ -1378,10 +1380,4 @@ a.organism-switch__item:hover {
   .lineage-field__box {
     height: clamp(20rem, 60svh, 28rem);
   }
-}
-
-/* The tabs of the page never widen it: a tab list wider than the window scrolls inside itself. */
-.explore-tabs,
-.organism-tabs {
-  min-width: 0;
 }

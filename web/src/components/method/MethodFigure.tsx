@@ -42,6 +42,16 @@ function PanelHead({ id, title, docs }: { id: string; title: string; docs: strin
   );
 }
 
+/** How a stage works, in a paragraph folded behind one line under the stage's head: the stage's sentence above the
+ *  tabs' panel says it in brief. */
+function StageAbout({ children }: { children: ReactNode }) {
+  return (
+    <Expandable className="method-panel__about" summary="How this stage works">
+      <p className="method-panel__lede">{children}</p>
+    </Expandable>
+  );
+}
+
 /** Every term of a list with its meaning in IDTrack's full words, the code as IDTrack writes it: one press away. */
 function FullWords({
   entries,
@@ -111,12 +121,12 @@ function ReadPanel({ v }: { v: Vocabulary }) {
   return (
     <section className="method-panel" aria-labelledby="method-read">
       <PanelHead id="method-read" title="Read the identifier" docs={docsPage("reading.html#reading-matching")} />
-      <p className="method-panel__lede">
+      <StageAbout>
         Before anything is looked up, the typed string is read as a person who pasted it meant it: where it is read (the
         starting release), what is cleaned from it, how it is matched against the identifiers of the graph. The steps of
         a match are tried in IDTrack&apos;s order, each on names, then on synonyms, before the next; the match a result
         names is the step that matched, after the prefixes that applied.
-      </p>
+      </StageAbout>
       <StageCase
         stage="read"
         title="a string matched past its exact form"
@@ -153,12 +163,12 @@ function WalkPanel({ v }: { v: Vocabulary }) {
   return (
     <section className="method-panel" aria-labelledby="method-walk">
       <PanelHead id="method-walk" title="Walk Ensembl's history" docs={docsPage("concepts.html#concept-history")} />
-      <p className="method-panel__lede">
+      <StageAbout>
         From the gene an identifier names at the starting release (its entry gene), the search follows Ensembl&apos;s
         history forward or backward to the target release. Each history step is a version event of Ensembl. In
         IDTrack&apos;s words: <Prose text={docs.mappingScore.text} />{" "}
         <a href={docs.mappingScore.source}>IDTrack&apos;s documentation</a>
-      </p>
+      </StageAbout>
       <StageCase
         stage="walk"
         title="a walk backward through a split"
@@ -243,11 +253,11 @@ function BridgePanel({ v }: { v: Vocabulary }) {
         title="Bridge through an id two genes carried"
         docs={docsPage("concepts.html#concept-bridges")}
       />
-      <p className="method-panel__lede">
+      <StageAbout>
         No record of Ensembl states a bridge: it is IDTrack&apos;s inference that one gene became the other, so it is
         taken only where the identifier is evidence of that. With the path, a result lists every bridge the search
         considered, taken or refused, with its rule.
-      </p>
+      </StageAbout>
       <StageCase
         stage="bridge"
         title="a walk that leaves its gene through an id it carried"
@@ -301,13 +311,13 @@ function RankPanel({ v }: { v: Vocabulary }) {
   return (
     <section className="method-panel" aria-labelledby="method-rank">
       <PanelHead id="method-rank" title="Rank the candidates" docs={docsPage("concepts.html#concept-ranking")} />
-      <p className="method-panel__lede">
+      <StageAbout>
         The search returns every candidate it reached: a gene at the target release and its target. The candidates are
         ranked by the criteria in this order; the first criterion in which two candidates differ decides between them,
         and a result names the one that put the best answer before the runner-up. The first five after the gene&apos;s
         own version compare the lineage (which entry gene the identifier stands for); the rest compare successors of one
         entry gene. Nothing is chosen by position or by hash order.
-      </p>
+      </StageAbout>
       <StageCase
         stage="rank"
         title="two candidates told apart by a criterion"
@@ -370,12 +380,12 @@ function AnswerPanel({ v }: { v: Vocabulary }) {
         title="Answer in the database asked"
         docs={docsPage("concepts.html#concept-statuses")}
       />
-      <p className="method-panel__lede">
+      <StageAbout>
         With a target database the answer is first a gene: the genes are ranked as Ensembl genes, and a target is an id
         that the database attaches at the target release to a gene of that best answer, through the gene itself or its
         transcripts and translations. Where no gene of the best answer has one, the result is the genes themselves,
         never an id of a lower-ranked gene.
-      </p>
+      </StageAbout>
       <StageCase
         stage="answer"
         title="a number read as a gene, answered in another database"

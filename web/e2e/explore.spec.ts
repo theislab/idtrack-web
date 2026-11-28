@@ -363,3 +363,33 @@ test("Method: each stage's path on one lane per stable id, the answer's last ste
   await page.goto("/method?stage=rank");
   await expect(page.locator(".method-ladder")).not.toContainText("idtrack.engine.ranking");
 });
+
+test("Organism: the History tab's lineage field, by keyboard: a line's words read out, Enter opens it in Convert", async ({
+  page,
+}, info) => {
+  const lineages = await page.request.get(`/api/v1/organisms/${data.organism}/lineages?limit=50`);
+  test.skip(lineages.status() !== 200, "this server does not give the lineages");
+  await page.goto(`/organisms/${data.organism}?tab=history`);
+  await expect(page.getByRole("radio", { name: "Every id, a line" })).toBeChecked();
+  const field = page.getByRole("application", { name: /^The lineages of [\d  ,]+ gene ids of the/ });
+  await field.focus();
+  const readout = page.locator(".lineage-field__readout");
+  await expect(readout).toContainText(/active at \d+/);
+  const first = (await readout.locator(".mono").first().innerText()).trim();
+  await page.keyboard.press("ArrowDown");
+  await page.keyboard.press("End");
+  await expect(readout).toContainText(/Convert it from release \d+/);
+  // The view zooms along the releases and back.
+  await page.keyboard.press("+");
+  await expect(page.locator(".lineage-field__view")).toContainText(" of ");
+  await page.getByRole("button", { name: "All releases" }).click();
+  await expect(page.locator(".lineage-field__view")).not.toContainText(" of ");
+  await expectAccessible(page);
+  await shot(page, info, "31-organism-lineages");
+  await field.focus();
+  const id = (await readout.locator(".mono").first().innerText()).trim();
+  expect(id.length).toBeGreaterThan(0);
+  expect(first.length).toBeGreaterThan(0);
+  await page.keyboard.press("Enter");
+  await expect(page).toHaveURL(new RegExp(`/convert\\?organism=${data.organism}&id=${id}&from=\\d+`));
+});

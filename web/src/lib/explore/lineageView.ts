@@ -5,7 +5,7 @@ import type { FieldFrame } from "../../components/hero/field";
 import { runsOf, type LineageLayout } from "../hero/lineageLayout";
 
 /** The room under the field for its release axis (px). */
-export const AXIS_ROOM = 40;
+const AXIS_ROOM = 40;
 /** The narrowest view: this share of the axis (about seven releases of a graph of sixty-eight). */
 export const LEAST_SPAN = 0.1;
 

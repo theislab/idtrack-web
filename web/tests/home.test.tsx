@@ -316,7 +316,7 @@ describe("the journeys", () => {
       "HGNC Symbol at 48 → HGNC Symbol at 115",
     );
     expect(setWords({ from: null, to: 48, db: null }, 115, [], true)).toBe(
-      "Ensembl ids at the release idtrack infers → back to Ensembl gene at 48",
+      "Ensembl ids at the release IDTrack infers → back to Ensembl gene at 48",
     );
     expect(setWords({ from: 101, to: 48, db: null }, 115)).toBe("Ensembl ids at 101 → back to Ensembl gene at 48");
   });

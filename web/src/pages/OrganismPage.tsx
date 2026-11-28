@@ -1112,12 +1112,7 @@ function OrganismDetail({
             key: String(a.assembly),
             primary: d.primary_assembly,
             assemblies: [a],
-            label: (
-              <span className="arows__assembly">
-                {a.name ?? <Mono>{a.assembly}</Mono>}
-                <span className="arows__common mono">{a.assembly}</span>
-              </span>
-            ),
+            label: <span className="arows__assembly">{a.name ?? <Mono>{a.assembly}</Mono>}</span>,
           }))}
         />
         <AssemblyLegend />
