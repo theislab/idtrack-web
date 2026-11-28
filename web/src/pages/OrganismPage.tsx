@@ -409,8 +409,8 @@ function TheGraphs({ organisms }: { organisms: GraphDescription[] }) {
     <>
       <section className="explore-graphs" aria-label="The graphs this server holds">
         <p className="explore-graphs__lede">
-          Each organism is one graph of Ensembl&apos;s releases, built by IDTrack from Ensembl&apos;s own tables and
-          verified by its checksum when the server started; a conversion stays within one organism.
+          One graph for each organism, built by IDTrack from Ensembl&apos;s own tables and checked when the server
+          started.
         </p>
         <FactsStrip organisms={organisms} />
       </section>
@@ -1023,19 +1023,26 @@ function OrganismDetail({
           <Link to={href("/convert", { organism: d.organism })}>convert an identifier of this graph</Link>.
         </p>
         {others.length > 1 ? (
-          <nav className="organism-switch" aria-label="Other graphs">
-            {others.map((o) =>
-              o.organism === d.organism ? (
-                <span key={o.organism} className="organism-switch__item organism-switch__item--on" aria-current="page">
-                  {chipName(o.organism)}
-                </span>
-              ) : (
-                <Link key={o.organism} to={href(`/organisms/${o.organism}`)} className="organism-switch__item">
-                  {chipName(o.organism)}
-                </Link>
-              ),
-            )}
-          </nav>
+          <HoverCard
+            hover={false}
+            className="organism-switch"
+            triggerClassName="organism-switch__button"
+            trigger={<>The other graphs</>}
+          >
+            <nav aria-label="The other graphs">
+              <ul className="organism-switch__list">
+                {others
+                  .filter((o) => o.organism !== d.organism)
+                  .map((o) => (
+                    <li key={o.organism}>
+                      <Link to={href(`/organisms/${o.organism}`)}>
+                        {chipName(o.organism)} <em className="muted">{organismName(o.organism)}</em>
+                      </Link>
+                    </li>
+                  ))}
+              </ul>
+            </nav>
+          </HoverCard>
         ) : null}
       </header>
 
@@ -1046,8 +1053,8 @@ function OrganismDetail({
           <CaptionMore
             lead={
               <>
-                Each assembly on the releases: the rule where it serves, the hairline where the graph holds data of it;
-                a press opens it.
+                Each assembly where it serves (the rule) and where the graph holds its data (the hairline); a press
+                opens it.
               </>
             }
           >

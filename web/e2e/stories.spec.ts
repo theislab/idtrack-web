@@ -1,11 +1,12 @@
 // Explore's stories against the real server: nothing the reader sees moves while the stories load (the layout shifts
-// summed, as the browser reports them); every case is a small figure as tall as what it draws, the cards of a column
-// following one another with no band of empty paper, its concept in its hover card, the key (a hover card over the
-// gallery) drawing every mark it names; the replay of the journey up
-// close writes the product of Ensembl's scores so far and ends on the candidate's score as the api gives it.
+// summed, as the browser reports them); every case is a small figure as tall as what it draws, the cards standing on
+// rows of one height whose kinds' names share a line, its concept in its hover card, the key (a hover card over the
+// gallery) drawing every mark it names; the replay of the journey up close writes each step as a sentence, then its
+// ids, Ensembl's score and the product of the scores so far, and ends on the candidate's score as the api gives it.
 import { expect, test, type Page } from "@playwright/test";
 import type { ShowcaseResponse } from "../src/api/types";
 import { isCaseKind } from "../src/lib/home/caseKinds";
+import { storiesOf } from "../src/lib/explore/gallery";
 import { sketchLayout } from "../src/lib/explore/sketch";
 import { pythonFloat } from "../src/lib/numbers";
 import { data, expectAccessible, shot } from "./helpers";
@@ -14,8 +15,9 @@ async function showcaseOf(page: Page, organism: string): Promise<ShowcaseRespons
   return (await (await page.request.get(`/api/v1/organisms/${organism}/showcase`)).json()) as ShowcaseResponse;
 }
 
+/** The gallery's cases (every case but the journey up close, the handoff card the most convoluted handoff). */
 const casesOf = (showcase: ShowcaseResponse) =>
-  showcase.cases.filter((c) => c.kind !== "lineage" && c.result !== null && isCaseKind(c.kind));
+  storiesOf(showcase).cases.filter((c) => c.result !== null && isCaseKind(c.kind));
 
 test("Explore: nothing in view moves while the stories load", async ({ page }) => {
   const showcase = await showcaseOf(page, data.organism);
@@ -54,19 +56,20 @@ test("Explore: every case is a small figure as tall as what it draws, the key dr
     .locator(".case-sketch svg")
     .evaluateAll((svgs) => svgs.map((s) => Number(s.getAttribute("height"))));
   expect(heights).toEqual(cases.map((c) => (c.result ? sketchLayout(c.result).height : 0)));
-  // The cards of a column follow one another at the gallery's one gap: no band of empty paper between two cards.
-  const gap = await page
-    .locator(".case")
-    .first()
-    .evaluate((e) => parseFloat(getComputedStyle(e).marginBottom));
-  const boxes = await page
-    .locator(".case")
-    .evaluateAll((els) => els.map((e) => e.getBoundingClientRect()).map((r) => [r.left, r.top, r.bottom]));
-  for (let i = 1; i < boxes.length; i++) {
-    const [left, top] = boxes[i] ?? [0, 0, 0];
-    const previous = boxes[i - 1] ?? [0, 0, 0];
-    if (Math.abs((previous[0] ?? 0) - (left ?? 0)) < 1)
-      expect(Math.abs((top ?? 0) - (previous[2] ?? 0) - gap)).toBeLessThan(2);
+  // The cards stand on rows of one height: the cards of a row start and end together, and their kinds' names share
+  // one line.
+  const rows = await page.locator(".case").evaluateAll((els) =>
+    els.map((e) => {
+      const r = e.getBoundingClientRect();
+      const t = e.querySelector(".case__title")?.getBoundingClientRect();
+      return [Math.round(r.top), Math.round(r.bottom), Math.round(t?.top ?? 0)];
+    }),
+  );
+  const byRow = new Map<number, number[][]>();
+  for (const box of rows) byRow.set(box[0] ?? 0, [...(byRow.get(box[0] ?? 0) ?? []), box]);
+  for (const row of byRow.values()) {
+    expect(new Set(row.map((b) => b[1])).size).toBe(1);
+    expect(new Set(row.map((b) => b[2])).size).toBe(1);
   }
   // A card is its sketch, its kind and one line; its concept is one gesture away, in its hover card.
   const first = cards.first();
@@ -140,14 +143,23 @@ test("Explore: the replay writes the product of the scores so far and ends on th
   let scored = false;
   while (await next.isEnabled()) {
     await next.click();
-    const text = (await readout.textContent()) ?? "";
-    if (/ · Ensembl's score \d/.test(text)) {
-      expect(text).toMatch(/product so far \d\.\d+/);
+    // A sentence first, then the step's ids and values.
+    await expect(readout.locator(".replay__words")).toContainText(/^Step \d+ of \d+\. /);
+    const values = (await readout.locator(".replay__values").textContent()) ?? "";
+    if (/ · Ensembl's score \d/.test(values)) {
+      expect(values).toMatch(/product so far \d\.\d+/);
       scored = true;
     }
   }
   expect(scored).toBe(true);
-  await expect(readout).toContainText(
-    `the candidate's score, the product of Ensembl's scores along the path, ${pythonFloat(best?.score ?? 0)}`,
+  await expect(readout.locator(".replay__words")).toContainText(
+    "Its score is the product of Ensembl's scores along the path.",
   );
+  // The candidate's score as the api gives it: written whole, or cut for reading with the whole one press away.
+  const score = pythonFloat(best?.score ?? 0);
+  const cut = readout.locator(".replay__exact-button");
+  if (await cut.count()) {
+    await cut.click();
+    await expect(page.locator(".replay__exact .hovercard__card")).toContainText(score);
+  } else await expect(readout.locator(".replay__values")).toContainText(score);
 });

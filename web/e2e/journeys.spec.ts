@@ -1,12 +1,14 @@
 // Explore's first figure, the journeys of the graph (components/explore/Journeys.tsx), against the real server: its
 // caption names the endpoint and its text alternative says every journey; every row drawn is a journey of the
-// showcase, isolated on focus and opened by Enter; at every common window it names every row it draws and keeps its
-// drawing, legend and caption inside its frame; every text stands inside it and over no mark, for every organism; a
-// showcase the server refuses is said in the figure's place, with its wait. The page converts nothing by itself.
+// showcase, the most convoluted of its set first, isolated and named on focus and opened by Enter; at every common
+// window every row it draws has its name and the figure keeps its drawing and caption inside its frame; every text
+// stands inside it and over no mark, for every organism; a showcase the server refuses is said in the figure's place,
+// with its wait. The page converts nothing by itself.
 import { expect, test, type Page } from "@playwright/test";
 import type { GraphDescription, ShowcaseResponse } from "../src/api/types";
 import { answerText } from "../src/lib/home/journeyModel";
 import { journeyList, journeySets } from "../src/lib/home/journeys";
+import { rankedSets } from "../src/lib/home/useJourneys";
 import { data, expectAccessible, isPhone, shot, waitForResult } from "./helpers";
 
 async function organisms(page: Page): Promise<GraphDescription[]> {
@@ -72,7 +74,7 @@ test("Explore's journeys: the caption names the endpoint, the list says every jo
   await page.goto(`/organisms?organism=${data.organism}`);
   await figureDrawn(page);
   const showcase = await showcaseOf(page, data.organism);
-  const list = journeyList(journeySets(showcase));
+  const list = journeyList(rankedSets(journeySets(showcase)));
   if (list.length) {
     await page.getByRole("button", { name: "More about this figure" }).first().click();
     await expect(page.locator(".journeys-story__caption")).toContainText(
@@ -95,9 +97,10 @@ test("the journeys: every row the showcase's answer, isolated on focus, opened b
   await page.goto(`/organisms?organism=${data.organism}`);
   await figureDrawn(page);
   const asked = conversionsAsked(page);
-  const list = journeyList(journeySets(showcase));
+  const list = journeyList(rankedSets(journeySets(showcase)));
   const ids = list.map((j) => (j.model ? j.model.result.query_id : j.identifier));
-  // Every row drawn is a journey of the showcase, in its order, a link named by its identifier.
+  // Every row drawn is a journey of the showcase, in the ranked order (the most convoluted of its set first), a link
+  // named by its identifier.
   const rows = page.locator(".journeys-story .journeys__svg [data-journey][role=link]");
   const labels = await rows.evaluateAll((gs) => gs.map((g) => g.getAttribute("aria-label") ?? ""));
   expect(labels.length).toBeGreaterThan(0);
@@ -126,6 +129,8 @@ test("the journeys: every row the showcase's answer, isolated on focus, opened b
   await rows.nth(first).locator("rect.fig-hit").hover();
   await expect(page.locator(".journeys-story .journeys__svg")).toHaveClass(/is-isolating/);
   await expect(page.getByRole("tooltip")).toContainText(idOf(first));
+  // The row pointed at is named on the figure itself.
+  await expect(page.locator(".journeys-story .jr-names text", { hasText: idOf(first) })).toHaveCount(1);
   await page.keyboard.press("Escape");
   await expect(page.getByRole("tooltip")).toHaveCount(0);
   await page.mouse.move(0, 0);
@@ -143,24 +148,23 @@ test("the journeys: every row the showcase's answer, isolated on focus, opened b
   expect(asked.length).toBe(1);
 });
 
-/** The journeys' figure at a window: it names every row it draws, keeps its drawing, legend and caption apart inside its
- *  frame. */
+/** The journeys' figure at a window: every row it draws has its name (its accessible name; its ids are written on the
+ *  row in focus, none at rest), and it keeps its drawing and caption apart inside its frame. */
 async function figureAt(page: Page): Promise<string[]> {
   return page.evaluate(() => {
     const found: string[] = [];
     const box = (s: string) => document.querySelector(s)?.getBoundingClientRect() ?? null;
     const svg = box(".journeys-story .journeys__svg");
-    const legend = box(".journeys-story__legend .fig-legend:not(.journeys-story__legend-room .fig-legend)");
     const caption = box(".journeys-story__caption");
     const frame = box(".journeys-story__frame");
     if (!svg || !caption || !frame) return ["the figure is not drawn"];
-    const rows = document.querySelectorAll(".journeys-story .journeys__svg [data-journey]").length;
-    const named = [...document.querySelectorAll(".journeys-story .jr-names > g")].filter((g) =>
-      [...g.querySelectorAll("text")].some((t) => t.textContent.trim().length > 0),
-    ).length;
-    if (rows < 1) found.push("no row drawn");
-    if (named !== rows) found.push(`${rows} rows drawn, ${named} named`);
-    if (legend && svg.bottom > legend.top + 0.5) found.push("the drawing runs into its legend");
+    const rows = [...document.querySelectorAll(".journeys-story .journeys__svg [data-journey]")];
+    const named = rows.filter((g) => (g.getAttribute("aria-label") ?? "").trim().length > 0).length;
+    const written = document.querySelectorAll(".journeys-story .jr-names text").length;
+    if (rows.length < 1) found.push("no row drawn");
+    if (named !== rows.length) found.push(`${rows.length} rows drawn, ${named} named`);
+    if (written > 0 && !document.querySelector(".journeys-story .journeys__svg.is-isolating"))
+      found.push(`${written} ids written at rest`);
     if (svg.bottom > caption.top + 0.5) found.push("the drawing runs into its caption");
     if (caption.bottom > frame.bottom + 1) found.push("the caption runs out of the figure's frame");
     if (svg.top < frame.top - 1) found.push("the drawing runs out of the top of its frame");
@@ -168,7 +172,7 @@ async function figureAt(page: Page): Promise<string[]> {
   });
 }
 
-test("at every common window the figure names the journeys it draws and keeps inside its frame", async ({
+test("at every common window every journey drawn has its name, and the figure keeps inside its frame", async ({
   page,
 }, info) => {
   test.skip(isPhone(info), "the windows are set here, on the desktop project");
