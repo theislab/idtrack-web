@@ -167,4 +167,16 @@ describe("the vocabulary's state", () => {
     expect(FAILED_VOCABULARY.state).toBe("failed");
     expect(readVocabulary(vocabularyResponse()).state).toBe("done");
   });
+
+  it("keeps each error code's wait and how a client goes on, as the api gives them", () => {
+    const response = vocabularyResponse();
+    const read = readVocabulary(response);
+    expect(response.errors.length).toBeGreaterThan(0);
+    for (const e of response.errors) {
+      const held = read.errors.get(e.code);
+      expect(held?.retryAfter).toBe(e.retry_after);
+      expect(held?.retry).toBe(e.retry);
+      expect(held?.retry).toBeTruthy();
+    }
+  });
 });
