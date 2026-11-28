@@ -541,8 +541,7 @@
   color: var(--ink-3);
 }
 
-.foot__origin a,
-.consent__text a {
+.foot__origin a {
   color: inherit;
 }
 
@@ -570,41 +569,5 @@
   .foot__button:hover {
     color: var(--ink-1);
     text-decoration: underline;
-  }
-}
-
-/* The question about counting visits: a calm card at the foot of the window, once. */
-.consent {
-  position: fixed;
-  z-index: 50;
-  left: var(--space-5);
-  bottom: var(--space-5);
-  width: min(420px, calc(100vw - 2 * var(--space-4)));
-  padding: var(--space-4) var(--space-5);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-md);
-  background: var(--glass);
-  backdrop-filter: blur(16px) saturate(1.4);
-  box-shadow: var(--elev-2);
-  animation: v2-rise var(--dur-3) var(--ease-out);
-}
-
-.consent__text {
-  margin: 0;
-  font-size: var(--text-sm);
-  color: var(--ink-2);
-}
-
-.consent__actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: var(--space-2);
-  margin-top: var(--space-3);
-}
-
-@media (max-width: 640px) {
-  .consent {
-    left: var(--space-4);
-    bottom: var(--space-4);
   }
 }

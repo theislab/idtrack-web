@@ -276,10 +276,10 @@ export function App() {
       <a className="skip" href="#main">
         Skip to the content
       </a>
+      <Consent />
       <Masthead />
       <Main />
       <SiteFooter />
-      <Consent />
       <Announcer />
     </OrganismsProvider>
   );

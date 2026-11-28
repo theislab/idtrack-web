@@ -1,10 +1,21 @@
 // Counting visits (the server's `IDTRACK_WEB_ANALYTICS_ID`, reported by `/version` as `analytics_id`): Google
-// Analytics, loaded only after the visitor accepts, and asked to count the page's path and the page's name alone (never
-// its query or what an answer page shows, which hold what is converted), with Google signals and ad personalisation
-// off. A consent withdrawn stops the tag (Google's `ga-disable-<id>`) and deletes its cookies. The choice is kept in the
+// Analytics, loaded only after the visitor accepts, with Google signals and ad personalisation off.
+//
+// One rule decides what Google may learn of a page: its address on this site without the query or the fragment (which
+// hold what is converted), its name ("Convert · IDTrack", never the tab's title, which on an answer holds the answer),
+// and as the page that led there only another site's origin (an address of this site carries a query). The fields are
+// given to the tag before it is loaded and again at every change of page, before anything is counted, so that every
+// hit the tag sends, its own automatic ones (engagement, scrolling, a change of the browser's history) included,
+// carries them rather than the browser's address, title and referrer. The tag's cookies are kept on this host alone
+// (`cookie_domain: "none"`), never on a domain above it that other sites share.
+//
+// A consent withdrawn, in this tab or in another one of the site (the browser's `storage` event), stops the tag
+// (Google's `ga-disable-<id>`) and deletes its cookies on this host. Nothing is deleted where nothing was counted: a
+// page whose tag never started and whose consent was never granted touches no cookie. The choice is kept in the
 // browser.
 import { useSyncExternalStore } from "react";
-import { documentTitle } from "./title";
+import { routeOf } from "./routes";
+import { documentTitle, organismLike, pageNameOf } from "./title";
 
 export type Consent = "granted" | "denied" | null;
 
@@ -20,6 +31,8 @@ function read(): Consent {
   }
 }
 
+let current: Consent | undefined;
+
 /** Keep the visitor's choice (`null`: ask again). */
 export function setConsent(consent: Consent): void {
   try {
@@ -32,12 +45,18 @@ export function setConsent(consent: Consent): void {
   window.dispatchEvent(new Event(CHANGE));
 }
 
-let current: Consent | undefined;
-
 function subscribe(callback: () => void): () => void {
+  // Another tab of the site changed the choice: this tab reads it again (the event never fires in the tab that wrote).
+  const stored = (event: StorageEvent) => {
+    if (event.key !== KEY && event.key !== null) return;
+    current = read();
+    callback();
+  };
   window.addEventListener(CHANGE, callback);
+  window.addEventListener("storage", stored);
   return () => {
     window.removeEventListener(CHANGE, callback);
+    window.removeEventListener("storage", stored);
   };
 }
 
@@ -49,20 +68,52 @@ export function useConsent(): Consent {
   );
 }
 
+/** The path a page is counted under: the path of a page of the site, a graph's page only where its name reads as an
+ *  organism's name (the rule by which the page echoes it, lib/title.ts), and `/404` for every address that is no page
+ *  (it holds whatever was typed). */
+export function countedPath(path: string): string {
+  const route = routeOf(path);
+  if (route.page === "none") return "/404";
+  if (route.page === "redirect") return route.to;
+  if (route.page === "organism" && !organismLike(route.organism)) return "/404";
+  return path;
+}
+
+/** Everything Google is told of the page at `path` (the rule at the top of this file). */
+export function pageFields(path: string): { page_location: string; page_title: string; page_referrer: string } {
+  let referrer = "";
+  try {
+    const from = new URL(document.referrer);
+    if (from.origin !== window.location.origin && /^https?:$/.test(from.protocol)) referrer = `${from.origin}/`;
+  } catch {
+    // No referrer, or none that parses: none is given.
+  }
+  return {
+    page_location: `${window.location.origin}${countedPath(path)}`,
+    page_title: documentTitle(pageNameOf(path)),
+    page_referrer: referrer,
+  };
+}
+
 interface Tagged {
   dataLayer?: unknown[];
   gtag?: (...args: unknown[]) => void;
   trustedTypes?: { createPolicy: (name: string, rules: { createScriptURL: (url: string) => string }) => unknown };
 }
 
+/** The window's own properties, where Google's tag reads its switches. */
+const flags = () => window as unknown as Record<string, unknown>;
+
+/** The measurement id whose tag this page loaded (null: none yet). */
 let started: string | null = null;
 
 /** Google's switch that stops its tag for one measurement id. */
 const disabled = (id: string) => `ga-disable-${id}`;
 
-/** Load Google's tag for `id`, once (and let it count again where a consent was withdrawn before). */
-export function startAnalytics(id: string): void {
-  (window as unknown as Record<string, unknown>)[disabled(id)] = false;
+/** Load Google's tag for `id`, once, with the fields of the page at `path` (and let it count again where a consent was
+ *  withdrawn before). */
+export function startAnalytics(id: string, path: string): void {
+  flags()[disabled(id)] = false;
   if (started === id) return;
   started = id;
   const w = window as unknown as Tagged;
@@ -72,9 +123,13 @@ export function startAnalytics(id: string): void {
     // eslint-disable-next-line prefer-rest-params -- Google's tag reads only an arguments object from its data layer.
     layer.push(arguments);
   };
+  const fields = pageFields(path);
   w.gtag("js", new Date());
+  w.gtag("set", fields);
   w.gtag("config", id, {
+    ...fields,
     send_page_view: false,
+    cookie_domain: "none",
     allow_google_signals: false,
     allow_ad_personalization_signals: false,
   });
@@ -92,26 +147,22 @@ export function startAnalytics(id: string): void {
   document.head.append(script);
 }
 
-/** Count one page: its path (no query) and its name ("Convert"), never what the page shows of a conversion. */
-export function countPage(path: string, name: string): void {
+/** Count the page at `path`: the tag is first given the page's fields (so that its own hits from now on carry them),
+ *  then the page is counted with them. */
+export function countPage(path: string): void {
   const w = window as unknown as Tagged;
-  if ((window as unknown as Record<string, unknown>)[disabled(started ?? "")] === true) return;
-  w.gtag?.("event", "page_view", {
-    page_location: `${window.location.origin}${path}`,
-    page_path: path,
-    page_title: documentTitle(name),
-  });
+  if (started === null || flags()[disabled(started)] === true) return;
+  const fields = pageFields(path);
+  w.gtag?.("set", fields);
+  w.gtag?.("event", "page_view", fields);
 }
 
-/** Stop counting for `id` (a consent withdrawn, or never given): Google's tag is told to send nothing more, and its
- *  cookies (`_ga`, `_ga_<the id without "G-">`) are deleted on the site's host, its domain and the domain above it. */
+/** Stop counting for `id` where this page started its tag (a consent withdrawn here or in another tab): Google's tag is
+ *  told to send nothing more, and its cookies (`_ga`, `_ga_<the id without "G-">`) are deleted on this host, where
+ *  `cookie_domain: "none"` keeps them. A page that never counted touches nothing. */
 export function stopAnalytics(id: string): void {
-  (window as unknown as Record<string, unknown>)[disabled(id)] = true;
-  const host = window.location.hostname;
-  const labels = host.split(".");
-  const domains = new Set<string | null>([null, host, `.${host}`]);
-  if (labels.length > 2) domains.add(`.${labels.slice(1).join(".")}`);
+  if (started !== id) return;
+  flags()[disabled(id)] = true;
   for (const name of ["_ga", `_ga_${id.replace(/^G-/, "")}`])
-    for (const domain of domains)
-      document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/${domain ? `; domain=${domain}` : ""}`;
+    document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/`;
 }

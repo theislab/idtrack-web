@@ -1,0 +1,111 @@
+/* The question about counting visits (components/shell/Consent.tsx): a slim opaque bar docked at the foot of the
+   window: one line and two buttons of one weight, at most 64 px tall on a screen and about 50 px on a phone (where the
+   sentence keeps its question and the way to the details, so that at 320 by 568 px the hero's words, its two calls to
+   action and its caption still stand above it).
+   While it shows, the page reserves its height (--consent-h, written by the bar): the body ends that much higher and
+   scrolls a focused element clear of it, and the home's hero stands above it (hero.css), so the bar covers nothing. */
+
+body {
+  padding-bottom: var(--consent-h, 0);
+}
+
+html {
+  scroll-padding-bottom: calc(var(--consent-h, 0px) + var(--space-4));
+}
+
+.consent {
+  position: fixed;
+  z-index: 50;
+  inset: auto 0 0;
+  border-top: 1px solid var(--line);
+  background: var(--surface);
+  animation: v2-rise var(--dur-3) var(--ease-out);
+}
+
+.consent__inner {
+  max-width: var(--content);
+  margin: 0 auto;
+
+  /* 1 px of the bar's border, then 11 + 40 + 11: 63 px. */
+  padding: calc(var(--space-3) - 1px) var(--space-5);
+  display: flex;
+  align-items: center;
+  gap: var(--space-3) var(--space-5);
+}
+
+.consent__text {
+  flex: 1;
+  margin: 0;
+  font-size: var(--text-sm);
+  line-height: var(--leading-caption);
+  color: var(--ink-2);
+}
+
+.consent__link {
+  color: inherit;
+  white-space: nowrap;
+}
+
+.consent__actions {
+  flex: none;
+  display: flex;
+  gap: var(--space-2);
+}
+
+/* The two answers weigh the same: one size, one style. */
+.consent__actions .button {
+  min-width: 88px;
+}
+
+/* The question in its full words; a phone asks it in fewer (one of the two is drawn, and read, at any width). */
+.consent__narrow {
+  display: none;
+}
+
+/* A window too narrow for the sentence on one line: it keeps its question and the way to the details. */
+@media (max-width: 1179px) {
+  .consent__more {
+    display: none;
+  }
+}
+
+/* A phone: the bar closes up (32 px buttons, well above the 24 px of WCAG 2.5.8), the buttons beside the sentence. */
+@media (max-width: 719px) {
+  .consent__inner {
+    padding: 6px var(--space-3);
+    gap: var(--space-2) 10px;
+  }
+
+  .consent__text {
+    font-size: var(--text-xs);
+  }
+
+  .consent__wide {
+    display: none;
+  }
+
+  .consent__narrow {
+    display: inline;
+  }
+
+  .consent__actions {
+    gap: 6px;
+  }
+
+  .consent__actions .button {
+    min-width: 0;
+    min-height: 32px;
+    padding: 0 10px;
+    font-size: var(--text-xs);
+  }
+}
+
+@media print {
+  .consent {
+    display: none;
+  }
+
+  body {
+    padding-bottom: 0;
+  }
+}
