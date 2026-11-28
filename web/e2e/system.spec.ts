@@ -324,7 +324,8 @@ test.describe("one heading system on every page", () => {
           expect(s.size, `${name} ${width}: ${s.text}`).toBe(width >= 720 ? 28 : 21);
         }
         for (const w of found.weights) expect(["400", "520", "640"], `${name} ${width}: weight ${w}`).toContain(w);
-        if (!answer) expect(found.head, `${name}: the page's head`).toEqual({ h1: true, lede: true });
+        // Names over an answer: the head is the title alone, the answer the screen's subject.
+        if (!answer) expect(found.head, `${name}: the page's head`).toEqual({ h1: true, lede: name !== "names" });
       }
     });
   }
