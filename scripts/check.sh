@@ -3,8 +3,9 @@
 # result, what it counted, how long it took); the exit status is 1 when any check failed (SETUP.md, "Test" and "Checks
 # and tests").
 #
-#   scripts/check.sh          the api's checks (ruff format, ruff, mypy, pytest), then the frontend's (npm run check)
-#   scripts/check.sh api      the api's only
+#   scripts/check.sh          the api's checks (ruff format, ruff, mypy, pytest), the shell scripts' (shellcheck), then
+#                             the frontend's (npm run check, the name IDTrack in the pages and the documents among them)
+#   scripts/check.sh api      all but the frontend's
 #   scripts/check.sh web      the frontend's only
 #
 # The api's environment is uv's (api/uv.lock, `uv sync --locked` once); the frontend's is npm's (`npm ci` once).
@@ -44,6 +45,11 @@ if [ "$which" = all ] || [ "$which" = api ]; then
     "$root/api" "${py[@]}" mypy
   check "pytest" "tail -n 1 | grep -oE '[0-9]+ (passed|failed|skipped|errors?)' | paste -sd, - | sed 's/,/, /g'" \
     "$root/api" "${py[@]}" pytest -q -rs
+  # The shell scripts of the deployment and of the repository (shellcheck from the api's environment: shellcheck-py);
+  # the compose files, the Caddy files and the units are read by api/tests/test_deploy.py.
+  shell_scripts=("$root"/deploy/*.sh "$root"/deploy/vm/*.sh "$root"/scripts/*.sh)
+  check "shellcheck" "awk -v n=${#shell_scripts[@]} '/: (error|warning|note|style):/ { f++ } END { print f + 0 \" findings in \" n \" scripts\" }'" \
+    "$root/api" "${py[@]}" shellcheck --format gcc --external-sources "${shell_scripts[@]}"
 fi
 
 if [ "$which" = all ] || [ "$which" = web ]; then

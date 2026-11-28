@@ -1,6 +1,9 @@
 # The certificate given by the institute instead of Let's Encrypt: added after vm/compose.vm.yaml through
 # COMPOSE_FILE in deploy/.env (SETUP.md, section 10.5). IDTRACK_WEB_TLS_DIR holds cert.pem and key.pem.
 services:
+  api:
+    environment:
+      IDTRACK_WEB_HTTPS_ROUTE: institute_certificate
   caddy:
     volumes:
       - ./vm/Caddyfile.institute-cert:/etc/caddy/Caddyfile:ro

@@ -1,0 +1,14 @@
+# The weekly refresh of Caddy's image and the api's (deploy/vm/refresh_images.sh), started by
+# idtrack-web-refresh.timer (SETUP.md, section 10.8). A failure leaves the running containers as they were and
+# raises the alert of idtrack-web-alert@.service.
+[Unit]
+Description=Refresh the images of idtrack-web (Caddy, the api's base)
+Wants=network-online.target
+After=network-online.target docker.service
+Requires=docker.service
+OnFailure=idtrack-web-alert@%n.service
+
+[Service]
+Type=oneshot
+ExecStart=/opt/idtrack-web/deploy/vm/refresh_images.sh
+TimeoutStartSec=30min

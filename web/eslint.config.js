@@ -102,8 +102,9 @@ export default defineConfig(
       "max-depth": ["error", 5],
       "max-nested-callbacks": ["error", 5],
       "max-params": ["error", 6],
-      // Guards of size, as warnings (shown by `npm run check`, not failing it): functions past them are where the code
-      // is hardest to read, to be split when next changed. The code does not keep a tighter bound yet.
+      // Guards of size, as warnings: functions past them are where the code is hardest to read, to be split when next
+      // changed. Their number is bounded (`npm run check` fails past ESLINT_MAX_WARNINGS of scripts/check.ts, the
+      // count the code has), so a new one fails while the old ones are split.
       complexity: ["warn", 30],
       "max-lines-per-function": ["warn", { max: 300, skipBlankLines: true, skipComments: true }],
     },

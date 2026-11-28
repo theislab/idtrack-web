@@ -13,11 +13,15 @@
 		}
 		max_header_size 64KB
 	}
-	# Caddy's own messages (start, certificates) go to its output; a request's error, which names the client, goes to
-	# a file of its own, kept as long as the access log below.
+	# Caddy's own messages (its start, certificates and renewals) go to its output. Every message about a request names
+	# its client (the address and the headers), so each goes to a file of its own, kept as long as the access log
+	# below, and none to the output (which Docker or the journal would keep longer): a request's error
+	# (http.log.error), a handler's (http.handlers: a download the client broke off, an api that failed), the HTTP
+	# server's own (http.stdlib: a failed handshake, with the client's address), the TLS handshake's (tls.handshake)
+	# and, at the debug level, the events' (events: the client's greeting). The site's privacy page says so.
 	log default {
 		output stderr
-		exclude http.log.error
+		exclude http.log.error http.handlers http.stdlib tls.handshake events
 	}
 	log errors {
 		output file {$IDTRACK_WEB_LOG_DIR:/data/logs}/errors.log {
@@ -27,7 +31,7 @@
 			roll_keep_for 144h
 		}
 		format console
-		include http.log.error
+		include http.log.error http.handlers http.stdlib tls.handshake events
 	}
 }
 
@@ -38,9 +42,11 @@
 		max_size 2MB
 	}
 
+	# The answers name neither the server nor the proxy (reverse_proxy would add `Via: 1.1 Caddy`).
 	header {
 		Strict-Transport-Security "max-age=31536000; includeSubDomains"
 		-Server
+		-Via
 	}
 
 	# The api: the compose service `api`, or (without containers) IDTRACK_WEB_UPSTREAM=127.0.0.1:8000 in Caddy's
@@ -83,11 +89,17 @@
 			Retry-After 60
 			Cache-Control no-store
 			Strict-Transport-Security "max-age=31536000; includeSubDomains"
+			X-Content-Type-Options nosniff
 			-Server
 		}
 		@program path /api /api/* /llms.txt /llms-full.txt
 		handle @program {
-			header Content-Type "application/json"
+			# As the api's own answers: any page may read it, its wait included (the api's CORS, README.md).
+			header {
+				Content-Type "application/json"
+				Access-Control-Allow-Origin *
+				Access-Control-Expose-Headers Retry-After
+			}
 			respond `{"error":{"code":"server_busy","message":"The server is not answering at the moment (it restarts after an update or a maintenance); send the request again in a minute.","argument":null,"allowed":null,"details":null,"request_id":null,"retry_after":60,"allowance":null}}` 503
 		}
 		handle {

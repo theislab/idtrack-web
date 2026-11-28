@@ -1,0 +1,10 @@
+# The alert when the daily check or the weekly refresh fails (OnFailure= of idtrack-web-check.service and
+# idtrack-web-refresh.service; SETUP.md, section 10.10): deploy/vm/alert.sh writes what the failed run printed to
+# the journal at priority "err", to the notice every administrator sees at login, and, where deploy/.env names an
+# address and the machine can send mail, to that address.
+[Unit]
+Description=Alert: %i failed
+
+[Service]
+Type=oneshot
+ExecStart=/opt/idtrack-web/deploy/vm/alert.sh %i

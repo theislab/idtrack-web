@@ -1,0 +1,16 @@
+# The weekly refresh of the images: Thursday night, 02:00 to 02:30 Berlin time, before the reboot window of
+# reboot-if-required.timer (SETUP.md, section 10.8):
+#   sudo install -m 644 deploy/vm/idtrack-web-refresh.service deploy/vm/idtrack-web-refresh.timer /etc/systemd/system/
+#   sudo systemctl daemon-reload && sudo systemctl enable --now idtrack-web-refresh.timer
+# Not caught up after the machine was off (Persistent=false): a refresh that recreates the api stops the site for
+# about 2.5 minutes, which belongs in the window; deploy/vm/check.sh reports an image older than 30 days.
+[Unit]
+Description=Weekly refresh of the images of idtrack-web
+
+[Timer]
+OnCalendar=Thu *-*-* 02:00:00 Europe/Berlin
+RandomizedDelaySec=30min
+Persistent=false
+
+[Install]
+WantedBy=timers.target

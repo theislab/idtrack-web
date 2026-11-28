@@ -14,7 +14,7 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Bio-Informatics",
 ]
 # idtrack is installed from its GitHub repository at one commit: that commit is set in one place, the sources
-# table of uv below (SETUP.md, "The idtrack commit").
+# table of uv below (SETUP.md, "The IDTrack commit").
 dependencies = [
     "idtrack>=0.1.2",
     "fastapi>=0.120",
@@ -40,6 +40,10 @@ dev = [
     "ruff>=0.15",
     "mypy>=1.18",
     "boto3-stubs[s3]>=1.40",
+    # The deployment's files: its compose files read as compose reads them, its shell scripts checked.
+    "pyyaml>=6.0",
+    "types-pyyaml>=6.0",
+    "shellcheck-py>=0.10",
 ]
 
 [build-system]
@@ -55,7 +59,7 @@ required-version = ">=0.9"
 [tool.uv.sources]
 # THE IDTRACK COMMIT (one place): idtrack is taken from its GitHub repository at one commit, which uv.lock records.
 # To move to another idtrack: change `tag` (or give `rev`, a full commit hash), run `uv lock`, run every test,
-# regenerate api/openapi.json and the frontend's types (SETUP.md, "The idtrack commit").
+# regenerate api/openapi.json and the frontend's types (SETUP.md, "The IDTrack commit").
 idtrack = { git = "https://github.com/theislab/idtrack.git", tag = "v0.1.2" }
 
 [tool.ruff]

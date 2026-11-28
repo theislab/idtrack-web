@@ -1,0 +1,11 @@
+# The daily check of the virtual machine (deploy/vm/check.sh), started by idtrack-web-check.timer (SETUP.md,
+# section 10.10). A problem found raises the alert of idtrack-web-alert@.service.
+[Unit]
+Description=Check idtrack-web and its machine
+After=docker.service
+OnFailure=idtrack-web-alert@%n.service
+
+[Service]
+Type=oneshot
+ExecStart=/opt/idtrack-web/deploy/vm/check.sh
+TimeoutStartSec=10min

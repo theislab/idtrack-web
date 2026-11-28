@@ -1,0 +1,21 @@
+# The build context (the repository's root, deploy/Containerfile): only what the image needs, and never a secret.
+# Docker reads this file, and podman too. A pattern is matched from the root; `**/` matches in every folder.
+.git
+**/__pycache__
+**/*.pyc
+**/.mypy_cache
+**/.ruff_cache
+**/.pytest_cache
+**/.venv
+**/node_modules
+web/dist
+web/test-results
+web/playwright-report
+api/tests
+**/*.npz
+# The configuration of a server and its secrets (deploy/idtrack-web.env, deploy/.env, a certificate's key).
+**/.env
+**/*.env
+**/secrets
+**/*.pem
+**/*.key

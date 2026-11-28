@@ -1,0 +1,15 @@
+# The daily check: every morning at 08:00 Berlin time, after the security updates of the night (SETUP.md, section
+# 10.10); a check missed while the machine was off runs at its next start:
+#   sudo install -m 644 deploy/vm/idtrack-web-check.service deploy/vm/idtrack-web-check.timer \
+#     deploy/vm/idtrack-web-alert@.service /etc/systemd/system/
+#   sudo systemctl daemon-reload && sudo systemctl enable --now idtrack-web-check.timer
+[Unit]
+Description=Daily check of idtrack-web and its machine
+
+[Timer]
+OnCalendar=*-*-* 08:00:00 Europe/Berlin
+RandomizedDelaySec=10min
+Persistent=true
+
+[Install]
+WantedBy=timers.target

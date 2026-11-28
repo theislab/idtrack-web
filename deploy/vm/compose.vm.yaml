@@ -5,7 +5,12 @@ services:
     # The api's container may use at most 12 GiB (12.9 GB, about three quarters of the machine), whatever it is
     # asked: past it the kernel stops a process of this container (a worker, which the server replaces at once, or
     # the server itself, which Docker then starts again), never the system, Docker, Caddy or an administrator's
-    # shell. Three workers on the five graphs measured 11.1 GB in use on the whole machine after 15 minutes of load
+    # shell. Three workers on the five graphs measured 11.6 GB in use on the whole machine after 15 minutes of load
     # (SETUP.md, section 10.7).
     mem_limit: 12g
     memswap_limit: 12g
+  caddy:
+    # Caddy's container at most 1 GiB, past which the kernel stops Caddy (Docker starts it again), never the api or
+    # the system: under the load of SETUP.md, section 10.7, it used at most 42 MiB.
+    mem_limit: 1g
+    memswap_limit: 1g

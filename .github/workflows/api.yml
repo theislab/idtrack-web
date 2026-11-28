@@ -35,6 +35,8 @@ jobs:
         run: uv run --no-sync ruff format --check . ../scripts ../web/scripts/fixtures
       - name: ruff
         run: uv run --no-sync ruff check . ../scripts ../web/scripts/fixtures
+      - name: shellcheck (the shell scripts of deploy/ and scripts/)
+        run: uv run --no-sync shellcheck --external-sources ../deploy/*.sh ../deploy/vm/*.sh ../scripts/*.sh
 
   types:
     runs-on: ubuntu-24.04

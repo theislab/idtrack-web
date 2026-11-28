@@ -20,6 +20,16 @@ function rules(text: string): { selector: string; body: string }[] {
 }
 
 describe("the type system", () => {
+  it("names every size of tokens.css in web/DESIGN.md's table of the type, and no other", () => {
+    const tokens = readFileSync(join(STYLES, "tokens.css"), "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
+    const declared = new Set([...tokens.matchAll(/(--text-[\w-]+)\s*:/g)].map((m) => m[1] ?? ""));
+    const design = readFileSync(join(import.meta.dirname, "..", "DESIGN.md"), "utf8");
+    const section = /\n### Type\n([\s\S]*?)\n### /.exec(design)?.[1] ?? "";
+    const tabled = new Set([...section.matchAll(/^\| `(--text-[\w-]+)` \|/gm)].map((m) => m[1] ?? ""));
+    expect(declared.size).toBeGreaterThanOrEqual(9);
+    expect([...tabled].sort()).toEqual([...declared].sort());
+  });
+
   it("sets every weight with one of the three tokens", () => {
     const tokens = readFileSync(join(STYLES, "tokens.css"), "utf8");
     expect(tokens).toMatch(/--weight-regular: 400;/);

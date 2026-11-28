@@ -50,7 +50,9 @@ jobs:
       - name: prettier
         run: npx prettier --check .
       - name: eslint
-        run: npx eslint .
+        run: npm run check -- --only eslint
+      - name: names (IDTrack in the pages' words and the documents)
+        run: npm run names
       - name: stylelint
         run: npm run lint:css
       - name: typecheck (app, tests and configs, scripts)

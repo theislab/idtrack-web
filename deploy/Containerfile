@@ -5,8 +5,12 @@
 # Stages: `web` builds the frontend into /web/dist; `api` installs the api and idtrack from the lock file into
 # /opt/venv; `runtime` holds the two and nothing else (no compiler, no uv, no source tree, no credential).
 # The graphs are not in the image: the server fetches and verifies them at start (SETUP.md, "Data").
+#
+# The runtime's base is Python 3.14's newest patch release on Debian 13: its tag is rebuilt for every security fix of
+# either, so a build with `--pull` (deploy/vm/refresh_images.sh, weekly on the virtual machine) takes them without a
+# new version of idtrack-web. The other two images build the stages that are discarded.
 
-ARG PYTHON_IMAGE=docker.io/library/python:3.14.6-slim-trixie
+ARG PYTHON_IMAGE=docker.io/library/python:3.14-slim-trixie
 ARG NODE_IMAGE=docker.io/library/node:24.22.3-slim
 ARG UV_IMAGE=ghcr.io/astral-sh/uv:0.11.28
 
@@ -35,7 +39,8 @@ ENV UV_COMPILE_BYTECODE=1 \
     UV_LINK_MODE=copy \
     UV_PYTHON_DOWNLOADS=never \
     UV_PROJECT_ENVIRONMENT=/opt/venv
-COPY . /src/
+# The api alone (its tests left out by .dockerignore): nothing else of the context enters a layer.
+COPY api/ /src/api/
 WORKDIR /src/api
 RUN uv sync --locked --no-dev --no-editable \
     && /opt/venv/bin/python -c "import idtrack, idtrack_web_api; print('idtrack', idtrack.__version__, 'api', idtrack_web_api.__version__)"
