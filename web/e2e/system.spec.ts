@@ -41,7 +41,7 @@ const PAGES: [string, string, (page: Page) => Promise<void>][] = [
     "organism",
     `/organisms/${data.organism}`,
     async (page) => {
-      await expect(page.locator(".arows svg")).toBeVisible();
+      await expect(page.locator(".astrip svg").first()).toBeVisible();
     },
   ],
   [

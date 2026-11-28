@@ -6,7 +6,13 @@
 // in Ensembl's direction, the journeys ranked, the journey up close with its cautions; the lineage field moved by
 // buttons, found by id, and an address's bad release said.
 import { expect, test, type Page } from "@playwright/test";
-import type { ConversionResult, DatabasesResponse, GraphDescription, HistoryResponse } from "../src/api/types";
+import type {
+  ConversionResult,
+  DatabasesResponse,
+  GraphDescription,
+  HistoryResponse,
+  ShowcaseResponse,
+} from "../src/api/types";
 import { databaseLabel } from "../src/lib/databases";
 import { readMatrix } from "../src/lib/explore/databaseMatrix";
 import { BENCHMARKS, comparable, familyRows, measuredGraph, rateText } from "../src/lib/benchmarks";
@@ -14,6 +20,7 @@ import { handoffsOf, MAPPING_WORDS } from "../src/lib/explore/handoffs";
 import { historyColumns } from "../src/lib/explore/history";
 import { apiQuery } from "../src/lib/home/links";
 import { ensemblSteps, walksBack } from "../src/lib/path/steps";
+import { storiesOf } from "../src/lib/explore/gallery";
 import { holdsStage, STAGE_CASES, stageCase } from "../src/lib/method/cases";
 import { groupedInteger, releaseRanges } from "../src/lib/numbers";
 import { data, expectAccessible, shot } from "./helpers";
@@ -409,10 +416,12 @@ test("Organism: the History tab's lineage field, by keyboard: a line's words rea
 test("Explore: every gallery sentence writes a step in Ensembl's direction, and a walk back in time as one", async ({
   page,
 }) => {
-  const showcase = (await (await page.request.get(`/api/v1/organisms/${data.organism}/showcase`)).json()) as {
-    cases: { kind: string; result: ConversionResult | null }[];
-  };
+  const showcase = (await (
+    await page.request.get(`/api/v1/organisms/${data.organism}/showcase`)
+  ).json()) as ShowcaseResponse;
   await page.goto(`/organisms?organism=${data.organism}`);
+  // A graph whose showcase holds no cases draws no gallery: nothing to read.
+  if (!storiesOf(showcase).cases.length) return;
   const cards = page.locator("li.case");
   await expect(cards.first()).toBeVisible();
   for (const c of showcase.cases) {
