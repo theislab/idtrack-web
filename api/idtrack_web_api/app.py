@@ -2,7 +2,7 @@
 
 Every endpoint is under ``/api/v1``. A success is JSON (a batch also as TSV); every failure is
 ``{"error": {...}}`` (:py:class:`idtrack_web_api.schemas.ErrorResponse`) with a stable code
-(:py:data:`idtrack_web_api.errors.CODES`). Results are idtrack's ``to_dict()`` written as JSON as they are: no
+(:py:data:`idtrack_web_api.errors.CODES`). Results are IDTrack's ``to_dict()`` written as JSON as they are: no
 value is rounded, renamed or reformatted on the way. Every response carries ``Server-Timing``: the server's own time
 on the request (``app``), and for a request that searched, the time it waited for its worker's search thread
 (``queue``) and the search's own time (``search``), in milliseconds.
@@ -71,7 +71,7 @@ _JSON_TYPES = {
 }  # fmt: skip
 #: The query parameters that carry an identifier or a name (refused as ``invalid_identifier``, as in a body).
 _TEXT_PARAMETERS = frozenset({"identifier", "name", "gene"})
-#: A ``Host`` header the api writes into absolute links (``/llms.txt``) when no ``public_url`` is set: a name or an
+#: A ``Host`` header the API writes into absolute links (``/llms.txt``) when no ``public_url`` is set: a name or an
 #: address, with a port.
 _HOST = re.compile(r"[A-Za-z0-9.-]{1,253}(:[0-9]{1,5})?|\[[0-9A-Fa-f:.]{2,45}\](:[0-9]{1,5})?")
 #: The organism's description of a graph build record that holds no version (``package_version``).
@@ -265,7 +265,7 @@ def choices_of(error: dict[str, Any]) -> list[str] | None:
 
 
 def problem_text(error: dict[str, Any]) -> str:
-    """Return a validation problem in the api's own words: what the value must be, and what was sent instead.
+    """Return a validation problem in the API's own words: what the value must be, and what was sent instead.
 
     The validator's own wording (its type names, ``Value error,``, ``after validation``) never reaches a message: each
     kind of problem is written by :py:data:`_PROBLEM_WORDS`, and a problem of another kind keeps the validator's text
@@ -289,7 +289,7 @@ def problem_text(error: dict[str, Any]) -> str:
 
 
 def _problems(errors: list[Any], prefix: tuple[str, ...] = ()) -> list[dict[str, Any]]:
-    """Return the validator's problems as the api lists them: where each is, and the problem in the api's words."""
+    """Return the validator's problems as the API lists them: where each is, and the problem in the API's words."""
     return [{"location": [*prefix, *_location(e.get("loc", ()))], "message": problem_text(e)} for e in errors]
 
 
@@ -433,7 +433,7 @@ def _check_media(content_type: str, content_encoding: str | None) -> None:
 def read_json_body(
     body: bytes, content_type: str, model: type[pydantic.BaseModel], content_encoding: str | None = None
 ) -> Any:
-    """Read a request body as the api reads every body: UTF-8 JSON, strictly, into *model*; refuse with a 4xx else.
+    """Read a request body as the API reads every body: UTF-8 JSON, strictly, into *model*; refuse with a 4xx else.
 
     The body is decoded as UTF-8 (RFC 8259; a declared other charset is ``415``), parsed without NaN or infinity, with
     no key given twice in one object, no number of more than 4,300 digits and no nesting deeper than Python's parser
@@ -530,7 +530,7 @@ def create_app(  # noqa: PLR0915 - every endpoint, in one place
             monitor.detach()
 
     app = FastAPI(
-        title="idtrack web api",
+        title="IDTrack web API",
         version=idtrack_web_api.__version__,
         summary="Gene identifiers through Ensembl releases, assemblies and external databases.",
         description=contract.DESCRIPTION,
@@ -578,16 +578,19 @@ def create_app(  # noqa: PLR0915 - every endpoint, in one place
         organism: lineages.table(lineages.read(graph.lineages, graph.entry), showcases.get(organism))
         for organism, graph in registry.graphs.items()
     }
+    # Each graph's example for the texts for programs: the first journey of its showcase.
+    examples_of = {o: (body.get("journeys") or [{}])[0].get("query") for o, body in showcases.items()}
     del showcases
     # The lineages' answers the site's pages ask for, the default and the largest, written and compressed now (the
     # workers inherit them); any other is cut when asked (:py:func:`lineages.body_bytes`) and kept among the last few.
     lineage_answers: dict[tuple[str, int], tuple[bytes, bytes | None]] = {}
-    for organism, lineage_table in lineage_tables.items():
+    for held_organism, lineage_table in lineage_tables.items():
         for asked in lineages.PREPARED_LIMITS:
             families = lineage_table.families_within(asked)
-            if (organism, families) not in lineage_answers:
+            if (held_organism, families) not in lineage_answers:
                 prepared = lineages.body_bytes(lineage_table, families)
-                lineage_answers[organism, families] = (prepared, gzip.compress(prepared, compresslevel=5, mtime=0))
+                packed = gzip.compress(prepared, compresslevel=5, mtime=0)
+                lineage_answers[held_organism, families] = (prepared, packed)
     lineage_recent: collections.OrderedDict[tuple[str, int], tuple[bytes, bytes | None]] = collections.OrderedDict()
     history_bodies = {organism: _json_bytes(history.compute(graph)) for organism, graph in registry.graphs.items()}
 
@@ -595,7 +598,7 @@ def create_app(  # noqa: PLR0915 - every endpoint, in one place
     # Errors
 
     def methods_at(path: str) -> list[str]:
-        """Return the methods the api's routes take at a path (``HEAD`` with every ``GET``)."""
+        """Return the methods the API's routes take at a path (``HEAD`` with every ``GET``)."""
         found: list[str] = []
         scope = {"type": "http", "path": path, "method": "", "root_path": ""}
         for route in app.routes:
@@ -615,7 +618,7 @@ def create_app(  # noqa: PLR0915 - every endpoint, in one place
     def no_endpoint(path: str) -> ApiError:
         return ApiError(
             "not_found",
-            f"There is no endpoint {path}. The api's endpoints are under {API_PREFIX}: `GET {API_PREFIX}` lists them "
+            f"There is no endpoint {path}. The API's endpoints are under {API_PREFIX}: `GET {API_PREFIX}` lists them "
             f"all, and `{API_PREFIX}/openapi.json` describes them.{reference}",
         )
 
@@ -709,7 +712,7 @@ def create_app(  # noqa: PLR0915 - every endpoint, in one place
             PathParam(
                 description=(
                     "The organism: its Ensembl production name (`homo_sapiens`), with spaces or in any letter case "
-                    "(`Homo sapiens`), or a short name idtrack declares (`human`, `pig`); the names a server holds: "
+                    "(`Homo sapiens`), or a short name IDTrack declares (`human`, `pig`); the names a server holds: "
                     "`names` of `GET /organisms`."
                 ),
                 max_length=100,
@@ -740,7 +743,7 @@ def create_app(  # noqa: PLR0915 - every endpoint, in one place
     def answered(
         body: bytes, graph: LoadedGraph | None = None, media_type: str = "application/json", **headers: str
     ) -> Response:
-        """An answer of bytes written already, with the graph's and idtrack's versions where it is a graph's."""
+        """An answer of bytes written already, with the graph's and IDTrack's versions where it is a graph's."""
         extra = {**(graph_headers.get(graph.organism, {}) if graph is not None else {}), **headers}
         return Response(content=body, media_type=media_type, headers=extra or None)
 
@@ -784,7 +787,7 @@ def create_app(  # noqa: PLR0915 - every endpoint, in one place
         answer are charged to the client as its search's time (``Server-Timing``: ``search`` and ``write``) and recorded
         in the mean time of recent searches (which estimates the wait of the next). A request whose client closed its
         connection is not searched: it is dropped where it waits, and a batch stops between its groups
-        (``state["gone"]``, set by a watcher of the connection; a search already running finishes, since idtrack cannot
+        (``state["gone"]``, set by a watcher of the connection; a search already running finishes, since IDTrack cannot
         be stopped mid-search). When it is done, the worker counts its search as ended (the process model then gives it
         the next search), even while the answer is still being sent.
         """
@@ -826,7 +829,7 @@ def create_app(  # noqa: PLR0915 - every endpoint, in one place
                     timing["write"] = timing.get("write", 0.0) + time.monotonic() - began
             finally:
                 monitor.search_running(running=False)
-                monitor.search_ended(time.monotonic() - started)
+                monitor.search_ended(time.monotonic() - started, listed=request.method == "POST")
 
         slot.waiting += 1
         monitor.search_held(1)
@@ -851,9 +854,9 @@ def create_app(  # noqa: PLR0915 - every endpoint, in one place
     @app.get(
         API_PREFIX,
         response_model=None,
-        responses=responses("index", {"model": schemas.IndexResponse, "description": "The api's documents."}),
+        responses=responses("index", {"model": schemas.IndexResponse, "description": "The API's documents."}),
         tags=["server"],
-        summary="Where everything is: the api's documents and every endpoint",
+        summary="Where everything is: the API's documents and every endpoint",
         operation_id="index",
         description=(
             "The entry point for a program that knows only the base address: the OpenAPI document, the texts for "
@@ -912,10 +915,10 @@ def create_app(  # noqa: PLR0915 - every endpoint, in one place
         response_model=None,
         responses=responses("version", {"model": schemas.VersionResponse, "description": "The versions."}),
         tags=["server"],
-        summary="The versions of the api, idtrack and every loaded graph",
+        summary="The versions of the API, IDTrack and every loaded graph",
         operation_id="version",
         description=(
-            "The versions of the api and of idtrack, idtrack's commit, the graph format, the manifest read, and per "
+            "The versions of the API and of IDTrack, IDTrack's commit, the graph format, the manifest read, and per "
             "graph its file (key, SHA-256, size), content digest and build record. Quote it with any result you "
             "publish."
         ),
@@ -931,12 +934,12 @@ def create_app(  # noqa: PLR0915 - every endpoint, in one place
             "vocabulary", {"model": schemas.VocabularyResponse, "description": "The meanings of the codes."}
         ),
         tags=["server"],
-        summary="What the codes of the answers mean: idtrack's own tables, the api's where idtrack has none",
+        summary="What the codes of the answers mean: IDTrack's own tables, the API's where IDTrack has none",
         operation_id="vocabulary",
         description=(
-            "What every code in an answer means: idtrack's own tables (statuses, reasons, step reasons, criteria, "
+            "What every code in an answer means: IDTrack's own tables (statuses, reasons, step reasons, criteria, "
             "match steps and prefixes, reading reasons, place relations, bridge rules, the fields of a candidate) and, "
-            "where idtrack has none, the api's own words (marked by `source`), and the api's error codes. Read it once "
+            "where IDTrack has none, the API's own words (marked by `source`), and the API's error codes. Read it once "
             "and keep it (`ETag`)."
         ),
         dependencies=[Depends(only())],
@@ -968,7 +971,7 @@ def create_app(  # noqa: PLR0915 - every endpoint, in one place
         summary="Every loaded organism and what its graph holds",
         operation_id="list_organisms",
         description=(
-            "Every organism this server holds and what its graph holds (idtrack's `API.describe()`): releases, "
+            "Every organism this server holds and what its graph holds (IDTrack's `API.describe()`): releases, "
             "assemblies and the releases each serves, external databases, the build and its counts; and the names "
             "the path `{organism}` takes for each (`names`)."
         ),
@@ -1006,7 +1009,7 @@ def create_app(  # noqa: PLR0915 - every endpoint, in one place
         summary="The databases a conversion to a release can end in",
         operation_id="final_databases",
         description=(
-            "The databases a conversion to one release can end in (idtrack's `API.final_databases(to_release)`): the "
+            "The databases a conversion to one release can end in (IDTrack's `API.final_databases(to_release)`): the "
             "values `final_database` takes for that release. What each holds (an accession, a label, an Ensembl id "
             "with or without version): `GET /organisms/{organism}/databases`."
         ),
@@ -1049,7 +1052,7 @@ def create_app(  # noqa: PLR0915 - every endpoint, in one place
         summary="Chosen conversions of one graph, answered once when the server started: the home page's figures",
         operation_id="showcase",
         description=(
-            "Conversions chosen to show the kinds of journey idtrack follows (the journeys) and the phenomena of "
+            "Conversions chosen to show the kinds of journey IDTrack follows (the journeys) and the phenomena of "
             "Ensembl's history (the cases, each with the kind it shows), each answered with `explain=true` exactly as "
             "`GET .../convert` answers it, computed once per graph when the server started. The cases are given only "
             "where the graph is the one they were checked on (`checked_on`, a content digest); an organism without "
@@ -1090,11 +1093,11 @@ def create_app(  # noqa: PLR0915 - every endpoint, in one place
         summary="Ensembl's gene id history in the graph: genes active per release, history edges per transition",
         operation_id="history",
         description=(
-            "Ensembl's stable id history of genes as the graph holds it, counted from idtrack's graph (its history "
+            "Ensembl's stable id history of genes as the graph holds it, counted from IDTrack's graph (its history "
             "edges and the releases at which each gene version is active): per release the gene ids active and those "
             "created, per pair of releases the history edges by kind of plain fact and the fan of Ensembl's mapping "
             "(versions with two or more distinct later ends, or earlier ends). No event is classified by "
-            "idtrack's rules here (a split or a merge is a property of a path; see `PathStep.reason`). Computed once "
+            "IDTrack's rules here (a split or a merge is a property of a path; see `PathStep.reason`). Computed once "
             "per graph when the server started."
         ),
         dependencies=[Depends(only())],
@@ -1121,12 +1124,12 @@ def create_app(  # noqa: PLR0915 - every endpoint, in one place
         summary="The lineages of gene ids in the graph: active releases, new versions, edges to other ids",
         operation_id="lineages",
         description=(
-            "The lineages of the graph's gene ids as Ensembl's stable id history gives them, read from idtrack's "
+            "The lineages of the graph's gene ids as Ensembl's stable id history gives them, read from IDTrack's "
             "graph: per id the releases at which it is active and those at which a new version of it begins, and the "
             "history edges between ids with their releases and Ensembl's scores. Ids joined by such edges form a "
             "family, given whole: first the families of the genes the showcase's answers name, then the others in "
             "a fixed order (the digest of each one's smallest id), until `limit` ids. No event is classified by "
-            "idtrack's rules here (a split or a merge is a property of a path; see `PathStep.reason`). Computed from "
+            "IDTrack's rules here (a split or a merge is a property of a path; see `PathStep.reason`). Computed from "
             "the graph when it was published and read by the server at its start; the home page draws them."
         ),
         dependencies=[Depends(only("limit"))],
@@ -1153,12 +1156,15 @@ def create_app(  # noqa: PLR0915 - every endpoint, in one place
         key = (graph.organism, lineage_tables[graph.organism].families_within(limit))
         compressed = accepts_gzip(request.headers.get("accept-encoding"))
         state = request.scope["state"]
-        found = lineage_answers.get(key) or lineage_recent.get(key)
-        if found is None or (compressed and found[1] is None):
+        held = lineage_answers.get(key) or lineage_recent.get(key)
+        found: tuple[bytes, bytes | None]
+        if held is None or (compressed and held[1] is None):
             began = time.monotonic()
-            found = await anyio.to_thread.run_sync(functools.partial(lineage_answer, key, found, compressed=compressed))
+            found = await anyio.to_thread.run_sync(functools.partial(lineage_answer, key, held, compressed=compressed))
             timing = state.setdefault("timing", {})
             timing["write"] = timing.get("write", 0.0) + time.monotonic() - began
+        else:
+            found = held
         if key not in lineage_answers:
             lineage_recent[key] = found
             lineage_recent.move_to_end(key)
@@ -1217,14 +1223,14 @@ def create_app(  # noqa: PLR0915 - every endpoint, in one place
             "convert",
             {
                 "model": schemas.ConversionResultModel,
-                "description": "The result: idtrack's `ConversionResult.to_dict()`.",
+                "description": "The result: IDTrack's `ConversionResult.to_dict()`.",
             },
         ),
         tags=["conversion"],
         summary="Convert one identifier: every candidate ranked, the best marked, optionally its path",
         operation_id="convert",
         description=(
-            "Convert one identifier (idtrack's `API.convert`): how the string was read, every candidate the search "
+            "Convert one identifier (IDTrack's `API.convert`): how the string was read, every candidate the search "
             "reached, ranked, the best marked, the criterion that decided between the best and the runner-up, the "
             "reason of a result without answer, and with `explain=true` the path of every candidate as a graph of "
             "nodes and steps. An identifier not in the graph is not an error: it is a result with status `not_found`. "
@@ -1349,9 +1355,9 @@ def create_app(  # noqa: PLR0915 - every endpoint, in one place
         summary="Convert a batch with the same arguments; results in input order, each with its own status",
         operation_id="convert_batch",
         description=(
-            "Convert many identifiers at once (idtrack's `API.convert_many`): one result per identifier in input "
+            "Convert many identifiers at once (IDTrack's `API.convert_many`): one result per identifier in input "
             'order, each with its own status. An identifier whose conversion fails is that item\'s `status: "error"` '
-            "with `error.code`, and the batch goes on; an identifier the api refuses at its boundary (too long, "
+            "with `error.code`, and the batch goes on; an identifier the API refuses at its boundary (too long, "
             "control characters inside it) refuses the whole batch (`400 invalid_identifier`, every such index in "
             "`details`). With `read_copies` (the default) an item can be answered as the copy of another item of the "
             "same batch. `format=tsv` gives one row per candidate. Prefer it to many single calls."
@@ -1379,8 +1385,8 @@ def create_app(  # noqa: PLR0915 - every endpoint, in one place
         ] = "json",
         *,
         provenance: _boolean_query(  # type: ignore[valid-type]
-            "With `format=tsv`: write one line before the header, beginning with `#`, that names the api's and "
-            "idtrack's versions, the organism, the graph's content digest, the arguments and the request's id, so a "
+            "With `format=tsv`: write one line before the header, beginning with `#`, that names the API's and "
+            "IDTrack's versions, the organism, the graph's content digest, the arguments and the request's id, so a "
             "saved table stays tied to what produced it (a reader of the table skips it as a comment). Not taken "
             "with `format=json`, whose answer and headers carry the same."
         ) = False,
@@ -1428,9 +1434,17 @@ def create_app(  # noqa: PLR0915 - every endpoint, in one place
             digest = identity.content_digest or "none"
             head: list[str] = []
             if provenance:
-                written_args = ", ".join(f"{k} {json.dumps(v)}" for k, v in arguments.items())
+                # The arguments as sent, the releases as read: the target resolved, a missing source release said.
+                shown = {
+                    **{k: json.dumps(v) for k, v in arguments.items()},
+                    "from_release": "null (each identifier read at its own release)"
+                    if body.from_release is None
+                    else str(body.from_release),
+                    "to_release": f"{target}" + (" (the snapshot release)" if body.to_release is None else ""),
+                }
+                written_args = ", ".join(f"{k} {v}" for k, v in shown.items())
                 head.append(
-                    f"# idtrack-web {idtrack_web_api.__version__}, idtrack {idtrack_version()}, organism "
+                    f"# idtrack-web {idtrack_web_api.__version__}, IDTrack {idtrack_version()}, organism "
                     f"{graph.organism}, graph {digest}, {written_args}, request {_request_id(request)}\n"
                 )
 
@@ -1459,7 +1473,7 @@ def create_app(  # noqa: PLR0915 - every endpoint, in one place
         return answered(data, graph)
 
     def checked_identifiers(identifiers: list[str]) -> list[str]:
-        """Refuse a list of identifiers over the batch's bound, or holding one the api cannot pass on."""
+        """Refuse a list of identifiers over the batch's bound, or holding one the API cannot pass on."""
         if len(identifiers) > settings.batch_max:
             msg = "too_many_identifiers"
             raise ApiError(
@@ -1497,10 +1511,10 @@ def create_app(  # noqa: PLR0915 - every endpoint, in one place
         summary="Where a list of identifiers comes from: the releases, assemblies or databases it fits",
         operation_id="source_inference",
         description=(
-            "Infer where a list of identifiers comes from (idtrack's `API.source_inference`): each distinct "
+            "Infer where a list of identifiers comes from (IDTrack's `API.source_inference`): each distinct "
             "identifier counts once at every origin (release, assembly, database, by `mode`) at which it is an "
             "identifier, read as it was at that release; the best origin is the one where most are found, and the "
-            "band holds the origins the list cannot tell apart from it (a one-sided sign test at idtrack's level "
+            "band holds the origins the list cannot tell apart from it (a one-sided sign test at IDTrack's level "
             "0.05). For a list from a paper, ask this first, then convert the list with the band's best release as "
             "`from_release`, so each name is read as it was then. Refused with `unknown_identifier` when none of the "
             "identifiers is in the graph."
@@ -1545,7 +1559,7 @@ def create_app(  # noqa: PLR0915 - every endpoint, in one place
         operation_id="genes_named",
         description=(
             "The genes a name of an external database names (a symbol, a synonym, an accession), per database and the "
-            "releases at which each holds (idtrack's `API.genes_named`, each match listing its `releases`). With "
+            "releases at which each holds (IDTrack's `API.genes_named`, each match listing its `releases`). With "
             "`release`, only the matches that hold at that release (what the name means there; to convert it as it "
             "was then: `GET .../convert` with `from_release` and `to_release` that release)."
         ),
@@ -1591,7 +1605,7 @@ def create_app(  # noqa: PLR0915 - every endpoint, in one place
         summary="The names external databases give a gene, per database and release",
         operation_id="names_of",
         description=(
-            "The names external databases give one gene, per database and the releases at which each holds (idtrack's "
+            "The names external databases give one gene, per database and the releases at which each holds (IDTrack's "
             "`API.names_of`). The gene is an Ensembl gene id with version; an id without version is refused with "
             "`invalid_argument`, its versions in `allowed`."
         ),
@@ -1642,6 +1656,7 @@ def create_app(  # noqa: PLR0915 - every endpoint, in one place
             "organism": organism,
             "aliases": list(organism_aliases(organism)),
             "releases": list(graph.description.get("releases", [])),
+            "example": examples_of.get(organism),
         }
         for organism, graph in registry.graphs.items()
     ]
@@ -1751,7 +1766,7 @@ def _serve_frontend(
     Args:
         app: The application.
         root: The built frontend.
-        methods_at: The methods an api path takes.
+        methods_at: The methods an API path takes.
         not_allowed: The refusal of a method a path does not take.
         resolve: The production name of an organism by any of its names (``None``: not held).
         preload: The answers written into the page.
@@ -1929,7 +1944,7 @@ def _version(registry: Registry, settings: Settings) -> dict[str, Any]:
 
 
 def _package_version(recorded: str | None) -> dict[str, str | None]:
-    """Return a build record's idtrack version as a version, or its text where the record holds no version."""
+    """Return a build record's IDTrack version as a version, or its text where the record holds no version."""
     if recorded is None or _VERSION.match(recorded):
         return {"package_version": recorded, "package_version_note": None}
     return {"package_version": None, "package_version_note": recorded}

@@ -1,14 +1,14 @@
-"""What the codes of the answers mean (``/vocabulary``): idtrack's own tables, and the api's where idtrack has none.
+"""What the codes of the answers mean (``/vocabulary``): IDTrack's own tables, and the API's where IDTrack has none.
 
-Every code idtrack's results carry is listed from idtrack's own table of it (:py:mod:`idtrack_web_api.adapter`), with
-idtrack's text wherever idtrack gives one. Two readings idtrack does not give as data are the api's, kept here and
-nowhere else, each marked as the api's (``source``), and each tied by a test (``tests/test_vocabulary.py``) to
-idtrack's set of codes, so that a change of idtrack fails the tests until the table follows it:
+Every code IDTrack's results carry is listed from IDTrack's own table of it (:py:mod:`idtrack_web_api.adapter`), with
+IDTrack's text wherever IDTrack gives one. Two readings IDTrack does not give as data are the API's, kept here and
+nowhere else, each marked as the API's (``source``), and each tied by a test (``tests/test_vocabulary.py``) to
+IDTrack's set of codes, so that a change of IDTrack fails the tests until the table follows it:
 
-- :py:data:`STATUS_MEANINGS`: the meaning of each status (idtrack's ``STATUSES`` holds the codes only; the words below
-  restate idtrack's documentation of ``ConversionResult.status`` and ``reasons``).
+- :py:data:`STATUS_MEANINGS`: the meaning of each status (IDTrack's ``STATUSES`` holds the codes only; the words below
+  restate IDTrack's documentation of ``ConversionResult.status`` and ``reasons``).
 - :py:data:`CRITERION_FIELDS`: for each criterion, the ``Candidate`` fields the ranking compares and which value ranks
-  first, and the parts of a field that is a tuple (idtrack names them only in the field's text and in
+  first, and the parts of a field that is a tuple (IDTrack names them only in the field's text and in
   ``idtrack.engine.ranking``).
 """
 
@@ -34,9 +34,9 @@ from idtrack_web_api.adapter import (
 from idtrack_web_api.cautions import vocabulary_terms
 from idtrack_web_api.errors import ALLOWANCES, CODES, RETRY, RETRYABLE, TITLES, retry_words
 
-#: The meaning of each value of ``ConversionResult.status``, in the api's words: idtrack's table ``STATUSES`` holds the
-#: codes only. Each restates idtrack's documentation of the status (its usage guide, "Outcome", and the attributes of
-#: ``ConversionResult``); the keys are idtrack's set of statuses, which a test compares.
+#: The meaning of each value of ``ConversionResult.status``, in the API's words: IDTrack's table ``STATUSES`` holds the
+#: codes only. Each restates IDTrack's documentation of the status (its usage guide, "Outcome", and the attributes of
+#: ``ConversionResult``); the keys are IDTrack's set of statuses, which a test compares.
 STATUS_MEANINGS: dict[str, str] = {
     "converted": "One best answer: the identifier leads to one target in the requested database.",
     "tie": (
@@ -59,17 +59,17 @@ STATUS_MEANINGS: dict[str, str] = {
     "error": "In a batch: the conversion of this identifier raised an error (`error`); the batch went on.",
 }
 
-#: The statuses whose best candidates answer in the database asked (the api's reading of idtrack's documentation of
+#: The statuses whose best candidates answer in the database asked (the API's reading of IDTrack's documentation of
 #: ``ConversionResult.status``: every other status has no best candidate, or, for ``no_target``, the genes reached in
 #: place of the missing id); a test ties it to :py:data:`STATUS_MEANINGS`.
 ANSWERING_STATUSES: frozenset[str] = frozenset({"converted", "tie"})
 
 First = Literal["yes", "lower", "higher"]
 
-#: For each criterion of idtrack's ``CRITERIA``: the ``Candidate`` fields the ranking compares, in order, each with the
+#: For each criterion of IDTrack's ``CRITERIA``: the ``Candidate`` fields the ranking compares, in order, each with the
 #: value that ranks first, and for a field that is a tuple the names of its parts (each part the negated count, as the
-#: field's text in idtrack states: ``(-external ids, -transcripts, -translations)``). Read from idtrack's ranking
-#: (``idtrack.engine.ranking.make_pair``, ``decided_by``); the keys are idtrack's criteria, which a test compares.
+#: field's text in IDTrack states: ``(-external ids, -transcripts, -translations)``). Read from IDTrack's ranking
+#: (``idtrack.engine.ranking.make_pair``, ``decided_by``); the keys are IDTrack's criteria, which a test compares.
 CRITERION_FIELDS: dict[str, tuple[tuple[str, First, tuple[str, ...] | None], ...]] = {
     "own_version": (("own_version", "yes", None),),
     "final_confidence": (("final_confidence", "lower", None),),
@@ -82,11 +82,11 @@ CRITERION_FIELDS: dict[str, tuple[tuple[str, First, tuple[str, ...] | None], ...
     "annotation": (("annotation", "lower", ("external ids", "transcripts", "translations")),),
 }
 
-#: The kinds of database of ``GET /organisms/{organism}/databases`` (the api's reading of the graph's own record: its
-#: ``label_databases`` and idtrack's two gene namespaces), in the api's words.
+#: The kinds of database of ``GET /organisms/{organism}/databases`` (the API's reading of the graph's own record: its
+#: ``label_databases`` and IDTrack's two gene namespaces), in the API's words.
 DATABASE_KINDS: dict[str, str] = {
     "ensembl": (
-        "One of idtrack's two Ensembl gene namespaces: `ensembl_gene`, the gene id with its version, and "
+        "One of IDTrack's two Ensembl gene namespaces: `ensembl_gene`, the gene id with its version, and "
         "`base_ensembl_gene`, without (`versioned` says which)."
     ),
     "accession": (
@@ -100,15 +100,15 @@ DATABASE_KINDS: dict[str, str] = {
     ),
 }
 
-#: The modes of idtrack's ``API.source_inference`` and what an origin is in each (its text of the argument ``mode``).
+#: The modes of IDTrack's ``API.source_inference`` and what an origin is in each (its text of the argument ``mode``).
 SOURCE_MODE_MEANINGS: dict[str, str] = {
     "assembly_release": "An origin is `[assembly, release]`: the release and the genome assembly it was read on.",
     "release": "An origin is a release (counted only on the assembly that serves it).",
-    "assembly": "An origin is a genome assembly (its number in idtrack's organism table).",
+    "assembly": "An origin is a genome assembly (its number in IDTrack's organism table).",
     "complete": "An origin is `[database, assembly, release]`.",
 }
 
-#: The names of the parts of ``Candidate.annotation`` as idtrack's text of that field writes them (a test reads them
+#: The names of the parts of ``Candidate.annotation`` as IDTrack's text of that field writes them (a test reads them
 #: there): each part is the negated count.
 ANNOTATION_TEXT = "(-external ids, -transcripts, -translations)"
 

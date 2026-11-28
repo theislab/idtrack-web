@@ -6,25 +6,25 @@ In the order a request meets it:
    well-formed one, :py:data:`REQUEST_ID`, else one made here) and the time a worker took its connection.
 2. **HEAD** is answered as GET without the body (every GET endpoint and file takes HEAD).
 3. **The size of its address**: a path and query longer than :py:data:`URI_MAX_BYTES` is ``414 uri_too_long``, before
-   anything reads them. A path of the api that ends in ``/`` is redirected (``308``) to the path without it.
+   anything reads them. A path of the API that ends in ``/`` is redirected (``308``) to the path without it.
 4. **A full queue**: a search that no worker could take nor queue (``idtrack_web_api.server``) is ``503 server_busy``.
-5. **CORS**: an ``OPTIONS`` request to the api is answered at once (``204`` with ``Allow``, and the preflight headers
+5. **CORS**: an ``OPTIONS`` request to the API is answered at once (``204`` with ``Allow``, and the preflight headers
    for the allowed origins).
-6. **Conditional and repeated requests**: a GET of the api other than ``/health`` and ``/status`` has an ``ETag`` made
+6. **Conditional and repeated requests**: a GET of the API other than ``/health`` and ``/status`` has an ``ETag`` made
    of the server's identity (its start, versions and graphs: an answer is a function of the graphs and the arguments)
    and the request's path and query; ``If-None-Match`` naming it is answered ``304`` at once, and an answer this worker
    sent before is sent again from memory (:py:class:`AnswerCache`), without a search.
 7. **The client's allowances** (:py:mod:`idtrack_web_api.limits`): a search takes a token of the client's searches
    (given back, and a token of its reads taken instead, where the request is refused for what it holds before any
    search: a ``4xx`` other than ``408``, ``422`` and ``429``),
-   needs a balance of search time and a place among the client's searches in progress; any other request of the api
-   (and an answer from memory) a token of its reads; ``/health`` none. Each answer of the api says the client's
+   needs a balance of search time and a place among the client's searches in progress; any other request of the API
+   (and an answer from memory) a token of its reads; ``/health`` none. Each answer of the API says the client's
    standing in ``RateLimit-Policy`` and ``RateLimit`` (the IETF draft's fields) where the allowances are enforced.
 8. **The body**: read up to ``body_max_bytes`` (``413`` beyond) within ``body_seconds`` (``408 request_timeout``
    after), then replayed to the endpoint.
 9. **The answer**: every answer gets ``X-Request-ID``, ``Server-Timing``, the security headers (a strict
-   Content-Security-Policy on the api's answers, the page's own on every file of the page, a ``304`` included), and
-   an answer of the api the CORS headers; an answer of the api of 1 KiB or more is compressed with gzip for a
+   Content-Security-Policy on the API's answers, the page's own on every file of the page, a ``304`` included), and
+   an answer of the API the CORS headers; an answer of the API of 1 KiB or more is compressed with gzip for a
    client that accepts it (its bytes, decoded, are the endpoint's exactly; its ``ETag`` then ends in ``-gzip``; a
    large one is compressed beside the event loop and its time charged as the search's). **It is sent in pieces of
    :py:data:`SEND_CHUNK` bytes, each written only once the client has taken enough of the last**, so that a worker
@@ -75,12 +75,12 @@ HEALTH_PATH = f"{API_PREFIX}/health"
 #: The longest path and query (bytes, as sent) the server reads; longer is ``414``. An identifier of 256 characters,
 #: each of four UTF-8 bytes percent-encoded, is 3 KiB.
 URI_MAX_BYTES = 16_384
-#: The answers of the api compressed for a client that accepts gzip: these types, of at least this many bytes.
+#: The answers of the API compressed for a client that accepts gzip: these types, of at least this many bytes.
 COMPRESS_MIN_BYTES = 1024
 #: Answers at least this large are compressed on a thread beside the event loop (and the time charged as the search's).
 COMPRESS_ASIDE_BYTES = 262_144
 _COMPRESSED_TYPES = (b"application/json", b"text/tab-separated-values", b"text/plain", b"text/markdown")
-#: How long a browser may reuse an answer of the api before it revalidates it (``ETag``, ``304``).
+#: How long a browser may reuse an answer of the API before it revalidates it (``ETag``, ``304``).
 CACHE_CONTROL = b"public, max-age=600"
 #: An answer is written in pieces of this many bytes, each once the connection's buffer has room for it.
 SEND_CHUNK = 65_536
@@ -89,7 +89,7 @@ SEND_CHUNK = 65_536
 DRAIN_FACTOR = 4
 #: The slowest a client may take an answer, in bytes per second, once ``send_seconds`` have passed since its start.
 SEND_MIN_RATE = 65_536
-#: The requests that search, by path: they need a worker's search thread. Every other request of the api is a read.
+#: The requests that search, by path: they need a worker's search thread. Every other request of the API is a read.
 SEARCH_PATH = re.compile(
     r"^/api/v1/organisms/[^/]+/(convert|convert/batch|convert/each-database|genes-named|names-of|source-inference)$"
 )
@@ -98,7 +98,7 @@ _SEARCH_METHODS = frozenset({"GET", "HEAD", "POST"})
 #: argument, a body too large, an organism not held): such a request gives its search token back and counts as a read.
 #: Not among them: ``408`` (the client was too slow), ``422`` (a search ran out of its budget), ``429``.
 _SHAPE_REFUSALS = frozenset({400, 404, 405, 413, 414, 415})
-#: GETs of the api that are never conditional nor kept: the live answers.
+#: GETs of the API that are never conditional nor kept: the live answers.
 _LIVE = frozenset({HEALTH_PATH, STATUS_PATH})
 #: A request id the client may give (``X-Request-ID``): it is then the request's id, in the answer and the log.
 REQUEST_ID = re.compile(r"^[A-Za-z0-9._:-]{1,64}$")
@@ -324,7 +324,7 @@ class Guard:
             identity: What the server answers from (start, versions, graphs): part of every ``ETag``.
             page: The Content-Security-Policy of the page, or a function that returns the current one (``None``: no
                 page served); an answer that sets its own policy (the page itself, by its inline scripts) keeps it.
-            methods: A function of a path that returns the methods the api takes at it (for ``OPTIONS``).
+            methods: A function of a path that returns the methods the API takes at it (for ``OPTIONS``).
         """
         self.app = app
         self.settings = settings
@@ -361,7 +361,7 @@ class Guard:
         return headers
 
     def etag(self, scope: Scope) -> str:
-        """Return the ``ETag`` of a GET of the api: the server's identity, the path and the query, digested.
+        """Return the ``ETag`` of a GET of the API: the server's identity, the path and the query, digested.
 
         Args:
             scope: The request.
@@ -504,7 +504,7 @@ class Guard:
             ]
             if not own_policy:
                 # The page's policy on every file of the page, a 304 too (a browser keeps the policy of the answer
-                # that revalidated its copy); the api's strict one on every answer of the api.
+                # that revalidated its copy); the API's strict one on every answer of the API.
                 policy = self.page() if not api or kind.startswith(b"text/html") else API_POLICY
                 headers.append((b"content-security-policy", policy))
             if api:
@@ -555,7 +555,7 @@ class Guard:
             return packed
 
         async def finish(start: Message, body: bytes, gzipped: bytes | None = None) -> None:
-            """Send a buffered answer of the api: its tag, compressed where accepted, its length, in pieces.
+            """Send a buffered answer of the API: its tag, compressed where accepted, its length, in pieces.
 
             An answer kept to be sent again keeps its compressed bytes too (made once). Compressing a large answer of a
             search is part of writing it (``write`` of ``Server-Timing``, charged as its search time); any other answer
@@ -667,7 +667,7 @@ class Guard:
         try:
             target = len(scope.get("raw_path") or b"") + len(scope.get("query_string", b""))
             if target > URI_MAX_BYTES:
-                api = True  # answered as the api answers
+                api = True  # answered as the API answers
                 await refuse(
                     ApiError(
                         "uri_too_long",
@@ -905,7 +905,7 @@ class Guard:
         ]
 
     async def _redirect(self, scope: Scope, send: Send, request_id: str, state: dict[str, Any]) -> None:
-        """Answer a path of the api that ends in ``/``: ``308`` to the same path without it (method and body kept).
+        """Answer a path of the API that ends in ``/``: ``308`` to the same path without it (method and body kept).
 
         The address is the path as the client wrote it (its percent-encoding kept: an encoded ``?`` or line break stays
         encoded), without its final slashes.

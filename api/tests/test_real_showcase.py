@@ -161,31 +161,61 @@ def test_every_kind_known() -> None:
         assert {c["kind"] for c in chosen["cases"]} <= set(showcase.KINDS), organism
 
 
+def agrees(found: Any, recorded: Any, *, trimmed: bool) -> bool:
+    """Whether an answer is the recorded one: equal, or (a recorded answer trimmed to its first items) its prefix."""
+    if isinstance(recorded, dict):
+        return (
+            isinstance(found, dict)
+            and found.keys() == recorded.keys()
+            and all(agrees(found[k], v, trimmed=trimmed) for k, v in recorded.items())
+        )
+    if isinstance(recorded, list):
+        if not isinstance(found, list) or len(found) < len(recorded) or (not trimmed and len(found) != len(recorded)):
+            return False
+        return all(agrees(f, r, trimmed=trimmed) for f, r in zip(found, recorded, strict=False))
+    return bool(found == recorded)
+
+
+#: What a recorded answer holds of the recording server itself (five graphs, its start, its load), not of the human
+#: graph: compared where the human graph's part of it is, or not at all (the live load).
+_SERVER_WIDE = {"health", "status", "version", "list_organisms", "index"}
+
+
 def test_examples_are_the_answers(human: TestClient) -> None:
-    """The document's examples of human answers are what the api answers now (a change of idtrack fails here)."""
+    """Every example of the document is what the API answers now for the request recorded beside it (a change of
+    IDTrack, of the showcase or of the graph fails here): each answer of the human graph whole, or its first items
+    where the recording trimmed it and says so; of the answers about the server, the human graph's part."""
+    from idtrack_web_api.contract import index
+
     operations = _examples()["operations"]
-    for op in ("convert", "convert_batch", "genes_named", "names_of", "final_databases", "history"):
-        sample = operations[op]
-        query = {k: v for k, v in sample["parameters"].items() if k != "organism"}
-        path = {
-            "convert": "convert",
-            "convert_batch": "convert/batch",
-            "genes_named": "genes-named",
-            "names_of": "names-of",
-            "final_databases": "final-databases",
-            "history": "history",
-        }[op]
-        url = f"{P}/organisms/homo_sapiens/{path}"
-        response = human.post(url, json=sample["body"]) if "body" in sample else human.get(url, params=query)
+    document = human.get(f"{P}/openapi.json").json()
+    paths = {op["operationId"]: (m, p) for p, ops in document["paths"].items() for m, op in ops.items()}
+    assert set(operations) == set(paths), set(paths) ^ set(operations)
+    for op, sample in operations.items():
+        method, template = paths[op]
+        given = dict(sample["parameters"])
+        url = template.replace("{organism}", str(given.pop("organism", "homo_sapiens")))
+        response = human.post(url, json=sample["body"]) if method == "post" else human.get(url, params=given)
         found = response.json()
-        expected = sample["responses"]["application/json"]
+        recorded = sample["responses"]["application/json"]
+        trimmed = "trimmed" in sample["recorded"]
         if op == "history":
             found.pop("compute_seconds")
-            expected = {k: v for k, v in expected.items() if k != "compute_seconds"}
-            # The recorded answer is trimmed to its first transitions, and says so (`recorded`).
-            assert "trimmed" in sample["recorded"]
-            found["transitions"] = found["transitions"][: len(expected["transitions"])]
-        assert found == expected, op
+            recorded = {k: v for k, v in recorded.items() if k != "compute_seconds"}
+        if op in _SERVER_WIDE:
+            if op == "index":
+                assert recorded == index(document, page=True), op
+            elif op == "list_organisms":
+                [mine] = [o for o in recorded["organisms"] if o["organism"] == "homo_sapiens"]
+                assert agrees(found["organisms"][0], mine, trimmed=False), op
+            elif op == "version":
+                [mine] = [g for g in recorded["graphs"] if g["organism"] == "homo_sapiens"]
+                assert found["graphs"] == [mine], op
+                assert {k: found[k] for k in ("api_version", "idtrack_version", "graph_format_version")} == {
+                    k: recorded[k] for k in ("api_version", "idtrack_version", "graph_format_version")
+                }, op
+            continue
+        assert agrees(found, recorded, trimmed=trimmed), op
 
 
 def test_history_holds_together(human: TestClient) -> None:

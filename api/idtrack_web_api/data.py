@@ -5,7 +5,7 @@ A release of graphs is published (:py:mod:`idtrack_web_api.publish`) as immutabl
 ``idtrack/<graph format version>/<organism>/<sha256>.lineages.json`` (the lineages of its gene ids, computed by the
 publisher: :py:mod:`idtrack_web_api.lineages`), beside a small manifest (``idtrack/<format>/manifest.json`` by default)
 that lists, per organism, each file's key, SHA-256 and size and what the graph is (snapshot release, content digest,
-the idtrack that built it). A store is either a folder with that layout (the owner's Hetzner node) or an
+the IDTrack that built it). A store is either a folder with that layout (the owner's Hetzner node) or an
 S3-compatible bucket (Cloudflare R2).
 
 At start the server reads the manifest, makes every file it needs local (a folder store: in place; a bucket: in the
@@ -39,7 +39,7 @@ if TYPE_CHECKING:
 
 log = logging.getLogger(__name__)
 
-#: The version of the manifest's own layout (not idtrack's graph format): 2 names each graph's lineages file.
+#: The version of the manifest's own layout (not IDTrack's graph format): 2 names each graph's lineages file.
 MANIFEST_SCHEMA_VERSION: Final = 2
 #: The largest manifest read (a manifest of five organisms is about 3 kB).
 MANIFEST_MAX_BYTES = 1_048_576
@@ -128,8 +128,8 @@ class ManifestGraph(BaseModel):
         ),
     )
     content_digest: str = Field(..., pattern=_SHA256.pattern, description="The graph's content digest (its build's).")
-    idtrack_version: str | None = Field(..., description="The idtrack version that built the graph.")
-    idtrack_commit: str | None = Field(..., description="The idtrack commit that built the graph, where known.")
+    idtrack_version: str | None = Field(..., description="The IDTrack version that built the graph.")
+    idtrack_commit: str | None = Field(..., description="The IDTrack commit that built the graph, where known.")
     build_date: str | None = Field(..., description="When the graph was built.")
 
 
@@ -140,7 +140,7 @@ class Manifest(BaseModel):
     schema_version: Literal[2] = Field(..., description="The version of this manifest's layout.")
     format_version: int = Field(..., gt=0, description="The graph file format of every graph listed.")
     published: str = Field(..., description="When the manifest was written (UTC, ISO 8601).")
-    publisher: str = Field(..., description="The idtrack-web-api and idtrack versions that wrote the manifest.")
+    publisher: str = Field(..., description="The idtrack-web-api and IDTrack versions that wrote the manifest.")
     graphs: tuple[ManifestGraph, ...] = Field(..., min_length=1, description="One graph per organism.")
 
     @model_validator(mode="after")
@@ -572,14 +572,14 @@ def prepare(store: Store, manifest_key: str, organisms: tuple[str, ...]) -> Veri
 
     Raises:
         DataError: If the manifest or a file cannot be used, an organism asked for is not listed, or the manifest is of
-            a graph format this idtrack does not read.
+            a graph format this IDTrack does not read.
     """
     content = store.read_bytes(manifest_key, MANIFEST_MAX_BYTES)
     manifest = parse_manifest(content, f"{manifest_key} in the {store.describe()}")
     if manifest.format_version != FORMAT_VERSION:
         msg = (
-            f"The manifest {manifest_key} lists graphs of format version {manifest.format_version}; this idtrack reads "
-            f"format version {FORMAT_VERSION}. Publish graphs built by this idtrack, or point the server at the "
+            f"The manifest {manifest_key} lists graphs of format version {manifest.format_version}; this IDTrack reads "
+            f"format version {FORMAT_VERSION}. Publish graphs built by this IDTrack, or point the server at the "
             f"manifest of format {FORMAT_VERSION} ({default_manifest_key()})."
         )
         raise DataError(msg)

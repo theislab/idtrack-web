@@ -17,7 +17,7 @@ import pytest
 from idtrack_web_api import docs
 from idtrack_web_api.errors import CODES
 from idtrack_web_api.guard import API_POLICY, URI_MAX_BYTES, Guard
-from idtrack_web_api.limits import UNREADABLE_CLIENT, RateLimiter, client_key
+from idtrack_web_api.limits import NETWORK_SHARE, UNREADABLE_CLIENT, RateLimiter, client_key, network_key
 from idtrack_web_api.monitor import LoadMonitor
 from idtrack_web_api.openapi import openapi_document
 
@@ -103,7 +103,7 @@ def test_many_unknown_body_keys_are_refused_cheaply(client: TestClient, monkeypa
         read.append(len(pairs))
         return hook(pairs)
 
-    def counted_refusal(problems: list[dict[str, Any]], *rest: str) -> Any:
+    def counted_refusal(problems: list[dict[str, Any]], *rest: Any) -> Any:
         made.append(len(problems))
         return refusal(problems, *rest)
 
@@ -279,6 +279,22 @@ def test_one_ipv6_host_shares_one_allowance() -> None:
     assert limiter.take(client_key("2001:db8:1::1"), now=1.0) is None
 
 
+def test_the_hosts_of_one_ipv6_network_share_an_allowance_beside_their_own() -> None:
+    """Each /64 has its own allowance; the /64s of one /48 share one :py:data:`NETWORK_SHARE` times as large, so that
+    one holder of a /48 cannot take a fresh allowance per /64; another /48, and IPv4, are untouched."""
+    limiter = RateLimiter(60, 2)
+    taken = 0
+    for host in range(NETWORK_SHARE * 2 + 1):
+        if limiter.take(client_key(f"2001:db8:7:{host:x}::1"), now=1.0) is None:
+            taken += 1
+    assert taken == NETWORK_SHARE * 2
+    refused = limiter.take(client_key("2001:db8:7:ffff::1"), now=1.0)
+    assert refused is not None and refused.network == "2001:db8:7::/48"
+    assert limiter.take(client_key("2001:db8:8::1"), now=1.0) is None
+    assert limiter.take(client_key("203.0.113.9"), now=1.0) is None
+    assert network_key(client_key("203.0.113.9")) is None
+
+
 def test_one_request_one_log_line(client: TestClient, caplog: pytest.LogCaptureFixture) -> None:
     with caplog.at_level(logging.INFO, logger="idtrack_web_api.access"):
         client.get(f"{P}/x%0a2026-11-27T03:09:00%20INFO%20forged%1b%5b31m")
@@ -354,7 +370,7 @@ def test_the_index_names_every_endpoint(client: TestClient) -> None:
 def test_llms_txt_follows_the_convention(client: TestClient) -> None:
     text = client.get("/llms.txt").text
     lines = text.splitlines()
-    assert lines[0] == "# idtrack web api"
+    assert lines[0] == "# IDTrack web API"
     assert lines[2].startswith("> ")
     sections = re.split(r"^## ", text, flags=re.MULTILINE)[1:]
     assert [s.splitlines()[0] for s in sections] == ["Docs", "Optional"]
@@ -369,7 +385,8 @@ def test_llms_full_txt_holds_every_rule(client: TestClient) -> None:
     document = client.get(f"{P}/openapi.json").json()
     for path, operations in document["paths"].items():
         for method in operations:
-            assert f"`{method.upper()} {path.removeprefix('/api/v1') or '/api/v1 (the index)'}`" in text, path
+            # Every path whole, as a request writes it; the index named outside its code.
+            assert f"- `{method.upper()} {path}`" + (" (the index)" if path == "/api/v1" else ":") in text, path
             for parameter in operations[method].get("parameters", []):
                 assert f"`{parameter['name']}`" in text
     for code, (status, _) in CODES.items():
@@ -382,11 +399,16 @@ def test_llms_full_txt_holds_every_rule(client: TestClient) -> None:
         "Retry-After",
         "If-None-Match",
         "places_apart",
-        "limitations.html#answers-that-only-a-bridge-reaches",
         "answers_requested_database",
         "sus_scrofa",  # the organisms this server holds
     ):
         assert words in text, words
+    # Every limitation linked, each to its section of the document the site cites.
+    from idtrack_web_api import limitations
+
+    for anchor, title in limitations.SECTIONS.items():
+        assert f"[{title}]({limitations.DOCUMENT}#{anchor})" in text, anchor
+    assert "readthedocs.io/en/stable/limitations" not in text
 
 
 def test_readme_tables_are_current() -> None:

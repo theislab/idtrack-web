@@ -2,8 +2,8 @@
 
 The site cites one document of IDTrack's known limitations: ``docs/limitations.rst`` of IDTrack's repository at the
 documentation commit the pages quote (``docsCommit`` of ``web/src/generated/limitations.json``, a commit after the one
-the api pins whose changes are documentation only, so that it describes the code the server runs). A caution's
-``limitation`` (:py:mod:`idtrack_web_api.cautions`) and every link of the api's texts to a limitation are addresses of
+the API pins whose changes are documentation only, so that it describes the code the server runs). A caution's
+``limitation`` (:py:mod:`idtrack_web_api.cautions`) and every link of the API's texts to a limitation are addresses of
 its sections, so that each names a section that exists; the published documentation (Read the Docs' ``stable``) is the
 document of the release, which lacks the sections written since.
 

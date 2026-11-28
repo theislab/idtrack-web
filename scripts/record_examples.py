@@ -7,7 +7,7 @@ Every example is an answer a server sent, unchanged, for the request recorded be
 an answer too long to read in a document is trimmed to its first items, and says so (``recorded``). One error example
 per error code: refusals of the first server (its rate limit off: ``IDTRACK_WEB_RATE_PER_MINUTE=0``), and of a
 second server with small bounds (:py:data:`BOUNDED`, ``--bounded``) the refusals of its bounds; the two refusals no
-request can make on purpose (a fault of the server, a full queue of searches) are written by the api's own code, and
+request can make on purpose (a fault of the server, a full queue of searches) are written by the API's own code, and
 say so. Then regenerate the document (``idtrack-web openapi``). The tests check every example against its schema, and
 with the real human graph that the examples of conversions are still the answers (``tests/test_real.py``).
 """
@@ -27,7 +27,7 @@ from pathlib import Path
 from typing import Any
 
 HUMAN = "homo_sapiens"
-#: The tests' small pig graph (for the one refusal answered by the api's own code over a graph).
+#: The tests' small pig graph (for the one refusal answered by the API's own code over a graph).
 CUT_GRAPH = Path(__file__).resolve().parents[1] / "api" / "tests" / "data" / "graph_sus_scrofa_cut.npz"
 #: The requests whose answers are the examples, by operationId: (path, query, body).
 OPERATIONS: dict[str, tuple[str, dict[str, str], Any]] = {
@@ -44,6 +44,7 @@ OPERATIONS: dict[str, tuple[str, dict[str, str], Any]] = {
     "databases_by_release": (f"/api/v1/organisms/{HUMAN}/databases", {}, None),
     "showcase": (f"/api/v1/organisms/{HUMAN}/showcase", {}, None),
     "showcase_queries": (f"/api/v1/organisms/{HUMAN}/showcase/queries", {}, None),
+    "lineages": (f"/api/v1/organisms/{HUMAN}/lineages", {"limit": "50"}, None),
     "convert_each_database": (
         f"/api/v1/organisms/{HUMAN}/convert/each-database",
         {"identifier": "TP53", "to_release": "115"},
@@ -213,11 +214,11 @@ def raw_post(base: str, length: int) -> Any:
 
 
 def constructed() -> dict[str, Any]:
-    """The refusals no request makes on purpose, as the api's own code writes them (marked ``constructed``).
+    """The refusals no request makes on purpose, as the API's own code writes them (marked ``constructed``).
 
     A fault of the server and a full queue of searches cannot be asked for; a request over its time budget depends on
     the machine's speed, so it is written by the function that writes it, for a batch of 1,000 identifiers of which
-    the first 640 were converted within the default budget; a search over its budget is answered by the api's own
+    the first 640 were converted within the default budget; a search over its budget is answered by the API's own
     code over the tests' small pig graph loaded with a budget of one state (a server's budget is at least 1,000).
     """
     from idtrack_web_api import service
@@ -263,7 +264,7 @@ def constructed() -> dict[str, Any]:
         except ApiError as error:
             found["search_budget_exceeded"] = error
     return {
-        code: {"constructed": "written by the api's own code: no request makes it on purpose", "answer": answer}
+        code: {"constructed": "written by the API's own code: no request makes it on purpose", "answer": answer}
         for code, error in found.items()
         if (answer := json.loads(error_json(error, request_id)))
     }

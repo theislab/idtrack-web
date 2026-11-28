@@ -9,10 +9,9 @@ from dataclasses import replace
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from idtrack_web_api import tsv
+from idtrack_web_api import limitations, tsv
 from idtrack_web_api.adapter import Graph
 from idtrack_web_api.cautions import CAUTIONS, PATH_CODES, Facts, cautions_of
-from idtrack_web_api import limitations
 from idtrack_web_api.service import caution_facts
 from tests.test_endpoints import sample_identifiers
 
@@ -123,8 +122,9 @@ def test_each_rule_reads_what_its_meaning_says() -> None:
     }
     found = cautions_of(result(candidates=[candidate()], other_readings=[reading]))
     assert codes(found) == ["other_release"] and "52-54, 60" in found[0]["text"]
-    assert "named another gene" in found[0]["text"] and "Without a release it is read as it is at release 115" in (
-        found[0]["text"]
+    assert (
+        "named another gene" in found[0]["text"]
+        and "Without a release it is read as it is at release 115" in (found[0]["text"])
     )
     # Cautions come before notes, whatever the order of the rules.
     mixed = cautions_of(result(match="unicode:synonym:exact", candidates=[candidate()]))
@@ -190,7 +190,7 @@ def test_each_rule_reads_what_its_meaning_says() -> None:
     assert cautions_of(result(status="not_found", candidates=[], graph_id=None, match=None)) == []
 
 
-def test_another_reading_of_the_same_gene_is_a_note_and_its_release_is_said(client: TestClient) -> None:
+def test_another_reading_of_the_same_gene_is_a_note_and_its_release_is_said() -> None:
     """A reading at other releases whose genes are the best answer's is no other meaning: a note, with no way to
     read it there; one of other genes is a caution that says another gene only where its genes differ; the sentence
     says how the result itself was read: at the release given, at another one, or without a release."""
@@ -233,8 +233,8 @@ def test_every_limitation_is_a_section_of_the_document_the_site_cites(
     (``web/src/generated/limitations.json``): the same document, every anchor one of its sections, whatever the
     server's address of the documentation is set to."""
     generated = json.loads((Path(__file__).parents[2] / "web/src/generated/limitations.json").read_text("utf-8"))
-    assert limitations.EVERY == generated["source"]
-    assert limitations.SECTIONS == {s["anchor"]: s["title"] for s in generated["sections"]}
+    assert generated["source"] == limitations.EVERY
+    assert {s["anchor"]: s["title"] for s in generated["sections"]} == limitations.SECTIONS
     anchors = [anchor for _, _, anchor in CAUTIONS.values() if anchor is not None]
     assert set(anchors) <= set(limitations.SECTIONS), set(anchors) - set(limitations.SECTIONS)
     moved = make_client(rate_per_minute=0, docs_url="https://docs.example.org/")

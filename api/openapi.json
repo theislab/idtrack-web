@@ -1,9 +1,9 @@
 {
   "openapi": "3.1.0",
   "info": {
-    "title": "idtrack web api",
+    "title": "IDTrack web API",
     "summary": "Gene identifiers through Ensembl releases, assemblies and external databases.",
-    "description": "Converts gene identifiers (Ensembl gene, transcript and protein ids, symbols, other databases' ids) between Ensembl releases, genome assemblies and databases, within one organism at a time, with idtrack: every answer is idtrack's own record, with the path that led to it.",
+    "description": "Converts gene identifiers (Ensembl gene, transcript and protein ids, symbols, other databases' ids) between Ensembl releases, genome assemblies and databases, within one organism at a time, with IDTrack: every answer is IDTrack's own record, with the path that led to it.",
     "version": "0.1.2",
     "license": {
       "name": "BSD-3-Clause",
@@ -16,12 +16,12 @@
         "tags": [
           "server"
         ],
-        "summary": "Where everything is: the api's documents and every endpoint",
+        "summary": "Where everything is: the API's documents and every endpoint",
         "description": "The entry point for a program that knows only the base address: the OpenAPI document, the texts for language models, the vocabulary and the bounds, and every endpoint by method, path and summary.",
         "operationId": "index",
         "responses": {
           "200": {
-            "description": "The api's documents.",
+            "description": "The API's documents.",
             "content": {
               "application/json": {
                 "schema": {
@@ -454,8 +454,8 @@
         "tags": [
           "server"
         ],
-        "summary": "The versions of the api, idtrack and every loaded graph",
-        "description": "The versions of the api and of idtrack, idtrack's commit, the graph format, the manifest read, and per graph its file (key, SHA-256, size), content digest and build record. Quote it with any result you publish.",
+        "summary": "The versions of the API, IDTrack and every loaded graph",
+        "description": "The versions of the API and of IDTrack, IDTrack's commit, the graph format, the manifest read, and per graph its file (key, SHA-256, size), content digest and build record. Quote it with any result you publish.",
         "operationId": "version",
         "responses": {
           "200": {
@@ -601,8 +601,8 @@
         "tags": [
           "server"
         ],
-        "summary": "What the codes of the answers mean: idtrack's own tables, the api's where idtrack has none",
-        "description": "What every code in an answer means: idtrack's own tables (statuses, reasons, step reasons, criteria, match steps and prefixes, reading reasons, place relations, bridge rules, the fields of a candidate) and, where idtrack has none, the api's own words (marked by `source`), and the api's error codes. Read it once and keep it (`ETag`).",
+        "summary": "What the codes of the answers mean: IDTrack's own tables, the API's where IDTrack has none",
+        "description": "What every code in an answer means: IDTrack's own tables (statuses, reasons, step reasons, criteria, match steps and prefixes, reading reasons, place relations, bridge rules, the fields of a candidate) and, where IDTrack has none, the API's own words (marked by `source`), and the API's error codes. Read it once and keep it (`ETag`).",
         "operationId": "vocabulary",
         "responses": {
           "200": {
@@ -962,7 +962,7 @@
           "organisms"
         ],
         "summary": "Every loaded organism and what its graph holds",
-        "description": "Every organism this server holds and what its graph holds (idtrack's `API.describe()`): releases, assemblies and the releases each serves, external databases, the build and its counts; and the names the path `{organism}` takes for each (`names`).",
+        "description": "Every organism this server holds and what its graph holds (IDTrack's `API.describe()`): releases, assemblies and the releases each serves, external databases, the build and its counts; and the names the path `{organism}` takes for each (`names`).",
         "operationId": "list_organisms",
         "responses": {
           "200": {
@@ -1588,7 +1588,7 @@
               "type": "string",
               "maxLength": 100
             },
-            "description": "The organism: its Ensembl production name (`homo_sapiens`), with spaces or in any letter case (`Homo sapiens`), or a short name idtrack declares (`human`, `pig`); the names a server holds: `names` of `GET /organisms`.",
+            "description": "The organism: its Ensembl production name (`homo_sapiens`), with spaces or in any letter case (`Homo sapiens`), or a short name IDTrack declares (`human`, `pig`); the names a server holds: `names` of `GET /organisms`.",
             "example": "homo_sapiens"
           }
         ],
@@ -2202,7 +2202,7 @@
           "organisms"
         ],
         "summary": "The databases a conversion to a release can end in",
-        "description": "The databases a conversion to one release can end in (idtrack's `API.final_databases(to_release)`): the values `final_database` takes for that release. What each holds (an accession, a label, an Ensembl id with or without version): `GET /organisms/{organism}/databases`.",
+        "description": "The databases a conversion to one release can end in (IDTrack's `API.final_databases(to_release)`): the values `final_database` takes for that release. What each holds (an accession, a label, an Ensembl id with or without version): `GET /organisms/{organism}/databases`.",
         "operationId": "final_databases",
         "parameters": [
           {
@@ -2213,7 +2213,7 @@
               "type": "string",
               "maxLength": 100
             },
-            "description": "The organism: its Ensembl production name (`homo_sapiens`), with spaces or in any letter case (`Homo sapiens`), or a short name idtrack declares (`human`, `pig`); the names a server holds: `names` of `GET /organisms`.",
+            "description": "The organism: its Ensembl production name (`homo_sapiens`), with spaces or in any letter case (`Homo sapiens`), or a short name IDTrack declares (`human`, `pig`); the names a server holds: `names` of `GET /organisms`.",
             "example": "homo_sapiens"
           },
           {
@@ -2232,7 +2232,7 @@
                 }
               ]
             },
-            "description": "The target release; omitted: the snapshot release. An Ensembl release, a whole number from 0 to 999999999 (anything else is `400 invalid_request`); whether the graph covers it is idtrack's to answer (`400 unknown_release`, with the graph's releases in `allowed`: `GET /organisms/{organism}` lists them as `releases`).",
+            "description": "The target release; omitted: the snapshot release. An Ensembl release, a whole number from 0 to 999999999 (anything else is `400 invalid_request`); whether the graph covers it is IDTrack's to answer (`400 unknown_release`, with the graph's releases in `allowed`: `GET /organisms/{organism}` lists them as `releases`).",
             "example": 100
           }
         ],
@@ -2345,7 +2345,7 @@
               "type": "string",
               "maxLength": 100
             },
-            "description": "The organism: its Ensembl production name (`homo_sapiens`), with spaces or in any letter case (`Homo sapiens`), or a short name idtrack declares (`human`, `pig`); the names a server holds: `names` of `GET /organisms`.",
+            "description": "The organism: its Ensembl production name (`homo_sapiens`), with spaces or in any letter case (`Homo sapiens`), or a short name IDTrack declares (`human`, `pig`); the names a server holds: `names` of `GET /organisms`.",
             "example": "homo_sapiens"
           }
         ],
@@ -2904,7 +2904,7 @@
           "organisms"
         ],
         "summary": "Chosen conversions of one graph, answered once when the server started: the home page's figures",
-        "description": "Conversions chosen to show the kinds of journey idtrack follows (the journeys) and the phenomena of Ensembl's history (the cases, each with the kind it shows), each answered with `explain=true` exactly as `GET .../convert` answers it, computed once per graph when the server started. The cases are given only where the graph is the one they were checked on (`checked_on`, a content digest); an organism without chosen conversions has empty lists.",
+        "description": "Conversions chosen to show the kinds of journey IDTrack follows (the journeys) and the phenomena of Ensembl's history (the cases, each with the kind it shows), each answered with `explain=true` exactly as `GET .../convert` answers it, computed once per graph when the server started. The cases are given only where the graph is the one they were checked on (`checked_on`, a content digest); an organism without chosen conversions has empty lists.",
         "operationId": "showcase",
         "parameters": [
           {
@@ -2915,7 +2915,7 @@
               "type": "string",
               "maxLength": 100
             },
-            "description": "The organism: its Ensembl production name (`homo_sapiens`), with spaces or in any letter case (`Homo sapiens`), or a short name idtrack declares (`human`, `pig`); the names a server holds: `names` of `GET /organisms`.",
+            "description": "The organism: its Ensembl production name (`homo_sapiens`), with spaces or in any letter case (`Homo sapiens`), or a short name IDTrack declares (`human`, `pig`); the names a server holds: `names` of `GET /organisms`.",
             "example": "homo_sapiens"
           }
         ],
@@ -4899,7 +4899,7 @@
               "type": "string",
               "maxLength": 100
             },
-            "description": "The organism: its Ensembl production name (`homo_sapiens`), with spaces or in any letter case (`Homo sapiens`), or a short name idtrack declares (`human`, `pig`); the names a server holds: `names` of `GET /organisms`.",
+            "description": "The organism: its Ensembl production name (`homo_sapiens`), with spaces or in any letter case (`Homo sapiens`), or a short name IDTrack declares (`human`, `pig`); the names a server holds: `names` of `GET /organisms`.",
             "example": "homo_sapiens"
           }
         ],
@@ -5304,7 +5304,7 @@
           "organisms"
         ],
         "summary": "Ensembl's gene id history in the graph: genes active per release, history edges per transition",
-        "description": "Ensembl's stable id history of genes as the graph holds it, counted from idtrack's graph (its history edges and the releases at which each gene version is active): per release the gene ids active and those created, per pair of releases the history edges by kind of plain fact and the fan of Ensembl's mapping (versions with two or more distinct later ends, or earlier ends). No event is classified by idtrack's rules here (a split or a merge is a property of a path; see `PathStep.reason`). Computed once per graph when the server started.",
+        "description": "Ensembl's stable id history of genes as the graph holds it, counted from IDTrack's graph (its history edges and the releases at which each gene version is active): per release the gene ids active and those created, per pair of releases the history edges by kind of plain fact and the fan of Ensembl's mapping (versions with two or more distinct later ends, or earlier ends). No event is classified by IDTrack's rules here (a split or a merge is a property of a path; see `PathStep.reason`). Computed once per graph when the server started.",
         "operationId": "history",
         "parameters": [
           {
@@ -5315,7 +5315,7 @@
               "type": "string",
               "maxLength": 100
             },
-            "description": "The organism: its Ensembl production name (`homo_sapiens`), with spaces or in any letter case (`Homo sapiens`), or a short name idtrack declares (`human`, `pig`); the names a server holds: `names` of `GET /organisms`.",
+            "description": "The organism: its Ensembl production name (`homo_sapiens`), with spaces or in any letter case (`Homo sapiens`), or a short name IDTrack declares (`human`, `pig`); the names a server holds: `names` of `GET /organisms`.",
             "example": "homo_sapiens"
           }
         ],
@@ -5867,7 +5867,7 @@
           "organisms"
         ],
         "summary": "The lineages of gene ids in the graph: active releases, new versions, edges to other ids",
-        "description": "The lineages of the graph's gene ids as Ensembl's stable id history gives them, read from idtrack's graph: per id the releases at which it is active and those at which a new version of it begins, and the history edges between ids with their releases and Ensembl's scores. Ids joined by such edges form a family, given whole: first the families of the genes the showcase's answers name, then the others in a fixed order (the digest of each one's smallest id), until `limit` ids. No event is classified by idtrack's rules here (a split or a merge is a property of a path; see `PathStep.reason`). Computed from the graph when it was published and read by the server at its start; the home page draws them.",
+        "description": "The lineages of the graph's gene ids as Ensembl's stable id history gives them, read from IDTrack's graph: per id the releases at which it is active and those at which a new version of it begins, and the history edges between ids with their releases and Ensembl's scores. Ids joined by such edges form a family, given whole: first the families of the genes the showcase's answers name, then the others in a fixed order (the digest of each one's smallest id), until `limit` ids. No event is classified by IDTrack's rules here (a split or a merge is a property of a path; see `PathStep.reason`). Computed from the graph when it was published and read by the server at its start; the home page draws them.",
         "operationId": "lineages",
         "parameters": [
           {
@@ -5881,7 +5881,7 @@
                 "homo_sapiens"
               ]
             },
-            "description": "The organism: its Ensembl production name (`homo_sapiens`), with spaces or in any letter case (`Homo sapiens`), or a short name idtrack declares (`human`, `pig`); the names a server holds: `names` of `GET /organisms`."
+            "description": "The organism: its Ensembl production name (`homo_sapiens`), with spaces or in any letter case (`Homo sapiens`), or a short name IDTrack declares (`human`, `pig`); the names a server holds: `names` of `GET /organisms`."
           },
           {
             "name": "limit",
@@ -5960,7 +5960,7 @@
           "conversion"
         ],
         "summary": "Convert one identifier: every candidate ranked, the best marked, optionally its path",
-        "description": "Convert one identifier (idtrack's `API.convert`): how the string was read, every candidate the search reached, ranked, the best marked, the criterion that decided between the best and the runner-up, the reason of a result without answer, and with `explain=true` the path of every candidate as a graph of nodes and steps. An identifier not in the graph is not an error: it is a result with status `not_found`. Only `converted` and `tie` answer in the requested database: for `no_target`, `final_database` is `ensembl_gene` and the best candidates are the genes reached, standing in for the missing id.",
+        "description": "Convert one identifier (IDTrack's `API.convert`): how the string was read, every candidate the search reached, ranked, the best marked, the criterion that decided between the best and the runner-up, the reason of a result without answer, and with `explain=true` the path of every candidate as a graph of nodes and steps. An identifier not in the graph is not an error: it is a result with status `not_found`. Only `converted` and `tie` answer in the requested database: for `no_target`, `final_database` is `ensembl_gene` and the best candidates are the genes reached, standing in for the missing id.",
         "operationId": "convert",
         "parameters": [
           {
@@ -5971,7 +5971,7 @@
               "type": "string",
               "maxLength": 100
             },
-            "description": "The organism: its Ensembl production name (`homo_sapiens`), with spaces or in any letter case (`Homo sapiens`), or a short name idtrack declares (`human`, `pig`); the names a server holds: `names` of `GET /organisms`.",
+            "description": "The organism: its Ensembl production name (`homo_sapiens`), with spaces or in any letter case (`Homo sapiens`), or a short name IDTrack declares (`human`, `pig`); the names a server holds: `names` of `GET /organisms`.",
             "example": "homo_sapiens"
           },
           {
@@ -6000,7 +6000,7 @@
                 }
               ]
             },
-            "description": "The release it is read at; omitted: inferred. Without it, an identifier is read at the target release if it exists there, and otherwise at the latest release at which it exists (idtrack's rule, the same for Ensembl ids, symbols and other databases' ids); the result says which release was used (`from_release`) and whether it was chosen (`from_release_inferred`). So a symbol sent without `from_release` is read as what it names at the target release, not as what it named years ago: give the release of the list's source to read it as it was then (`POST .../source-inference` finds it for a list). An Ensembl release, a whole number from 0 to 999999999 (anything else is `400 invalid_request`); whether the graph covers it is idtrack's to answer (`400 unknown_release`, with the graph's releases in `allowed`: `GET /organisms/{organism}` lists them as `releases`).",
+            "description": "The release it is read at; omitted: inferred. Without it, an identifier is read at the target release if it exists there, and otherwise at the latest release at which it exists (IDTrack's rule, the same for Ensembl ids, symbols and other databases' ids); the result says which release was used (`from_release`) and whether it was chosen (`from_release_inferred`). So a symbol sent without `from_release` is read as what it names at the target release, not as what it named years ago: give the release of the list's source to read it as it was then (`POST .../source-inference` finds it for a list). An Ensembl release, a whole number from 0 to 999999999 (anything else is `400 invalid_request`); whether the graph covers it is IDTrack's to answer (`400 unknown_release`, with the graph's releases in `allowed`: `GET /organisms/{organism}` lists them as `releases`).",
             "example": 100
           },
           {
@@ -6019,7 +6019,7 @@
                 }
               ]
             },
-            "description": "The target release; omitted: the snapshot release. An Ensembl release, a whole number from 0 to 999999999 (anything else is `400 invalid_request`); whether the graph covers it is idtrack's to answer (`400 unknown_release`, with the graph's releases in `allowed`: `GET /organisms/{organism}` lists them as `releases`)."
+            "description": "The target release; omitted: the snapshot release. An Ensembl release, a whole number from 0 to 999999999 (anything else is `400 invalid_request`); whether the graph covers it is IDTrack's to answer (`400 unknown_release`, with the graph's releases in `allowed`: `GET /organisms/{organism}` lists them as `releases`)."
           },
           {
             "name": "final_database",
@@ -6081,7 +6081,7 @@
         ],
         "responses": {
           "200": {
-            "description": "The result: idtrack's `ConversionResult.to_dict()`.",
+            "description": "The result: IDTrack's `ConversionResult.to_dict()`.",
             "content": {
               "application/json": {
                 "schema": {
@@ -6229,7 +6229,7 @@
               "type": "string",
               "maxLength": 100
             },
-            "description": "The organism: its Ensembl production name (`homo_sapiens`), with spaces or in any letter case (`Homo sapiens`), or a short name idtrack declares (`human`, `pig`); the names a server holds: `names` of `GET /organisms`.",
+            "description": "The organism: its Ensembl production name (`homo_sapiens`), with spaces or in any letter case (`Homo sapiens`), or a short name IDTrack declares (`human`, `pig`); the names a server holds: `names` of `GET /organisms`.",
             "example": "homo_sapiens"
           },
           {
@@ -6258,7 +6258,7 @@
                 }
               ]
             },
-            "description": "The release it is read at; omitted: inferred. Without it, an identifier is read at the target release if it exists there, and otherwise at the latest release at which it exists (idtrack's rule, the same for Ensembl ids, symbols and other databases' ids); the result says which release was used (`from_release`) and whether it was chosen (`from_release_inferred`). So a symbol sent without `from_release` is read as what it names at the target release, not as what it named years ago: give the release of the list's source to read it as it was then (`POST .../source-inference` finds it for a list). An Ensembl release, a whole number from 0 to 999999999 (anything else is `400 invalid_request`); whether the graph covers it is idtrack's to answer (`400 unknown_release`, with the graph's releases in `allowed`: `GET /organisms/{organism}` lists them as `releases`)."
+            "description": "The release it is read at; omitted: inferred. Without it, an identifier is read at the target release if it exists there, and otherwise at the latest release at which it exists (IDTrack's rule, the same for Ensembl ids, symbols and other databases' ids); the result says which release was used (`from_release`) and whether it was chosen (`from_release_inferred`). So a symbol sent without `from_release` is read as what it names at the target release, not as what it named years ago: give the release of the list's source to read it as it was then (`POST .../source-inference` finds it for a list). An Ensembl release, a whole number from 0 to 999999999 (anything else is `400 invalid_request`); whether the graph covers it is IDTrack's to answer (`400 unknown_release`, with the graph's releases in `allowed`: `GET /organisms/{organism}` lists them as `releases`)."
           },
           {
             "name": "to_release",
@@ -6276,7 +6276,7 @@
                 }
               ]
             },
-            "description": "The target release; omitted: the snapshot release. An Ensembl release, a whole number from 0 to 999999999 (anything else is `400 invalid_request`); whether the graph covers it is idtrack's to answer (`400 unknown_release`, with the graph's releases in `allowed`: `GET /organisms/{organism}` lists them as `releases`).",
+            "description": "The target release; omitted: the snapshot release. An Ensembl release, a whole number from 0 to 999999999 (anything else is `400 invalid_request`); whether the graph covers it is IDTrack's to answer (`400 unknown_release`, with the graph's releases in `allowed`: `GET /organisms/{organism}` lists them as `releases`).",
             "example": 115
           },
           {
@@ -7137,7 +7137,7 @@
           "conversion"
         ],
         "summary": "Convert a batch with the same arguments; results in input order, each with its own status",
-        "description": "Convert many identifiers at once (idtrack's `API.convert_many`): one result per identifier in input order, each with its own status. An identifier whose conversion fails is that item's `status: \"error\"` with `error.code`, and the batch goes on; an identifier the api refuses at its boundary (too long, control characters inside it) refuses the whole batch (`400 invalid_identifier`, every such index in `details`). With `read_copies` (the default) an item can be answered as the copy of another item of the same batch. `format=tsv` gives one row per candidate. Prefer it to many single calls.",
+        "description": "Convert many identifiers at once (IDTrack's `API.convert_many`): one result per identifier in input order, each with its own status. An identifier whose conversion fails is that item's `status: \"error\"` with `error.code`, and the batch goes on; an identifier the API refuses at its boundary (too long, control characters inside it) refuses the whole batch (`400 invalid_identifier`, every such index in `details`). With `read_copies` (the default) an item can be answered as the copy of another item of the same batch. `format=tsv` gives one row per candidate. Prefer it to many single calls.",
         "operationId": "convert_batch",
         "parameters": [
           {
@@ -7148,7 +7148,7 @@
               "type": "string",
               "maxLength": 100
             },
-            "description": "The organism: its Ensembl production name (`homo_sapiens`), with spaces or in any letter case (`Homo sapiens`), or a short name idtrack declares (`human`, `pig`); the names a server holds: `names` of `GET /organisms`.",
+            "description": "The organism: its Ensembl production name (`homo_sapiens`), with spaces or in any letter case (`Homo sapiens`), or a short name IDTrack declares (`human`, `pig`); the names a server holds: `names` of `GET /organisms`.",
             "example": "homo_sapiens"
           },
           {
@@ -7173,7 +7173,7 @@
               "type": "boolean",
               "default": false
             },
-            "description": "With `format=tsv`: write one line before the header, beginning with `#`, that names the api's and idtrack's versions, the organism, the graph's content digest, the arguments and the request's id, so a saved table stays tied to what produced it (a reader of the table skips it as a comment). Not taken with `format=json`, whose answer and headers carry the same. Written true or false."
+            "description": "With `format=tsv`: write one line before the header, beginning with `#`, that names the API's and IDTrack's versions, the organism, the graph's content digest, the arguments and the request's id, so a saved table stays tied to what produced it (a reader of the table skips it as a comment). Not taken with `format=json`, whose answer and headers carry the same. Written true or false."
           }
         ],
         "responses": {
@@ -7346,7 +7346,7 @@
               "text/tab-separated-values": {
                 "schema": {
                   "type": "string",
-                  "description": "A table of tab-separated values, UTF-8, each line ending in a line feed: the first line names the columns, then one row per candidate of each result in input order (a result without candidates: one row, its candidate columns empty). A result's columns repeat on each of its rows. Each value as the JSON answer writes it: `null` as an empty cell; `true` and `false` as those words; a number as written in the JSON answer (nothing rounded); a list's items joined by `;`. The explained path (`path`, `final_path`) is not in the table: ask for JSON. With `provenance=true`, one line before the header begins with `#` and names the graph and the request (`Content-Disposition` names the file after the organism, the target release and the graph's digest). The columns, in order (also as `x-columns`):\n\n| Column | Of | What it holds |\n| --- | --- | --- |\n| `input_index` | result | The item's place in the batch, from 0 (the result's place in `results`). |\n| `query_id` | result | `query_id`: the identifier as sent (escaped: a backslash before `\\`, `t`, `n`, `r`). |\n| `status` | result | `status` of the result. |\n| `reason` | result | `reason` of the result. |\n| `reasons` | result | `reasons` of the result. |\n| `graph_id` | result | `graph_id` of the result. |\n| `match` | result | `match` of the result. |\n| `known_versions` | result | `known_versions` of the result. |\n| `from_release` | result | `from_release` of the result. |\n| `from_release_inferred` | result | `from_release_inferred` of the result. |\n| `from_release_given` | result | `from_release_given` of the result. |\n| `from_release_fallback` | result | `from_release_fallback` of the result. |\n| `from_databases` | result | `from_databases` of the result. |\n| `to_release` | result | `to_release` of the result. |\n| `final_database` | result | `final_database` of the result. |\n| `candidate_count` | result | The number of the result's candidates (its rows; 0 on the one row of a result without any). |\n| `tie` | result | `tie` of the result. |\n| `decided_by` | result | `decided_by` of the result. |\n| `alternative_locus_genes` | result | `alternative_locus_genes` of the result. |\n| `no_target` | result | `no_target` of the result. |\n| `no_target_genes` | result | `no_target_genes` of the result. |\n| `other_readings` | result | `other_readings` as compact JSON (empty for none). |\n| `cautions` | result | The codes of `cautions` (the api's reading of the result's evidence; `cautions` of `GET /api/v1/vocabulary`), joined by `;` (empty for none). |\n| `error_code` | error | The api's code of the item's error (`error.code`; `errors` of `GET /api/v1/vocabulary`). |\n| `error_type` | error | `error.type`: the class of idtrack's error. |\n| `error_message` | error | `error.message` (escaped as `query_id`). |\n| `error_input_error` | error | `error.input_error`. |\n| `rank` | candidate | The candidate's place in `candidates`, from 1 (empty on the row of a result without candidates). |\n| `best` | candidate | `best` of the candidate. |\n| `gene` | candidate | `gene` of the candidate. |\n| `target` | candidate | `target` of the candidate. |\n| `entry_gene` | candidate | `entry_gene` of the candidate. |\n| `entry_databases` | candidate | `entry_databases` of the candidate. |\n| `authority` | candidate | `authority` of the candidate. |\n| `display_name` | candidate | `display_name` of the candidate. |\n| `display_rank` | candidate | `display_rank` of the candidate. |\n| `entry_support` | candidate | `entry_support` of the candidate. |\n| `own_version` | candidate | `own_version` of the candidate. |\n| `final_confidence` | candidate | `final_confidence` of the candidate. |\n| `bridges` | candidate | `bridges` of the candidate. |\n| `bridge_gap` | candidate | `bridge_gap` of the candidate. |\n| `score` | candidate | `score` of the candidate. |\n| `unscored_steps` | candidate | `unscored_steps` of the candidate. |\n| `same_as_query` | candidate | `same_as_query` of the candidate. |\n| `external_steps` | candidate | `external_steps` of the candidate. |\n| `history_steps` | candidate | `history_steps` of the candidate. |\n| `annotation` | candidate | `annotation` of the candidate. |"
+                  "description": "A table of tab-separated values, UTF-8, each line ending in a line feed: the first line names the columns, then one row per candidate of each result in input order (a result without candidates: one row, its candidate columns empty). A result's columns repeat on each of its rows. Each value as the JSON answer writes it: `null` as an empty cell; `true` and `false` as those words; a number as written in the JSON answer (nothing rounded); a list's items joined by `;`. The explained path (`path`, `final_path`) is not in the table: ask for JSON. With `provenance=true`, one line before the header begins with `#` and names the graph and the request (`Content-Disposition` names the file after the organism, the target release and the graph's digest). The columns, in order (also as `x-columns`):\n\n| Column | Of | What it holds |\n| --- | --- | --- |\n| `input_index` | result | The item's place in the batch, from 0 (the result's place in `results`). |\n| `query_id` | result | `query_id`: the identifier as sent (escaped: a backslash before `\\`, `t`, `n`, `r`). |\n| `status` | result | `status` of the result. |\n| `reason` | result | `reason` of the result. |\n| `reasons` | result | `reasons` of the result. |\n| `graph_id` | result | `graph_id` of the result. |\n| `match` | result | `match` of the result. |\n| `known_versions` | result | `known_versions` of the result. |\n| `from_release` | result | `from_release` of the result. |\n| `from_release_inferred` | result | `from_release_inferred` of the result. |\n| `from_release_given` | result | `from_release_given` of the result. |\n| `from_release_fallback` | result | `from_release_fallback` of the result. |\n| `from_databases` | result | `from_databases` of the result. |\n| `to_release` | result | `to_release` of the result. |\n| `final_database` | result | `final_database` of the result. |\n| `candidate_count` | result | The number of the result's candidates (its rows; 0 on the one row of a result without any). |\n| `tie` | result | `tie` of the result. |\n| `decided_by` | result | `decided_by` of the result. |\n| `alternative_locus_genes` | result | `alternative_locus_genes` of the result. |\n| `no_target` | result | `no_target` of the result. |\n| `no_target_genes` | result | `no_target_genes` of the result. |\n| `other_readings` | result | `other_readings` as compact JSON (empty for none). |\n| `cautions` | result | The codes of `cautions` (the API's reading of the result's evidence; `cautions` of `GET /api/v1/vocabulary`), joined by `;` (empty for none). |\n| `error_code` | error | The API's code of the item's error (`error.code`; `errors` of `GET /api/v1/vocabulary`). |\n| `error_type` | error | `error.type`: the class of IDTrack's error. |\n| `error_message` | error | `error.message` (escaped as `query_id`). |\n| `error_input_error` | error | `error.input_error`. |\n| `rank` | candidate | The candidate's place in `candidates`, from 1 (empty on the row of a result without candidates). |\n| `best` | candidate | `best` of the candidate. |\n| `gene` | candidate | `gene` of the candidate. |\n| `target` | candidate | `target` of the candidate. |\n| `entry_gene` | candidate | `entry_gene` of the candidate. |\n| `entry_databases` | candidate | `entry_databases` of the candidate. |\n| `authority` | candidate | `authority` of the candidate. |\n| `display_name` | candidate | `display_name` of the candidate. |\n| `display_rank` | candidate | `display_rank` of the candidate. |\n| `entry_support` | candidate | `entry_support` of the candidate. |\n| `own_version` | candidate | `own_version` of the candidate. |\n| `final_confidence` | candidate | `final_confidence` of the candidate. |\n| `bridges` | candidate | `bridges` of the candidate. |\n| `bridge_gap` | candidate | `bridge_gap` of the candidate. |\n| `score` | candidate | `score` of the candidate. |\n| `unscored_steps` | candidate | `unscored_steps` of the candidate. |\n| `same_as_query` | candidate | `same_as_query` of the candidate. |\n| `external_steps` | candidate | `external_steps` of the candidate. |\n| `history_steps` | candidate | `history_steps` of the candidate. |\n| `annotation` | candidate | `annotation` of the candidate. |"
                 },
                 "x-columns": [
                   {
@@ -7462,17 +7462,17 @@
                   {
                     "name": "cautions",
                     "group": "result",
-                    "description": "The codes of `cautions` (the api's reading of the result's evidence; `cautions` of `GET /api/v1/vocabulary`), joined by `;` (empty for none)."
+                    "description": "The codes of `cautions` (the API's reading of the result's evidence; `cautions` of `GET /api/v1/vocabulary`), joined by `;` (empty for none)."
                   },
                   {
                     "name": "error_code",
                     "group": "error",
-                    "description": "The api's code of the item's error (`error.code`; `errors` of `GET /api/v1/vocabulary`)."
+                    "description": "The API's code of the item's error (`error.code`; `errors` of `GET /api/v1/vocabulary`)."
                   },
                   {
                     "name": "error_type",
                     "group": "error",
-                    "description": "`error.type`: the class of idtrack's error."
+                    "description": "`error.type`: the class of IDTrack's error."
                   },
                   {
                     "name": "error_message",
@@ -7675,7 +7675,7 @@
           "conversion"
         ],
         "summary": "Where a list of identifiers comes from: the releases, assemblies or databases it fits",
-        "description": "Infer where a list of identifiers comes from (idtrack's `API.source_inference`): each distinct identifier counts once at every origin (release, assembly, database, by `mode`) at which it is an identifier, read as it was at that release; the best origin is the one where most are found, and the band holds the origins the list cannot tell apart from it (a one-sided sign test at idtrack's level 0.05). For a list from a paper, ask this first, then convert the list with the band's best release as `from_release`, so each name is read as it was then. Refused with `unknown_identifier` when none of the identifiers is in the graph.",
+        "description": "Infer where a list of identifiers comes from (IDTrack's `API.source_inference`): each distinct identifier counts once at every origin (release, assembly, database, by `mode`) at which it is an identifier, read as it was at that release; the best origin is the one where most are found, and the band holds the origins the list cannot tell apart from it (a one-sided sign test at IDTrack's level 0.05). For a list from a paper, ask this first, then convert the list with the band's best release as `from_release`, so each name is read as it was then. Refused with `unknown_identifier` when none of the identifiers is in the graph.",
         "operationId": "source_inference",
         "parameters": [
           {
@@ -7686,7 +7686,7 @@
               "type": "string",
               "maxLength": 100
             },
-            "description": "The organism: its Ensembl production name (`homo_sapiens`), with spaces or in any letter case (`Homo sapiens`), or a short name idtrack declares (`human`, `pig`); the names a server holds: `names` of `GET /organisms`.",
+            "description": "The organism: its Ensembl production name (`homo_sapiens`), with spaces or in any letter case (`Homo sapiens`), or a short name IDTrack declares (`human`, `pig`); the names a server holds: `names` of `GET /organisms`.",
             "example": "homo_sapiens"
           }
         ],
@@ -8143,7 +8143,7 @@
           "names"
         ],
         "summary": "The genes a name of an external database names, per database and release",
-        "description": "The genes a name of an external database names (a symbol, a synonym, an accession), per database and the releases at which each holds (idtrack's `API.genes_named`, each match listing its `releases`). With `release`, only the matches that hold at that release (what the name means there; to convert it as it was then: `GET .../convert` with `from_release` and `to_release` that release).",
+        "description": "The genes a name of an external database names (a symbol, a synonym, an accession), per database and the releases at which each holds (IDTrack's `API.genes_named`, each match listing its `releases`). With `release`, only the matches that hold at that release (what the name means there; to convert it as it was then: `GET .../convert` with `from_release` and `to_release` that release).",
         "operationId": "genes_named",
         "parameters": [
           {
@@ -8154,7 +8154,7 @@
               "type": "string",
               "maxLength": 100
             },
-            "description": "The organism: its Ensembl production name (`homo_sapiens`), with spaces or in any letter case (`Homo sapiens`), or a short name idtrack declares (`human`, `pig`); the names a server holds: `names` of `GET /organisms`.",
+            "description": "The organism: its Ensembl production name (`homo_sapiens`), with spaces or in any letter case (`Homo sapiens`), or a short name IDTrack declares (`human`, `pig`); the names a server holds: `names` of `GET /organisms`.",
             "example": "homo_sapiens"
           },
           {
@@ -8193,7 +8193,7 @@
                 }
               ]
             },
-            "description": "Only the matches that hold at this release (whose `releases` hold it); omitted: every match. An Ensembl release, a whole number from 0 to 999999999 (anything else is `400 invalid_request`); whether the graph covers it is idtrack's to answer (`400 unknown_release`, with the graph's releases in `allowed`: `GET /organisms/{organism}` lists them as `releases`)."
+            "description": "Only the matches that hold at this release (whose `releases` hold it); omitted: every match. An Ensembl release, a whole number from 0 to 999999999 (anything else is `400 invalid_request`); whether the graph covers it is IDTrack's to answer (`400 unknown_release`, with the graph's releases in `allowed`: `GET /organisms/{organism}` lists them as `releases`)."
           }
         ],
         "responses": {
@@ -9023,7 +9023,7 @@
           "names"
         ],
         "summary": "The names external databases give a gene, per database and release",
-        "description": "The names external databases give one gene, per database and the releases at which each holds (idtrack's `API.names_of`). The gene is an Ensembl gene id with version; an id without version is refused with `invalid_argument`, its versions in `allowed`.",
+        "description": "The names external databases give one gene, per database and the releases at which each holds (IDTrack's `API.names_of`). The gene is an Ensembl gene id with version; an id without version is refused with `invalid_argument`, its versions in `allowed`.",
         "operationId": "names_of",
         "parameters": [
           {
@@ -9034,7 +9034,7 @@
               "type": "string",
               "maxLength": 100
             },
-            "description": "The organism: its Ensembl production name (`homo_sapiens`), with spaces or in any letter case (`Homo sapiens`), or a short name idtrack declares (`human`, `pig`); the names a server holds: `names` of `GET /organisms`.",
+            "description": "The organism: its Ensembl production name (`homo_sapiens`), with spaces or in any letter case (`Homo sapiens`), or a short name IDTrack declares (`human`, `pig`); the names a server holds: `names` of `GET /organisms`.",
             "example": "homo_sapiens"
           },
           {
@@ -9063,7 +9063,7 @@
                 }
               ]
             },
-            "description": "Only names that hold at this release; omitted: every release, each match listing its `releases`. An Ensembl release, a whole number from 0 to 999999999 (anything else is `400 invalid_request`); whether the graph covers it is idtrack's to answer (`400 unknown_release`, with the graph's releases in `allowed`: `GET /organisms/{organism}` lists them as `releases`).",
+            "description": "Only names that hold at this release; omitted: every release, each match listing its `releases`. An Ensembl release, a whole number from 0 to 999999999 (anything else is `400 invalid_request`); whether the graph covers it is IDTrack's to answer (`400 unknown_release`, with the graph's releases in `allowed`: `GET /organisms/{organism}` lists them as `releases`).",
             "example": 115
           }
         ],
@@ -9344,7 +9344,7 @@
           "read_copies"
         ],
         "title": "BatchArguments",
-        "description": "The arguments of a batch as the api read them (`null`: not given, the default applies)."
+        "description": "The arguments of a batch as the API read them (`null`: not given, the default applies)."
       },
       "BatchResponse": {
         "properties": {
@@ -9488,13 +9488,13 @@
               }
             ],
             "title": "Meaning",
-            "description": "idtrack's text of the rule."
+            "description": "IDTrack's text of the rule."
           },
           "source": {
             "type": "string",
             "const": "idtrack",
             "title": "Source",
-            "description": "Whose words `meaning` is (idtrack's)."
+            "description": "Whose words `meaning` is (IDTrack's)."
           },
           "taken": {
             "type": "boolean",
@@ -9511,7 +9511,7 @@
           "taken"
         ],
         "title": "BridgeRuleTerm",
-        "description": "A rule that takes or refuses a bridge (`BridgeCheck.through`), with idtrack's text."
+        "description": "A rule that takes or refuses a bridge (`BridgeCheck.through`), with IDTrack's text."
       },
       "Candidate": {
         "properties": {
@@ -9781,7 +9781,7 @@
               }
             ],
             "title": "Limitation",
-            "description": "The address of the section of idtrack's documented limitations that describes this class, where there is one."
+            "description": "The address of the section of IDTrack's documented limitations that describes this class, where there is one."
           },
           "alert": {
             "type": "boolean",
@@ -9825,7 +9825,7 @@
           "read_at"
         ],
         "title": "Caution",
-        "description": "A fact of a result to weigh before trusting its answer: the api's reading of idtrack's fields."
+        "description": "A fact of a result to weigh before trusting its answer: the API's reading of IDTrack's fields."
       },
       "CautionAsk": {
         "properties": {
@@ -10006,7 +10006,7 @@
           "meaning": {
             "type": "string",
             "title": "Meaning",
-            "description": "What it means, in the api's words."
+            "description": "What it means, in the API's words."
           },
           "reads_path": {
             "type": "boolean",
@@ -10023,13 +10023,13 @@
               }
             ],
             "title": "Limitation",
-            "description": "The address of the section of idtrack's documented limitations of this class, if any."
+            "description": "The address of the section of IDTrack's documented limitations of this class, if any."
           },
           "source": {
             "type": "string",
             "const": "idtrack-web",
             "title": "Source",
-            "description": "The api's own table (`api/idtrack_web_api/cautions.py`)."
+            "description": "The API's own table (`api/idtrack_web_api/cautions.py`)."
           }
         },
         "additionalProperties": false,
@@ -10355,7 +10355,7 @@
             },
             "type": "array",
             "title": "Cautions",
-            "description": "The api's reading of this result's evidence, by stated rules (`cautions` of `GET /vocabulary`): each fact of the best answer a reader should weigh before trusting it (`tone` `caution`: review the answer) or that is worth knowing (`note`), cautions first, with the section of idtrack's documented limitations it falls under. Read with the path whatever `explain` asks: every rule holds for every answer. Empty: nothing to weigh. Added by the api to idtrack's result."
+            "description": "The API's reading of this result's evidence, by stated rules (`cautions` of `GET /vocabulary`): each fact of the best answer a reader should weigh before trusting it (`tone` `caution`: review the answer) or that is worth knowing (`note`), cautions first, with the section of IDTrack's documented limitations it falls under. Read with the path whatever `explain` asks: every rule holds for every answer. Empty: nothing to weigh. Added by the API to IDTrack's result."
           }
         },
         "additionalProperties": false,
@@ -10491,7 +10491,7 @@
               }
             ],
             "title": "Parts",
-            "description": "For a field that is a tuple, the names of its parts, each the negated count (as idtrack's text of the field states); `null` otherwise."
+            "description": "For a field that is a tuple, the names of its parts, each the negated count (as IDTrack's text of the field states); `null` otherwise."
           }
         },
         "additionalProperties": false,
@@ -10521,13 +10521,13 @@
               }
             ],
             "title": "Meaning",
-            "description": "idtrack's text of the `Candidate` field of the same name."
+            "description": "IDTrack's text of the `Candidate` field of the same name."
           },
           "source": {
             "type": "string",
             "const": "idtrack",
             "title": "Source",
-            "description": "Whose words `meaning` is (idtrack's)."
+            "description": "Whose words `meaning` is (IDTrack's)."
           },
           "fields": {
             "items": {
@@ -10535,7 +10535,7 @@
             },
             "type": "array",
             "title": "Fields",
-            "description": "The fields idtrack's ranking compares for this criterion, in order, the first that differs deciding (the api's reading of idtrack's ranking, which gives no such table; tested against idtrack's criteria)."
+            "description": "The fields IDTrack's ranking compares for this criterion, in order, the first that differs deciding (the API's reading of IDTrack's ranking, which gives no such table; tested against IDTrack's criteria)."
           }
         },
         "additionalProperties": false,
@@ -10547,7 +10547,7 @@
           "fields"
         ],
         "title": "CriterionTerm",
-        "description": "A criterion that ranks candidates: idtrack's text of its field, and the fields its ranking compares."
+        "description": "A criterion that ranks candidates: IDTrack's text of its field, and the fields its ranking compares."
       },
       "DatabaseConversion": {
         "properties": {
@@ -10587,7 +10587,7 @@
               }
             ],
             "title": "Form",
-            "description": "The Ensembl form the database connects through (`gene`, `transcript`, `translation`: idtrack's `API.database_forms()`); `null` for idtrack's own gene namespaces `ensembl_gene` and `base_ensembl_gene`, which that table does not list."
+            "description": "The Ensembl form the database connects through (`gene`, `transcript`, `translation`: IDTrack's `API.database_forms()`); `null` for IDTrack's own gene namespaces `ensembl_gene` and `base_ensembl_gene`, which that table does not list."
           },
           "releases": {
             "items": {
@@ -10595,7 +10595,7 @@
             },
             "type": "array",
             "title": "Releases",
-            "description": "The releases whose `final_databases` include it (idtrack's `API.final_databases(to_release)`), ascending."
+            "description": "The releases whose `final_databases` include it (IDTrack's `API.final_databases(to_release)`), ascending."
           },
           "kind": {
             "type": "string",
@@ -10605,7 +10605,7 @@
               "label"
             ],
             "title": "Kind",
-            "description": "What its values are (`database_kinds` of `GET /vocabulary`): `ensembl`, one of idtrack's two Ensembl gene namespaces; `label`, a database whose ids are labels (display names, symbols) rather than accessions (the graph's `label_databases`); `accession`, any other external database."
+            "description": "What its values are (`database_kinds` of `GET /vocabulary`): `ensembl`, one of IDTrack's two Ensembl gene namespaces; `label`, a database whose ids are labels (display names, symbols) rather than accessions (the graph's `label_databases`); `accession`, any other external database."
           },
           "versioned": {
             "anyOf": [
@@ -10701,7 +10701,7 @@
             },
             "type": "object",
             "title": "By Assembly",
-            "description": "The external databases of each genome assembly of the graph (idtrack's `API.databases_by_assembly()`; an assembly by its number, as a string). A release's databases are those of the assembly that serves it (`assemblies[].serves` of `/organisms/{organism}`) and the two gene namespaces."
+            "description": "The external databases of each genome assembly of the graph (IDTrack's `API.databases_by_assembly()`; an assembly by its number, as a string). A release's databases are those of the assembly that serves it (`assemblies[].serves` of `/organisms/{organism}`) and the two gene namespaces."
           },
           "symbol_databases": {
             "items": {
@@ -10709,7 +10709,7 @@
             },
             "type": "array",
             "title": "Symbol Databases",
-            "description": "The organism's symbol databases, its name authorities, in idtrack's order (`idtrack.organisms.SYMBOL_DATABASES`): the first one a conversion to a release can end in is the one idtrack's harmonization uses by default there."
+            "description": "The organism's symbol databases, its name authorities, in IDTrack's order (`idtrack.organisms.SYMBOL_DATABASES`): the first one a conversion to a release can end in is the one IDTrack's harmonization uses by default there."
           }
         },
         "additionalProperties": false,
@@ -10783,7 +10783,7 @@
           "allow_bridges"
         ],
         "title": "EachDatabaseArguments",
-        "description": "The arguments of `convert/each-database` as the api read them (`null`: not given, the default applies)."
+        "description": "The arguments of `convert/each-database` as the API read them (`null`: not given, the default applies)."
       },
       "EachDatabaseResponse": {
         "properties": {
@@ -11012,7 +11012,7 @@
           "code": {
             "type": "string",
             "title": "Code",
-            "description": "The api's stable code of the error (one of the error codes of `GET /vocabulary`, as the same identifier sent alone to `/convert` would be answered: `missing_value` for an empty string or a spelling of a missing value, `search_budget_exceeded` for a search over its budget, `internal_error` for a fault). Added by the api to idtrack's error record.",
+            "description": "The API's stable code of the error (one of the error codes of `GET /vocabulary`, as the same identifier sent alone to `/convert` would be answered: `missing_value` for an empty string or a spelling of a missing value, `search_budget_exceeded` for a search over its budget, `internal_error` for a fault). Added by the API to IDTrack's error record.",
             "enum": [
               "unknown_release",
               "unknown_database",
@@ -11120,7 +11120,7 @@
           "retry"
         ],
         "title": "ErrorTerm",
-        "description": "An error code of the api, its status and when it is answered."
+        "description": "An error code of the API, its status and when it is answered."
       },
       "ExplainedPath": {
         "properties": {
@@ -11297,7 +11297,7 @@
           "release"
         ],
         "title": "GenesNamedArguments",
-        "description": "The arguments of `genes-named` as the api read them."
+        "description": "The arguments of `genes-named` as the API read them."
       },
       "GraphDescription": {
         "properties": {
@@ -11550,7 +11550,7 @@
               }
             ],
             "title": "Package Version",
-            "description": "The idtrack version that built the graph, where its build record gives one; `null` where the record holds a text instead (`package_version_note`)."
+            "description": "The IDTrack version that built the graph, where its build record gives one; `null` where the record holds a text instead (`package_version_note`)."
           },
           "package_version_note": {
             "anyOf": [
@@ -11562,7 +11562,7 @@
               }
             ],
             "title": "Package Version Note",
-            "description": "The build record's own text where it gives no version (for a graph built from a source folder rather than an installed idtrack); `null` where it gives a version. The graph's description (`GET /organisms/{organism}`) carries the record as it is."
+            "description": "The build record's own text where it gives no version (for a graph built from a source folder rather than an installed IDTrack); `null` where it gives a version. The graph's description (`GET /organisms/{organism}`) carries the record as it is."
           },
           "package_commit": {
             "anyOf": [
@@ -11574,7 +11574,7 @@
               }
             ],
             "title": "Package Commit",
-            "description": "The idtrack commit that built the graph, where known."
+            "description": "The IDTrack commit that built the graph, where known."
           },
           "build_date": {
             "anyOf": [
@@ -11640,7 +11640,7 @@
           "genes_active": {
             "type": "integer",
             "title": "Genes Active",
-            "description": "Stable gene ids of the graph's history with a version active at the release (idtrack's `TheGraph.active_releases` of each version; every assembly and region the graph holds, alternative loci included)."
+            "description": "Stable gene ids of the graph's history with a version active at the release (IDTrack's `TheGraph.active_releases` of each version; every assembly and region the graph holds, alternative loci included)."
           },
           "versions_active": {
             "type": "integer",
@@ -11764,7 +11764,7 @@
               }
             ],
             "title": "One To Many",
-            "description": "Gene versions with history edges to two or more distinct gene versions across these releases (the version itself among them where it is kept; retirements not counted): the fan out of Ensembl's mapping, counted from the edges' ends, not idtrack's reading of a path's step (`split` of `PathStep.reason`). Sent by every answer of this version."
+            "description": "Gene versions with history edges to two or more distinct gene versions across these releases (the version itself among them where it is kept; retirements not counted): the fan out of Ensembl's mapping, counted from the edges' ends, not IDTrack's reading of a path's step (`split` of `PathStep.reason`). Sent by every answer of this version."
           },
           "many_to_one": {
             "anyOf": [
@@ -11825,14 +11825,14 @@
           "summary"
         ],
         "title": "IndexEndpoint",
-        "description": "One endpoint of the api."
+        "description": "One endpoint of the API."
       },
       "IndexResponse": {
         "properties": {
           "api_version": {
             "type": "string",
             "title": "Api Version",
-            "description": "The version of this api."
+            "description": "The version of this API."
           },
           "openapi": {
             "type": "string",
@@ -11847,7 +11847,7 @@
           "llms_full_txt": {
             "type": "string",
             "title": "Llms Full Txt",
-            "description": "Every rule, code and example of the api as one Markdown text."
+            "description": "Every rule, code and example of the API as one Markdown text."
           },
           "reference": {
             "anyOf": [
@@ -11899,7 +11899,7 @@
           "endpoints"
         ],
         "title": "IndexResponse",
-        "description": "Where everything is: the api's documents and every endpoint."
+        "description": "Where everything is: the API's documents and every endpoint."
       },
       "LatencyLoad": {
         "properties": {
@@ -12200,7 +12200,7 @@
             },
             "type": "array",
             "title": "Active",
-            "description": "Per id, the runs of consecutive releases of the graph at which a version of it is active (idtrack's `TheGraph.active_releases`), each `[first, last]`."
+            "description": "Per id, the runs of consecutive releases of the graph at which a version of it is active (IDTrack's `TheGraph.active_releases`), each `[first, last]`."
           },
           "versions": {
             "items": {
@@ -12232,7 +12232,7 @@
             },
             "type": "array",
             "title": "Edges",
-            "description": "History edges from a version of one id to a version of another, both given: `[from index, to index, old release, new release, score]`, `score` Ensembl's mapping score (the highest between the two ids across those releases) or `null` where it gave none. A version's edges to two or more ids at once is Ensembl's mapping fanning out, two or more ids' edges to one id fanning in; neither is idtrack's classification of a step of a path (`PathStep.reason`)."
+            "description": "History edges from a version of one id to a version of another, both given: `[from index, to index, old release, new release, score]`, `score` Ensembl's mapping score (the highest between the two ids across those releases) or `null` where it gave none. A version's edges to two or more ids at once is Ensembl's mapping fanning out, two or more ids' edges to one id fanning in; neither is IDTrack's classification of a step of a path (`PathStep.reason`)."
           }
         },
         "additionalProperties": false,
@@ -12415,7 +12415,7 @@
           "release"
         ],
         "title": "NamesOfArguments",
-        "description": "The arguments of `names-of` as the api read them."
+        "description": "The arguments of `names-of` as the API read them."
       },
       "NamesResponse": {
         "properties": {
@@ -12442,7 +12442,7 @@
             },
             "type": "array",
             "title": "Matches",
-            "description": "The matches, as idtrack orders them."
+            "description": "The matches, as IDTrack orders them."
           }
         },
         "additionalProperties": false,
@@ -12468,7 +12468,7 @@
             },
             "type": "array",
             "title": "Aliases",
-            "description": "The short names idtrack declares for it (`idtrack.organisms.ALIASES`: `human`). The path also takes the production name with spaces for underscores and in any letter case (`Homo sapiens`); no other name, and no taxon id: idtrack resolves names without the network only so."
+            "description": "The short names IDTrack declares for it (`idtrack.organisms.ALIASES`: `human`). The path also takes the production name with spaces for underscores and in any letter case (`Homo sapiens`); no other name, and no taxon id: IDTrack resolves names without the network only so."
           }
         },
         "additionalProperties": false,
@@ -12478,7 +12478,7 @@
           "aliases"
         ],
         "title": "OrganismNames",
-        "description": "The names by which the path of the api takes an organism."
+        "description": "The names by which the path of the API takes an organism."
       },
       "OrganismsResponse": {
         "properties": {
@@ -12531,7 +12531,7 @@
               }
             ],
             "title": "Assembly",
-            "description": "The genome assembly, by its key in idtrack's organism table (modes `assembly_release`, `assembly`, `complete`)."
+            "description": "The genome assembly, by its key in IDTrack's organism table (modes `assembly_release`, `assembly`, `complete`)."
           },
           "release": {
             "anyOf": [
@@ -13605,7 +13605,7 @@
                 "type": "null"
               }
             ],
-            "description": "The band's first origin (the best), its parts named; `null` when the band is empty. The same origin is `inference.band[0]`, written as idtrack writes an origin of the mode."
+            "description": "The band's first origin (the best), its parts named; `null` when the band is empty. The same origin is `inference.band[0]`, written as IDTrack writes an origin of the mode."
           },
           "from_release": {
             "anyOf": [
@@ -13621,7 +13621,7 @@
           },
           "inference": {
             "$ref": "#/components/schemas/SourceInference",
-            "description": "idtrack's `SourceInference.to_dict()`: the band of origins the list cannot tell apart from the best, best first, the margin and every origin's count; an origin is written by the mode (`[assembly, release]`, a release, an assembly, or `[database, assembly, release]`)."
+            "description": "IDTrack's `SourceInference.to_dict()`: the band of origins the list cannot tell apart from the best, best first, the margin and every origin's count; an origin is written by the mode (`[assembly, release]`, a release, an assembly, or `[database, assembly, release]`)."
           }
         },
         "additionalProperties": false,
@@ -13634,7 +13634,7 @@
           "inference"
         ],
         "title": "SourceInferenceResponse",
-        "description": "Where a list of identifiers comes from: idtrack's ``API.source_inference``, with the best origin named."
+        "description": "Where a list of identifiers comes from: IDTrack's ``API.source_inference``, with the best origin named."
       },
       "StatusHistory": {
         "properties": {
@@ -13890,7 +13890,7 @@
               "idtrack-web"
             ],
             "title": "Source",
-            "description": "Whose words `meaning` is: `idtrack` (its own table of the codes), or `idtrack-web` (the api's own table, kept where idtrack gives no text, and tested against idtrack's set of codes)."
+            "description": "Whose words `meaning` is: `idtrack` (its own table of the codes), or `idtrack-web` (the API's own table, kept where IDTrack gives no text, and tested against IDTrack's set of codes)."
           },
           "answers_requested_database": {
             "type": "boolean",
@@ -13935,7 +13935,7 @@
               "idtrack-web"
             ],
             "title": "Source",
-            "description": "Whose words `meaning` is: `idtrack` (its own table of the codes), or `idtrack-web` (the api's own table, kept where idtrack gives no text, and tested against idtrack's set of codes)."
+            "description": "Whose words `meaning` is: `idtrack` (its own table of the codes), or `idtrack-web` (the API's own table, kept where IDTrack gives no text, and tested against IDTrack's set of codes)."
           }
         },
         "additionalProperties": false,
@@ -13946,7 +13946,7 @@
           "source"
         ],
         "title": "Term",
-        "description": "A code of the api's answers and what it means, from the one place that defines it."
+        "description": "A code of the API's answers and what it means, from the one place that defines it."
       },
       "ValidationDetail": {
         "properties": {
@@ -13985,12 +13985,12 @@
           "api_version": {
             "type": "string",
             "title": "Api Version",
-            "description": "The version of this api."
+            "description": "The version of this API."
           },
           "idtrack_version": {
             "type": "string",
             "title": "Idtrack Version",
-            "description": "The version of idtrack that answers."
+            "description": "The version of IDTrack that answers."
           },
           "idtrack_commit": {
             "anyOf": [
@@ -14002,12 +14002,12 @@
               }
             ],
             "title": "Idtrack Commit",
-            "description": "The idtrack commit that answers, where known."
+            "description": "The IDTrack commit that answers, where known."
           },
           "graph_format_version": {
             "type": "integer",
             "title": "Graph Format Version",
-            "description": "The graph file format this idtrack reads."
+            "description": "The graph file format this IDTrack reads."
           },
           "manifest": {
             "$ref": "#/components/schemas/GraphFile",
@@ -14024,7 +14024,7 @@
           "docs_url": {
             "type": "string",
             "title": "Docs Url",
-            "description": "The address of idtrack's documentation this server links to (its root, ending in `/`; `IDTRACK_WEB_DOCS_URL`, by default Read the Docs' stable version)."
+            "description": "The address of IDTrack's documentation this server links to (its root, ending in `/`; `IDTRACK_WEB_DOCS_URL`, by default Read the Docs' stable version)."
           },
           "analytics_id": {
             "anyOf": [
@@ -14068,7 +14068,7 @@
           "docs_url"
         ],
         "title": "VersionResponse",
-        "description": "The versions of the server, of idtrack and of each loaded graph."
+        "description": "The versions of the server, of IDTrack and of each loaded graph."
       },
       "VocabularyResponse": {
         "properties": {
@@ -14078,7 +14078,7 @@
             },
             "type": "array",
             "title": "Statuses",
-            "description": "The values of `ConversionResult.status`, in idtrack's order."
+            "description": "The values of `ConversionResult.status`, in IDTrack's order."
           },
           "reasons": {
             "items": {
@@ -14110,7 +14110,7 @@
             },
             "type": "array",
             "title": "Candidate Fields",
-            "description": "Every field of `Candidate`, in order, with idtrack's text of it (its ranking record)."
+            "description": "Every field of `Candidate`, in order, with IDTrack's text of it (its ranking record)."
           },
           "match_steps": {
             "items": {
@@ -14158,7 +14158,7 @@
             },
             "type": "array",
             "title": "Errors",
-            "description": "The api's error codes (`error.code`), with their HTTP status."
+            "description": "The API's error codes (`error.code`), with their HTTP status."
           },
           "database_kinds": {
             "items": {
@@ -14190,7 +14190,7 @@
             },
             "type": "array",
             "title": "Cautions",
-            "description": "The classes of evidence a result's `cautions` name: the api's reading of idtrack's fields."
+            "description": "The classes of evidence a result's `cautions` name: the API's reading of IDTrack's fields."
           }
         },
         "additionalProperties": false,
@@ -14209,7 +14209,7 @@
           "errors"
         ],
         "title": "VocabularyResponse",
-        "description": "What the codes of the answers mean: idtrack's own tables, and the api's tables where idtrack gives no text.\n\nEvery code is idtrack's, with idtrack's text wherever it gives one; a criterion's meaning is idtrack's text of the\n`Candidate` field it compares. Where idtrack gives codes without texts (the statuses) the meaning is the api's\n(`source` says so), and the fields a criterion compares are the api's reading of idtrack's ranking; both are tested\nagainst idtrack's codes. The same codes are the enumerations of the OpenAPI document."
+        "description": "What the codes of the answers mean: IDTrack's own tables, and the API's tables where IDTrack gives no text.\n\nEvery code is IDTrack's, with IDTrack's text wherever it gives one; a criterion's meaning is IDTrack's text of the\n`Candidate` field it compares. Where IDTrack gives codes without texts (the statuses) the meaning is the API's\n(`source` says so), and the fields a criterion compares are the API's reading of IDTrack's ranking; both are tested\nagainst IDTrack's codes. The same codes are the enumerations of the OpenAPI document."
       },
       "WorkerLoad": {
         "properties": {
@@ -14402,7 +14402,7 @@
                 "type": "null"
               }
             ],
-            "description": "The release the identifiers are read at; `null`: inferred. Without it, an identifier is read at the target release if it exists there, and otherwise at the latest release at which it exists (idtrack's rule, the same for Ensembl ids, symbols and other databases' ids); the result says which release was used (`from_release`) and whether it was chosen (`from_release_inferred`). So a symbol sent without `from_release` is read as what it names at the target release, not as what it named years ago: give the release of the list's source to read it as it was then (`POST .../source-inference` finds it for a list). An Ensembl release, a whole number from 0 to 999999999 (anything else is `400 invalid_request`); whether the graph covers it is idtrack's to answer (`400 unknown_release`, with the graph's releases in `allowed`: `GET /organisms/{organism}` lists them as `releases`).",
+            "description": "The release the identifiers are read at; `null`: inferred. Without it, an identifier is read at the target release if it exists there, and otherwise at the latest release at which it exists (IDTrack's rule, the same for Ensembl ids, symbols and other databases' ids); the result says which release was used (`from_release`) and whether it was chosen (`from_release_inferred`). So a symbol sent without `from_release` is read as what it names at the target release, not as what it named years ago: give the release of the list's source to read it as it was then (`POST .../source-inference` finds it for a list). An Ensembl release, a whole number from 0 to 999999999 (anything else is `400 invalid_request`); whether the graph covers it is IDTrack's to answer (`400 unknown_release`, with the graph's releases in `allowed`: `GET /organisms/{organism}` lists them as `releases`).",
             "title": "From Release"
           },
           "to_release": {
@@ -14416,7 +14416,7 @@
                 "type": "null"
               }
             ],
-            "description": "The target release; `null`: the graph's snapshot release. An Ensembl release, a whole number from 0 to 999999999 (anything else is `400 invalid_request`); whether the graph covers it is idtrack's to answer (`400 unknown_release`, with the graph's releases in `allowed`: `GET /organisms/{organism}` lists them as `releases`).",
+            "description": "The target release; `null`: the graph's snapshot release. An Ensembl release, a whole number from 0 to 999999999 (anything else is `400 invalid_request`); whether the graph covers it is IDTrack's to answer (`400 unknown_release`, with the graph's releases in `allowed`: `GET /organisms/{organism}` lists them as `releases`).",
             "title": "To Release"
           },
           "final_database": {
@@ -14461,7 +14461,7 @@
           },
           "read_copies": {
             "default": true,
-            "description": "`true` (idtrack's reading of a batch): an item that is another item of the same batch with `-1`, `.1` or `_1` appended, and is itself no exact name, is answered as that item's copy (`match` begins with `copy:`), so an item's answer can depend on the other items of its batch; keep such names in one batch. `false`: every item is converted alone, as `GET .../convert` converts it.",
+            "description": "`true` (IDTrack's reading of a batch): an item that is another item of the same batch with `-1`, `.1` or `_1` appended, and is itself no exact name, is answered as that item's copy (`match` begins with `copy:`), so an item's answer can depend on the other items of its batch; keep such names in one batch. `false`: every item is converted alone, as `GET .../convert` converts it.",
             "title": "Read Copies",
             "type": "boolean"
           }
@@ -14514,7 +14514,7 @@
         }
       },
       "Idtrack-Version": {
-        "description": "The version of idtrack that answered (as `idtrack_version` of `GET /version`).",
+        "description": "The version of IDTrack that answered (as `idtrack_version` of `GET /version`).",
         "schema": {
           "type": "string"
         }
@@ -14964,7 +14964,7 @@
         }
       },
       "internal_error": {
-        "summary": "`internal_error` (written by the api's own code: no request makes it on purpose)",
+        "summary": "`internal_error` (written by the API's own code: no request makes it on purpose)",
         "value": {
           "error": {
             "code": "internal_error",
@@ -14979,7 +14979,7 @@
         }
       },
       "server_busy": {
-        "summary": "`server_busy` (written by the api's own code: no request makes it on purpose)",
+        "summary": "`server_busy` (written by the API's own code: no request makes it on purpose)",
         "value": {
           "error": {
             "code": "server_busy",
@@ -14994,7 +14994,7 @@
         }
       },
       "request_budget_exceeded": {
-        "summary": "`request_budget_exceeded` (written by the api's own code: no request makes it on purpose)",
+        "summary": "`request_budget_exceeded` (written by the API's own code: no request makes it on purpose)",
         "value": {
           "error": {
             "code": "request_budget_exceeded",
@@ -15009,7 +15009,7 @@
         }
       },
       "search_budget_exceeded": {
-        "summary": "`search_budget_exceeded` (written by the api's own code: no request makes it on purpose)",
+        "summary": "`search_budget_exceeded` (written by the API's own code: no request makes it on purpose)",
         "value": {
           "error": {
             "code": "search_budget_exceeded",
@@ -15920,7 +15920,7 @@
     }
   ],
   "externalDocs": {
-    "description": "idtrack's documentation: what it answers, how, and its known limitations",
+    "description": "IDTrack's documentation: what it answers, how, and its known limitations",
     "url": "https://idtrack.readthedocs.io/en/stable/"
   }
 }

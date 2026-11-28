@@ -7,15 +7,23 @@ import gzip
 import json
 import os
 import re
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 import pytest
 
-from idtrack_web_api.frontend import IMMUTABLE, PRELOAD_ID, REVALIDATE, accepts_gzip
+from idtrack_web_api.frontend import (
+    BUILD_DOCS_URL,
+    IMMUTABLE,
+    PAGE_ROUTES,
+    PRELOAD_ID,
+    REVALIDATE,
+    accepts_gzip,
+    frame_of,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Callable
-    from pathlib import Path
 
     from fastapi.testclient import TestClient
 
@@ -94,7 +102,7 @@ def test_compressed_files_and_small_files_go_as_they_are(web: TestClient) -> Non
 
 
 def test_the_page_is_revalidated_at_every_path(web: TestClient) -> None:
-    for path in ("/", "/index.html", "/batch", "/organisms/sus_scrofa"):
+    for path in ("/", "/batch", "/organisms/sus_scrofa"):
         status, headers, body = raw_get(web, path, "gzip")
         assert status == 200, path
         assert headers["content-encoding"] == "gzip"
@@ -334,6 +342,8 @@ def test_a_frame_brings_its_title_description_and_canonical_address(
     (dist / "frames.json").write_text(json.dumps({"frames": frames}), encoding="utf-8")
     web = make_client(rate_per_minute=0, static_dir=dist, public_url="https://idtrack.example")
     page = web.get(path).text
+    # A graph's page has its own title, from the graph the server holds; any other page its frame's.
+    title = "Sus scrofa · IDTrack" if path.lower().startswith("/organisms/") else title
     assert page.count("<title>") == 1 and f"<title>{title}</title>" in page
     assert page.count('name="description"') == 1 and "The page's own." not in page
     assert f'<link rel="canonical" href="https://idtrack.example{canonical}">' in page
@@ -371,3 +381,65 @@ def test_the_files_beside_the_page_go_with_their_types(make_client: Callable[...
     assert web.get("/site.webmanifest").headers["content-type"] == "application/manifest+json"
     assert web.get("/apple-touch-icon.png").headers["content-type"] == "image/png"
     assert web.get("/.hidden/security.txt").status_code == 404
+
+
+def test_the_routes_are_the_pages_routes() -> None:
+    """The server's routes of the page are the page's own (``web/src/lib/routes.ts``), each with the frame of its
+    page's name: a page added there and not here (or the reverse) fails here."""
+    routes = (Path(__file__).parents[2] / "web/src/lib/routes.ts").read_text(encoding="utf-8")
+    table = routes[routes.index("const PAGES") : routes.index("};", routes.index("const PAGES"))]
+    pages = dict(re.findall(r'"(/[^"]*)": \{ page: "([a-z-]+)"', table))
+    assert pages, "the page's table of routes is read"
+    for path, name in pages.items():
+        assert PAGE_ROUTES.match(path) and PAGE_ROUTES.match(path.rstrip("/") + "/"), path
+        assert frame_of(path, has_identifier=False) == name, path
+    assert frame_of("/organisms/sus_scrofa", has_identifier=False) == "organism"
+    for path in ("/legal/fr", "/licences/de", "/nothing", "/organisms/a/b"):
+        assert not PAGE_ROUTES.match(path), path
+
+
+def test_a_wrong_address_asked_by_a_browser_is_the_page_that_says_so(web: TestClient) -> None:
+    """The page's template is no address, and an address that names no file is the 404 page wherever a browser asks
+    for HTML, a dot in it or not; a program (no `text/html` in `Accept`) gets the JSON error."""
+    browser = {"Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"}
+    for path in ("/index.html", "/ENSG00000141510.20", "/privacy.html", "/organisms/homo_sapiens.x", "/wp-login.php"):
+        response = web.get(path, headers=browser)
+        assert (response.status_code, response.headers["content-type"]) == (404, "text/html; charset=utf-8"), path
+    for path in ("/ENSG00000141510.20", "/index.html"):
+        response = web.get(path, headers={"Accept": "*/*"})
+        assert response.status_code == 404 and response.json()["error"]["code"] == "not_found", path
+    assert web.get("/assets/nothing.js", headers=browser).status_code == 404
+    assert web.get("/", headers=browser).status_code == 200
+
+
+def test_the_frame_holds_what_only_the_server_knows(make_client: Callable[..., TestClient], dist: Path) -> None:
+    """The documentation's address the server is set to, in place of the build's; a graph's own title and
+    description on its page; German on the German pages (not on a 404 page whose address ends so)."""
+    (dist / "index.html").write_text(
+        '<!doctype html><html lang="en"><head><title>IDTrack</title></head><body><div id="root"></div>'
+        + "<p>x</p>" * 80
+        + "</body></html>",
+        encoding="utf-8",
+    )
+    meta = (
+        '<title>Explore · IDTrack</title><meta name="description" content="One graph.">'
+        '<meta property="og:title" content="Explore · IDTrack"><meta property="og:description" content="One graph.">'
+    )
+    markup = f'<header><a href="{BUILD_DOCS_URL}">Docs</a></header><main></main>'
+    frames = {name: {"html": markup, "head": "", "meta": meta} for name in FRAMES}
+    (dist / "frames.json").write_text(json.dumps({"frames": frames}), encoding="utf-8")
+    web = make_client(rate_per_minute=0, static_dir=dist, docs_url="https://docs.example.org/")
+    page = web.get("/legal").text
+    assert '<a href="https://docs.example.org/">Docs</a>' in page and BUILD_DOCS_URL not in page
+    assert '<html lang="en"' in page
+    organism = web.get("/organisms/pig").text
+    assert "<title>Sus scrofa · IDTrack</title>" in organism
+    assert '<meta property="og:title" content="Sus scrofa · IDTrack">' in organism
+    assert "Explore · IDTrack" not in organism and "One graph." not in organism
+    assert re.search(
+        r'name="description" content="The Sus scrofa graph of IDTrack: Ensembl releases \d+ to 115', organism
+    )
+    for path in ("/legal/de", "/privacy/de/"):
+        assert '<html lang="de"' in web.get(path).text, path
+    missing = web.get("/nothing/de")
+    assert missing.status_code == 404 and '<html lang="en"' in missing.text

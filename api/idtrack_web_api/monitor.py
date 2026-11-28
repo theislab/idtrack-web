@@ -97,9 +97,11 @@ _MADE_WALL, _MADE_MONO, _RETIRED_REQUESTS, _RETIRED_4XX, _RETIRED_5XX = 0, 1, 2,
 _EXITS, _LAST_EXIT_WALL, _LOST, _RETIRED_STATUS, _LOCK_HOLDER = 5, 6, 7, 8, 9
 # The ring of the server's totals: when its last sample was claimed (monotonic) and how many were written.
 _HISTORY_AT, _HISTORY_WRITTEN = 10, 11
-# The mean time of the recent searches (each weighted by :py:data:`SEARCH_WEIGHT`), and the searches measured.
+# The mean time of the recent searches (each weighted by :py:data:`SEARCH_WEIGHT`), and the searches measured; the
+# same of the searches of a list (a batch, a source inference: a POST), whose time grows with the list.
 _SEARCH_MEAN, _SEARCHES_MEASURED = 12, 13
-_SERVER = 14
+_LIST_MEAN, _LISTS_MEASURED = 14, 15
+_SERVER = 16
 #: The weight of the latest search in the mean of recent searches' time (an exponential moving mean: the last ten or so
 #: searches carry most of it), which estimates how long a search waits in the queue (:py:mod:`idtrack_web_api.server`).
 SEARCH_WEIGHT = 0.2
@@ -600,16 +602,29 @@ class LoadMonitor:
         if row:
             self._add(row, _SENDING, float(change))
 
-    def search_ended(self, seconds: float) -> None:
+    def search_ended(self, seconds: float, *, listed: bool = False) -> None:
         """Record the time a search took (with writing its answer), in the mean of the recent searches' time.
 
         Args:
             seconds: Its time.
+            listed: Whether it searched a list (a batch, a source inference): its time is also in their own mean.
         """
-        measured = self._server[_SEARCHES_MEASURED]
-        mean = self._server[_SEARCH_MEAN]
-        self._server[_SEARCH_MEAN] = seconds if measured == 0 else mean + SEARCH_WEIGHT * (seconds - mean)
-        self._server[_SEARCHES_MEASURED] = measured + 1.0
+        for mean_at, count_at in (
+            (_SEARCH_MEAN, _SEARCHES_MEASURED),
+            *(((_LIST_MEAN, _LISTS_MEASURED),) if listed else ()),
+        ):
+            measured = self._server[count_at]
+            mean = self._server[mean_at]
+            self._server[mean_at] = seconds if measured == 0 else mean + SEARCH_WEIGHT * (seconds - mean)
+            self._server[count_at] = measured + 1.0
+
+    def mean_list_seconds(self) -> float | None:
+        """Return the mean time of the recent searches of a list, every worker's (``None`` before any).
+
+        Returns:
+            float | None: Seconds.
+        """
+        return float(self._server[_LIST_MEAN]) if self._server[_LISTS_MEASURED] > 0 else None
 
     def mean_search_seconds(self) -> float:
         """Return the mean time of the recent searches, every worker's (0 before any search).

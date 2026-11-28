@@ -1,12 +1,12 @@
-"""The one place where the web api calls idtrack.
+"""The one place where the web API calls IDTrack.
 
-Every name of idtrack the api uses is here: loading a graph, describing it, converting, looking up names, its errors,
-its result classes (whose fields are the response schemas), its version. A renamed argument or class of idtrack is a
-change of this module alone (and of its tests, ``tests/test_adapter.py``). The rest of the api speaks only to this
-module and sees idtrack's results only as their ``to_dict()``, passed through unchanged.
+Every name of IDTrack the API uses is here: loading a graph, describing it, converting, looking up names, its errors,
+its result classes (whose fields are the response schemas), its version. A renamed argument or class of IDTrack is a
+change of this module alone (and of its tests, ``tests/test_adapter.py``). The rest of the API speaks only to this
+module and sees IDTrack's results only as their ``to_dict()``, passed through unchanged.
 
-The web api applies none of idtrack's rules itself: which releases, databases and identifiers a graph accepts is
-decided by idtrack, whose input errors are translated here into :py:class:`InputRefusedError` (a stable code, idtrack's
+The web API applies none of IDTrack's rules itself: which releases, databases and identifiers a graph accepts is
+decided by IDTrack, whose input errors are translated here into :py:class:`InputRefusedError` (a stable code, IDTrack's
 message, the argument and the accepted values), and a search over its budget into :py:class:`SearchBudgetError`.
 """
 
@@ -31,10 +31,10 @@ from idtrack.graph import GRAPH_FORMAT_VERSION
 from idtrack.organisms import ALIASES, SYMBOL_DATABASES, resolve_organism
 from idtrack.settings import SearchSettings
 
-#: The graph file format this idtrack reads.
+#: The graph file format this IDTrack reads.
 FORMAT_VERSION: int = GRAPH_FORMAT_VERSION
 
-#: idtrack's result classes whose ``to_dict()`` the api returns, by the name the api's schemas give them.
+#: IDTrack's result classes whose ``to_dict()`` the API returns, by the name the API's schemas give them.
 RESULT_CLASSES: dict[str, type] = {
     "ConversionResult": _results.ConversionResult,
     "Candidate": _results.Candidate,
@@ -51,17 +51,17 @@ RESULT_CLASSES: dict[str, type] = {
     "SourceInference": _results.SourceInference,
 }
 
-#: idtrack's two Ensembl gene namespaces a conversion can end in, and whether each writes the id's version.
+#: IDTrack's two Ensembl gene namespaces a conversion can end in, and whether each writes the id's version.
 ENSEMBL_NAMESPACES: dict[str, bool] = {"ensembl_gene": True, "base_ensembl_gene": False}
 
-#: The granularities of an origin that idtrack's ``API.source_inference`` takes (``idtrack.engine.SOURCE_MODES``).
+#: The granularities of an origin that IDTrack's ``API.source_inference`` takes (``idtrack.engine.SOURCE_MODES``).
 SOURCE_MODES: tuple[str, ...] = tuple(_SOURCE_MODES)
 
-# idtrack's input errors, the most specific first: the first class of an error's method resolution order found here
-# names its code. idtrack's refusals that the api's own checks make unreachable through its endpoints (an argument of
-# the wrong type, which the api's typed parameters refuse first; an inactive release, an unknown version or assembly,
+# IDTrack's input errors, the most specific first: the first class of an error's method resolution order found here
+# names its code. IDTrack's refusals that the API's own checks make unreachable through its endpoints (an argument of
+# the wrong type, which the API's typed parameters refuse first; an inactive release, an unknown version or assembly,
 # which ``API.convert`` answers as results or falls back from, and which no endpoint takes as an argument) have no code
-# of their own: should one arrive, its root class answers it (``invalid_input``, with idtrack's message).
+# of their own: should one arrive, its root class answers it (``invalid_input``, with IDTrack's message).
 _INPUT_CODES: dict[type[BaseException], str] = {
     _errors.UnknownOrganismError: "unknown_organism",
     _errors.UnknownReleaseError: "unknown_release",
@@ -72,13 +72,13 @@ _INPUT_CODES: dict[type[BaseException], str] = {
     _errors.InputError: "invalid_input",
 }
 
-#: idtrack's own tables of the codes its results carry: the outcomes (``ConversionResult.status``), why a result has no
+#: IDTrack's own tables of the codes its results carry: the outcomes (``ConversionResult.status``), why a result has no
 #: target (``ConversionResult.reasons``), why a step of a path was taken (``PathStep.reason``), the criteria that rank
 #: the candidates in the order in which they decide (``ConversionResult.decided_by``, each a field of ``Candidate``),
 #: how an identifier matched (``ConversionResult.match``: a step after its prefixes), why another reading is reported
 #: (``OtherReading.reason``), where two genes lie relative to each other (``BridgeCheck.places``, ``PathStep.places``)
 #: and the rules that take or refuse a bridge (``BridgeCheck.through``). Statuses and criteria are tuples of codes in
-#: idtrack; the others map codes to texts.
+#: IDTrack; the others map codes to texts.
 STATUSES: tuple[str, ...] = tuple(_results.STATUSES)
 REASONS: dict[str, str] = dict(_results.REASONS)
 STEP_REASONS: dict[str, str] = dict(_results.STEP_REASONS)
@@ -91,22 +91,22 @@ BRIDGE_RULES: dict[str, str] = dict(_results.BRIDGE_RULES)
 BRIDGE_RULES_TAKEN: frozenset[str] = frozenset(_results.BRIDGE_RULES_TAKEN)
 
 #: The pattern of a batch item that may be another item made unique by a single-cell tool (``<item>-1``, ``.1``,
-#: ``_1``): idtrack's own (``idtrack.ids.NUMBERED_SUFFIX``), by which ``API.convert_many`` answers such an item as a
-#: copy of the item it extends (``match`` ``copy:...``). The api converts the items tied by it in one call.
+#: ``_1``): IDTrack's own (``idtrack.ids.NUMBERED_SUFFIX``), by which ``API.convert_many`` answers such an item as a
+#: copy of the item it extends (``match`` ``copy:...``). The API converts the items tied by it in one call.
 NUMBERED_SUFFIX: re.Pattern[str] = _ids.NUMBERED_SUFFIX
 
-#: The ``type`` idtrack writes in a batch item's ``error`` when that identifier's search ran over its budget.
+#: The ``type`` IDTrack writes in a batch item's ``error`` when that identifier's search ran over its budget.
 SEARCH_BUDGET_ERROR_TYPE: str = _errors.SearchBudgetExceededError.__name__
 
 
 class InputRefusedError(Exception):
-    """idtrack refused an input: the caller's to change.
+    """IDTrack refused an input: the caller's to change.
 
     Attributes:
-        code: The api's code of the kind of input.
-        message: idtrack's message.
-        argument: The argument, where idtrack names one.
-        allowed: The accepted values, where idtrack lists them.
+        code: The API's code of the kind of input.
+        message: IDTrack's message.
+        argument: The argument, where IDTrack names one.
+        allowed: The accepted values, where IDTrack lists them.
     """
 
     def __init__(self, code: str, message: str, argument: str | None, allowed: tuple[Any, ...] | None) -> None:
@@ -121,7 +121,7 @@ class SearchBudgetError(Exception):
     """One identifier's search needed more than its budget.
 
     Attributes:
-        message: idtrack's message.
+        message: IDTrack's message.
         states_exhausted: The budget of states was reached (otherwise the budget of seconds).
     """
 
@@ -132,7 +132,7 @@ class SearchBudgetError(Exception):
 
 
 class GraphLoadError(Exception):
-    """A file could not be loaded as a graph this idtrack reads (idtrack's message)."""
+    """A file could not be loaded as a graph this IDTrack reads (IDTrack's message)."""
 
 
 #: A list written as Python writes one (``['a', 'b']``, ``[56, 57]``) inside a message.
@@ -140,15 +140,15 @@ _LISTED = re.compile(r"\[(?:'(?:[^'\\]|\\.)*'|\d+)(?:, (?:'(?:[^'\\]|\\.)*'|\d+)
 
 
 def readable(message: str, allowed: tuple[Any, ...] | None) -> str:
-    """Return idtrack's message with the list of accepted values it writes (Python's spelling) as a reference to them.
+    """Return IDTrack's message with the list of accepted values it writes (Python's spelling) as a reference to them.
 
-    idtrack's refusals write the accepted values into their message as Python writes a list; the api sends the same
+    IDTrack's refusals write the accepted values into their message as Python writes a list; the API sends the same
     values as ``allowed``, a JSON array. A list in the message that holds exactly the values of ``allowed`` is written
-    as ``the N values of `allowed```, so that the message is plain words; every other word is idtrack's.
+    as ``the N values of `allowed```, so that the message is plain words; every other word is IDTrack's.
 
     Args:
-        message: idtrack's message.
-        allowed: The accepted values idtrack gives.
+        message: IDTrack's message.
+        allowed: The accepted values IDTrack gives.
 
     Returns:
         str: The message.
@@ -169,13 +169,13 @@ def readable(message: str, allowed: tuple[Any, ...] | None) -> str:
 
 
 def input_problem(error: BaseException) -> InputRefusedError | None:
-    """Return the translation of one of idtrack's input errors, or ``None`` for any other error.
+    """Return the translation of one of IDTrack's input errors, or ``None`` for any other error.
 
     Args:
         error: An exception.
 
     Returns:
-        InputRefusedError | None: The problem (idtrack's message, its list of accepted values written as a reference
+        InputRefusedError | None: The problem (IDTrack's message, its list of accepted values written as a reference
         to ``allowed``: :py:func:`readable`).
     """
     for cls in type(error).__mro__:
@@ -186,14 +186,14 @@ def input_problem(error: BaseException) -> InputRefusedError | None:
 
 
 def item_error_code(error_type: str) -> str:
-    """Return the api's code of the error that stopped one item of a batch, by the class idtrack names in it.
+    """Return the API's code of the error that stopped one item of a batch, by the class IDTrack names in it.
 
-    ``API.convert_many`` records an item's error by its class's name (``ErrorInfo.type``): an input error of idtrack
+    ``API.convert_many`` records an item's error by its class's name (``ErrorInfo.type``): an input error of IDTrack
     answers with its code, as the same input sent alone to ``/convert`` would (:py:func:`input_problem`); a search over
     its budget is ``search_budget_exceeded``; any other error ``internal_error``.
 
     Args:
-        error_type: The class name idtrack recorded.
+        error_type: The class name IDTrack recorded.
 
     Returns:
         str: The code.
@@ -223,12 +223,12 @@ def batch_groups(identifiers: list[str]) -> list[list[str]]:
     """Return the distinct identifiers of a batch in the groups that ``API.convert_many`` answers together.
 
     ``API.convert_many`` answers an item as itself, except an item that extends another item of the batch by a
-    numbered suffix (:py:data:`NUMBERED_SUFFIX`), which it may answer as that item's copy (idtrack's rule for names
+    numbered suffix (:py:data:`NUMBERED_SUFFIX`), which it may answer as that item's copy (IDTrack's rule for names
     that a single-cell tool made unique: an item that is another item of the batch with ``-1``, ``.1`` or ``_1``
     appended, and is itself no exact name at the release it is read at, is answered as that item: ``INS-1`` beside
     ``INS``). Items tied so, directly or through a chain (``INS``, ``INS-1``, ``INS-1-1``), are one group; every
     other item is a group of its own. Converting each group by one ``convert_many`` call gives every item the answer
-    that one call over the whole batch gives it (``tests/test_endpoints.py`` compares the two), and lets the api check
+    that one call over the whole batch gives it (``tests/test_endpoints.py`` compares the two), and lets the API check
     the request's time between groups.
 
     Args:
@@ -259,7 +259,7 @@ def batch_groups(identifiers: list[str]) -> list[list[str]]:
 
 
 def _translated(function: Any, *args: Any, **kwargs: Any) -> Any:
-    """Call idtrack, translating its input errors and an exceeded search budget."""
+    """Call IDTrack, translating its input errors and an exceeded search budget."""
     try:
         return function(*args, **kwargs)
     except _errors.SearchBudgetExceededError as error:
@@ -278,7 +278,7 @@ def organism_of(name: str) -> str | None:
         name: The name.
 
     Returns:
-        str | None: The organism's production name; ``None`` if idtrack knows no such organism.
+        str | None: The organism's production name; ``None`` if IDTrack knows no such organism.
     """
     try:
         return resolve_organism(name)
@@ -287,7 +287,7 @@ def organism_of(name: str) -> str | None:
 
 
 def organism_aliases(organism: str) -> tuple[str, ...]:
-    """Return the short names idtrack declares for an organism (``idtrack.organisms.ALIASES``).
+    """Return the short names IDTrack declares for an organism (``idtrack.organisms.ALIASES``).
 
     Args:
         organism: The organism's production name.
@@ -299,7 +299,7 @@ def organism_aliases(organism: str) -> tuple[str, ...]:
 
 
 def idtrack_version() -> str:
-    """Return the version of the idtrack that answers.
+    """Return the version of the IDTrack that answers.
 
     Returns:
         str: The version.
@@ -308,7 +308,7 @@ def idtrack_version() -> str:
 
 
 def idtrack_commit() -> str | None:
-    """Return the commit of the installed idtrack where its installation records one (PEP 610), else ``None``.
+    """Return the commit of the installed IDTrack where its installation records one (PEP 610), else ``None``.
 
     Returns:
         str | None: The commit.
@@ -332,8 +332,8 @@ class Identity:
         snapshot_release: The last release of the graph.
         content_digest: The digest of its content (``None`` for a graph made in memory).
         format_version: Its file's format version.
-        package_version: The idtrack version that built it.
-        package_commit: The idtrack commit that built it, where known.
+        package_version: The IDTrack version that built it.
+        package_commit: The IDTrack commit that built it, where known.
         build_date: When it was built.
     """
 
@@ -347,10 +347,10 @@ class Identity:
 
 
 class Graph:
-    """One loaded graph, and the idtrack calls the api makes on it. Every answer is idtrack's ``to_dict()``."""
+    """One loaded graph, and the IDTrack calls the API makes on it. Every answer is IDTrack's ``to_dict()``."""
 
     def __init__(self, api: API) -> None:
-        """Hold idtrack's API over a graph.
+        """Hold IDTrack's API over a graph.
 
         Args:
             api: The API.
@@ -365,14 +365,14 @@ class Graph:
 
         Args:
             path: The file.
-            budget_states: The search budget of one identifier in states (``None``: idtrack's default).
-            budget_seconds: The search budget of one identifier in seconds (``None``: idtrack's default).
+            budget_states: The search budget of one identifier in states (``None``: IDTrack's default).
+            budget_seconds: The search budget of one identifier in seconds (``None``: IDTrack's default).
 
         Returns:
             Graph: The graph.
 
         Raises:
-            GraphLoadError: If idtrack cannot load it.
+            GraphLoadError: If IDTrack cannot load it.
         """
         budget: dict[str, Any] = {}
         if budget_states is not None:
@@ -402,9 +402,9 @@ class Graph:
         )
 
     def warm(self) -> dict[str, float]:
-        """Compute every graph-wide table idtrack computes lazily on the path of a conversion, and return the seconds.
+        """Compute every graph-wide table IDTrack computes lazily on the path of a conversion, and return the seconds.
 
-        idtrack computes some tables of the whole graph the first time a conversion needs them (the releases of each
+        IDTrack computes some tables of the whole graph the first time a conversion needs them (the releases of each
         assembly, the hyper-connected nodes, the facts by which it counts genes, the last measured at 12 s and
         0.8 GB for the human graph). Computed in the master before the fork, through ``TheGraph``'s public
         accessors, they are computed once and shared by every worker, instead of once per worker within some
@@ -439,7 +439,7 @@ class Graph:
         the fan of Ensembl's mapping, from the same edges: the gene versions with edges to two or more distinct gene
         versions across the pair (``one_to_many``; the version itself among them where it is kept), and the gene
         versions reached by edges from two or more distinct gene versions (``many_to_one``). These are counts of the
-        edges' ends, not idtrack's reading of a step of a path (``PathStep.reason``).
+        edges' ends, not IDTrack's reading of a step of a path (``PathStep.reason``).
 
         Returns:
             dict[str, Any]: ``releases`` (each with ``release``, ``genes_active``, ``versions_active``, ``created``)
@@ -529,7 +529,7 @@ class Graph:
         return tuple(self._description.releases)
 
     def _release_databases(self) -> dict[str, Any]:
-        """Return what a conversion to each release can end in, from idtrack's own calls (made once, at load)."""
+        """Return what a conversion to each release can end in, from IDTrack's own calls (made once, at load)."""
         releases = [int(r) for r in self._description.releases]
         at: dict[str, list[int]] = {}
         for release in releases:
@@ -572,13 +572,13 @@ class Graph:
     def databases(self) -> dict[str, Any]:
         """Return, for every release, the databases a conversion to it can end in, and each assembly's databases.
 
-        From idtrack's ``API.final_databases(release)`` at each release of the graph, ``API.database_forms()`` and
+        From IDTrack's ``API.final_databases(release)`` at each release of the graph, ``API.database_forms()`` and
         ``API.databases_by_assembly()``, computed when the graph is loaded.
 
         Returns:
             dict[str, Any]: ``releases`` (ascending), ``databases`` (each ``name``, ``form`` and the ``releases``
-            whose final databases include it, sorted by name), ``by_assembly`` and ``symbol_databases`` (idtrack's
-            ``organisms.SYMBOL_DATABASES`` of the organism, in idtrack's order).
+            whose final databases include it, sorted by name), ``by_assembly`` and ``symbol_databases`` (IDTrack's
+            ``organisms.SYMBOL_DATABASES`` of the organism, in IDTrack's order).
         """
         return self._databases
 
@@ -673,7 +673,7 @@ class Graph:
 
 @dataclass(frozen=True, kw_only=True)
 class ConversionArguments:
-    """The arguments of a conversion, as the api's requests name them.
+    """The arguments of a conversion, as the API's requests name them.
 
     Attributes:
         from_release: The release the identifier is read at (``None``: inferred).
@@ -692,10 +692,10 @@ class ConversionArguments:
     allow_bridges: bool
 
     def keywords(self) -> dict[str, Any]:
-        """Return idtrack's keyword arguments of ``API.convert`` and ``API.convert_many`` after the identifier.
+        """Return IDTrack's keyword arguments of ``API.convert`` and ``API.convert_many`` after the identifier.
 
         Returns:
-            dict[str, Any]: The keywords, by idtrack's names.
+            dict[str, Any]: The keywords, by IDTrack's names.
         """
         return {
             "from_release": self.from_release,

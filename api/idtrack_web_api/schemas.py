@@ -1,9 +1,9 @@
-"""The schemas of the api's requests and responses.
+"""The schemas of the API's requests and responses.
 
-The results of idtrack (:py:data:`idtrack_web_api.adapter.RESULT_CLASSES`) are frozen dataclasses whose
-``to_dict()`` is what the api sends, unchanged. Their response schemas are made here from those dataclasses: one
+The results of IDTrack (:py:data:`idtrack_web_api.adapter.RESULT_CLASSES`) are frozen dataclasses whose
+``to_dict()`` is what the API sends, unchanged. Their response schemas are made here from those dataclasses: one
 field per dataclass field, in the same order, every field required (``to_dict()`` writes every key), with the
-field's text from the dataclass's docstring. So the schema follows idtrack exactly, and a change of idtrack's results
+field's text from the dataclass's docstring. So the schema follows IDTrack exactly, and a change of IDTrack's results
 shows as a change of ``api/openapi.json``, which a test compares with what the app serves.
 """
 
@@ -26,7 +26,7 @@ _ATTRIBUTE = re.compile(r"^(?P<name>[A-Za-z_][A-Za-z0-9_]*) \((?P<type>.+?)\): (
 
 _ROLE = re.compile(r":py:\w+:`~?([^`]+)`")
 _LITERAL = re.compile(r"``([^`]+)``")
-#: Python's spellings of JSON's literals, as code spans of idtrack's texts write them, and JSON's: the api's answers
+#: Python's spellings of JSON's literals, as code spans of IDTrack's texts write them, and JSON's: the API's answers
 #: carry JSON, so its texts name JSON's values.
 _JSON_WORDS = {"None": "null", "True": "true", "False": "false"}
 _JSON_SPELLING = re.compile(r"`(None|True|False)`")
@@ -112,7 +112,7 @@ class CautionAsk(BaseModel):
 
 
 class Caution(BaseModel):
-    """A fact of a result to weigh before trusting its answer: the api's reading of idtrack's fields."""
+    """A fact of a result to weigh before trusting its answer: the API's reading of IDTrack's fields."""
 
     model_config = _STRICT
     code: str = Field(..., description="The class of evidence (`cautions` of `GET /vocabulary` gives its meaning).")
@@ -128,7 +128,7 @@ class Caution(BaseModel):
     limitation: str | None = Field(
         ...,
         description=(
-            "The address of the section of idtrack's documented limitations that describes this class, where there is "
+            "The address of the section of IDTrack's documented limitations that describes this class, where there is "
             "one."
         ),
     )
@@ -142,20 +142,20 @@ class Caution(BaseModel):
     )
 
 
-#: The fields the api adds to idtrack's results, by result class: the additions to idtrack's ``to_dict()``. A batch
-#: item's error carries the api's stable code of its kind, as the same input sent alone would be answered (the
-#: frontend and other programs branch on codes, not on idtrack's class names); a result carries the api's reading of
+#: The fields the API adds to IDTrack's results, by result class: the additions to IDTrack's ``to_dict()``. A batch
+#: item's error carries the API's stable code of its kind, as the same input sent alone would be answered (the
+#: frontend and other programs branch on codes, not on IDTrack's class names); a result carries the API's reading of
 #: its evidence (:py:mod:`idtrack_web_api.cautions`).
 API_FIELDS: dict[str, dict[str, tuple[Any, str]]] = {
     "ConversionResult": {
         "cautions": (
             list[Caution],
             (
-                "The api's reading of this result's evidence, by stated rules (`cautions` of `GET /vocabulary`): each "
+                "The API's reading of this result's evidence, by stated rules (`cautions` of `GET /vocabulary`): each "
                 "fact of the best answer a reader should weigh before trusting it (`tone` `caution`: review the "
-                "answer) or that is worth knowing (`note`), cautions first, with the section of idtrack's documented "
+                "answer) or that is worth knowing (`note`), cautions first, with the section of IDTrack's documented "
                 "limitations it falls under. Read with the path whatever `explain` asks: every rule holds for every "
-                "answer. Empty: nothing to weigh. Added by the api to idtrack's result."
+                "answer. Empty: nothing to weigh. Added by the API to IDTrack's result."
             ),
         )
     },
@@ -163,10 +163,10 @@ API_FIELDS: dict[str, dict[str, tuple[Any, str]]] = {
         "code": (
             str,
             (
-                "The api's stable code of the error (one of the error codes of `GET /vocabulary`, as the same "
+                "The API's stable code of the error (one of the error codes of `GET /vocabulary`, as the same "
                 "identifier sent alone to `/convert` would be answered: `missing_value` for an empty string or a "
                 "spelling of a missing value, `search_budget_exceeded` for a search over its budget, `internal_error` "
-                "for a fault). Added by the api to idtrack's error record."
+                "for a fault). Added by the API to IDTrack's error record."
             ),
         )
     },
@@ -187,7 +187,7 @@ def _translate(annotation: Any) -> Any:
 
 
 def model_of(cls: type) -> type[BaseModel]:
-    """Return the response model of one of idtrack's result dataclasses (made once).
+    """Return the response model of one of IDTrack's result dataclasses (made once).
 
     Args:
         cls: A dataclass of :py:mod:`idtrack.results`.
@@ -224,7 +224,7 @@ SourceInferenceModel = model_of(RESULT_CLASSES["SourceInference"])
 
 
 # ------------------------------------------------------------------------------------------------------------------
-# The api's own responses
+# The API's own responses
 
 
 class ValidationDetail(BaseModel):
@@ -335,7 +335,7 @@ class GraphVersion(BaseModel):
     package_version: str | None = Field(
         ...,
         description=(
-            "The idtrack version that built the graph, where its build record gives one; `null` where the record "
+            "The IDTrack version that built the graph, where its build record gives one; `null` where the record "
             "holds a text instead (`package_version_note`)."
         ),
     )
@@ -343,28 +343,28 @@ class GraphVersion(BaseModel):
         default=None,
         description=(
             "The build record's own text where it gives no version (for a graph built from a source folder rather "
-            "than an installed idtrack); `null` where it gives a version. The graph's description "
+            "than an installed IDTrack); `null` where it gives a version. The graph's description "
             "(`GET /organisms/{organism}`) carries the record as it is."
         ),
     )
-    package_commit: str | None = Field(..., description="The idtrack commit that built the graph, where known.")
+    package_commit: str | None = Field(..., description="The IDTrack commit that built the graph, where known.")
     build_date: str | None = Field(..., description="When the graph was built.")
 
 
 class VersionResponse(BaseModel):
-    """The versions of the server, of idtrack and of each loaded graph."""
+    """The versions of the server, of IDTrack and of each loaded graph."""
 
     model_config = _STRICT
-    api_version: str = Field(..., description="The version of this api.")
-    idtrack_version: str = Field(..., description="The version of idtrack that answers.")
-    idtrack_commit: str | None = Field(..., description="The idtrack commit that answers, where known.")
-    graph_format_version: int = Field(..., description="The graph file format this idtrack reads.")
+    api_version: str = Field(..., description="The version of this API.")
+    idtrack_version: str = Field(..., description="The version of IDTrack that answers.")
+    idtrack_commit: str | None = Field(..., description="The IDTrack commit that answers, where known.")
+    graph_format_version: int = Field(..., description="The graph file format this IDTrack reads.")
     manifest: GraphFile = Field(..., description="The manifest the graphs were read from.")
     graphs: list[GraphVersion] = Field(..., description="The loaded graphs.")
     docs_url: str = Field(
         ...,
         description=(
-            "The address of idtrack's documentation this server links to (its root, ending in `/`; "
+            "The address of IDTrack's documentation this server links to (its root, ending in `/`; "
             "`IDTRACK_WEB_DOCS_URL`, by default Read the Docs' stable version)."
         ),
     )
@@ -388,16 +388,16 @@ class VersionResponse(BaseModel):
 
 
 class OrganismNames(BaseModel):
-    """The names by which the path of the api takes an organism."""
+    """The names by which the path of the API takes an organism."""
 
     model_config = _STRICT
     organism: str = Field(..., description="Its Ensembl production name (`homo_sapiens`).")
     aliases: list[str] = Field(
         ...,
         description=(
-            "The short names idtrack declares for it (`idtrack.organisms.ALIASES`: `human`). The path also takes the "
+            "The short names IDTrack declares for it (`idtrack.organisms.ALIASES`: `human`). The path also takes the "
             "production name with spaces for underscores and in any letter case (`Homo sapiens`); no other name, and "
-            "no taxon id: idtrack resolves names without the network only so."
+            "no taxon id: IDTrack resolves names without the network only so."
         ),
     )
 
@@ -430,21 +430,21 @@ class DatabaseReleases(BaseModel):
     form: str | None = Field(
         ...,
         description=(
-            "The Ensembl form the database connects through (`gene`, `transcript`, `translation`: idtrack's "
-            "`API.database_forms()`); `null` for idtrack's own gene namespaces `ensembl_gene` and `base_ensembl_gene`, "
+            "The Ensembl form the database connects through (`gene`, `transcript`, `translation`: IDTrack's "
+            "`API.database_forms()`); `null` for IDTrack's own gene namespaces `ensembl_gene` and `base_ensembl_gene`, "
             "which that table does not list."
         ),
     )
     releases: list[int] = Field(
         ...,
         description=(
-            "The releases whose `final_databases` include it (idtrack's `API.final_databases(to_release)`), ascending."
+            "The releases whose `final_databases` include it (IDTrack's `API.final_databases(to_release)`), ascending."
         ),
     )
     kind: Literal["ensembl", "accession", "label"] = Field(
         ...,
         description=(
-            "What its values are (`database_kinds` of `GET /vocabulary`): `ensembl`, one of idtrack's two Ensembl gene "
+            "What its values are (`database_kinds` of `GET /vocabulary`): `ensembl`, one of IDTrack's two Ensembl gene "
             "namespaces; `label`, a database whose ids are labels (display names, symbols) rather than accessions "
             "(the graph's `label_databases`); `accession`, any other external database."
         ),
@@ -503,7 +503,7 @@ class DatabasesResponse(BaseModel):
     by_assembly: dict[str, list[str]] = Field(
         ...,
         description=(
-            "The external databases of each genome assembly of the graph (idtrack's `API.databases_by_assembly()`; "
+            "The external databases of each genome assembly of the graph (IDTrack's `API.databases_by_assembly()`; "
             "an assembly by its number, as a string). A release's databases are those of the assembly that serves it "
             "(`assemblies[].serves` of `/organisms/{organism}`) and the two gene namespaces."
         ),
@@ -511,15 +511,15 @@ class DatabasesResponse(BaseModel):
     symbol_databases: list[str] = Field(
         ...,
         description=(
-            "The organism's symbol databases, its name authorities, in idtrack's order "
+            "The organism's symbol databases, its name authorities, in IDTrack's order "
             "(`idtrack.organisms.SYMBOL_DATABASES`): the first one a conversion to a release can end in is the one "
-            "idtrack's harmonization uses by default there."
+            "IDTrack's harmonization uses by default there."
         ),
     )
 
 
 class BatchArguments(BaseModel):
-    """The arguments of a batch as the api read them (`null`: not given, the default applies)."""
+    """The arguments of a batch as the API read them (`null`: not given, the default applies)."""
 
     model_config = _STRICT
     from_release: int | None = Field(..., description="`from_release` of the body.")
@@ -544,7 +544,7 @@ class BatchResponse(BaseModel):
 
 
 class GenesNamedArguments(BaseModel):
-    """The arguments of `genes-named` as the api read them."""
+    """The arguments of `genes-named` as the API read them."""
 
     model_config = _STRICT
     name: str = Field(..., description="The name, as sent.")
@@ -553,7 +553,7 @@ class GenesNamedArguments(BaseModel):
 
 
 class NamesOfArguments(BaseModel):
-    """The arguments of `names-of` as the api read them."""
+    """The arguments of `names-of` as the API read them."""
 
     model_config = _STRICT
     gene: str = Field(..., description="The gene, as sent.")
@@ -571,11 +571,11 @@ class NamesResponse(BaseModel):
             "The arguments as read: `name`, `fold_case`, `release` (genes-named); `gene`, `release` (names-of)."
         ),
     )
-    matches: list[NameMatchModel] = Field(..., description="The matches, as idtrack orders them.")  # type: ignore[valid-type]
+    matches: list[NameMatchModel] = Field(..., description="The matches, as IDTrack orders them.")  # type: ignore[valid-type]
 
 
 class Term(BaseModel):
-    """A code of the api's answers and what it means, from the one place that defines it."""
+    """A code of the API's answers and what it means, from the one place that defines it."""
 
     model_config = _STRICT
     code: str = Field(..., description="The code, as answers carry it.")
@@ -585,8 +585,8 @@ class Term(BaseModel):
     source: Literal["idtrack", "idtrack-web"] = Field(
         ...,
         description=(
-            "Whose words `meaning` is: `idtrack` (its own table of the codes), or `idtrack-web` (the api's own table, "
-            "kept where idtrack gives no text, and tested against idtrack's set of codes)."
+            "Whose words `meaning` is: `idtrack` (its own table of the codes), or `idtrack-web` (the API's own table, "
+            "kept where IDTrack gives no text, and tested against IDTrack's set of codes)."
         ),
     )
 
@@ -611,12 +611,12 @@ class CautionTerm(BaseModel):
     model_config = _STRICT
     code: str = Field(..., description="The code, as `cautions[].code` carries it.")
     tone: Literal["caution", "note"] = Field(..., description="`caution` (review the answer) or `note`.")
-    meaning: str = Field(..., description="What it means, in the api's words.")
+    meaning: str = Field(..., description="What it means, in the API's words.")
     reads_path: bool = Field(..., description="Whether its rule reads the path (its steps, nodes or bridges).")
     limitation: str | None = Field(
-        ..., description="The address of the section of idtrack's documented limitations of this class, if any."
+        ..., description="The address of the section of IDTrack's documented limitations of this class, if any."
     )
-    source: Literal["idtrack-web"] = Field(..., description="The api's own table (`api/idtrack_web_api/cautions.py`).")
+    source: Literal["idtrack-web"] = Field(..., description="The API's own table (`api/idtrack_web_api/cautions.py`).")
 
 
 class CriterionField(BaseModel):
@@ -634,40 +634,40 @@ class CriterionField(BaseModel):
     parts: list[str] | None = Field(
         ...,
         description=(
-            "For a field that is a tuple, the names of its parts, each the negated count (as idtrack's text of the "
+            "For a field that is a tuple, the names of its parts, each the negated count (as IDTrack's text of the "
             "field states); `null` otherwise."
         ),
     )
 
 
 class CriterionTerm(BaseModel):
-    """A criterion that ranks candidates: idtrack's text of its field, and the fields its ranking compares."""
+    """A criterion that ranks candidates: IDTrack's text of its field, and the fields its ranking compares."""
 
     model_config = _STRICT
     code: str = Field(..., description="The criterion, as `ConversionResult.decided_by` names it.")
-    meaning: str | None = Field(..., description="idtrack's text of the `Candidate` field of the same name.")
-    source: Literal["idtrack"] = Field(..., description="Whose words `meaning` is (idtrack's).")
+    meaning: str | None = Field(..., description="IDTrack's text of the `Candidate` field of the same name.")
+    source: Literal["idtrack"] = Field(..., description="Whose words `meaning` is (IDTrack's).")
     fields: list[CriterionField] = Field(
         ...,
         description=(
-            "The fields idtrack's ranking compares for this criterion, in order, the first that differs deciding "
-            "(the api's reading of idtrack's ranking, which gives no such table; tested against idtrack's criteria)."
+            "The fields IDTrack's ranking compares for this criterion, in order, the first that differs deciding "
+            "(the API's reading of IDTrack's ranking, which gives no such table; tested against IDTrack's criteria)."
         ),
     )
 
 
 class BridgeRuleTerm(BaseModel):
-    """A rule that takes or refuses a bridge (`BridgeCheck.through`), with idtrack's text."""
+    """A rule that takes or refuses a bridge (`BridgeCheck.through`), with IDTrack's text."""
 
     model_config = _STRICT
     code: str = Field(..., description="The rule, as `BridgeCheck.through` carries it.")
-    meaning: str | None = Field(..., description="idtrack's text of the rule.")
-    source: Literal["idtrack"] = Field(..., description="Whose words `meaning` is (idtrack's).")
+    meaning: str | None = Field(..., description="IDTrack's text of the rule.")
+    source: Literal["idtrack"] = Field(..., description="Whose words `meaning` is (IDTrack's).")
     taken: bool = Field(..., description="`true`: a bridge is taken under this rule; `false`: refused.")
 
 
 class ErrorTerm(BaseModel):
-    """An error code of the api, its status and when it is answered."""
+    """An error code of the API, its status and when it is answered."""
 
     model_config = _STRICT
     code: str = Field(..., description="The code, as `error.code` carries it.")
@@ -703,16 +703,16 @@ class ErrorTerm(BaseModel):
 
 
 class VocabularyResponse(BaseModel):
-    """What the codes of the answers mean: idtrack's own tables, and the api's tables where idtrack gives no text.
+    """What the codes of the answers mean: IDTrack's own tables, and the API's tables where IDTrack gives no text.
 
-    Every code is idtrack's, with idtrack's text wherever it gives one; a criterion's meaning is idtrack's text of the
-    `Candidate` field it compares. Where idtrack gives codes without texts (the statuses) the meaning is the api's
-    (`source` says so), and the fields a criterion compares are the api's reading of idtrack's ranking; both are tested
-    against idtrack's codes. The same codes are the enumerations of the OpenAPI document.
+    Every code is IDTrack's, with IDTrack's text wherever it gives one; a criterion's meaning is IDTrack's text of the
+    `Candidate` field it compares. Where IDTrack gives codes without texts (the statuses) the meaning is the API's
+    (`source` says so), and the fields a criterion compares are the API's reading of IDTrack's ranking; both are tested
+    against IDTrack's codes. The same codes are the enumerations of the OpenAPI document.
     """
 
     model_config = _STRICT
-    statuses: list[StatusTerm] = Field(..., description="The values of `ConversionResult.status`, in idtrack's order.")
+    statuses: list[StatusTerm] = Field(..., description="The values of `ConversionResult.status`, in IDTrack's order.")
     reasons: list[Term] = Field(..., description="The values of `ConversionResult.reasons` and `reason`.")
     step_reasons: list[Term] = Field(..., description="The values of `PathStep.reason`.")
     criteria: list[CriterionTerm] = Field(
@@ -723,7 +723,7 @@ class VocabularyResponse(BaseModel):
         ),
     )
     candidate_fields: list[Term] = Field(
-        ..., description="Every field of `Candidate`, in order, with idtrack's text of it (its ranking record)."
+        ..., description="Every field of `Candidate`, in order, with IDTrack's text of it (its ranking record)."
     )
     match_steps: list[Term] = Field(
         ..., description="The last part of `ConversionResult.match` and `OtherReading.match`."
@@ -735,7 +735,7 @@ class VocabularyResponse(BaseModel):
     reading_reasons: list[Term] = Field(..., description="The values of `OtherReading.reason`.")
     place_relations: list[Term] = Field(..., description="The values of `BridgeCheck.places` and `PathStep.places`.")
     bridge_rules: list[BridgeRuleTerm] = Field(..., description="The rules of `BridgeCheck.through`.")
-    errors: list[ErrorTerm] = Field(..., description="The api's error codes (`error.code`), with their HTTP status.")
+    errors: list[ErrorTerm] = Field(..., description="The API's error codes (`error.code`), with their HTTP status.")
     database_kinds: list[Term] = Field(
         default_factory=list,
         description="The values of `kind` of a database of `GET /organisms/{organism}/databases`.",
@@ -749,7 +749,7 @@ class VocabularyResponse(BaseModel):
     )
     cautions: list[CautionTerm] = Field(
         default_factory=list,
-        description="The classes of evidence a result's `cautions` name: the api's reading of idtrack's fields.",
+        description="The classes of evidence a result's `cautions` name: the API's reading of IDTrack's fields.",
     )
 
 
@@ -1199,7 +1199,7 @@ class StatusResponse(BaseModel):
 
 
 class IndexEndpoint(BaseModel):
-    """One endpoint of the api."""
+    """One endpoint of the API."""
 
     model_config = _STRICT
     method: str = Field(..., description="The HTTP method (a `GET` endpoint also takes `HEAD`).")
@@ -1209,13 +1209,13 @@ class IndexEndpoint(BaseModel):
 
 
 class IndexResponse(BaseModel):
-    """Where everything is: the api's documents and every endpoint."""
+    """Where everything is: the API's documents and every endpoint."""
 
     model_config = _STRICT
-    api_version: str = Field(..., description="The version of this api.")
+    api_version: str = Field(..., description="The version of this API.")
     openapi: str = Field(..., description="The OpenAPI document: every endpoint, parameter, field, code and example.")
     llms_txt: str = Field(..., description="The index for language models (the llms.txt convention).")
-    llms_full_txt: str = Field(..., description="Every rule, code and example of the api as one Markdown text.")
+    llms_full_txt: str = Field(..., description="Every rule, code and example of the API as one Markdown text.")
     reference: str | None = Field(
         ..., description="The reference for people, with a console per endpoint; `null` where no page is served."
     )
@@ -1317,7 +1317,7 @@ class HistoryRelease(BaseModel):
     genes_active: int = Field(
         ...,
         description=(
-            "Stable gene ids of the graph's history with a version active at the release (idtrack's "
+            "Stable gene ids of the graph's history with a version active at the release (IDTrack's "
             "`TheGraph.active_releases` of each version; every assembly and region the graph holds, alternative loci "
             "included)."
         ),
@@ -1357,7 +1357,7 @@ class HistoryTransition(BaseModel):
         description=(
             "Gene versions with history edges to two or more distinct gene versions across these releases (the "
             "version itself among them where it is kept; retirements not counted): the fan out of Ensembl's mapping, "
-            "counted from the edges' ends, not idtrack's reading of a path's step (`split` of `PathStep.reason`). "
+            "counted from the edges' ends, not IDTrack's reading of a path's step (`split` of `PathStep.reason`). "
             "Sent by every answer of this version."
         ),
     )
@@ -1426,7 +1426,7 @@ class LineagesResponse(BaseModel):
         ...,
         description=(
             "Per id, the runs of consecutive releases of the graph at which a version of it is active "
-            "(idtrack's `TheGraph.active_releases`), each `[first, last]`."
+            "(IDTrack's `TheGraph.active_releases`), each `[first, last]`."
         ),
     )
     versions: list[list[int]] = Field(
@@ -1439,7 +1439,7 @@ class LineagesResponse(BaseModel):
             "History edges from a version of one id to a version of another, both given: `[from index, to index, "
             "old release, new release, score]`, `score` Ensembl's mapping score (the highest between the two ids "
             "across those releases) or `null` where it gave none. A version's edges to two or more ids at once is "
-            "Ensembl's mapping fanning out, two or more ids' edges to one id fanning in; neither is idtrack's "
+            "Ensembl's mapping fanning out, two or more ids' edges to one id fanning in; neither is IDTrack's "
             "classification of a step of a path (`PathStep.reason`)."
         ),
     )
@@ -1448,23 +1448,23 @@ class LineagesResponse(BaseModel):
 #: The text of a release argument, the same in the query and in a body.
 RELEASE_TEXT = (
     "An Ensembl release, a whole number from 0 to 999999999 (anything else is `400 invalid_request`); whether the "
-    "graph covers it is idtrack's to answer (`400 unknown_release`, with the graph's releases in `allowed`: "
+    "graph covers it is IDTrack's to answer (`400 unknown_release`, with the graph's releases in `allowed`: "
     "`GET /organisms/{organism}` lists them as `releases`)."
 )
 RELEASE_MAX = 999_999_999
 
 
-#: idtrack's rule of the release an identifier is read at when none is given (its documentation, "The starting
+#: IDTrack's rule of the release an identifier is read at when none is given (its documentation, "The starting
 #: release"), stated wherever ``from_release`` is taken.
 FROM_RELEASE_RULE = (
     "Without it, an identifier is read at the target release if it exists there, and otherwise at the latest release "
-    "at which it exists (idtrack's rule, the same for Ensembl ids, symbols and other databases' ids); the result says "
+    "at which it exists (IDTrack's rule, the same for Ensembl ids, symbols and other databases' ids); the result says "
     "which release was used (`from_release`) and whether it was chosen (`from_release_inferred`). So a symbol sent "
     "without `from_release` is read as what it names at the target release, not as what it named years ago: give the "
     "release of the list's source to read it as it was then (`POST .../source-inference` finds it for a list)."
 )
 
-#: The most characters of a database name the api passes on (the longest of Ensembl's is under 50).
+#: The most characters of a database name the API passes on (the longest of Ensembl's is under 50).
 DATABASE_MAX_LENGTH = 200
 
 
@@ -1523,7 +1523,7 @@ class BatchRequest(BaseModel):
     read_copies: bool = Field(
         default=True,
         description=(
-            "`true` (idtrack's reading of a batch): an item that is another item of the same batch with `-1`, `.1` or "
+            "`true` (IDTrack's reading of a batch): an item that is another item of the same batch with `-1`, `.1` or "
             "`_1` appended, and is itself no exact name, is answered as that item's copy (`match` begins with "
             "`copy:`), so an item's answer can depend on the other items of its batch; keep such names in one batch. "
             "`false`: every item is converted alone, as `GET .../convert` converts it."
@@ -1558,7 +1558,7 @@ class Origin(BaseModel):
     assembly: int | None = Field(
         ...,
         description=(
-            "The genome assembly, by its key in idtrack's organism table (modes `assembly_release`, `assembly`, "
+            "The genome assembly, by its key in IDTrack's organism table (modes `assembly_release`, `assembly`, "
             "`complete`)."
         ),
     )
@@ -1568,7 +1568,7 @@ class Origin(BaseModel):
 
 
 class SourceInferenceResponse(BaseModel):
-    """Where a list of identifiers comes from: idtrack's ``API.source_inference``, with the best origin named."""
+    """Where a list of identifiers comes from: IDTrack's ``API.source_inference``, with the best origin named."""
 
     model_config = _STRICT
     organism: str = Field(..., description="The organism.")
@@ -1577,7 +1577,7 @@ class SourceInferenceResponse(BaseModel):
         ...,
         description=(
             "The band's first origin (the best), its parts named; `null` when the band is empty. The same origin is "
-            "`inference.band[0]`, written as idtrack writes an origin of the mode."
+            "`inference.band[0]`, written as IDTrack writes an origin of the mode."
         ),
     )
     from_release: int | None = Field(
@@ -1591,7 +1591,7 @@ class SourceInferenceResponse(BaseModel):
     inference: SourceInferenceModel = Field(  # type: ignore[valid-type]
         ...,
         description=(
-            "idtrack's `SourceInference.to_dict()`: the band of origins the list cannot tell apart from the best, best "
+            "IDTrack's `SourceInference.to_dict()`: the band of origins the list cannot tell apart from the best, best "
             "first, the margin and every origin's count; an origin is written by the mode (`[assembly, release]`, a "
             "release, an assembly, or `[database, assembly, release]`)."
         ),
@@ -1613,7 +1613,7 @@ class DatabaseConversion(BaseModel):
 
 
 class EachDatabaseArguments(BaseModel):
-    """The arguments of `convert/each-database` as the api read them (`null`: not given, the default applies)."""
+    """The arguments of `convert/each-database` as the API read them (`null`: not given, the default applies)."""
 
     model_config = _STRICT
     identifier: str = Field(..., description="The identifier, as sent.")

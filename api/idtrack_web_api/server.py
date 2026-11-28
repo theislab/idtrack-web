@@ -3,7 +3,7 @@
 Gunicorn with uvicorn's worker: ``preload_app`` makes the master hold the application (and with it every graph,
 loaded once) before it forks the workers, so no worker loads a graph and every worker starts with them. Each worker
 runs one search at a time (:py:class:`idtrack_web_api.limits.SearchSlot`): searches are CPU-bound, and threads add
-no throughput (idtrack's measurements), so the server scales with workers.
+no throughput (IDTrack's measurements), so the server scales with workers.
 
 **Every worker takes every connection; a search goes to a worker that holds none.** The workers share one listening
 socket, and each takes connections from it at all times. A worker reads the request line of each connection it takes
@@ -20,7 +20,8 @@ without consuming it (``MSG_PEEK``) and routes it by its method and path (:py:fu
   request only) until the search's answer is written (not until a slow client has read it). A search is answered
   ``503 server_busy`` with ``Retry-After`` rather than queued when the queue holds as many searches as it may
   (``queue_max`` times the workers), or when its wait, estimated from the searches waiting before it and the recent
-  searches' mean time (``search_seconds`` before any search was measured), would pass ``queue_seconds``; a search
+  searches' mean time (a list's by the recent lists', ``search_seconds`` before any was measured), would pass
+  ``queue_seconds``; a search
   that waited ``queue_seconds`` for a worker anyway is answered so without being searched
   (:py:mod:`idtrack_web_api.app`).
 
@@ -75,8 +76,8 @@ if TYPE_CHECKING:
 log = logging.getLogger("idtrack_web_api")
 
 #: The longest request head (request line and headers) the worker reads: a head up to this is answered, a longer
-#: query with ``414 uri_too_long`` (the api's bound is :py:data:`idtrack_web_api.guard.URI_MAX_BYTES`); a head longer
-#: still is refused by the HTTP parser itself, with the api's ``414 uri_too_long`` in JSON as well.
+#: query with ``414 uri_too_long`` (the API's bound is :py:data:`idtrack_web_api.guard.URI_MAX_BYTES`); a head longer
+#: still is refused by the HTTP parser itself, with the API's ``414 uri_too_long`` in JSON as well.
 HEAD_MAX_BYTES = 65_536
 #: The bytes of a request a worker peeks at to route it: a search's method and path fit in far fewer (a search path is
 #: under 200 characters); a request whose path is not complete within them is no search and is answered where it is.
@@ -85,7 +86,7 @@ PEEK_BYTES = 1024
 TAKE_AT_ONCE = 16
 
 #: What a hand-off carries beside the connection: when it was taken, and its place among its client's searches.
-_PAYLOAD = struct.Struct("dqq")
+_PAYLOAD = struct.Struct("dqq?")
 #: The longest client key a hand-off carries (an IPv6 network is under 50 characters).
 _KEY_BYTES = 128
 #: The most bytes of a request read and dropped before a refusal is written to its connection (so that closing it does
@@ -116,6 +117,7 @@ class HandOff:
             end.settimeout(0.0)
         context = multiprocessing.get_context("fork")
         self._waiting: Any = context.RawValue("i", 0)
+        self._lists: Any = context.RawValue("i", 0)
         self._lock: Any = context.Lock()
 
     @property
@@ -123,7 +125,14 @@ class HandOff:
         """The searches waiting in the queue."""
         return max(0, int(self._waiting.value))
 
-    def put(self, connection: socket.socket, taken_at: float, admitted: Admission | None = None) -> bool:
+    @property
+    def lists_waiting(self) -> int:
+        """The searches of a list (a batch, a source inference) among them."""
+        return max(0, min(int(self._lists.value), self.waiting))
+
+    def put(
+        self, connection: socket.socket, taken_at: float, admitted: Admission | None = None, *, listed: bool = False
+    ) -> bool:
         """Put a connection in the queue (the caller then closes its own descriptor of it).
 
         Args:
@@ -131,6 +140,7 @@ class HandOff:
             taken_at: When a worker took it (``time.monotonic()``: one clock for every process of the machine).
             admitted: The admission of the search by its client's allowances (its place among the client's searches
                 in progress goes with the connection).
+            listed: Whether it searches a list (counted apart: its wait is estimated by the lists' own time).
 
         Returns:
             bool: ``False`` when the queue is full (or the kernel refused): the caller answers the request itself.
@@ -139,16 +149,18 @@ class HandOff:
             if self._waiting.value >= self.capacity:
                 return False
             self._waiting.value += 1
+            self._lists.value += int(listed)
         try:
             fds = array.array("i", [connection.fileno()])
             row, generation = NO_PLACE if admitted is None else admitted.place
             client = "" if admitted is None else admitted.client
-            payload = _PAYLOAD.pack(taken_at, row, generation) + client.encode("utf-8")[:_KEY_BYTES]
+            payload = _PAYLOAD.pack(taken_at, row, generation, listed) + client.encode("utf-8")[:_KEY_BYTES]
             self.sending.sendmsg([payload], [(socket.SOL_SOCKET, socket.SCM_RIGHTS, fds.tobytes())])
         except OSError as error:
             log.warning("Cannot hand a search on: %s.", error)
             with self._lock:
                 self._waiting.value -= 1
+                self._lists.value -= int(listed)
             return False
         return True
 
@@ -165,8 +177,10 @@ class HandOff:
             )
         except (BlockingIOError, InterruptedError):
             return None
+        listed = len(data) >= _PAYLOAD.size and bool(_PAYLOAD.unpack(data[: _PAYLOAD.size])[3])
         with self._lock:
             self._waiting.value = max(0, self._waiting.value - 1)
+            self._lists.value = max(0, self._lists.value - int(listed))
         fds = array.array("i")
         for level, kind, payload in ancillary:
             if level == socket.SOL_SOCKET and kind == socket.SCM_RIGHTS:
@@ -175,8 +189,10 @@ class HandOff:
             return None
         for extra in fds[1:]:
             socket.socket(fileno=extra).close()
-        taken_at, row, generation = (
-            _PAYLOAD.unpack(data[: _PAYLOAD.size]) if len(data) >= _PAYLOAD.size else (time.monotonic(), *NO_PLACE)
+        taken_at, row, generation, _ = (
+            _PAYLOAD.unpack(data[: _PAYLOAD.size])
+            if len(data) >= _PAYLOAD.size
+            else (time.monotonic(), *NO_PLACE, False)
         )
         client = data[_PAYLOAD.size :].decode("utf-8", "replace")
         admitted = Admission(client, (int(row), int(generation))) if client else None
@@ -229,14 +245,14 @@ _REASONS = {400: b"Bad Request", 414: b"URI Too Long", 503: b"Service Unavailabl
 
 
 def raw_answer(error: ApiError, request_id: str) -> bytes:
-    """Return the bytes of a refusal written straight to a connection (no application in between): the api's JSON.
+    """Return the bytes of a refusal written straight to a connection (no application in between): the API's JSON.
 
     Args:
         error: The refusal.
         request_id: Its request's id.
 
     Returns:
-        bytes: The status line, the headers (the api's policy, no caching, ``Retry-After`` where the error has one) and
+        bytes: The status line, the headers (the API's policy, no caching, ``Retry-After`` where the error has one) and
         the body.
     """
     body = error_json(error, request_id)
@@ -620,8 +636,9 @@ class _Taker:
         if self.searches == 0:
             self._serve(conn, taken_at, search=True, admitted=admitted, whole=whole)
             return
+        listed = found[0] == "POST"
         busy = self._busy()
-        if busy is None and self.handoff is not None and self.handoff.put(conn, taken_at, admitted):
+        if busy is None and self.handoff is not None and self.handoff.put(conn, taken_at, admitted, listed=listed):
             conn.close()  # the queue holds the connection now
             return
         if admitted is not None and self.gate is not None:
@@ -642,17 +659,23 @@ class _Taker:
     def _busy(self) -> ApiError | None:
         """Return the refusal of a search that would wait longer for a worker than a search may, by an estimate.
 
-        Every worker holds a search; the estimate is the searches queued before it shared among the workers, plus the
-        one each worker runs, each taking the recent searches' mean time; before any search has been measured (a
-        server just started), each is taken to last ``search_seconds``, the longest one identifier's search may take,
-        so that a burst that meets a server with no measure yet is refused at once rather than after waiting
-        ``queue_seconds`` (``None``: within ``queue_seconds``).
+        Every worker holds a search; the estimate is the searches queued before it shared among the workers (a search
+        of one identifier taking the recent searches' mean time, a search of a list, a batch or a source inference
+        whose time grows with the list, the recent lists' mean time), plus the one each worker runs (the recent
+        searches' mean time). Before any list has
+        been searched (a server just started), a list is taken to last ``search_seconds``, the longest one
+        identifier's search may take, so that a burst of lists that meets a server with no measure of them yet is
+        refused at once rather than after waiting ``queue_seconds`` (``None``: within ``queue_seconds``).
         """
         if self.gate is None or self.handoff is None:
             return None
         settings = self.gate.settings
-        mean = self.gate.monitor.mean_search_seconds() or settings.search_seconds
-        estimate = mean * (self.handoff.waiting / max(1, settings.workers) + 1.0)
+        mean = self.gate.monitor.mean_search_seconds()
+        lists = self.gate.monitor.mean_list_seconds()
+        list_mean = settings.search_seconds if lists is None else lists
+        waiting, lists_waiting = self.handoff.waiting, self.handoff.lists_waiting
+        queued = (waiting - lists_waiting) * mean + lists_waiting * list_mean
+        estimate = queued / max(1, settings.workers) + mean
         if estimate <= settings.queue_seconds:
             return None
         wait = max(1, math.ceil(estimate - settings.queue_seconds))
@@ -759,7 +782,7 @@ class _BalancedServer(Server):
 
 
 class _Protocol(H11Protocol):
-    """Uvicorn's HTTP/1.1 protocol, answering a request its parser refuses in the api's own words (JSON)."""
+    """Uvicorn's HTTP/1.1 protocol, answering a request its parser refuses in the API's own words (JSON)."""
 
     def send_400_response(self, msg: str) -> None:
         request_id = uuid.uuid4().hex

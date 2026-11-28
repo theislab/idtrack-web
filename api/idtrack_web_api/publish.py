@@ -1,6 +1,6 @@
 """Publishing a release of graph files: upload each by its content, then write the manifest that names them.
 
-Every graph file is first loaded with idtrack (so a file that is not a graph of this idtrack's format is never
+Every graph file is first loaded with IDTrack (so a file that is not a graph of this IDTrack's format is never
 published) and its SHA-256 and size are computed. It is stored under ``idtrack/<format>/<organism>/<sha256>.npz``.
 The lineages of its gene ids are then read from the loaded graph (:py:func:`idtrack_web_api.lineages.compute`, about
 30 s for the human graph, the walk a server would otherwise make at every start) and stored as one JSON file under
@@ -295,7 +295,7 @@ class S3Target:
 
 
 def graph_entry(path: Path) -> tuple[ManifestGraph, bytes]:
-    """Load a graph file with idtrack, read the lineages of its gene ids, and return its manifest entry.
+    """Load a graph file with IDTrack, read the lineages of its gene ids, and return its manifest entry.
 
     Args:
         path: The graph file.
@@ -304,16 +304,16 @@ def graph_entry(path: Path) -> tuple[ManifestGraph, bytes]:
         tuple[ManifestGraph, bytes]: The entry, and the bytes of the graph's lineages file that it names.
 
     Raises:
-        DataError: If the file is not a graph this idtrack reads.
+        DataError: If the file is not a graph this IDTrack reads.
     """
     try:
         graph = Graph.load(str(path))
     except GraphLoadError as error:
-        msg = f"{path} is not a graph this idtrack reads: {error}"
+        msg = f"{path} is not a graph this IDTrack reads: {error}"
         raise DataError(msg) from None
     identity = graph.identity()
     if identity.content_digest is None or identity.format_version != FORMAT_VERSION:
-        msg = f"{path} records no content digest or another format; build it with this idtrack."
+        msg = f"{path} records no content digest or another format; build it with this IDTrack."
         raise DataError(msg)
     sha256, size = file_digest(path)
     content = lineages.file_bytes(lineages.compute(graph))
@@ -370,7 +370,7 @@ def publish(paths: list[Path], target: Target, manifest_key: str | None = None) 
         schema_version=MANIFEST_SCHEMA_VERSION,
         format_version=FORMAT_VERSION,
         published=dt.datetime.now(dt.UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
-        publisher=f"idtrack-web-api {idtrack_web_api.__version__}, idtrack {idtrack_version()}",
+        publisher=f"idtrack-web-api {idtrack_web_api.__version__}, IDTrack {idtrack_version()}",
         graphs=tuple(sorted(entries, key=lambda e: e.organism)),
     )
     content = manifest_bytes(manifest)

@@ -1,8 +1,8 @@
 """``GET /organisms/{organism}/history``: Ensembl's stable id history of genes in a graph, counted once at the start.
 
-The counts are read from idtrack's graph through its public interface (:py:meth:`idtrack_web_api.adapter.Graph.
+The counts are read from IDTrack's graph through its public interface (:py:meth:`idtrack_web_api.adapter.Graph.
 history_counts`): plain facts of Ensembl's history (an id created, a version followed by another version or by another
-id, kept, retired), never idtrack's classification of an event, which is a property of a path (a split or a merge is a
+id, kept, retired), never IDTrack's classification of an event, which is a property of a path (a split or a merge is a
 ``PathStep.reason`` of a conversion). Counting the human graph took about 17 s, so it is done in the master before the
 workers are forked, and answered from memory.
 """

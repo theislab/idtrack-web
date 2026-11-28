@@ -19,7 +19,7 @@ if TYPE_CHECKING:
     from collections.abc import Mapping
 
 PREFIX = "IDTRACK_WEB_"
-#: idtrack's documentation, where it is published by default (Read the Docs, the stable version).
+#: IDTrack's documentation, where it is published by default (Read the Docs, the stable version).
 DOCS_URL = "https://idtrack.readthedocs.io/en/stable/"
 #: The ways a deployment serves https (SETUP.md, section 10.5): Caddy holds a certificate of Let's Encrypt
 #: (``lets_encrypt``), or one the institute gave (``institute_certificate``); or the institute's reverse proxy holds
@@ -74,17 +74,17 @@ class Settings:
         sending_max_bytes: The most bytes of answers one worker holds for clients that have not taken them yet; an
             answer beyond is refused with ``503 server_busy``.
         answer_cache_bytes: The answers each worker keeps in memory to send again (0: none kept).
-        static_dir: A folder of the built frontend to serve at ``/``; ``None``: the api alone.
+        static_dir: A folder of the built frontend to serve at ``/``; ``None``: the API alone.
         public_url: The address the site is reached at (``https://<domain>``), for the absolute links of
             ``/llms.txt``; ``None``: the address of each request.
-        docs_url: The address of idtrack's documentation that the site links to (its root, ending in ``/``):
+        docs_url: The address of IDTrack's documentation that the site links to (its root, ending in ``/``):
             Read the Docs' stable version unless the documentation is served under another name.
         analytics_id: The Google Analytics measurement id of the site (``G-...``); the page counts visits with it only
             after the visitor's consent. ``None``: no analytics, and the page's policy allows no other host.
         https_route: How visitors reach the site over https, of the ways SETUP.md documents (section 10.5), for the
             privacy page to say who holds the certificate and who sees each visitor's address
             (:py:data:`HTTPS_ROUTES`); ``None``: not stated (a server not deployed so).
-        cors_origins: Origins allowed to call the api from a browser: ``*`` (any page: the api is keyless and
+        cors_origins: Origins allowed to call the API from a browser: ``*`` (any page: the API is keyless and
             read-only, and sends no credential), or a list.
         log_level: The level of the server's log.
     """

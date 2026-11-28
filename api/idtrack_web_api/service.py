@@ -1,10 +1,10 @@
-"""What the endpoints do, apart from HTTP: bound the request, call idtrack through the adapter, return its data.
+"""What the endpoints do, apart from HTTP: bound the request, call IDTrack through the adapter, return its data.
 
-The api checks only what HTTP itself must bound (lengths, control characters, the request's time); which releases,
-databases and identifiers a graph accepts, and what an empty string or a spelling of a missing value is, is idtrack's to
+The API checks only what HTTP itself must bound (lengths, control characters, the request's time); which releases,
+databases and identifiers a graph accepts, and what an empty string or a spelling of a missing value is, is IDTrack's to
 decide (:py:mod:`idtrack_web_api.adapter`), and its refusals
 are answered with their own codes. Every function here that searches runs on the worker's search thread
-(:py:class:`idtrack_web_api.limits.SearchSlot`). Results are idtrack's ``to_dict()``, unchanged, with the api's reading
+(:py:class:`idtrack_web_api.limits.SearchSlot`). Results are IDTrack's ``to_dict()``, unchanged, with the API's reading
 of their evidence beside (``cautions``: :py:func:`with_cautions`).
 """
 
@@ -41,12 +41,12 @@ def _control_characters(text: str) -> list[int]:
 
 
 def check_text(value: str, name: str, settings: Settings, location: list[str | int] | None = None) -> str | None:
-    """Return what is wrong with an identifier or name for HTTP, or ``None`` when it may be passed to idtrack.
+    """Return what is wrong with an identifier or name for HTTP, or ``None`` when it may be passed to IDTrack.
 
     Only the server's bounds: its length, and characters a table or a log cannot hold inside the identifier. White space
     at either end (spaces, tabs, line breaks: what a list cut from a table often keeps) is no part of an identifier:
-    idtrack reads the identifier without it (``str.strip``) and records nothing for it, and the result's ``query_id``
-    keeps the string as it was sent; so only the characters between the ends are checked. An empty string is idtrack's
+    IDTrack reads the identifier without it (``str.strip``) and records nothing for it, and the result's ``query_id``
+    keeps the string as it was sent; so only the characters between the ends are checked. An empty string is IDTrack's
     to answer (a refusal, ``missing_value``; in a batch, that item's error; for a name, no match), as it answers it.
 
     Args:
@@ -121,7 +121,7 @@ def conversion_arguments(
     explain: bool,
     allow_bridges: bool,
 ) -> ConversionArguments:
-    """Return a conversion's arguments after the api's own bounds.
+    """Return a conversion's arguments after the API's own bounds.
 
     Args:
         from_release: See the endpoint.
@@ -147,13 +147,13 @@ def conversion_arguments(
 
 
 def answered(problem: InputRefusedError) -> ApiError:
-    """Return the api error of idtrack's refusal of an input.
+    """Return the API error of IDTrack's refusal of an input.
 
     Args:
         problem: The refusal.
 
     Returns:
-        ApiError: The error, with idtrack's message, argument and accepted values.
+        ApiError: The error, with IDTrack's message, argument and accepted values.
     """
     return ApiError(problem.code, problem.message, argument=problem.argument, allowed=problem.allowed)
 
@@ -212,7 +212,7 @@ def _searched(arguments: ConversionArguments) -> ConversionArguments:
 
 
 def caution_facts(graph: Graph, asked: str | None, budget_seconds: float) -> Facts:
-    """Return what the rules of the cautions read beside a result, from idtrack's own calls on the graph.
+    """Return what the rules of the cautions read beside a result, from IDTrack's own calls on the graph.
 
     The organism's name authority at a release is the first of its symbol databases (IDTrack's order) that a
     conversion to the release can end in; a gene's symbols there are the best targets of IDTrack's conversion of the
@@ -318,7 +318,7 @@ def with_cautions(result: dict[str, Any], facts: Facts, *, explain: bool) -> dic
 def convert_one(
     graph: LoadedGraph, identifier: str, arguments: ConversionArguments, settings: Settings, deadline: float
 ) -> dict[str, Any]:
-    """Convert one identifier: idtrack's ``API.convert(...).to_dict()``, with its cautions.
+    """Convert one identifier: IDTrack's ``API.convert(...).to_dict()``, with its cautions.
 
     Args:
         graph: The graph.
@@ -331,7 +331,7 @@ def convert_one(
         dict[str, Any]: The result.
 
     Raises:
-        ApiError: For an input idtrack refuses, a search over its budget, or a request out of time.
+        ApiError: For an input IDTrack refuses, a search over its budget, or a request out of time.
     """
     budget = min(settings.search_seconds, max(0.0, _remaining(deadline)))
     try:
@@ -368,13 +368,13 @@ def convert_batch(
     read_copies: bool = True,
     abandoned: Callable[[], bool] = lambda: False,
 ) -> list[dict[str, Any]]:
-    """Convert a batch: what idtrack's ``API.convert_many(identifiers, ...)`` returns, each ``to_dict()``, in order.
+    """Convert a batch: what IDTrack's ``API.convert_many(identifiers, ...)`` returns, each ``to_dict()``, in order.
 
-    The distinct identifiers are converted in the groups that idtrack answers together
+    The distinct identifiers are converted in the groups that IDTrack answers together
     (:py:func:`idtrack_web_api.adapter.batch_groups`: an item and the items that extend it by a numbered suffix, which
-    idtrack may answer as its copies; every other item alone), one ``convert_many`` call per group, so that every
+    IDTrack may answer as its copies; every other item alone), one ``convert_many`` call per group, so that every
     item gets the answer of one call over the whole batch and the request's time budget is checked between groups;
-    an error of one identifier is that item's ``error``, as idtrack records it, with the api's ``code`` of its kind
+    an error of one identifier is that item's ``error``, as IDTrack records it, with the API's ``code`` of its kind
     added (:py:func:`idtrack_web_api.adapter.item_error_code`). Without *read_copies* every distinct item is a group
     of its own, so that each is answered as ``convert`` answers it alone.
 
@@ -384,14 +384,14 @@ def convert_batch(
         arguments: The arguments.
         settings: The budgets.
         deadline: The request's deadline.
-        read_copies: Read an item that extends another by a numbered suffix as its copy (idtrack's reading).
+        read_copies: Read an item that extends another by a numbered suffix as its copy (IDTrack's reading).
         abandoned: Whether the client has gone (checked between groups: the rest is not searched).
 
     Returns:
         list[dict[str, Any]]: One result per identifier.
 
     Raises:
-        ApiError: For an input idtrack refuses, or a request out of time (``request_budget_exceeded``; also when an
+        ApiError: For an input IDTrack refuses, or a request out of time (``request_budget_exceeded``; also when an
             identifier ran out of time only because the request had less time left than a search's budget).
     """
     groups = batch_groups(identifiers) if read_copies else [[item] for item in dict.fromkeys(identifiers)]
@@ -422,7 +422,7 @@ def convert_batch(
 
 
 def final_databases(graph: LoadedGraph, to_release: int | None) -> list[str]:
-    """Return idtrack's ``API.final_databases(to_release)``.
+    """Return IDTrack's ``API.final_databases(to_release)``.
 
     Args:
         graph: The graph.
@@ -432,7 +432,7 @@ def final_databases(graph: LoadedGraph, to_release: int | None) -> list[str]:
         list[str]: The databases.
 
     Raises:
-        ApiError: For a release idtrack refuses.
+        ApiError: For a release IDTrack refuses.
     """
     try:
         return graph.graph.final_databases(to_release)
@@ -441,7 +441,7 @@ def final_databases(graph: LoadedGraph, to_release: int | None) -> list[str]:
 
 
 def check_release(graph: LoadedGraph, release: int | None, name: str) -> None:
-    """Refuse a release the graph does not cover (as idtrack refuses one: ``unknown_release``, the releases allowed).
+    """Refuse a release the graph does not cover (as IDTrack refuses one: ``unknown_release``, the releases allowed).
 
     Args:
         graph: The graph.
@@ -464,10 +464,10 @@ def check_release(graph: LoadedGraph, release: int | None, name: str) -> None:
 
 
 def genes_named(graph: LoadedGraph, name: str, *, fold_case: bool, release: int | None = None) -> list[dict[str, Any]]:
-    """Return idtrack's ``API.genes_named(name, fold_case)``, each ``to_dict()``, those that hold at *release* only.
+    """Return IDTrack's ``API.genes_named(name, fold_case)``, each ``to_dict()``, those that hold at *release* only.
 
-    idtrack's call answers for every release, each match listing its ``releases``; with *release*, the api keeps the
-    matches whose ``releases`` hold it, unchanged and in idtrack's order (the meaning of the name at that release).
+    IDTrack's call answers for every release, each match listing its ``releases``; with *release*, the API keeps the
+    matches whose ``releases`` hold it, unchanged and in IDTrack's order (the meaning of the name at that release).
 
     Args:
         graph: The graph.
@@ -479,7 +479,7 @@ def genes_named(graph: LoadedGraph, name: str, *, fold_case: bool, release: int 
         list[dict[str, Any]]: The matches.
 
     Raises:
-        ApiError: For an input idtrack refuses, or a release the graph does not cover.
+        ApiError: For an input IDTrack refuses, or a release the graph does not cover.
     """
     check_release(graph, release, "release")
     try:
@@ -490,7 +490,7 @@ def genes_named(graph: LoadedGraph, name: str, *, fold_case: bool, release: int 
 
 
 def names_of(graph: LoadedGraph, gene: str, release: int | None) -> list[dict[str, Any]]:
-    """Return idtrack's ``API.names_of(gene, release)``, each ``to_dict()``.
+    """Return IDTrack's ``API.names_of(gene, release)``, each ``to_dict()``.
 
     Args:
         graph: The graph.
@@ -501,7 +501,7 @@ def names_of(graph: LoadedGraph, gene: str, release: int | None) -> list[dict[st
         list[dict[str, Any]]: The names.
 
     Raises:
-        ApiError: For an input idtrack refuses (an unknown gene or release).
+        ApiError: For an input IDTrack refuses (an unknown gene or release).
     """
     try:
         return graph.graph.names_of(gene, release)
@@ -521,7 +521,7 @@ def names_of(graph: LoadedGraph, gene: str, release: int | None) -> list[dict[st
 
 
 def source_inference(graph: LoadedGraph, identifiers: list[str], mode: str) -> dict[str, Any]:
-    """Return idtrack's ``API.source_inference(identifiers, mode).to_dict()``.
+    """Return IDTrack's ``API.source_inference(identifiers, mode).to_dict()``.
 
     Args:
         graph: The graph.
@@ -532,7 +532,7 @@ def source_inference(graph: LoadedGraph, identifiers: list[str], mode: str) -> d
         dict[str, Any]: The inference.
 
     Raises:
-        ApiError: For an input idtrack refuses (``unknown_identifier`` when none of the identifiers is in the graph).
+        ApiError: For an input IDTrack refuses (``unknown_identifier`` when none of the identifiers is in the graph).
     """
     try:
         return graph.graph.source_inference(identifiers, mode)
@@ -540,7 +540,7 @@ def source_inference(graph: LoadedGraph, identifiers: list[str], mode: str) -> d
         raise answered(problem) from None
 
 
-#: The parts of an origin of each mode of ``API.source_inference``, in the order idtrack writes them (its text of
+#: The parts of an origin of each mode of ``API.source_inference``, in the order IDTrack writes them (its text of
 #: ``SourceInference``: an origin is ``[database, assembly, release]``, ``release``, ``assembly`` or
 #: ``[assembly, release]`` by the mode).
 ORIGIN_PARTS: dict[str, tuple[str, ...]] = {
@@ -552,10 +552,10 @@ ORIGIN_PARTS: dict[str, tuple[str, ...]] = {
 
 
 def named_origin(origin: Any, mode: str) -> dict[str, Any]:
-    """Return an origin of idtrack's source inference with its parts named (``null`` for the parts the mode lacks).
+    """Return an origin of IDTrack's source inference with its parts named (``null`` for the parts the mode lacks).
 
     Args:
-        origin: An origin as idtrack writes it for the mode (a list, or one value).
+        origin: An origin as IDTrack writes it for the mode (a list, or one value).
         mode: The mode.
 
     Returns:
@@ -572,7 +572,7 @@ def convert_each_database(
 ) -> tuple[int, list[dict[str, Any]]]:
     """Convert one identifier into every database a conversion to the target release can end in.
 
-    One idtrack ``API.convert`` per database of ``API.final_databases(to_release)``, in that order, each exactly as
+    One IDTrack ``API.convert`` per database of ``API.final_databases(to_release)``, in that order, each exactly as
     :py:func:`convert_one` with that ``final_database`` (the request's time budget checked before each).
 
     Args:

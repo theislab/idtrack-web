@@ -1,4 +1,4 @@
-"""The OpenAPI document of the api as the application generates it (``api/openapi.json`` is a copy a test checks)."""
+"""The OpenAPI document of the API as the application generates it (``api/openapi.json`` is a copy a test checks)."""
 
 from __future__ import annotations
 

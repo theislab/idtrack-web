@@ -68,7 +68,7 @@
               "type": "null"
             }
           ],
-          "description": "The idtrack version that built the graph.",
+          "description": "The IDTrack version that built the graph.",
           "title": "Idtrack Version"
         },
         "idtrack_commit": {
@@ -80,7 +80,7 @@
               "type": "null"
             }
           ],
-          "description": "The idtrack commit that built the graph, where known.",
+          "description": "The IDTrack commit that built the graph, where known.",
           "title": "Idtrack Commit"
         },
         "build_date": {
@@ -131,7 +131,7 @@
       "type": "string"
     },
     "publisher": {
-      "description": "The idtrack-web-api and idtrack versions that wrote the manifest.",
+      "description": "The idtrack-web-api and IDTrack versions that wrote the manifest.",
       "title": "Publisher",
       "type": "string"
     },

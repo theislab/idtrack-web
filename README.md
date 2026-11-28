@@ -48,26 +48,26 @@ Without `from_release` the same symbol is read at 115, where it is a synonym of 
 <!-- generated: endpoints -->
 | Method and path | What it answers |
 | --- | --- |
-| `GET /api/v1 (the index)` | Where everything is: the api's documents and every endpoint |
-| `GET /health` | The server is up and holds its graphs (no allowance taken) |
-| `GET /status` | The server's load: CPU, memory and requests of every worker and the master |
-| `GET /version` | The versions of the api, idtrack and every loaded graph |
-| `GET /vocabulary` | What the codes of the answers mean: idtrack's own tables, the api's where idtrack has none |
-| `GET /limits` | The bounds this server enforces, as configured |
-| `GET /organisms` | Every loaded organism and what its graph holds |
-| `GET /organisms/{organism}` | What one organism's graph holds: releases, assemblies, databases, its build |
-| `GET /organisms/{organism}/final-databases?to_release=` | The databases a conversion to a release can end in |
-| `GET /organisms/{organism}/databases` | What a conversion to each release can end in: a release-by-database matrix, and each assembly's |
-| `GET /organisms/{organism}/showcase` | Chosen conversions of one graph, answered once when the server started: the home page's figures |
-| `GET /organisms/{organism}/showcase/queries` | The showcase's chosen conversions without their answers: each query, and each case's kind |
-| `GET /organisms/{organism}/history` | Ensembl's gene id history in the graph: genes active per release, history edges per transition |
-| `GET /organisms/{organism}/lineages?limit=` | The lineages of gene ids in the graph: active releases, new versions, edges to other ids |
-| `GET /organisms/{organism}/convert?identifier=&from_release=&to_release=&final_database=&from_database=&explain=&allow_bridges=` | Convert one identifier: every candidate ranked, the best marked, optionally its path |
-| `GET /organisms/{organism}/convert/each-database?identifier=&from_release=&to_release=&from_database=&allow_bridges=` | Convert one identifier into every database a conversion to the target release can end in |
-| `POST /organisms/{organism}/convert/batch?format=&provenance=` | Convert a batch with the same arguments; results in input order, each with its own status |
-| `POST /organisms/{organism}/source-inference` | Where a list of identifiers comes from: the releases, assemblies or databases it fits |
-| `GET /organisms/{organism}/genes-named?name=&fold_case=&release=` | The genes a name of an external database names, per database and release |
-| `GET /organisms/{organism}/names-of?gene=&release=` | The names external databases give a gene, per database and release |
+| `GET /api/v1` | Where everything is: the API's documents and every endpoint |
+| `GET /api/v1/health` | The server is up and holds its graphs (no allowance taken) |
+| `GET /api/v1/status` | The server's load: CPU, memory and requests of every worker and the master |
+| `GET /api/v1/version` | The versions of the API, IDTrack and every loaded graph |
+| `GET /api/v1/vocabulary` | What the codes of the answers mean: IDTrack's own tables, the API's where IDTrack has none |
+| `GET /api/v1/limits` | The bounds this server enforces, as configured |
+| `GET /api/v1/organisms` | Every loaded organism and what its graph holds |
+| `GET /api/v1/organisms/{organism}` | What one organism's graph holds: releases, assemblies, databases, its build |
+| `GET /api/v1/organisms/{organism}/final-databases?to_release=` | The databases a conversion to a release can end in |
+| `GET /api/v1/organisms/{organism}/databases` | What a conversion to each release can end in: a release-by-database matrix, and each assembly's |
+| `GET /api/v1/organisms/{organism}/showcase` | Chosen conversions of one graph, answered once when the server started: the home page's figures |
+| `GET /api/v1/organisms/{organism}/showcase/queries` | The showcase's chosen conversions without their answers: each query, and each case's kind |
+| `GET /api/v1/organisms/{organism}/history` | Ensembl's gene id history in the graph: genes active per release, history edges per transition |
+| `GET /api/v1/organisms/{organism}/lineages?limit=` | The lineages of gene ids in the graph: active releases, new versions, edges to other ids |
+| `GET /api/v1/organisms/{organism}/convert?identifier=&from_release=&to_release=&final_database=&from_database=&explain=&allow_bridges=` | Convert one identifier: every candidate ranked, the best marked, optionally its path |
+| `GET /api/v1/organisms/{organism}/convert/each-database?identifier=&from_release=&to_release=&from_database=&allow_bridges=` | Convert one identifier into every database a conversion to the target release can end in |
+| `POST /api/v1/organisms/{organism}/convert/batch?format=&provenance=` | Convert a batch with the same arguments; results in input order, each with its own status |
+| `POST /api/v1/organisms/{organism}/source-inference` | Where a list of identifiers comes from: the releases, assemblies or databases it fits |
+| `GET /api/v1/organisms/{organism}/genes-named?name=&fold_case=&release=` | The genes a name of an external database names, per database and release |
+| `GET /api/v1/organisms/{organism}/names-of?gene=&release=` | The names external databases give a gene, per database and release |
 <!-- /generated -->
 
 ### What an answer is
@@ -86,29 +86,29 @@ Every failure is `{"error": {"code", "message", "argument", "allowed", "details"
 <!-- generated: errors -->
 | Code | Status | Retry | When |
 | --- | --- | --- | --- |
-| `invalid_request` | 400 | no: change the request | The request does not have the shape the endpoint takes: a missing or malformed parameter, a body that is not UTF-8 JSON of the documented shape (`details` lists each problem, `argument` names the parameter when one is at fault). |
-| `unknown_parameter` | 400 | no: change the request | A query parameter the endpoint does not take, or one given more than once. |
-| `invalid_identifier` | 400 | no: change the request | An identifier or name is longer than this server accepts, or holds control, surrogate, private-use or unassigned characters (in a batch: the whole batch is refused, and `details` gives every such item's index). |
-| `unknown_release` | 400 | no: change the request | A release the graph does not cover (`allowed` lists the graph's releases). |
-| `unknown_database` | 400 | no: change the request | A database the graph does not hold at that release (`allowed` lists those it holds). |
-| `unknown_identifier` | 400 | no: change the request | An identifier the call needs to exist in the graph does not (the gene of names-of). |
-| `missing_value` | 400 | no: change the request | An identifier is empty or a spelling of a missing value (idtrack's refusal), or a name to look up is empty. |
-| `invalid_argument` | 400 | no: change the request | An argument whose value is not accepted (an empty or over-long database name). |
-| `invalid_input` | 400 | no: change the request | Another input idtrack refuses (idtrack's message says which). |
-| `unknown_organism` | 404 | no: change the request | An organism this server does not hold (`allowed` lists those it holds). |
-| `not_found` | 404 | no: change the request | No such endpoint or file. |
-| `method_not_allowed` | 405 | no: change the request | The endpoint does not take this method (the `Allow` header and `allowed` list the methods it takes). |
-| `request_timeout` | 408 | yes (after `Retry-After` where it is sent) | The request's head or body did not arrive within the time the server waits for it, or its client closed the connection before its search (which is then not run); send it again. |
-| `payload_too_large` | 413 | no: change the request | The request body is larger than the server accepts. |
-| `too_many_identifiers` | 413 | no: change the request | A batch with more identifiers than the server accepts (`batch_max` of /limits). |
-| `uri_too_long` | 414 | no: change the request | The request's path and query are longer than the server accepts. |
-| `unsupported_media_type` | 415 | no: change the request | A request body that is not `application/json` in UTF-8, or that is sent compressed (`Content-Encoding`). |
-| `search_budget_exceeded` | 422 | no: change the request | One identifier's search needed more than its budget (states or seconds); the same request fails again. |
-| `response_too_large` | 422 | no: change the request | The answer is larger than the server sends (`response_max_bytes` of /limits); it is refused, never cut. |
-| `rate_limited` | 429 | yes (after `Retry-After` where it is sent) | This client sent more requests, or used more search time, than its allowance; wait the `Retry-After` header's seconds. |
-| `internal_error` | 500 | yes (after `Retry-After` where it is sent) | A fault of the server; quote the request id when reporting it. |
-| `server_busy` | 503 | yes (after `Retry-After` where it is sent) | The server has more waiting work than it accepts: its queue of searches is full, the search would wait (or waited) longer for a worker than `queue_seconds` of /limits, or the server is stopping; the request was not searched. Retry after the `Retry-After` header's seconds, unchanged. |
-| `request_budget_exceeded` | 503 | yes (after `Retry-After` where it is sent) | The request's search needed more time than its budget (`request_seconds` of /limits, counted from when its search began); send fewer identifiers per request (a batch's message says how many it converted). |
+| `invalid_request` | 400 | no: Change the request: the same request is answered the same way. | The request does not have the shape the endpoint takes: a missing or malformed parameter, a body that is not UTF-8 JSON of the documented shape (`details` lists each problem, `argument` names the parameter when one is at fault). |
+| `unknown_parameter` | 400 | no: Change the request: the same request is answered the same way. | A query parameter the endpoint does not take, or one given more than once. |
+| `invalid_identifier` | 400 | no: Change the request: the same request is answered the same way. | An identifier or name is longer than this server accepts, or holds control, surrogate, private-use or unassigned characters (in a batch: the whole batch is refused, and `details` gives every such item's index). |
+| `unknown_release` | 400 | no: Change the request: the same request is answered the same way. | A release the graph does not cover (`allowed` lists the graph's releases). |
+| `unknown_database` | 400 | no: Change the request: the same request is answered the same way. | A database the graph does not hold at that release (`allowed` lists those it holds). |
+| `unknown_identifier` | 400 | no: Change the request: the same request is answered the same way. | An identifier the call needs to exist in the graph does not (the gene of names-of). |
+| `missing_value` | 400 | no: Change the request: the same request is answered the same way. | An identifier is empty or a spelling of a missing value (IDTrack's refusal), or a name to look up is empty. |
+| `invalid_argument` | 400 | no: Change the request: the same request is answered the same way. | An argument whose value is not accepted (an empty or over-long database name). |
+| `invalid_input` | 400 | no: Change the request: the same request is answered the same way. | Another input IDTrack refuses (IDTrack's message says which). |
+| `unknown_organism` | 404 | no: Change the request: the same request is answered the same way. | An organism this server does not hold (`allowed` lists those it holds). |
+| `not_found` | 404 | no: Change the request: the same request is answered the same way. | No such endpoint or file. |
+| `method_not_allowed` | 405 | no: Change the request: the same request is answered the same way. | The endpoint does not take this method (the `Allow` header and `allowed` list the methods it takes). |
+| `request_timeout` | 408 | yes: Send it again, whole and at once (it carries no `Retry-After`). | The request's head or body did not arrive within the time the server waits for it, or its client closed the connection before its search (which is then not run); send it again. |
+| `payload_too_large` | 413 | no: Change the request: the same request is answered the same way. | The request body is larger than the server accepts. |
+| `too_many_identifiers` | 413 | no: Change the request: the same request is answered the same way. | A batch with more identifiers than the server accepts (`batch_max` of /limits). |
+| `uri_too_long` | 414 | no: Change the request: the same request is answered the same way. | The request's path and query are longer than the server accepts. |
+| `unsupported_media_type` | 415 | no: Change the request: the same request is answered the same way. | A request body that is not `application/json` in UTF-8, or that is sent compressed (`Content-Encoding`). |
+| `search_budget_exceeded` | 422 | no: Change the request: the same request is answered the same way. | One identifier's search needed more than its budget (states or seconds); the same request fails again. |
+| `response_too_large` | 422 | no: Change the request: the same request is answered the same way. | The answer is larger than the server sends (`response_max_bytes` of /limits); it is refused, never cut. |
+| `rate_limited` | 429 | yes: Wait the `Retry-After` seconds, then send it again unchanged. | This client sent more requests, or used more search time, than its allowance; wait the `Retry-After` header's seconds. |
+| `internal_error` | 500 | yes: Send it again after a few seconds, waiting longer each time it repeats. | A fault of the server; quote the request id when reporting it. |
+| `server_busy` | 503 | yes: Wait the `Retry-After` seconds, then send it again unchanged. | The server has more waiting work than it accepts: its queue of searches is full, the search would wait (or waited) longer for a worker than `queue_seconds` of /limits, or the server is stopping; the request was not searched. Retry after the `Retry-After` header's seconds, unchanged. |
+| `request_budget_exceeded` | 503 | yes: Wait the `Retry-After` seconds and send it again; refused again, send it in smaller pieces (`progress` says how far it went: halve a batch, or ask the databases you need with `GET .../convert`). | The request's search needed more time than its budget (`request_seconds` of /limits, counted from when its search began); `progress` says how far it went (identifiers of a batch, databases of each-database). The time a search takes depends on the server's load too, so the same request can succeed later; one refused again needs fewer identifiers or databases per request. |
 <!-- /generated -->
 
 idtrack's refusals of an input map by class (`UnknownReleaseError` to `unknown_release`, ...) and keep idtrack's message; a refusal the api's own checks make unreachable would be `invalid_input`; any other error is `internal_error`, its traceback in the server's log with the request id, never in the answer. An identifier that is not in the graph is not an error: it is a result with status `not_found`, as idtrack answers it, and an unknown version is the status `unknown_version`. In a batch, one identifier's failure is that item's `status: "error"` with its `error.code`, and the batch goes on.

@@ -26,11 +26,11 @@ class LoadedGraph:
 
     Attributes:
         organism: The organism.
-        graph: The graph (the idtrack calls on it: :py:class:`idtrack_web_api.adapter.Graph`).
+        graph: The graph (the IDTrack calls on it: :py:class:`idtrack_web_api.adapter.Graph`).
         entry: The manifest's entry of the graph.
         path: The verified local file it was loaded from.
         lineages: The verified local file of the lineages of its gene ids (:py:mod:`idtrack_web_api.lineages`).
-        description: idtrack's description of the graph (``to_dict()``).
+        description: IDTrack's description of the graph (``to_dict()``).
         load_seconds: How long the load took.
     """
 
@@ -56,7 +56,7 @@ class Registry:
     manifest_file: ManifestFile
 
     def get(self, name: str) -> LoadedGraph | None:
-        """Return the graph of an organism by any name idtrack resolves offline (``sus_scrofa``, ``pig``).
+        """Return the graph of an organism by any name IDTrack resolves offline (``sus_scrofa``, ``pig``).
 
         Args:
             name: The name.
@@ -81,8 +81,8 @@ def load_graph(
         path: The verified file.
         lineages: The verified lineages file of the graph.
         entry: The manifest's entry.
-        budget_states: The search budget of one identifier in states (``None``: idtrack's default).
-        budget_seconds: The search budget of one identifier in seconds (``None``: idtrack's default).
+        budget_states: The search budget of one identifier in states (``None``: IDTrack's default).
+        budget_seconds: The search budget of one identifier in seconds (``None``: IDTrack's default).
 
     Returns:
         LoadedGraph: The graph.
@@ -149,7 +149,7 @@ def load_registry(
 
 
 def resolve_organisms(names: tuple[str, ...]) -> tuple[str, ...]:
-    """Return the production names of organisms given by any name idtrack resolves offline.
+    """Return the production names of organisms given by any name IDTrack resolves offline.
 
     Args:
         names: The names (``IDTRACK_WEB_ORGANISMS``).
@@ -158,13 +158,13 @@ def resolve_organisms(names: tuple[str, ...]) -> tuple[str, ...]:
         tuple[str, ...]: The organisms, in the order given.
 
     Raises:
-        DataError: If a name means no organism of idtrack, or two names mean one organism.
+        DataError: If a name means no organism of IDTrack, or two names mean one organism.
     """
     organisms = []
     for name in names:
         organism = organism_of(name)
         if organism is None:
-            msg = f"IDTRACK_WEB_ORGANISMS: idtrack knows no organism {name!r}."
+            msg = f"IDTRACK_WEB_ORGANISMS: IDTrack knows no organism {name!r}."
             raise DataError(msg)
         organisms.append(organism)
     if len(set(organisms)) != len(organisms):

@@ -136,7 +136,7 @@ TITLES: dict[str, str] = {
 #: The allowances a ``429 rate_limited`` names (``allowance`` of the error): which of a client's allowances it used up.
 ALLOWANCES: dict[str, str] = {
     "searches": "Searching requests (`rate_per_minute` per minute, `rate_burst` at once).",
-    "reads": "Every other request of the api (`read_share` times the searches' allowance).",
+    "reads": "Every other request of the API (`read_share` times the searches' allowance).",
     "search_seconds": "Seconds of search (`rate_search_seconds` per minute, a balance of `rate_search_burst_seconds`).",
     "concurrent_searches": "Searching requests in progress at once (`rate_concurrent_searches`).",
 }

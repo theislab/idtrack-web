@@ -59,7 +59,7 @@ def _serve(settings: Settings) -> int:
 
     start = time.monotonic()
     registry = prepare_registry(settings)
-    # idtrack's lazily built tables of each graph, computed once here and shared by the forked workers.
+    # IDTrack's lazily built tables of each graph, computed once here and shared by the forked workers.
     for organism, graph in registry.graphs.items():
         seconds = graph.graph.warm()
         log.info("%s: graph-wide tables computed in %.1f s (%s).", organism, sum(seconds.values()),
@@ -165,7 +165,7 @@ def main(argv: list[str] | None = None) -> int:
     publish.add_argument("--manifest-key", help="The current manifest's key (default idtrack/<format>/manifest.json).")
     openapi = commands.add_parser("openapi", help="Write the OpenAPI document.")
     openapi.add_argument("--output", help="The file (default: standard output).")
-    docs = commands.add_parser("docs", help="Write README.md's generated tables of the api.")
+    docs = commands.add_parser("docs", help="Write README.md's generated tables of the API.")
     docs.add_argument("--readme", default="../README.md", help="The README (default ../README.md, from api/).")
     docs.add_argument("--check", action="store_true", help="Change nothing; exit 1 if the README is not current.")
     arguments = parser.parse_args(argv)

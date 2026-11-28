@@ -165,7 +165,6 @@ describe("an organism's lineage field", () => {
     genes: 5,
     families: 3,
     focus_families: 1,
-    limit: 4,
     ids: ["A", "B", "C", "D"],
     family_starts: [0, 2, 3],
     active: [[[10, 11]], [[12, 13]], [[10, 13]], [[11, 13]]],

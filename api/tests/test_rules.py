@@ -445,7 +445,10 @@ def test_texts_for_programs_are_compressed_and_revalidated(client: TestClient) -
     assert 'BASE = "http://testserver/api/v1"' in text
     assert "latest release at which it exists" in text  # the rule of the starting release
     short = client.get("/llms.txt").text
-    assert "identifier=TP53&final_database=HGNC%20Symbol" in short
+    # The examples are drawn from what this server holds: the pig graph's first showcase journey.
+    journey = client.get(f"{P}/organisms/pig/showcase/queries").json()["journeys"][0]["query"]
+    assert f"/api/v1/organisms/sus_scrofa/convert?identifier={journey['identifier']}" in short
+    assert "homo_sapiens" not in short.split("## Docs")[0]
     odd = client.get("/llms.txt", headers={"Host": "evil.example/x"}).text
     assert "evil.example" not in odd
 

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import logging
 from dataclasses import replace
 from typing import TYPE_CHECKING, Any
@@ -9,7 +10,7 @@ from typing import TYPE_CHECKING, Any
 import pytest
 
 from idtrack_web_api import service
-from idtrack_web_api.errors import CODES
+from idtrack_web_api.errors import CODES, RETRY
 from idtrack_web_api.graphs import LoadedGraph, Registry, load_graph
 from tests.conftest import without_cautions
 
@@ -22,6 +23,8 @@ if TYPE_CHECKING:
 P = "/api/v1"
 CONVERT = f"{P}/organisms/{{organism}}/convert"
 BATCH = f"{P}/organisms/{{organism}}/convert/batch"
+INFERENCE = f"{P}/organisms/{{organism}}/source-inference"
+CONVERT_URL = f"{P}/organisms/pig/convert"
 GENE = "ENSSSCG00000040076.1"
 
 
@@ -260,6 +263,8 @@ def test_request_budget(
     # Searching with or without the paths takes the same time (every search reads them): only fewer identifiers help.
     assert error["argument"] == "identifiers" and "explain" not in error["message"]
     assert response.headers["retry-after"] == "5"
+    # How far it went, as fields a program reads (identifiers of a batch).
+    assert error["progress"] == {"answered": 2, "of": 3, "items": "identifiers"}
     # The budget runs from when the search begins: the time a request waited for a worker is not part of it, and a
     # request that waited longer than a search may (`queue_seconds`) is the server's load, not the request's size.
     waiting = make_client(rate_per_minute=0, queue_seconds=1e-9)
@@ -397,3 +402,61 @@ def test_every_code_is_in_the_readme() -> None:
     readme = (Path(__file__).resolve().parents[2] / "README.md").read_text(encoding="utf-8")
     for code, (status, _) in CODES.items():
         assert f"| `{code}` | {status} |" in readme, code
+
+
+def test_a_value_outside_a_set_is_quoted_and_the_set_listed(
+    client: TestClient, check_response: Callable[..., Any]
+) -> None:
+    """A body's value of the right type outside its set is named as sent (not by its type) and the set's values are
+    in `allowed`; a key the body does not take lists the keys it takes; a query's whole number is written in digits
+    in every message, whichever parameter it is."""
+    url = f"{P}/organisms/pig/source-inference"
+    for sent in ("nope", 5):
+        error = error_of(client.post(url, json={"identifiers": ["A"], "mode": sent}), check_response, INFERENCE, "post")
+        assert f"not {json.dumps(sent)}" in error["message"] and "not a string" not in error["message"]
+        assert error["argument"] == "mode" and error["allowed"] == [
+            "assembly_release",
+            "release",
+            "assembly",
+            "complete",
+        ]
+    error = error_of(client.post(url, json={"identifiers": ["A"], "modes": "x"}), check_response, INFERENCE, "post")
+    assert error["argument"] == "modes" and error["allowed"] == ["identifiers", "mode"]
+    error = error_of(client.post(url, json={"identifiers": "A"}), check_response, INFERENCE, "post")
+    assert error["allowed"] is None and "not a string" in error["message"]
+    for path, params in ((f"{P}/organisms/pig/lineages", {}), (CONVERT_URL, {"identifier": GENE})):
+        name = "limit" if params == {} else "to_release"
+        error = client.get(path, params={name: "abc", **params}).json()["error"]
+        assert "written in digits only" in error["message"] and 'not "abc"' in error["message"], error
+
+
+def test_a_search_refused_for_what_it_holds_is_counted_as_a_read(make_client: Callable[..., TestClient]) -> None:
+    """The allowance of searches counts the requests that were searched: a batch refused for its size or its shape
+    gives its token back (and takes one of the reads), so a client's mistakes do not use up its searches."""
+    client = make_client(rate_per_minute=6, rate_burst=3, rate_search_seconds=0.0, batch_max=10)
+    url = f"{P}/organisms/pig/convert/batch"
+    assert client.post(url, json={"identifiers": [GENE]}).status_code == 200
+    for body in ({"identifiers": ["A"] * 11}, {"identifiers": "A"}, {"identifiers": ["A"], "nope": 1}):
+        response = client.post(url, json=body)
+        assert response.status_code in {400, 413}, response.text
+        assert '"searches";r=2' in response.headers["ratelimit"], response.headers["ratelimit"]
+    assert client.post(url, json={"identifiers": [GENE, "B"]}).status_code == 200
+    assert client.post(url, json={"identifiers": [GENE, "C"]}).status_code == 200
+    response = client.post(url, json={"identifiers": [GENE, "D"]})
+    assert response.status_code == 429
+
+
+def test_the_retry_of_each_code_is_one_table(client: TestClient) -> None:
+    """The vocabulary says per code whether to retry, whether the refusal carries `Retry-After` and what to do; the
+    texts for programs write the same words."""
+    errors = {e["code"]: e for e in client.get(f"{P}/vocabulary").json()["errors"]}
+    assert {c for c, e in errors.items() if e["retryable"]} == set(RETRY)
+    assert {c for c, e in errors.items() if e["retry_after"]} == {
+        "rate_limited",
+        "server_busy",
+        "request_budget_exceeded",
+    }
+    assert "smaller pieces" in errors["request_budget_exceeded"]["retry"]
+    assert errors["invalid_request"]["retry"].startswith("Change the request")
+    full = client.get("/llms-full.txt").text
+    assert all(e["retry"] in full for e in errors.values())

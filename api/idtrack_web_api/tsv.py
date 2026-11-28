@@ -1,15 +1,15 @@
 r"""A batch's results as a tab-separated table: one row per candidate (one row for a result without candidates).
 
 The table holds every field of a result and of its candidates except the explained path and the candidates' indices
-into it (``path``, ``final_path``: a graph, not a row; ask for JSON for it), the api's code of an item's error
+into it (``path``, ``final_path``: a graph, not a row; ask for JSON for it), the API's code of an item's error
 (``error_code``), and the codes of the result's cautions (``cautions``; their texts: JSON). The first line names the
 columns (:py:data:`COLUMNS`; :py:data:`COLUMN_TEXTS` says what each holds).
 Values are written as JSON writes them, so nothing is rounded: numbers as Python's ``repr`` (the shortest text that
 reads back as the same float), ``true``/``false``, an empty cell for ``null``, and lists joined by ``;`` (no identifier
-holds a ``;``, a tab or a line break inside it: the api refuses control characters in input, and :py:func:`rows`
+holds a ``;``, a tab or a line break inside it: the API refuses control characters in input, and :py:func:`rows`
 refuses any value that would break the table). ``other_readings``, a list of objects, is written as its compact JSON
 (empty when the list is). The two texts that may hold any character, ``query_id`` (the identifier as sent, which may
-begin or end with white space such as a tab: idtrack reads it without) and ``error_message``, are written with each
+begin or end with white space such as a tab: IDTrack reads it without) and ``error_message``, are written with each
 backslash, tab, line feed and carriage return as a backslash followed by ``\\``, ``t``, ``n`` or ``r``.
 """
 
@@ -85,11 +85,11 @@ COLUMN_TEXTS: dict[str, str] = {
     "candidate_count": "The number of the result's candidates (its rows; 0 on the one row of a result without any).",
     "other_readings": "`other_readings` as compact JSON (empty for none).",
     "cautions": (
-        "The codes of `cautions` (the api's reading of the result's evidence; `cautions` of `GET /api/v1/vocabulary`), "
+        "The codes of `cautions` (the API's reading of the result's evidence; `cautions` of `GET /api/v1/vocabulary`), "
         "joined by `;` (empty for none)."
     ),
-    "error_code": "The api's code of the item's error (`error.code`; `errors` of `GET /api/v1/vocabulary`).",
-    "error_type": "`error.type`: the class of idtrack's error.",
+    "error_code": "The API's code of the item's error (`error.code`; `errors` of `GET /api/v1/vocabulary`).",
+    "error_type": "`error.type`: the class of IDTrack's error.",
     "error_message": "`error.message` (escaped as `query_id`).",
     "error_input_error": "`error.input_error`.",
     "rank": "The candidate's place in `candidates`, from 1 (empty on the row of a result without candidates).",

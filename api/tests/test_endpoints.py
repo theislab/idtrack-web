@@ -80,7 +80,7 @@ def test_version(client: TestClient, check_response: Callable[..., Any], cut_reg
 def test_vocabulary_is_idtracks_own_tables(client: TestClient, check_response: Callable[..., Any]) -> None:
     from idtrack import results
 
-    from idtrack_web_api.errors import CODES, RETRYABLE, TITLES
+    from idtrack_web_api.errors import CODES, RETRY, RETRYABLE, TITLES, retry_words
     from idtrack_web_api.schemas import attribute_docs, plain_text
     from idtrack_web_api.vocabulary import STATUS_MEANINGS
 
@@ -120,7 +120,16 @@ def test_vocabulary_is_idtracks_own_tables(client: TestClient, check_response: C
         assert term["source"] == "idtrack"
         assert term["fields"]
     assert data["errors"] == [
-        {"code": k, "status": s, "title": TITLES[k], "meaning": m, "retryable": k in RETRYABLE, "source": "idtrack-web"}
+        {
+            "code": k,
+            "status": s,
+            "title": TITLES[k],
+            "meaning": m,
+            "retryable": k in RETRYABLE,
+            "retry_after": k in RETRY and RETRY[k][0],
+            "retry": retry_words(k),
+            "source": "idtrack-web",
+        }
         for k, (s, m) in CODES.items()
     ]
     # The api's own tables: the kinds of database, the allowances a 429 names, the modes of source inference.
@@ -153,6 +162,7 @@ def test_limits_are_the_settings(make_client: Callable[..., TestClient], check_r
         "rate_per_minute",
         "rate_burst",
         "read_share",
+        "network_share",
         "rate_search_seconds",
         "rate_search_burst_seconds",
         "queue_max",
@@ -173,6 +183,7 @@ def test_limits_are_the_settings(make_client: Callable[..., TestClient], check_r
         "rate_per_minute",
         "rate_burst",
         "read_share",
+        "network_share",
         "rate_search_seconds",
         "rate_search_burst_seconds",
         "rate_concurrent_searches",

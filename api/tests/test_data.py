@@ -151,7 +151,7 @@ def test_other_refusals(tmp_path: Path) -> None:
             f"idtrack/{GRAPH_FORMAT_VERSION}/", f"idtrack/{GRAPH_FORMAT_VERSION + 1}/"
         )
     (root / "other.json").write_text(json.dumps(other))
-    with pytest.raises(DataError, match="this idtrack reads"):
+    with pytest.raises(DataError, match="this IDTrack reads"):
         prepare(DirectoryStore(root), "other.json", ())
 
 
@@ -261,7 +261,7 @@ def test_publish_directory(tmp_path: Path) -> None:
 def test_publish_refuses_what_is_not_a_graph(tmp_path: Path) -> None:
     junk = tmp_path / "junk.npz"
     junk.write_bytes(b"not a graph")
-    with pytest.raises(DataError, match="not a graph this idtrack reads"):
+    with pytest.raises(DataError, match="not a graph this IDTrack reads"):
         publish([junk], DirectoryTarget(tmp_path / "store"))
     copy = tmp_path / "copy.npz"
     shutil.copyfile(CUT_GRAPH, copy)

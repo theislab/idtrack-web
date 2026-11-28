@@ -9,7 +9,7 @@ times one client's, so that one holder of a ``/48`` cannot multiply its allowanc
 
 - **searches**: every request that searches (a conversion, a batch, a name) takes one token; ``rate_per_minute``
   tokens come back per minute, and a bucket holds at most ``rate_burst``;
-- **reads**: every other request of the api (the tables and documents answered from memory, and any answer served
+- **reads**: every other request of the API (the tables and documents answered from memory, and any answer served
   from the answer cache) takes one token of a bucket ten times as large and as fast (:py:data:`READ_SHARE`), so that a
   page's own reads never use up its searches, while a flood of them is still bounded;
 - **search time**: the seconds a client's searches took (the search, and the writing and compressing of its answer)

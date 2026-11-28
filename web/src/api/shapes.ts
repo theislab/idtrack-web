@@ -192,12 +192,24 @@ export const SCHEMAS: Record<string, Shape> = {
       details: { u: [{ a: { r: "ValidationDetail" } }, "null"] },
       request_id: "string",
     },
-    opt: { retry_after: { u: ["integer", "null"] }, allowance: { u: ["string", "null"] } },
+    opt: {
+      retry_after: { u: ["integer", "null"] },
+      allowance: { u: ["string", "null"] },
+      progress: { u: [{ r: "Progress" }, "null"] },
+    },
   },
   ErrorInfo: { o: { type: "string", message: "string", input_error: "boolean", code: "string" } },
   ErrorResponse: { o: { error: { r: "ErrorBody" } } },
   ErrorTerm: {
-    o: { code: "string", status: "integer", title: "string", meaning: "string", retryable: "boolean" },
+    o: {
+      code: "string",
+      status: "integer",
+      title: "string",
+      meaning: "string",
+      retryable: "boolean",
+      retry_after: "boolean",
+      retry: "string",
+    },
     opt: { source: "string" },
   },
   ExplainedPath: {
@@ -319,6 +331,7 @@ export const SCHEMAS: Record<string, Shape> = {
       rate_per_minute: "integer",
       rate_burst: "integer",
       read_share: "integer",
+      network_share: "integer",
       rate_search_seconds: "number",
       rate_search_burst_seconds: "number",
       queue_max: "integer",
@@ -343,7 +356,6 @@ export const SCHEMAS: Record<string, Shape> = {
       genes: "integer",
       families: "integer",
       focus_families: "integer",
-      limit: "integer",
       ids: { a: "string" },
       family_starts: { a: "integer" },
       active: { a: { a: { a: "integer" } } },
@@ -430,6 +442,7 @@ export const SCHEMAS: Record<string, Shape> = {
       memory_sample_age_seconds: { u: ["number", "null"] },
     },
   },
+  Progress: { o: { answered: "integer", of: "integer", items: "string" } },
   RequestsLoad: {
     o: {
       total: "integer",
@@ -556,7 +569,7 @@ export const SCHEMAS: Record<string, Shape> = {
       graphs: { a: { r: "GraphVersion" } },
       docs_url: "string",
     },
-    opt: { analytics_id: { u: ["string", "null"] } },
+    opt: { analytics_id: { u: ["string", "null"] }, https_route: { u: ["string", "null"] } },
   },
   VocabularyResponse: {
     o: {

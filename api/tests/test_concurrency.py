@@ -679,3 +679,37 @@ def test_a_search_that_would_wait_too_long_is_refused(cut_store: Path) -> None:
     for status, _, body in waited:
         error = json.loads(body)["error"]
         assert (status, error["code"]) == (503, "server_busy") and "was not searched" in error["message"], body
+
+
+def test_a_burst_of_lists_that_meets_a_server_with_no_measure_is_refused_at_once(cut_store: Path) -> None:
+    """Before any list has been searched, a list (a batch) is taken to last `search_seconds`: a burst of batches that
+    finds every worker in a search is refused at once (`503 server_busy` within a second) beyond the few the estimate
+    queues, not after waiting `queue_seconds`; a burst of single conversions at the same moment is queued."""
+    extra = {"IDTRACK_WEB_RATE_CONCURRENT_SEARCHES": "0"}
+    with serving(cut_store, 0, 1, slow=True, extra=extra) as (base, _), ThreadPoolExecutor(12) as pool:
+        running = [
+            pool.submit(get, f"{base}{P}/organisms/pig/convert?identifier=SLOW4.{'0' * i}", 60) for i in range(2)
+        ]
+        time.sleep(1.0)
+
+        def batch(release: int) -> tuple[float, int, bytes]:
+            began = time.monotonic()
+            body = json.dumps({"identifiers": [GENE], "to_release": release}).encode()
+            request = urllib.request.Request(  # noqa: S310 - a local test server
+                f"{base}{P}/organisms/pig/convert/batch", data=body, headers={"Content-Type": "application/json"}
+            )
+            try:
+                with urllib.request.urlopen(request, timeout=60) as response:  # noqa: S310 - a local test server
+                    status, answer = response.status, response.read()
+            except urllib.error.HTTPError as error:
+                with error:
+                    status, answer = error.code, error.read()
+            return time.monotonic() - began, status, answer
+
+        answers = [f.result() for f in [pool.submit(batch, release) for release in range(80, 88)]]
+        assert [f.result()[0] for f in running] == [200, 200]
+    refused = [(seconds, json.loads(body)["error"]) for seconds, status, body in answers if status == 503]
+    assert len(refused) >= 4, answers
+    assert all(error["code"] == "server_busy" and "would wait" in error["message"] for _, error in refused)
+    assert max(seconds for seconds, _ in refused) < 1.0, refused
+    assert all(status == 200 for _, status, _ in answers if status != 503)

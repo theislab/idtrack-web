@@ -1,7 +1,7 @@
-"""The api's contract as a program reads it: what the OpenAPI document holds beyond what FastAPI writes.
+"""The API's contract as a program reads it: what the OpenAPI document holds beyond what FastAPI writes.
 
-FastAPI writes the endpoints, parameters and schemas; :py:func:`complete` adds, from the api's own tables, what a
-client needs to use the api from the document alone:
+FastAPI writes the endpoints, parameters and schemas; :py:func:`complete` adds, from the API's own tables, what a
+client needs to use the API from the document alone:
 
 - **closed sets as enumerations**, each with its meanings (``x-enum-descriptions``, in the order of ``enum``), from the
   same tables as ``/vocabulary`` (``tests/test_openapi.py`` compares them): the statuses, reasons, step reasons,
@@ -9,12 +9,12 @@ client needs to use the api from the document alone:
   pattern with both tables;
 - **the error codes each endpoint can answer** (:py:data:`ENDPOINT_ERRORS`), per status, in each response's text and as
   ``x-error-codes``, with the code's ``enum`` narrowed to them;
-- **the headers** every answer carries (``X-Request-ID``, ``Server-Timing``), those of a ``GET`` of the api that is
+- **the headers** every answer carries (``X-Request-ID``, ``Server-Timing``), those of a ``GET`` of the API that is
   kept (``ETag``, ``Cache-Control``) and those of a refusal to retry (``Retry-After``);
-- **examples**: real answers of this api over the human graph of Ensembl 115 (``examples.json``, written by
+- **examples**: real answers of this API over the human graph of Ensembl 115 (``examples.json``, written by
   ``scripts/record_examples.py``; ``tests/test_real.py`` checks them against the graph where it is present), every one
   checked against its schema;
-- ``servers``, ``license`` and ``externalDocs``; the batch's request body (read by the api's own strict reader).
+- ``servers``, ``license`` and ``externalDocs``; the batch's request body (read by the API's own strict reader).
 """
 
 from __future__ import annotations
@@ -43,8 +43,8 @@ from idtrack_web_api.vocabulary import STATUS_MEANINGS
 
 DESCRIPTION = (
     "Converts gene identifiers (Ensembl gene, transcript and protein ids, symbols, other databases' ids) between "
-    "Ensembl releases, genome assemblies and databases, within one organism at a time, with idtrack: every answer is "
-    "idtrack's own record, with the path that led to it."
+    "Ensembl releases, genome assemblies and databases, within one organism at a time, with IDTrack: every answer is "
+    "IDTrack's own record, with the path that led to it."
 )
 
 #: Codes every endpoint can answer: a path and query too long, an unknown or repeated query parameter, a wrong method at
@@ -53,7 +53,7 @@ _EVERY = ("unknown_parameter", "uri_too_long", "method_not_allowed", "internal_e
 #: Codes of an endpoint that reads from memory: its allowance of reads.
 _READ = (*_EVERY, "rate_limited")
 #: Codes of every searching request: its allowances, the queue of searches, the client gone before its search, the
-#: request's time budget, the answer's bound, a malformed parameter, an identifier or name the api cannot pass on.
+#: request's time budget, the answer's bound, a malformed parameter, an identifier or name the API cannot pass on.
 _SEARCH = (
     *_READ,
     "unknown_organism",
@@ -106,7 +106,7 @@ ENDPOINT_ERRORS: dict[str, tuple[str, ...]] = {
     "names_of": (*_SEARCH, "unknown_release", "unknown_identifier", "invalid_argument"),
 }
 
-#: idtrack's input codes, which a batch item's error can carry.
+#: IDTrack's input codes, which a batch item's error can carry.
 _IDTRACK_INPUT = (
     "unknown_release",
     "unknown_database",
@@ -152,7 +152,7 @@ HEADERS: dict[str, dict[str, Any]] = {
         "schema": {"type": "string", "pattern": "^[A-Za-z0-9._:-]{1,64}$"},
     },
     "Idtrack-Version": {
-        "description": "The version of idtrack that answered (as `idtrack_version` of `GET /version`).",
+        "description": "The version of IDTrack that answered (as `idtrack_version` of `GET /version`).",
         "schema": {"type": "string"},
     },
     "Idtrack-Graph-Digest": {
@@ -264,7 +264,7 @@ def _set_enum(prop: dict[str, Any], codes: list[str], meanings: dict[str, str], 
         target["x-enum-descriptions"] = [meanings.get(c, "") for c in codes]
 
 
-#: idtrack's names of its tables, as its texts cite them, and the vocabulary's key of each.
+#: IDTrack's names of its tables, as its texts cite them, and the vocabulary's key of each.
 _TABLES = {
     "STATUSES": "statuses",
     "REASONS": "reasons",
@@ -281,7 +281,7 @@ _TABLE_NAME = re.compile(r"`(" + "|".join(sorted(_TABLES, key=len, reverse=True)
 
 
 def cite(text: str) -> str:
-    """Return a text with idtrack's names of its tables replaced by the vocabulary's key (a document a client has).
+    """Return a text with IDTrack's names of its tables replaced by the vocabulary's key (a document a client has).
 
     Args:
         text: A description.
@@ -436,7 +436,7 @@ def complete(document: dict[str, Any]) -> dict[str, Any]:  # noqa: PLR0912, PLR0
     components["examples"] = {
         code: {
             "summary": f"`{code}`"
-            + (" (written by the api's own code: no request makes it on purpose)" if "constructed" in value else ""),
+            + (" (written by the API's own code: no request makes it on purpose)" if "constructed" in value else ""),
             "value": value.get("answer", value),
         }
         for code, value in examples.get("errors", {}).items()
@@ -498,7 +498,7 @@ def complete(document: dict[str, Any]) -> dict[str, Any]:  # noqa: PLR0912, PLR0
     document["servers"] = [{"url": "/", "description": "The origin that serves this document."}]
     document["info"]["license"] = {"name": "BSD-3-Clause", "identifier": "BSD-3-Clause"}
     document["externalDocs"] = {
-        "description": "idtrack's documentation: what it answers, how, and its known limitations",
+        "description": "IDTrack's documentation: what it answers, how, and its known limitations",
         "url": "https://idtrack.readthedocs.io/en/stable/",
     }
     return document
@@ -538,7 +538,7 @@ def _share_refusals(document: dict[str, Any]) -> None:
 
 
 def index(document: dict[str, Any], *, page: bool) -> dict[str, Any]:
-    """Return the body of ``GET /api/v1``: the api's documents and every endpoint of the document.
+    """Return the body of ``GET /api/v1``: the API's documents and every endpoint of the document.
 
     Args:
         document: The OpenAPI document.

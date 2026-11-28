@@ -6,19 +6,19 @@ For one organism it asks: health, the server's load, version, vocabulary, limits
 databases at every release and the release-by-database matrix (each of its columns must be that release's final
 databases), conversions of a sample of the graph's own identifiers (plain, with ``explain``, to other releases and
 databases; a few into every database at once), the source of the sample as a list, a batch as JSON and as TSV (its
-columns those the document lists), a batch whose items extend others by a numbered suffix (idtrack's copies), names of
+columns those the document lists), a batch whose items extend others by a numbered suffix (IDTrack's copies), names of
 genes and genes of names, and a set of wrong requests (wrong types, sizes over the server's limits, unknown organisms,
-releases, databases, genes and parameters, and strings of every kind idtrack refuses: each must answer its error code,
-with a message, and the argument where it names one), and strings idtrack reads and reports what it changed (Unicode,
+releases, databases, genes and parameters, and strings of every kind IDTrack refuses: each must answer its error code,
+with a message, and the argument where it names one), and strings IDTrack reads and reports what it changed (Unicode,
 punctuation, GENCODE's Y copies). Every answer's status must be one the document declares for that endpoint, its body
 must be valid against the declared schema, and it must carry ``X-Request-ID`` and a ``Server-Timing`` the script can
 read (``app``, and ``queue``, ``search`` and ``write`` for a conversion), and an answer of the organism's graph
 ``Idtrack-Graph-Digest`` equal to the graph's ``content_digest`` of ``/version``. With ``--graph`` the script also loads
-the graph with idtrack and checks that every conversion and batch answer is exactly idtrack's ``to_dict()`` (every float
-with the same bits), and the database matrix idtrack's own ``final_databases`` and ``databases_by_assembly``. It prints
+the graph with IDTrack and checks that every conversion and batch answer is exactly IDTrack's ``to_dict()`` (every float
+with the same bits), and the database matrix IDTrack's own ``final_databases`` and ``databases_by_assembly``. It prints
 a summary as JSON (with the server's load before and after) and exits 1 on any failure, 2 at once when the server limits
-the rate of requests (serve with ``IDTRACK_WEB_RATE_PER_MINUTE=0`` for the check). Needs the api's development
-environment (jsonschema; idtrack for ``--graph``).
+the rate of requests (serve with ``IDTRACK_WEB_RATE_PER_MINUTE=0`` for the check). Needs the API's development
+environment (jsonschema; IDTrack for ``--graph``).
 """
 
 from __future__ import annotations
@@ -150,7 +150,7 @@ class Checker:
 
 
 def idtracks(data: Any) -> Any:
-    """Return an answer as idtrack's record: every result's ``cautions`` (the api's reading) taken out."""
+    """Return an answer as IDTrack's record: every result's ``cautions`` (the API's reading) taken out."""
     if isinstance(data, list):
         return [idtracks(item) for item in data]
     if isinstance(data, dict):
@@ -175,7 +175,7 @@ def main() -> int:  # noqa: PLR0912, PLR0915 - one script, read top to bottom
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument("base", help="The server's base URL, e.g. http://127.0.0.1:8000")
     parser.add_argument("organism", help="An organism the server holds, e.g. sus_scrofa")
-    parser.add_argument("--graph", help="The graph file the server serves for the organism (compare with idtrack).")
+    parser.add_argument("--graph", help="The graph file the server serves for the organism (compare with IDTrack).")
     parser.add_argument("--sample", type=int, default=200, help="Identifiers converted (default 200).")
     arguments = parser.parse_args()
     document = json.loads(OPENAPI.read_text(encoding="utf-8"))
@@ -221,7 +221,7 @@ def main() -> int:  # noqa: PLR0912, PLR0915 - one script, read top to bottom
         if matrix["by_assembly"] != reference.databases_by_assembly() or any(
             sorted(reference.final_databases(r)) != sorted(finals[r]) for r in releases
         ):
-            c.failures.append("databases: not idtrack's own final_databases and databases_by_assembly")
+            c.failures.append("databases: not IDTrack's own final_databases and databases_by_assembly")
         names = sorted({public_name(n) for n in reference.graph.nodes if not n.endswith((".Void", ".Retired"))})
         step = max(1, len(names) // arguments.sample)
         identifiers = names[::step][: arguments.sample]
@@ -240,7 +240,6 @@ def main() -> int:  # noqa: PLR0912, PLR0915 - one script, read top to bottom
     float_count = 0
     cautions_compared = 0
     adapted = Graph(reference) if reference is not None else None
-    docs_url = c.check("GET", "/api/v1/version", "/api/v1/version")["docs_url"]
     statuses: collections.Counter[str] = collections.Counter()
     for variant in variants:
         query = {k: (str(v).lower() if isinstance(v, bool) else v) for k, v in variant.items()}
@@ -252,13 +251,13 @@ def main() -> int:  # noqa: PLR0912, PLR0915 - one script, read top to bottom
                 compared += 1
                 float_count += len(floats(expected))
                 if idtracks(data) != expected or floats(idtracks(data)) != floats(expected):
-                    c.failures.append(f"convert {identifier} {variant}: the answer differs from idtrack's")
+                    c.failures.append(f"convert {identifier} {variant}: the answer differs from IDTrack's")
                 # The cautions: those of the result with its path, whatever `explain` asked.
                 explained = reference.convert(identifier, **{**variant, "explain": True}).to_dict()
                 cautions_compared += 1
                 asked = variant.get("final_database")
                 facts = caution_facts(adapted, asked if isinstance(asked, str) else None, 10.0)
-                if data["cautions"] != cautions_of(explained, docs_url, facts):
+                if data["cautions"] != cautions_of(explained, facts):
                     c.failures.append(f"convert {identifier} {variant}: the cautions differ from the rules' reading")
     batch = identifiers + identifiers[:5]
     for variant in ({}, {"explain": True, "to_release": middle}):
@@ -268,8 +267,8 @@ def main() -> int:  # noqa: PLR0912, PLR0915 - one script, read top to bottom
             expected = [r.to_dict() for r in reference.convert_many(batch, **variant)]
             compared += len(batch)
             if idtracks(data["results"]) != expected or floats(idtracks(data["results"])) != floats(expected):
-                c.failures.append(f"batch {variant}: the answers differ from idtrack's")
-    # Items that extend others by a numbered suffix: idtrack answers some as copies of the item they extend.
+                c.failures.append(f"batch {variant}: the answers differ from IDTrack's")
+    # Items that extend others by a numbered suffix: IDTrack answers some as copies of the item they extend.
     copied = [i for i in identifiers if not i.startswith("ENS")][:30]
     batch_copies = [f"{i}-1" for i in copied[:15]] + copied + [f"{i}.2" for i in copied[10:20]] + [f"{copied[0]}-1-1"]
     data = c.check("POST", f"{org}/convert/batch", f"{p}/organisms/{o}/convert/batch", None,
@@ -279,14 +278,14 @@ def main() -> int:  # noqa: PLR0912, PLR0915 - one script, read top to bottom
         expected = [r.to_dict() for r in reference.convert_many(batch_copies)]
         compared += len(batch_copies)
         if idtracks(data["results"]) != expected or floats(idtracks(data["results"])) != floats(expected):
-            c.failures.append("batch of copies: the answers differ from idtrack's")
+            c.failures.append("batch of copies: the answers differ from IDTrack's")
     table = c.check("POST", f"{org}/convert/batch", f"{p}/organisms/{o}/convert/batch", {"format": "tsv"},
                     {"identifiers": batch})  # fmt: skip
     rows = table.splitlines()
     tsv_content = c.document["paths"][f"{org}/convert/batch"]["post"]["responses"]["200"]["content"]
     if rows[0].split("\t") != [c["name"] for c in tsv_content["text/tab-separated-values"]["x-columns"]]:
         c.failures.append("batch as TSV: its columns are not those the document lists")
-    # Every database at once, and the source of the sample as a list: each idtrack's own call.
+    # Every database at once, and the source of the sample as a list: each IDTrack's own call.
     for identifier in identifiers[:5]:
         data = c.check("GET", f"{org}/convert/each-database", f"{p}/organisms/{o}/convert/each-database",
                        {"identifier": identifier, "to_release": middle})  # fmt: skip
@@ -297,14 +296,14 @@ def main() -> int:  # noqa: PLR0912, PLR0915 - one script, read top to bottom
             ]
             compared += len(expected)
             if idtracks(data["conversions"]) != expected or floats(idtracks(data["conversions"])) != floats(expected):
-                c.failures.append(f"each database {identifier}: the answers differ from idtrack's")
+                c.failures.append(f"each database {identifier}: the answers differ from IDTrack's")
     for mode in ("release", "assembly_release"):
         data = c.check("POST", f"{org}/source-inference", f"{p}/organisms/{o}/source-inference", None,
                        {"identifiers": identifiers, "mode": mode})  # fmt: skip
         if reference is not None:
             expected = json.loads(json.dumps(reference.source_inference(identifiers, mode).to_dict()))
             if data["inference"] != expected:
-                c.failures.append(f"source inference ({mode}): the answer differs from idtrack's")
+                c.failures.append(f"source inference ({mode}): the answer differs from IDTrack's")
     genes = set()
     for name in identifiers[:40]:
         matches = c.check("GET", f"{org}/genes-named", f"{p}/organisms/{o}/genes-named", {"name": name})
@@ -502,7 +501,7 @@ def main() -> int:  # noqa: PLR0912, PLR0915 - one script, read top to bottom
             "invalid_argument",
             "final_database",
         ),
-        # strings idtrack refuses (and the api's own bound on characters)
+        # strings IDTrack refuses (and the API's own bound on characters)
         ("GET", f"{org}/convert", convert_path, {"identifier": ""}, None, 400, "missing_value", "identifier"),
         ("GET", f"{org}/convert", convert_path, {"identifier": "   "}, None, 400, "missing_value", "identifier"),
         ("GET", f"{org}/convert", convert_path, {"identifier": "NA"}, None, 400, "missing_value", "identifier"),
@@ -579,7 +578,7 @@ def main() -> int:  # noqa: PLR0912, PLR0915 - one script, read top to bottom
     c.check("POST", f"{org}/convert/batch", f"{p}/organisms/{o}/convert/batch", None, b"{not json", 400,
             "invalid_request")  # fmt: skip
     refusals["invalid_request"] += 1
-    # Strings idtrack reads and reports what it changed (answers, not refusals).
+    # Strings IDTrack reads and reports what it changed (answers, not refusals).
     read_as: dict[str, str | None] = {}
     for text in ("\ufeffINS", "INS\u200b", "\uff29\uff2e\uff33", '"INS"', "INS;", "ENSG00000254647_PAR_Y", "ins"):
         data = c.check("GET", f"{org}/convert", convert_path, {"identifier": text})

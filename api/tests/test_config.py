@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import pytest
 
@@ -140,6 +140,19 @@ def test_analytics_id(tmp_path: Path) -> None:
     plain = page_policy(["abc"]).decode()
     counted = page_policy(["abc"], analytics=True).decode()
     assert "google" not in plain and "trusted-types idtrack-worker" in plain
-    assert "script-src 'self' 'sha256-abc' https://www.googletagmanager.com;" in counted
+    assert "script-src 'self' 'sha256-abc' https://www.googletagmanager.com/gtag/;" in counted
     assert "connect-src 'self' https://*.google-analytics.com" in counted
     assert "trusted-types idtrack-worker idtrack-analytics goog#html" in counted
+
+
+def test_https_route(tmp_path: Path, make_client: Any) -> None:
+    """The way a deployment serves https is stated where it is set, and `/version` reports it for the privacy page."""
+    base = {"IDTRACK_WEB_SOURCE": "directory", "IDTRACK_WEB_DIRECTORY": str(tmp_path)}
+    assert load_settings(base).https_route is None
+    for route in ("lets_encrypt", "institute_certificate", "behind_proxy"):
+        assert load_settings({**base, "IDTRACK_WEB_HTTPS_ROUTE": route}).https_route == route
+    with pytest.raises(ConfigError, match="HTTPS_ROUTE"):
+        load_settings({**base, "IDTRACK_WEB_HTTPS_ROUTE": "caddy"})
+    assert make_client(rate_per_minute=0).get("/api/v1/version").json()["https_route"] is None
+    stated = make_client(rate_per_minute=0, https_route="behind_proxy").get("/api/v1/version").json()
+    assert stated["https_route"] == "behind_proxy"

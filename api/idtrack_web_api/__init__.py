@@ -1,4 +1,4 @@
-"""idtrack's web api: identifier conversion through Ensembl releases over HTTP, on graphs loaded once per worker."""
+"""IDTrack's web API: identifier conversion through Ensembl releases over HTTP, on graphs loaded once per worker."""
 
 from importlib import metadata
 

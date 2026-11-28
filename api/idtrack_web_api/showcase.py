@@ -1,6 +1,6 @@
 """``GET /organisms/{organism}/showcase``: chosen conversions of a graph, answered once when the server starts.
 
-The home page draws conversions chosen to show the kinds of journey idtrack follows (the *journeys*) and phenomena of
+The home page draws conversions chosen to show the kinds of journey IDTrack follows (the *journeys*) and phenomena of
 Ensembl's history (the *cases*, each with the kind its answer shows). They are data, one file per organism
 (``showcase_data/<organism>.json``: ``checked_on``, the content digest of the graph the cases were checked on, then
 ``journeys`` and ``cases``, each a query as ``/convert`` takes it, a case with its ``kind``). Each is converted once, in

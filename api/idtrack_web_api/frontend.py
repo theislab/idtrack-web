@@ -23,8 +23,8 @@ of its addresses). Only the build's own files are sent: no hidden file (a name t
 ``.well-known``) and nothing outside the build's folder, even through a link.
 
 The page is sent with the answers every view needs first written into it (:py:data:`PRELOAD_ID`: ``/organisms``,
-``/version``, ``/vocabulary``, ``/limits``, each its text exactly as the api sends it), so that its first paint waits
-for no request of the api; its ``ETag`` is that of the page as sent (file, answers and frame), so a new build or a
+``/version``, ``/vocabulary``, ``/limits``, each its text exactly as the API sends it), so that its first paint waits
+for no request of the API; its ``ETag`` is that of the page as sent (file, answers and frame), so a new build or a
 server with other graphs is a new tag.
 
 Each address gets the page with its **frame** (:py:data:`FRAMES_FILE`, written by the build's ``scripts/prerender.ts``):
@@ -76,7 +76,7 @@ IMMUTABLE = "public, max-age=31536000, immutable"
 #: ``/organisms/<name>``): any other path without a file extension is answered with the page and ``404``.
 PAGE_ROUTES = re.compile(
     r"^/(convert|batch|names|organisms|developers|method|legal|privacy|licences|accessibility)?/?$"
-    r"|^/(legal|privacy|accessibility)/de/?$|^/organisms/[^/]+/?$"
+    r"|^/(legal|privacy)/de/?$|^/organisms/[^/]+/?$"
 )
 #: The pages in German: those at ``/<page>/de`` (``web/src/lib/routes.ts``).
 GERMAN_PAGE = re.compile(r"^/[a-z]+/de/?$")
@@ -95,7 +95,7 @@ _FRAME_DESCRIPTION = re.compile(r'<meta name="description" content="([^"]*)">')
 PAGES_HELD = 64
 REVALIDATE = "no-cache"
 #: The id of the page's block of the answers written into it (``<script type="application/json" id=...>``): a JSON
-#: object of each answer's path (``/api/v1/organisms``) and its text as the api sends it.
+#: object of each answer's path (``/api/v1/organisms``) and its text as the API sends it.
 PRELOAD_ID = "idtrack-preload"
 #: The build's frames of the pages: ``{"frames": {name: {"html": ..., "head": ...}}}``.
 FRAMES_FILE = "frames.json"
@@ -116,7 +116,6 @@ _FRAME_OF_PATH = {
     "privacy/de": "privacy-de",
     "licences": "licences",
     "accessibility": "accessibility",
-    "accessibility/de": "accessibility-de",
 }
 #: The places in a frame's ``meta`` the server fills: the site's address and the page's canonical path.
 ORIGIN_SLOT = "%ORIGIN%"
@@ -537,7 +536,7 @@ def robots_txt(site: str) -> str:
         str: The file.
     """
     return (
-        "# IDTrack's web app: every page and the api may be fetched (the api's searches are bounded per client:\n"
+        "# IDTrack's web app: every page and the API may be fetched (the API's searches are bounded per client:\n"
         "# /api/v1/limits). The pages are listed in the sitemap.\n"
         "User-agent: *\n"
         "Allow: /\n"
