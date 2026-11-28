@@ -45,7 +45,7 @@ import {
 } from "../src/lib/home/useJourneys";
 import { groupedInteger, releaseRanges } from "../src/lib/numbers";
 import { prose } from "../src/lib/values";
-import { readVocabulary, spaced } from "../src/lib/vocabulary";
+import { FAILED_VOCABULARY, NO_VOCABULARY, readVocabulary, spaced } from "../src/lib/vocabulary";
 import { OrganismsProvider } from "../src/lib/organisms";
 import { VocabularyContext } from "../src/lib/vocabularyContext";
 import { conversions, description, vocabularyResponse } from "./fixtures";
@@ -577,7 +577,7 @@ describe("the Method figure", () => {
         if (row.classList.contains("expandable__summary")) fireEvent.click(row);
       text += document.body.textContent;
       const ladder = screen.queryByRole("list", { name: "The criteria, in the order they decide" });
-      if (ladder) order = [...ladder.querySelectorAll(".method-ladder__body .method-code")].map((e) => e.textContent);
+      if (ladder) order = [...ladder.querySelectorAll(".method-criteria__code")].map((e) => e.textContent);
     }
     const plain = (t: string) => prose(t).replace(/`/g, "");
     for (const [code, meaning] of [
@@ -612,15 +612,31 @@ describe("the Method figure", () => {
       expect(text).toContain(plain(meaning ?? ""));
     }
     for (const [, meaning] of vocabulary.statuses) if (meaning) expect(text).toContain(plain(meaning));
-    expect(order).toEqual(vocabulary.criteria.map((c) => spaced(c.code)));
+    expect(order).toEqual(vocabulary.criteria.map((c) => c.code));
   });
 
   it("says so when the vocabulary could not be read", () => {
     render(
       <OrganismsProvider>
-        <MethodStages />
+        <VocabularyContext.Provider value={FAILED_VOCABULARY}>
+          <MethodStages />
+        </VocabularyContext.Provider>
       </OrganismsProvider>,
     );
     expect(screen.getByRole("status").textContent).toContain("could not be read");
+  });
+
+  it("says nothing of a failure while the vocabulary is still being read, nor once it is read", () => {
+    for (const value of [NO_VOCABULARY, readVocabulary(vocabularyResponse())]) {
+      render(
+        <OrganismsProvider>
+          <VocabularyContext.Provider value={value}>
+            <MethodStages />
+          </VocabularyContext.Provider>
+        </OrganismsProvider>,
+      );
+      expect(document.body.textContent).not.toContain("could not be read");
+      cleanup();
+    }
   });
 });

@@ -1,6 +1,7 @@
 // The benchmarks' published results (src/generated/benchmarks.json, made by scripts/benchmarks.ts from the files of
 // idtrack-reproducibility at the commit it names): what the Method page and the organism pages read of them.
 import data from "../generated/benchmarks.json" with { type: "json" };
+import { groupedInteger } from "./numbers";
 import { commonName, organismName } from "./organismNames";
 
 export type FamilyRow = (typeof data.families)[number]["rows"][number];
@@ -68,6 +69,53 @@ export function rateText(
   if (value <= 0 && counts.right > 0) return { text: `< 0.${"0".repeat(decimals - 1)}1`, published, rounded: true };
   const [whole = "0", fraction = ""] = published.split(".");
   return { text: `${whole}.${fraction.padEnd(decimals, "0")}`, published, rounded: false };
+}
+
+/** The share of a row's lines that were judged (right or wrong; the undetermined lines are not counted), written to one
+ *  decimal of a per cent so that it never says more than its counts: "100 %" only where every line is judged, "0 %"
+ *  only where none is (a share that rounds to either while it is not is "> 99.9 %" or "< 0.1 %"). */
+export function judgedText(row: Pick<FamilyRow, "right" | "wrong" | "n">): string {
+  const judgedLines = row.right + row.wrong;
+  if (!row.n) return "—";
+  if (judgedLines === row.n) return "100 %";
+  if (judgedLines === 0) return "0 %";
+  const share = (judgedLines / row.n) * 100;
+  const text = share.toFixed(1);
+  if (text === "100.0") return "> 99.9 %";
+  if (text === "0.0") return "< 0.1 %";
+  return `${text} %`;
+}
+
+/** The items of a family's truth that name a commit of code (a quoted hexadecimal commit): the parts of its truth read
+ *  from a checkout of IDTrack's code (the benchmarks name no other code by commit), so not independent of it. */
+export function truthFromIdtrack(family: Family): { lead: string; text: string }[] {
+  return family.truth.items.filter((item) => /`[0-9a-f]{7,40}`/.test(item.text));
+}
+
+/** The range of a family-by-organism rate the page states first: the lowest and the highest headline rate (each
+ *  family's main measurement under the judge its document says to read), each with its family and organism. */
+export function rateRange(): {
+  low: { family: Family; organism: string; row: FamilyRow };
+  high: { family: Family; organism: string; row: FamilyRow };
+  families: number;
+  organisms: number;
+} | null {
+  const all: { family: Family; organism: string; row: FamilyRow }[] = [];
+  for (const family of data.families) {
+    const [first] = familyRows(family);
+    for (const [organism, row] of first?.rows ?? []) all.push({ family, organism, row });
+  }
+  if (!all.length) return null;
+  const sorted = [...all].sort((a, b) => Number(a.row.rate) - Number(b.row.rate) || a.row.wrong - b.row.wrong);
+  const low = sorted[0];
+  const high = [...all].sort((a, b) => Number(b.row.rate) - Number(a.row.rate) || a.row.wrong - b.row.wrong)[0];
+  if (!low || !high) return null;
+  return {
+    low,
+    high,
+    families: new Set(all.map((x) => x.family.key)).size,
+    organisms: new Set(all.map((x) => x.organism)).size,
+  };
 }
 
 export type Stratum = Family["strata"]["rows"][number];
@@ -191,6 +239,11 @@ export function taskComparison(task: string): {
   apart: number;
   least: { tool: string; organism: string; ratio: string } | null;
   most: { tool: string; organism: string; ratio: string } | null;
+  /** The comparisons with no ratio: the tool disagrees on some lines, IDTrack on none (or on fewer than its published
+   *  rate can show: `bounded`), each with the tool's share of disagreements. */
+  unrated: { tool: string; organism: string; share: number; bounded: boolean }[];
+  /** What the family's reading of a sample of each tool's disagreements found truly wrong (weighted per cent). */
+  truly: { tool: string; truly: number; read: number }[];
   tools: number;
   /** The tool's name where only one poses the task. */
   only: string | null;
@@ -201,6 +254,7 @@ export function taskComparison(task: string): {
   let fewer = 0;
   let apart = 0;
   const ratios: { tool: string; organism: string; value: number; ratio: string }[] = [];
+  const unrated: { tool: string; organism: string; share: number; bounded: boolean }[] = [];
   const rows = data.tools.tools.filter((t) => t.task === task);
   for (const t of rows)
     for (const c of t.cells) {
@@ -218,6 +272,8 @@ export function taskComparison(task: string): {
       else same += 1;
       const ratio = wrongRatio(tool, ours.share);
       if (ratio && ours.share > 0) ratios.push({ tool: t.tool, organism: c.organism, value: tool / ours.share, ratio });
+      else if (tool > 0 && ours.share === 0)
+        unrated.push({ tool: t.tool, organism: c.organism, share: tool, bounded: ours.bounded });
     }
   ratios.sort((a, b) => a.value - b.value);
   const pick = (r: (typeof ratios)[number] | undefined) =>
@@ -230,6 +286,11 @@ export function taskComparison(task: string): {
     apart,
     least: pick(ratios[0]),
     most: pick(ratios[ratios.length - 1]),
+    unrated,
+    truly: rows
+      .map((t) => t.reading)
+      .filter((r): r is NonNullable<ToolRow["reading"]> => r !== null)
+      .map((r) => ({ tool: r.tool, truly: r.truly, read: r.read })),
     tools: new Set(rows.map((t) => t.tool)).size,
     only: new Set(rows.map((t) => t.tool)).size === 1 ? (rows[0]?.tool ?? null) : null,
   };
@@ -280,4 +341,61 @@ export function judgeWords(judge: string): string {
     return "with the rules IDTrack has decided: a line a decided rule changes expects its answer";
   if (judge === "now") return "by the base set: each line as IDTrack documented it before its decided rules";
   return judge;
+}
+
+const plural = (n: number, one: string, many = `${one}s`) => `${groupedInteger(n)} ${n === 1 ? one : many}`;
+
+const percent = (share: number) => `${(share * 100).toFixed(1)} %`;
+
+/** One task's comparisons in words, as wide as their evidence: how often each tool disagrees with the truth on the
+ *  same lines more often than IDTrack; the range of the ratios of the shares of disagreement, with the comparisons it
+ *  leaves out (where IDTrack disagrees on none, so no ratio exists) named; the cells not compared; and what the
+ *  family's reading of a sample of the disagreements found truly wrong. */
+export function taskWords(c: ReturnType<typeof taskComparison>): string {
+  const where = (x: { tool: string; organism: string }) =>
+    c.tools === 1 ? organismWord(x.organism) : `${x.tool}, ${organismWord(x.organism)}`;
+  const counts = [
+    c.more ? `more often than IDTrack in ${groupedInteger(c.more)}` : null,
+    c.same ? `as often in ${groupedInteger(c.same)}` : null,
+    c.fewer ? `less often in ${groupedInteger(c.fewer)}` : null,
+  ]
+    .filter(Boolean)
+    .join(", ");
+  const lead =
+    c.tools === 1
+      ? `${c.only ?? "One tool"}, the one tool that poses it, disagrees with the truth on the same lines ${c.more === c.compared ? "more often than IDTrack in every organism" : `${counts} of ${plural(c.compared, "organism")}`}`
+      : `Of ${plural(c.tools, "tool")} asked on the same lines, ${c.more === c.compared ? `each disagrees with the truth more often than IDTrack, in each of ${plural(c.compared, "organism comparison")}` : `a tool disagrees with the truth ${counts} of ${plural(c.compared, "tool and organism comparison")}`}`;
+  const range =
+    c.least && c.most
+      ? c.least.ratio === c.most.ratio
+        ? `: ${c.most.ratio} IDTrack's share of disagreements (${where(c.most)})`
+        : `: from ${c.least.ratio} IDTrack's share of disagreements (${where(c.least)}) to ${c.most.ratio} (${where(c.most)})`
+      : "";
+  // The comparisons with no ratio are among those counted above: named where they are few, counted where many.
+  const unrated = c.unrated.length
+    ? c.unrated.length <= 2
+      ? `; in ${c.unrated.length === 1 ? "one" : "two"} of them IDTrack disagrees on no line, so there is no ratio: ${c.unrated
+          .map(
+            (u) =>
+              `${where(u)}, where the tool disagrees on ${percent(u.share)}${u.bounded ? " (IDTrack on fewer than its four published decimals show)" : ""}`,
+          )
+          .join("; ")}`
+      : `; in ${groupedInteger(c.unrated.length)} of them IDTrack disagrees on no line (or on fewer than its four published decimals show), so they have no ratio`
+    : "";
+  const apart = c.apart ? `; ${plural(c.apart, "cell")} not compared, no kept line having an answer` : "";
+  const read = c.truly.length
+    ? c.truly.length === 1
+      ? ` Of ${groupedInteger(c.truly[0]?.read ?? 0)} of its disagreements read, ${String(c.truly[0]?.truly ?? 0)} % are truly wrong.`
+      : (() => {
+          const sorted = [...c.truly].sort((a, b) => a.truly - b.truly);
+          const lo = sorted[0];
+          const hi = sorted[sorted.length - 1];
+          return lo && hi
+            ? lo.truly === hi.truly
+              ? ` Of their disagreements read, ${String(lo.truly)} % are truly wrong for each tool.`
+              : ` Of their disagreements read, from ${String(lo.truly)} % (${lo.tool}) to ${String(hi.truly)} % (${hi.tool}) are truly wrong.`
+            : "";
+        })()
+    : "";
+  return `${lead}${range}${unrated}${apart}.${read}`;
 }

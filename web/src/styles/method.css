@@ -59,13 +59,38 @@
   color: var(--paper);
 }
 
-.method-stepper__words {
-  margin: 0 0 var(--space-5);
-  font-family: var(--font-display);
-  font-size: var(--text-xl);
-  line-height: 1.35;
-  color: var(--ink-1);
-  max-width: 48rem;
+/* On a phone the stepper is five numbered dots on one line; the stage's name stands under them as its panel's title
+   (each tab keeps its name for assistive technology). */
+@media (max-width: 640px) {
+  .method-stepper .tabs__list {
+    justify-content: space-between;
+  }
+
+  .method-stepper .tabs__tab {
+    padding: 0 var(--space-2);
+  }
+
+  .method-stepper__n {
+    width: 36px;
+    height: 36px;
+    margin-right: 0;
+    font-size: var(--text-sm);
+  }
+
+  .method-stepper__name {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+}
+
+#method-stages,
+#accuracy,
+#method-using {
+  scroll-margin-top: calc(var(--masthead-height) + var(--space-4));
 }
 
 .method-steps {
@@ -115,13 +140,35 @@
   scroll-margin-top: calc(var(--masthead-height) + var(--space-4));
 }
 
-/* A stage's head: its title, the link to its documentation at the right, or under the title where there is no
-   room. */
+/* A stage's head: its title and its one claim, the link to its documentation at the right, or under the title where
+   there is no room. */
 .method-panel__head {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: baseline;
   gap: var(--space-1) var(--space-3);
+}
+
+.method-panel__titles h3 {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: 1.5rem;
+  font-weight: var(--weight-strong);
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+}
+
+.method-panel__claim {
+  margin: var(--space-2) 0 0;
+  max-width: var(--measure);
+  font-size: var(--text-lg);
+  line-height: 1.45;
+  color: var(--ink-2);
+}
+
+/* What stays one press away under a stage's figure: one-line rows. */
+.method-panel__more {
+  display: grid;
 }
 
 .method-panel__docs {
@@ -134,14 +181,15 @@
   }
 }
 
-.method-panel__lede {
+.method-panel__about-text {
+  margin: 0;
   color: var(--ink-2);
   max-width: var(--measure);
 }
 
-/* The terms of a stage, folded behind one line that names them. */
-.method-glossary {
-  margin-top: var(--space-2);
+/* The terms of a stage, folded behind one line that names them; their sources at their end. */
+.method-glossary .method-source {
+  margin-top: var(--space-4);
 }
 
 /* What an example's evidence leaves open, said under its figure. */
@@ -315,58 +363,38 @@
   }
 }
 
-/* d: the criteria as a ladder, grouped as idtrack's documentation groups them. */
-.method-ladder {
-  list-style: none;
+/* d: every criterion in IDTrack's full words, in the order they decide (one press away). */
+.method-criteria {
   margin: 0;
-  padding: 0;
-  display: grid;
+  padding-left: 1.6em;
 }
 
-.method-ladder__step {
-  position: relative;
+.method-criteria li {
   display: grid;
-  grid-template-columns: 2.5em minmax(0, 1fr) 15em;
-  gap: var(--space-3);
-  align-items: start;
-  padding: var(--space-3) 0;
+  gap: 2px;
+  padding: var(--space-2) 0;
   border-top: 1px solid var(--line);
-}
-
-.method-ladder__n {
-  font-size: var(--text-lg);
-  font-size-adjust: none;
-  color: var(--ink-3);
-  text-align: right;
-}
-
-.method-ladder__body p {
   font-size: var(--text-sm);
-  color: var(--ink-2);
-  margin-top: var(--space-1);
-  max-width: 96ch;
 }
 
-.method-ladder__first {
+.method-criteria li::marker {
   font-family: var(--font-mono);
-  font-size: var(--text-2xs) !important;
-  color: var(--ink-3) !important;
+  font-size: var(--text-2xs);
+  color: var(--ink-3);
 }
 
-.method-ladder__step--lineage,
-.method-ladder__step--successors {
-  border-left: 3px solid var(--line-strong);
-  padding-left: var(--space-3);
+.method-criteria__code {
+  font-weight: var(--weight-strong);
+  color: var(--ink-1);
 }
 
-.method-ladder__step--successors {
-  border-left-color: var(--ink-3);
+.method-criteria__meaning {
+  color: var(--ink-2);
 }
 
-.method-ladder__group {
+.method-criteria__fields {
   font-size: var(--text-xs);
   color: var(--ink-3);
-  text-align: right;
 }
 
 .method-source {
@@ -383,25 +411,6 @@
   .method-terms > div {
     grid-template-columns: minmax(0, 1fr);
     gap: var(--space-1);
-  }
-
-  .method-ladder__step {
-    grid-template-columns: 2em minmax(0, 1fr);
-  }
-
-  .method-ladder__group {
-    grid-column: 2;
-    grid-row: 1;
-    text-align: left;
-  }
-
-  .method-ladder__body {
-    grid-column: 2;
-    grid-row: 2;
-  }
-
-  .method-ladder__n {
-    grid-row: 1 / span 2;
   }
 
   .method-panel__docs {
@@ -437,11 +446,6 @@
   margin-bottom: var(--space-3);
 }
 
-.stage-case__eyebrow {
-  flex: 1 0 100%;
-  margin: 0;
-}
-
 .stage-case__query {
   flex: 1 1 auto;
   min-width: 0;
@@ -454,6 +458,16 @@
   font-size: var(--text-sm);
 }
 
+.stage-case__pending {
+  color: var(--ink-3);
+}
+
+/* The answer's line, the first line of the body (its height held with the figure's while the answer comes). */
+.stage-case__answer {
+  margin: 0 0 var(--space-3);
+  overflow-wrap: anywhere;
+}
+
 .stage-case__open {
   font-size: var(--text-sm);
   white-space: nowrap;
@@ -461,6 +475,50 @@
 
 .stage-case__body {
   min-width: 0;
+}
+
+/* The height held for a stage's answer while it comes: its answer's line and figure as drawn on this server's graphs
+   (measured at 1440 and 390 px), so that nothing under it moves when the answer arrives. */
+.stage-case--read .stage-case__body--waiting {
+  min-height: 216px;
+}
+
+.stage-case--walk .stage-case__body--waiting {
+  min-height: 486px;
+}
+
+.stage-case--bridge .stage-case__body--waiting {
+  min-height: 700px;
+}
+
+.stage-case--rank .stage-case__body--waiting {
+  min-height: 609px;
+}
+
+.stage-case--answer .stage-case__body--waiting {
+  min-height: 269px;
+}
+
+@media (max-width: 640px) {
+  .stage-case--read .stage-case__body--waiting {
+    min-height: 466px;
+  }
+
+  .stage-case--walk .stage-case__body--waiting {
+    min-height: 820px;
+  }
+
+  .stage-case--bridge .stage-case__body--waiting {
+    min-height: 1088px;
+  }
+
+  .stage-case--rank .stage-case__body--waiting {
+    min-height: 913px;
+  }
+
+  .stage-case--answer .stage-case__body--waiting {
+    min-height: 561px;
+  }
 }
 
 .stage-case__loading,
@@ -480,27 +538,30 @@
   overflow-wrap: anywhere;
 }
 
-/* a: the reading of a real string, as a ladder of the steps of a match. */
+/* a: the reading of a real string, drawn: the typed string; the steps of a match as a ladder of dots on one hairline
+   (hollow: no match, filled: matched, faint: not needed), the thread turning out of the ladder at the step that
+   matched; what the reading found at the right. */
 .read-fig {
   display: grid;
-  grid-template-columns: minmax(10rem, 0.8fr) minmax(0, 2.4fr) minmax(12rem, 1fr);
-  gap: var(--space-5);
+  grid-template-columns: minmax(9rem, 0.7fr) minmax(0, 1.6fr) minmax(12rem, 1fr);
+  gap: var(--space-6);
   align-items: start;
 }
 
-.read-fig__in,
-.read-fig__out {
+.read-fig__in {
   display: grid;
   gap: var(--space-2);
   font-size: var(--text-sm);
 }
 
-.read-fig__out p {
-  margin: 0;
+.read-fig__label {
+  font-size: var(--text-xs);
+  color: var(--ink-3);
 }
 
 .read-fig__typed {
-  font-size: var(--text-xl);
+  font-size: var(--text-2xl);
+  line-height: 1.1;
   color: var(--ink-1);
   overflow-wrap: anywhere;
 }
@@ -513,64 +574,53 @@
   color: var(--ink-2);
 }
 
-/* The steps share one set of columns (a subgrid), so that the step-name column is as wide as its longest name and
-   no name runs into its state. */
 .read-fig__steps {
+  position: relative;
   list-style: none;
   margin: 0;
   padding: 0;
   display: grid;
-  grid-template-columns: 1.5em 14px max-content minmax(0, 1fr);
+  grid-template-columns: 14px max-content minmax(0, 1fr);
   column-gap: var(--space-3);
+}
+
+/* The ladder's hairline, through the dots' centres. */
+.read-fig__steps::before {
+  content: "";
+  position: absolute;
+  inset-block: 14px;
+  inset-inline-start: 6.5px;
+  inline-size: 1px;
+  background: var(--line-strong);
 }
 
 .read-fig__step {
   display: grid;
   grid-column: 1 / -1;
   grid-template-columns: subgrid;
-  grid-template-areas: "n mark code state" ". . meaning meaning";
-  align-items: baseline;
-  padding: var(--space-2) 0;
-  border-top: 1px solid var(--line);
+  align-items: center;
+  min-block-size: 30px;
   color: var(--ink-3);
 }
 
-.read-fig__step:last-child {
-  border-bottom: 1px solid var(--line);
-}
-
-.read-fig__n {
-  grid-area: n;
-  font-size: var(--text-2xs);
-}
-
 .read-fig__mark {
-  grid-area: mark;
+  position: relative;
+  z-index: 1;
+  justify-self: center;
   inline-size: 10px;
   block-size: 10px;
   border-radius: 50%;
-  border: 1.5px solid var(--line-strong);
-  align-self: center;
+  border: 1.5px solid var(--ink-3);
+  background: var(--surface);
 }
 
 .read-fig__code {
-  grid-area: code;
   font-size: var(--text-sm);
 }
 
 .read-fig__state {
-  grid-area: state;
+  position: relative;
   font-size: var(--text-xs);
-}
-
-.read-fig__meaning {
-  grid-area: meaning;
-  font-size: var(--text-xs);
-  color: var(--ink-3);
-}
-
-.read-fig__step--missed .read-fig__mark {
-  border-color: var(--ink-3);
 }
 
 .read-fig__step--matched {
@@ -578,20 +628,83 @@
 }
 
 .read-fig__step--matched .read-fig__mark {
+  inline-size: 12px;
+  block-size: 12px;
   border-color: var(--ink-1);
   background: var(--ink-1);
 }
 
-.read-fig__step--matched .read-fig__code {
+.read-fig__step--matched .defined__trigger {
   font-weight: var(--weight-strong);
 }
 
-.read-fig__step--matched .read-fig__meaning {
-  color: var(--ink-2);
+.read-fig__step--matched .read-fig__state {
+  font-size: var(--text-sm);
+}
+
+/* The thread out of the ladder to what matched. */
+.read-fig__step--matched .read-fig__state::before {
+  content: "";
+  display: inline-block;
+  inline-size: var(--space-5);
+  block-size: 1px;
+  margin-inline-end: var(--space-2);
+  vertical-align: middle;
+  background: var(--ink-1);
+}
+
+.read-fig__step--unneeded {
+  color: color-mix(in srgb, var(--ink-3) 70%, transparent);
 }
 
 .read-fig__step--unneeded .read-fig__mark {
   border-style: dotted;
+  border-color: var(--line-strong);
+}
+
+.read-fig__out {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0;
+  font-size: var(--text-sm);
+}
+
+.read-fig__out dt {
+  font-size: var(--text-xs);
+  color: var(--ink-3);
+}
+
+.read-fig__out dd {
+  margin: 0;
+}
+
+/* A term of a figure: its code, its meaning one gesture away. */
+.defined__trigger {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  text-align: inherit;
+  text-decoration: underline dotted color-mix(in srgb, currentcolor 55%, transparent);
+  text-underline-offset: 3px;
+}
+
+.defined__card {
+  display: grid;
+  gap: var(--space-1);
+  font-size: var(--text-xs);
+  line-height: 1.5;
+  color: var(--ink-2);
+}
+
+.defined__fields {
+  color: var(--ink-3);
+}
+
+.defined__code {
+  justify-self: start;
+  font-size: var(--text-2xs);
+  color: var(--ink-3);
 }
 
 /* c: the bridges the search considered. */
@@ -665,10 +778,79 @@
   color: var(--ink-1);
 }
 
-.rank-fig__n {
-  inline-size: 2em;
+/* The thread beside the ladder: one line while the two are equal, two dots where the criterion decides (the best
+   answer's filled, the runner-up's open), a faint dashed line below, where nothing is compared. */
+.rank-fig__reached {
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-xs);
   color: var(--ink-3);
-  font-size: var(--text-2xs);
+}
+
+.rank-fig__table .rank-fig__rail,
+.rank-fig__table .rank-fig__rail-head {
+  position: relative;
+  inline-size: 34px;
+  padding: 0;
+  border-bottom: 0;
+}
+
+.rank-fig__rail::before {
+  content: "";
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: 12px;
+  inline-size: 2px;
+  background: var(--hue-history);
+}
+
+.rank-fig__row--after .rank-fig__rail::before,
+.rank-fig__rail--after::before {
+  inline-size: 0;
+  border-inline-start: 1px dashed var(--line-strong);
+  background: none;
+}
+
+.rank-fig__row--last .rank-fig__rail::before {
+  inset-block-end: 50%;
+}
+
+.rank-fig__dot {
+  position: absolute;
+  inset-block-start: calc(50% - 4px);
+  inset-inline-start: 9px;
+  inline-size: 8px;
+  block-size: 8px;
+  border-radius: 50%;
+  background: var(--hue-history);
+}
+
+.rank-fig__row--after .rank-fig__dot {
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+}
+
+.rank-fig__row--decides .rank-fig__dot--a {
+  inset-inline-start: 4px;
+  inline-size: 10px;
+  block-size: 10px;
+  inset-block-start: calc(50% - 5px);
+  background: var(--ink-1);
+}
+
+.rank-fig__row--decides .rank-fig__dot--b {
+  inset-inline-start: 19px;
+  inline-size: 10px;
+  block-size: 10px;
+  inset-block-start: calc(50% - 5px);
+  background: var(--surface);
+  border: 1.5px solid var(--ink-1);
+}
+
+.rank-fig__group th {
+  padding-block: var(--space-3) var(--space-1);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+  color: var(--ink-3);
 }
 
 .rank-fig__code {
@@ -683,7 +865,6 @@
 
 .rank-fig__row--decides {
   background: var(--surface-sunk);
-  box-shadow: inset 3px 0 0 var(--ink-1);
 }
 
 .rank-fig__row--decides .rank-fig__code,
@@ -701,6 +882,11 @@
   max-width: var(--measure);
   font-size: var(--text-sm);
   color: var(--ink-2);
+}
+
+.rank-fig__meaning-lead {
+  color: var(--ink-1);
+  font-weight: var(--weight-medium);
 }
 
 /* The citation's sentence for a methods section. */
@@ -727,6 +913,7 @@
 
   .read-fig__out {
     grid-column: 1 / -1;
+    grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
   }
 }
 
@@ -737,11 +924,7 @@
   }
 
   .read-fig__steps {
-    grid-template-columns: 1.5em 14px minmax(0, 1fr);
-  }
-
-  .read-fig__step {
-    grid-template-areas: "n mark code" ". . state" ". . meaning";
+    grid-template-columns: 14px max-content minmax(0, 1fr);
   }
 
   .stage-case {
@@ -762,6 +945,20 @@
 
   .rank-fig__row--decides {
     outline: 2px solid CanvasText;
+  }
+
+  .rank-fig__rail::before,
+  .rank-fig__dot,
+  .read-fig__steps::before,
+  .read-fig__step--matched .read-fig__state::before {
+    background: CanvasText;
+    forced-color-adjust: none;
+  }
+
+  .stage-thread__lit,
+  .stage-thread__under,
+  .stage-thread__ring {
+    stroke: CanvasText;
   }
 }
 
@@ -858,11 +1055,11 @@
   }
 }
 
-/* What idtrack does not do yet: each limitation's whole first sentence, linked to its section; under a short one, the
-   sentence after it, quieter. Two balanced columns where the panel is wide. */
+/* What IDTrack does not do yet: each limitation a one-line row by its title; its whole first sentence, the sentence
+   after it and the link to its section one press away. Two columns where the panel is wide. */
 .limitations-list {
   margin: var(--space-3) 0;
-  padding-left: 1.6em;
+  padding-left: 1.8em;
   columns: 2 30rem;
   column-gap: var(--space-7);
   font-size: var(--text-sm);
@@ -870,7 +1067,6 @@
 
 .limitations-list li {
   break-inside: avoid;
-  padding: var(--space-1) 0 var(--space-2);
 }
 
 .limitations-list li::marker {
@@ -880,14 +1076,72 @@
 }
 
 .limitations-list__lead {
+  margin: 0 0 var(--space-2);
   color: var(--ink-1);
 }
 
 .limitations-list__next {
-  display: block;
-  margin-top: 2px;
+  color: var(--ink-2);
+}
+
+.limitations-list__link {
   font-size: var(--text-xs);
-  color: var(--ink-3);
+}
+
+.method-using__intro {
+  margin: 0;
+  max-width: var(--measure);
+  color: var(--ink-2);
+}
+
+.method-using__sources {
+  max-width: var(--measure);
+}
+
+/* b: the walk as a thread, lit by the replay up to the step it stands on; the gene versions quiet under it. */
+.stage-thread__under,
+.stage-thread__lit {
+  fill: none;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.stage-thread__under {
+  stroke: color-mix(in srgb, var(--hue-history) 22%, transparent);
+  stroke-width: 1.5;
+}
+
+.stage-thread__lit {
+  stroke: var(--hue-history);
+  stroke-width: 2;
+  transition: stroke-dasharray var(--dur-3) var(--ease-out);
+}
+
+.stage-thread__ring {
+  fill: none;
+  stroke: var(--hue-history);
+  stroke-width: 1.5;
+}
+
+.stage-replay {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+  margin-top: var(--space-2);
+}
+
+.stage-replay__readout {
+  flex: 1 1 20rem;
+  min-height: 1.5em;
+  font-size: var(--text-xs);
+  color: var(--ink-2);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stage-thread__lit {
+    transition: none;
+  }
 }
 
 .stage-fig__other {
@@ -955,6 +1209,7 @@
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     gap: var(--space-2);
+    padding-inline-start: calc(30px + var(--space-3));
   }
 
   .rank-fig__table thead th:first-child,
@@ -970,9 +1225,13 @@
 
   .rank-fig__table tbody tr {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-columns: 30px minmax(0, 1fr) auto;
     gap: 2px var(--space-3);
     padding: var(--space-2) 0;
+  }
+
+  .rank-fig__table tbody tr.rank-fig__group {
+    padding: 0;
   }
 
   .rank-fig__table td,
@@ -982,8 +1241,24 @@
     border: 0;
   }
 
-  .rank-fig__table .rank-fig__n {
-    display: none;
+  .rank-fig__table .rank-fig__rail {
+    grid-column: 1;
+    grid-row: 1 / span 3;
+    margin-block: calc(-1 * var(--space-2));
+  }
+
+  .rank-fig__table .rank-fig__group .rank-fig__rail {
+    margin-block: 0;
+  }
+
+  .rank-fig__table .rank-fig__group th {
+    grid-column: 2 / -1;
+    padding-top: var(--space-3);
+  }
+
+  .rank-fig__table .rank-fig__code {
+    grid-column: 2;
+    grid-row: 1;
   }
 
   .rank-fig__table .rank-fig__value:empty {
@@ -991,7 +1266,7 @@
   }
 
   .rank-fig__table .rank-fig__value {
-    grid-column: 1 / -1;
+    grid-column: 2 / -1;
     font-size: var(--text-xs);
   }
 
@@ -1002,7 +1277,7 @@
   }
 
   .rank-fig__table .rank-fig__state {
-    grid-column: 2;
+    grid-column: 3;
     grid-row: 1;
   }
 }
@@ -1012,4 +1287,19 @@
 .accuracy__tabs,
 .method-using__tabs {
   min-width: 0;
+}
+
+/* A graph's content digest: twelve characters, the whole one gesture away. */
+.cell-digest__short {
+  padding: 0;
+  border: 0;
+  background: none;
+  text-decoration: underline dotted color-mix(in srgb, currentcolor 55%, transparent);
+  text-underline-offset: 3px;
+}
+
+.cell-digest__whole {
+  display: block;
+  font-size: var(--text-xs);
+  overflow-wrap: anywhere;
 }

@@ -319,6 +319,30 @@ code {
   max-width: var(--measure);
 }
 
+/* Method's index under its title: three quiet links to its sections. Here, with the page's head, because the page's
+   frame draws it before the page's own stylesheet has come (pages/MethodPage.tsx, MethodHead). */
+.method-index {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-5);
+  font-size: var(--text-sm);
+}
+
+.method-index a {
+  color: var(--ink-2);
+  text-decoration: none;
+  border-bottom: 1px solid var(--line-strong);
+  padding-bottom: 1px;
+  transition:
+    color var(--dur-1),
+    border-color var(--dur-1);
+}
+
+.method-index a:hover {
+  color: var(--ink-1);
+  border-bottom-color: currentcolor;
+}
+
 .lede {
   color: var(--ink-2);
   font-size: var(--text-lg);

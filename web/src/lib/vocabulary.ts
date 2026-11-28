@@ -12,9 +12,13 @@ export interface Criterion {
   fields: CriterionField[];
 }
 
+/** Where the api's vocabulary stands: still being read (the page says nothing yet), read, or not read (the page says
+ *  so: every code is shown as itself). */
+export type VocabularyState = "loading" | "done" | "failed";
+
 export interface Vocabulary {
-  /** The api answered `/vocabulary`; without it every code is shown as itself. */
-  available: boolean;
+  /** Whether the api's `/vocabulary` is read: only "failed" is said as a failure; while it is read, nothing is said. */
+  state: VocabularyState;
   statuses: Map<string, string | null>;
   reasons: Map<string, string | null>;
   stepReasons: Map<string, string | null>;
@@ -38,8 +42,9 @@ export interface Vocabulary {
   cautions: Map<string, { meaning: string; tone: string }>;
 }
 
+/** The vocabulary while the api's answer is still being read: every list empty, nothing said of a failure. */
 export const NO_VOCABULARY: Vocabulary = {
-  available: false,
+  state: "loading",
   statuses: new Map(),
   reasons: new Map(),
   stepReasons: new Map(),
@@ -54,10 +59,13 @@ export const NO_VOCABULARY: Vocabulary = {
   cautions: new Map(),
 };
 
+/** The vocabulary when the api did not give it: every list empty, and the page says that the codes stand alone. */
+export const FAILED_VOCABULARY: Vocabulary = { ...NO_VOCABULARY, state: "failed" };
+
 export function readVocabulary(data: VocabularyResponse): Vocabulary {
   const terms = (list: { code: string; meaning: string | null }[]) => new Map(list.map((t) => [t.code, t.meaning]));
   return {
-    available: true,
+    state: "done",
     statuses: terms(data.statuses),
     reasons: terms(data.reasons),
     stepReasons: terms(data.step_reasons),

@@ -7,6 +7,7 @@ import { useState } from "react";
 import { Absent, Button, CopyButton, Link, Mono, Prose, TableFrame } from "../components/ui";
 import { Drawer } from "../components/v2/Drawer";
 import { Expandable } from "../components/v2/Expandable";
+import { HoverCard } from "../components/v2/HoverCard";
 import { Tabs } from "../components/v2/Tabs";
 import type { LimitsResponse } from "../api/types";
 import { byteSize, groupedInteger, pythonFloat } from "../lib/numbers";
@@ -42,25 +43,35 @@ function limitRows(l: LimitsResponse): [string, string, string | undefined][] {
   ];
 }
 
-/** How many limitations stand at display size; the rest are one press away (a list is bounded by design). */
+/** How many limitations stand as rows at once; the rest are one press away (a list is bounded by design). */
 const LIMITATIONS_SHOWN = 8;
 
+/** A limitation as one row: its title on the surface; its whole first sentence (never cut short), the sentence after
+ *  it and the link to the section that sizes it one press away. */
 function LimitationItem({ item }: { item: (typeof docs.limitations.items)[number] }) {
   return (
     <li>
-      <a href={`${docs.limitations.source.replace(/#.*$/, "")}#${item.anchor}`} className="limitations-list__lead">
-        <Prose text={item.sentence} />
-      </a>
-      {item.next && item.sentence.length < 90 ? (
-        <span className="limitations-list__next">
-          <Prose text={item.next} />
-        </span>
-      ) : null}
+      <Expandable summary={<Prose text={item.title} />} className="limitations-list__row">
+        <p className="limitations-list__lead">
+          <Prose text={item.sentence} />
+          {item.next ? (
+            <>
+              {" "}
+              <span className="limitations-list__next">
+                <Prose text={item.next} />
+              </span>
+            </>
+          ) : null}
+        </p>
+        <a href={`${docs.limitations.source.replace(/#.*$/, "")}#${item.anchor}`} className="limitations-list__link">
+          Its section in IDTrack&apos;s documentation
+        </a>
+      </Expandable>
     </li>
   );
 }
 
-/** IDTrack's limitations, each by its first sentence, linked: the first few, then the rest on request, numbered on. */
+/** IDTrack's limitations, each a row by its title: the first few, then the rest on request. */
 function Limitations() {
   const items = docs.limitations.items;
   return (
@@ -71,7 +82,7 @@ function Limitations() {
         ))}
       </ol>
       {items.length > LIMITATIONS_SHOWN ? (
-        <Expandable summary={`And ${items.length - LIMITATIONS_SHOWN} more`}>
+        <Expandable summary={`And ${items.length - LIMITATIONS_SHOWN} more`} className="limitations-more">
           <ol className="limitations-list" start={LIMITATIONS_SHOWN + 1}>
             {items.slice(LIMITATIONS_SHOWN).map((item) => (
               <LimitationItem key={item.anchor} item={item} />
@@ -87,12 +98,29 @@ function Limitations() {
  *  (scripts/prerender.ts). */
 export function MethodHead() {
   return (
-    <header className="page-head">
+    <header className="page-head method-head">
       <h1>How IDTrack answers, and how often it is right</h1>
       <p className="lede">
         Five stages find an answer within one organism&apos;s releases, each drawn here on a real answer of this server.
       </p>
+      <nav className="method-index" aria-label="On this page">
+        <a href="#method-stages">The five stages</a>
+        <a href="#accuracy">How often it is right</a>
+        <a href="#method-using">Using its answers</a>
+      </nav>
     </header>
+  );
+}
+
+/** The five stages, one shown at a time. */
+function StagesSection() {
+  return (
+    <section className="method-section" id="method-stages" aria-labelledby="method-stages-title">
+      <h2 id="method-stages-title" className="visually-hidden">
+        The five stages of an answer
+      </h2>
+      <MethodStages />
+    </section>
   );
 }
 
@@ -216,10 +244,14 @@ function ServerData() {
                     )}
                   </td>
                   <td data-label="Content digest" className="cell-digest">
-                    <span className="mono" title={g.content_digest}>
-                      {g.content_digest.slice(0, 12)}
-                    </span>
-                    <span className="visually-hidden"> (full digest: {g.content_digest})</span>{" "}
+                    <HoverCard
+                      className="cell-digest__card"
+                      triggerClassName="cell-digest__short mono"
+                      trigger={g.content_digest.slice(0, 12)}
+                      label={`The content digest of ${organismName(g.organism)}, whole`}
+                    >
+                      <span className="mono cell-digest__whole">{g.content_digest}</span>
+                    </HoverCard>{" "}
                     <CopyButton text={g.content_digest} what={`the content digest of ${organismName(g.organism)}`} />
                   </td>
                   <td data-label="Benchmarked">
@@ -235,30 +267,28 @@ function ServerData() {
   );
 }
 
-/** IDTrack's known limitations, each by its first sentence, linked. */
+/** IDTrack's known limitations, each a row by its title. */
 function KnownLimitations() {
   return (
     <>
       <p className="method-scope" role="note">
-        <strong>Within one organism.</strong> Each graph is one organism&apos;s releases: IDTrack converts between the
-        releases and databases of that organism, and does not compute orthology between species (IDTrack&apos;s
-        documentation,{" "}
+        <strong>Within one organism.</strong> IDTrack converts between the releases and databases of one organism&apos;s
+        graph, and computes no orthology between species (
         <a href={docsPage("_notebooks/05_tutorial_humanization_mouse_pig_to_human.html")}>across species</a>).
       </p>
-      <p>
-        IDTrack states the known limitations of the version that answers here, with how often each matters where it can
-        be counted on the five graphs. Each, in the first sentence IDTrack opens it with (its documentation at{" "}
-        <Mono>{docs.docsCommit.slice(0, 12)}</Mono>, whose changes since the release{" "}
-        <Mono>{docs.commit.slice(0, 7)}</Mono> are to its documentation only), linked to the section that sizes it and
-        says what to do instead:
+      <p className="method-using__intro">
+        The known limitations of the IDTrack that answers here, each from{" "}
+        <a href={docs.limitations.source}>its documentation</a> with how often it matters where that can be counted.
       </p>
       <Limitations />
-      <p>
-        All of them, with their measured sizes:{" "}
-        <a href={docs.limitations.source}>Limitations in IDTrack&apos;s documentation</a>. What the benchmarks measure
-        that IDTrack answers wrongly or cannot decide is listed by the benchmark repository:{" "}
-        <a href={benchmarkFile("results/limitations/limitations.tsv")}>its known limitations</a> (at{" "}
-        <Mono>{BENCHMARKS.commit.slice(0, 12)}</Mono>).
+      <p className="method-using__sources small muted">
+        Read from IDTrack&apos;s documentation at <Mono>{docs.docsCommit.slice(0, 12)}</Mono>, whose changes since the
+        release <Mono>{docs.commit.slice(0, 7)}</Mono> are to its documentation only. What the benchmarks measure that
+        IDTrack answers wrongly or cannot decide:{" "}
+        <a href={benchmarkFile("results/limitations/limitations.tsv")}>
+          the benchmark repository&apos;s known limitations
+        </a>{" "}
+        (at <Mono>{BENCHMARKS.commit.slice(0, 12)}</Mono>).
       </p>
     </>
   );
@@ -296,18 +326,13 @@ export function MethodPage() {
   return (
     <div className="page page--about page--method">
       <MethodHead />
-      <section className="method-section" aria-labelledby="method-stages-title">
-        <h2 id="method-stages-title" className="visually-hidden">
-          The five stages of an answer
-        </h2>
-        <MethodStages />
-      </section>
+      <StagesSection />
       <Accuracy />
-      <section className="method-section method-using" aria-labelledby="method-using-title">
+      <section className="method-section method-using" id="method-using" aria-labelledby="method-using-title">
         <div className="method-section__head method-section__head--row">
           <div>
             <h2 id="method-using-title">Using its answers</h2>
-            <p className="method-section__lede">What it does not do yet, the data of this server and its bounds.</p>
+            <p className="method-section__lede">What it does not do yet, the data of this server, and its bounds.</p>
           </div>
           <Button
             variant="secondary"

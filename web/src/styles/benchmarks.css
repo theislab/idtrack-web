@@ -4,6 +4,7 @@
 .bench-caveat {
   max-width: var(--measure);
   margin: 0 0 var(--space-4);
+  line-height: 1.55;
   padding: var(--space-3) var(--space-4);
   border-inline-start: 2px solid var(--line-strong);
   background: var(--surface-sunk);
@@ -227,6 +228,12 @@
 
 .bench__stratum {
   color: var(--ink-2);
+}
+
+/* The tab of the other tools opens on this, before any comparison: in the caution's tone, at body size. */
+.bench-caveat--first {
+  border-inline-start-color: var(--state-warn);
+  font-size: var(--text-md);
 }
 
 /* A part's code: a quiet tag after its words, so that parts of one kind stay apart. */
@@ -534,8 +541,9 @@
   border-radius: 50%;
 }
 
+/* The other tool in grey, IDTrack in ink, on the same axis. */
 .tools__tool {
-  border: 1.5px solid var(--ink-2);
+  border: 1.5px solid var(--ink-3);
   background: var(--surface);
 }
 
@@ -751,11 +759,10 @@
   gap: var(--space-4);
 }
 
+/* The organisms as a segmented control that wraps on a narrow screen: every organism stays in view. */
 .accuracy__organisms {
-  position: relative;
+  flex-wrap: wrap;
   max-width: 100%;
-  overflow-x: auto;
-  scrollbar-width: none;
   margin-bottom: var(--space-4);
 }
 
@@ -769,7 +776,7 @@
 
 .accuracy__table {
   width: 100%;
-  max-width: 44rem;
+  max-width: 60rem;
   border-collapse: collapse;
   font-size: var(--text-sm);
   font-variant-numeric: tabular-nums;
@@ -791,21 +798,81 @@
   font-size: var(--text-xs);
   font-weight: var(--weight-medium);
   color: var(--ink-3);
+  vertical-align: bottom;
 }
 
 .accuracy__table tbody th {
   font-weight: var(--weight-regular);
 }
 
+/* One organism: the rate in a column of fixed width (the numbers never move when the organism changes), the share
+   judged beside it, then the mark on the axis labelled once in the head. */
+.accuracy__rate-head {
+  inline-size: 7.5rem;
+}
+
+.accuracy__judged-head {
+  inline-size: 8.5rem;
+}
+
+.accuracy__axis-col {
+  inline-size: 15rem;
+}
+
+.accuracy__axis-head {
+  display: grid;
+  gap: var(--space-2);
+  max-inline-size: 14rem;
+}
+
+.accuracy__axis-name {
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+  color: var(--ink-3);
+}
+
+.accuracy__axis-head .wrong-axis--labels,
+.accuracy__axis-row .wrong-axis--labels {
+  max-inline-size: 14rem;
+}
+
+.accuracy__axis-row td {
+  padding-block: var(--space-2) var(--space-1);
+  vertical-align: top;
+}
+
 .accuracy__family {
   display: inline-flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: var(--space-1);
+  gap: 0 var(--space-1);
 }
 
 .accuracy__family-name {
   font-weight: var(--weight-strong);
   color: var(--ink-1);
+}
+
+/* The families whose truth walks Ensembl's history: a quiet tag after the name. */
+.accuracy__tag {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 0 var(--space-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  font-size: var(--text-2xs);
+  line-height: 1.6;
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+
+.accuracy__tag::before {
+  content: "";
+  inline-size: 6px;
+  block-size: 6px;
+  border-radius: 50%;
+  background: var(--hue-history);
 }
 
 .accuracy__about-button {
@@ -832,24 +899,72 @@
 }
 
 .accuracy__measures {
-  display: block;
-  width: min(340px, calc(100vw - 48px));
+  display: grid;
+  gap: var(--space-2);
+  width: min(360px, calc(100vw - 48px));
+  font-size: var(--text-xs);
+  line-height: 1.5;
+  color: var(--ink-2);
+}
+
+.accuracy__card-line strong {
+  color: var(--ink-1);
+  font-weight: var(--weight-strong);
+}
+
+.accuracy__card-link {
+  justify-self: start;
 }
 
 .accuracy__rate {
-  display: block;
   color: var(--ink-1);
 }
 
+/* A value whose exact counts are one gesture away (pointing, focus or a press). */
+.accuracy__judged-button,
+.accuracy__rate--rounded,
+.bench__rounded-button,
+.bench__stratum-button {
+  padding: 0;
+  border: 0;
+  background: none;
+  text-align: inherit;
+  text-decoration: underline dotted color-mix(in srgb, currentcolor 55%, transparent);
+  text-underline-offset: 3px;
+}
+
+.accuracy__judged-button {
+  font-size: var(--text-xs);
+  color: var(--ink-3);
+  white-space: nowrap;
+}
+
+.accuracy__judged-card,
+.bench__rounded-card,
+.bench__stratum-card {
+  display: block;
+  font-size: var(--text-xs);
+  line-height: 1.5;
+  color: var(--ink-2);
+}
+
+/* A wrong share: a hairline from the axis's left end to its dot (a longer line, more wrong), on the row's middle. */
 .accuracy__mark {
   position: relative;
   display: block;
   block-size: 10px;
   inline-size: 100%;
-  max-inline-size: 7rem;
-  margin-top: var(--space-1);
-  margin-inline-start: auto;
+  max-inline-size: 14rem;
   border-bottom: 1px solid var(--line-strong);
+}
+
+.accuracy__stem {
+  position: absolute;
+  inset-block-start: 4px;
+  inset-inline-start: 0;
+  inline-size: calc(var(--at) * (100% - 7px));
+  block-size: 1.5px;
+  background: color-mix(in srgb, var(--state-danger) 55%, transparent);
 }
 
 .accuracy__mark .bench__dot {
@@ -866,6 +981,17 @@
 .accuracy__note {
   max-width: var(--measure);
   color: var(--ink-3);
+}
+
+/* Every organism at once: each cell its rate, the share judged and the mark, stacked. */
+.accuracy__table--all .accuracy__rate,
+.accuracy__table--all .accuracy__rated,
+.accuracy__table--all .accuracy__judged {
+  display: block;
+}
+
+.accuracy__table--all .accuracy__mark {
+  margin-top: var(--space-2);
 }
 
 .accuracy__tasks {
@@ -896,8 +1022,75 @@
   color: var(--ink-2);
 }
 
+/* In the matrix's narrow columns the axis names its ends and 10⁻² (every tick is drawn). */
+.accuracy__axis-row .wrong-axis__tick:nth-child(2) .wrong-axis__label {
+  display: none;
+}
+
 @media (max-width: 760px) {
-  .accuracy__table--all thead {
+  /* One organism on a phone: each family a block, its name across, then its rate, the share judged and the mark on
+     one line; the axis's labelled head once above them. */
+  .accuracy__table:not(.accuracy__table--all),
+  .accuracy__table:not(.accuracy__table--all) thead,
+  .accuracy__table:not(.accuracy__table--all) tbody {
+    display: block;
+  }
+
+  .accuracy__table:not(.accuracy__table--all) thead tr {
+    display: block;
+  }
+
+  .accuracy__table:not(.accuracy__table--all) thead th:not(.accuracy__axis-col) {
+    display: none;
+  }
+
+  .accuracy__table:not(.accuracy__table--all) thead th.accuracy__axis-col {
+    display: block;
+    inline-size: auto;
+    padding-inline: 0;
+  }
+
+  .accuracy__table:not(.accuracy__table--all) .accuracy__axis-head {
+    margin-inline-start: auto;
+    inline-size: 9rem;
+  }
+
+  .accuracy__axis-head .wrong-axis__tick:nth-child(2) .wrong-axis__label {
+    display: none;
+  }
+
+  .accuracy__table:not(.accuracy__table--all) tbody tr {
+    display: grid;
+    grid-template-columns: auto auto minmax(0, 1fr);
+    align-items: center;
+    gap: var(--space-1) var(--space-3);
+    padding-block: var(--space-2);
+    border-bottom: 1px solid var(--line);
+  }
+
+  .accuracy__table:not(.accuracy__table--all) tbody th {
+    grid-column: 1 / -1;
+  }
+
+  .accuracy__table:not(.accuracy__table--all) tbody th,
+  .accuracy__table:not(.accuracy__table--all) tbody td {
+    padding: 0;
+    border: 0;
+    inline-size: auto;
+  }
+
+  .accuracy__table:not(.accuracy__table--all) .accuracy__mark {
+    margin-inline-start: auto;
+    max-inline-size: 9rem;
+  }
+
+  /* A tab strip wider than the window fades at its cut edge: more is there, to swipe to. */
+  .accuracy__tabs .tabs__list,
+  .method-using__tabs .tabs__list {
+    mask-image: linear-gradient(to right, #000000 calc(100% - 24px), transparent);
+  }
+
+  .accuracy__table--all thead tr:first-child {
     position: absolute;
     inline-size: 1px;
     block-size: 1px;
@@ -906,8 +1099,18 @@
   }
 
   .accuracy__table--all,
+  .accuracy__table--all thead,
   .accuracy__table--all tbody {
     display: block;
+  }
+
+  .accuracy__table--all .accuracy__axis-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .accuracy__table--all .accuracy__axis-row td:not(:first-child, :nth-child(2)) {
+    display: none;
   }
 
   .accuracy__table--all tbody tr {
@@ -935,10 +1138,6 @@
     display: block;
     font-size: var(--text-xs);
     color: var(--ink-3);
-  }
-
-  .accuracy__table--all .accuracy__mark {
-    margin-inline-start: 0;
   }
 }
 

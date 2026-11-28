@@ -42,6 +42,7 @@ import {
 import { groupedInteger } from "../../lib/numbers";
 import { useOrganisms } from "../../lib/organisms";
 import { Disclosure, Mono, Prose, TableFrame } from "../ui";
+import { HoverCard } from "../v2/HoverCard";
 import "../../styles/benchmarks.css";
 
 const TREE = BENCHMARKS.tree;
@@ -167,24 +168,31 @@ function Rate({
   const r = rateText(published, counts, digits);
   if (!r.rounded) return <span className={`${className} mono`}>{r.text}</span>;
   return (
-    <span
-      className={`${className} mono`}
-      title={`Published as ${r.published}; ${groupedInteger(counts.wrong)} wrong`}
-      aria-label={`${r.text}, published as ${r.published}`}
-    >
-      {r.text}
-    </span>
+    <HoverCard className="bench__rounded" triggerClassName={`${className} bench__rounded-button mono`} trigger={r.text}>
+      <span className="bench__rounded-card">
+        Published as <span className="mono">{r.published}</span>
+        {counts.wrong ? (
+          <>
+            ; <span className="mono">{groupedInteger(counts.wrong)}</span> wrong, so it is written below 1
+          </>
+        ) : null}
+        .
+      </span>
+    </HoverCard>
   );
 }
 
-/** A stratum by what it asks, in its document's words, its code on focus (and for assistive technology). */
+/** A stratum by what it asks, in its document's words; its code (the repository's name of it) in a hover card on the
+ *  words, opened by pointing, focus or a press. A stratum the document does not describe is its code. */
 function StratumName({ family, stratum }: { family: Family; stratum: string }) {
   const meaning = stratumMeaning(family, stratum);
   if (!meaning) return <code className="mono bench__code">{stratum}</code>;
   return (
-    <span className="bench__stratum">
-      <Prose text={meaning} /> <code className="mono bench__code">{stratum}</code>
-    </span>
+    <HoverCard className="bench__stratum" triggerClassName="bench__stratum-button" trigger={<Prose text={meaning} />}>
+      <span className="bench__stratum-card">
+        Its code in the benchmarks: <code className="mono">{stratum}</code>
+      </span>
+    </HoverCard>
   );
 }
 
@@ -467,7 +475,7 @@ export function AccuracyPanel() {
         its sets hold. In the repository&apos;s words: <Prose text={BENCHMARKS.truth} />
       </p>
       <p className="bench-caveat" role="note">
-        <strong>What a truth shares with idtrack.</strong> In the benchmarks&apos; words:{" "}
+        <strong>What a truth shares with IDTrack.</strong> In the benchmarks&apos; words:{" "}
         <Prose text={BENCHMARKS.historyCaveat} /> The families whose truth walks Ensembl&apos;s history say so under
         their name.
       </p>
@@ -674,7 +682,7 @@ function ToolValues({ cell }: { cell: ToolCell }): ReactNode {
         {ours.share === 0
           ? ours.bounded
             ? "IDTrack's wrong share under 1 in 10 000"
-            : "idtrack: none wrong"
+            : "IDTrack: none wrong"
           : ratio
             ? `${ratio} IDTrack's wrong share`
             : "the tool: none wrong"}
@@ -718,6 +726,18 @@ function ToolReading({ tool }: { tool: Tool }) {
   );
 }
 
+/** That family G is no ranking of the tools, and why: said first, before any comparison. */
+export function NotRanking() {
+  return (
+    <p className="bench-caveat bench-caveat--first" role="note">
+      <strong>Not a ranking of the tools.</strong> The lines ask what IDTrack answers: a string as the release it was
+      read at named it. Most tools read today&apos;s tables, so many of their disagreements with the truth are questions
+      they do not claim to answer; under each tool, the family&apos;s reading of a sample of them says how many (
+      <a href={benchmarkFile(BENCHMARKS.tools.readingSource)}>the reading of the disagreements</a>).
+    </p>
+  );
+}
+
 export function ToolsPanel() {
   const [task, setTask] = useState(TASKS.find(([t]) => t === "c")?.[0] ?? TASKS[0]?.[0] ?? "a");
   const captionId = useId();
@@ -732,16 +752,10 @@ export function ToolsPanel() {
         href={benchmarkFile(tools.table)}
       />
       <p className="method-panel__lede bench-lede">
-        Family G asks the tools people use for the same questions the same lines, judged by the same truth and the same
-        scorer as idtrack, from their responses as fetched and stored. Each tool&apos;s wrong share is drawn beside
+        Family G asks the tools people use the same questions on the same lines, judged by the same truth and the same
+        scorer as IDTrack, from their responses as fetched and stored. Each tool&apos;s wrong share is drawn beside
         IDTrack&apos;s on the same lines (those the tool could be asked and the rule of equal truth kept), by the task
         of the line, on the axis of panel f.
-      </p>
-      <p className="bench-caveat" role="note">
-        <strong>Not a ranking of the tools.</strong> The lines ask what IDTrack answers: a string as the release it was
-        read at named it. Most tools read today&apos;s tables, so many of their wrong lines are questions they do not
-        claim to answer; under each tool, the family&apos;s reading of a sample of its wrong lines says how many (
-        <a href={benchmarkFile(tools.readingSource)}>the reading of the disagreements</a>).
       </p>
       <div className="tool-tasks" role="radiogroup" aria-label="The task of the lines">
         {TASKS.map(([code, words]) => (

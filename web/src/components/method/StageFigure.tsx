@@ -10,7 +10,16 @@
 import { useCallback, useId, useMemo, type ReactNode } from "react";
 import type { ConversionResult, GraphDescription } from "../../api/types";
 import { figureModel, type FigureStep } from "../../lib/explore/figureModel";
-import { stageModel, stepLanes, versionOf, type StageModel } from "../../lib/method/stageFigure";
+import {
+  litPoint,
+  replayReadout,
+  stageModel,
+  stepLanes,
+  threadLength,
+  versionOf,
+  walkThread,
+  type StageModel,
+} from "../../lib/method/stageFigure";
 import { groupedInteger, pythonFloat } from "../../lib/numbers";
 import { prose } from "../../lib/values";
 import { spaced } from "../../lib/vocabulary";
@@ -24,6 +33,8 @@ import { assemblyBands, releaseScale } from "../figure/releases";
 import { ScoreTrack } from "../figure/ScoreTrack";
 import { useRoving } from "../figure/roving";
 import { useWidth } from "../figure/useWidth";
+import { useReplay } from "../../lib/method/useReplay";
+import { ReplayControls } from "./WalkReplay";
 
 interface Item {
   key: string;
@@ -52,7 +63,7 @@ function releasesText(s: FigureStep): string {
 }
 
 /** The legend entries of the marks a figure draws, and only those. */
-function stageLegend(stage: StageModel): LegendEntry[] {
+function stageLegend(stage: StageModel, replay: boolean): LegendEntry[] {
   const steps = stage.model.steps;
   const has = (test: (s: FigureStep) => boolean) => steps.some(test);
   const entries: LegendEntry[] = [
@@ -62,6 +73,16 @@ function stageLegend(stage: StageModel): LegendEntry[] {
       text: "A gene version, over the releases the path holds it; its lane is its stable id",
     },
   ];
+  if (replay)
+    entries.push({
+      key: "thread",
+      swatch: (
+        <svg className="fig-swatch" width={30} height={16} viewBox="0 0 30 16" aria-hidden="true">
+          <polyline points="2,12 14,12 14,4 28,4" className="stage-thread__lit" />
+        </svg>
+      ),
+      text: "The walk, in the order it was taken (Replay lights it step by step)",
+    });
   if (has((s) => s.step.kind === "entry"))
     entries.push({
       key: "form",
@@ -101,13 +122,22 @@ function stageLegend(stage: StageModel): LegendEntry[] {
   return entries;
 }
 
-export function StageFigure({ result, graph }: { result: ConversionResult; graph: GraphDescription }) {
+export function StageFigure({
+  result,
+  graph,
+  replay = false,
+}: {
+  result: ConversionResult;
+  graph: GraphDescription;
+  /** Draw the walk as a thread a replay lights step by step. */
+  replay?: boolean;
+}) {
   const model = useMemo(() => figureModel(result), [result]);
   if (!model) return <p className="muted">The answer holds no path to draw.</p>;
-  return <StageDrawing stage={stageModel(model, graph)} graph={graph} />;
+  return <StageDrawing stage={stageModel(model, graph)} graph={graph} replay={replay} />;
 }
 
-function StageDrawing({ stage, graph }: { stage: StageModel; graph: GraphDescription }) {
+function StageDrawing({ stage, graph, replay }: { stage: StageModel; graph: GraphDescription; replay: boolean }) {
   const vocabulary = useVocabulary();
   const clip = useId().replace(/:/g, "");
   const { ref, width } = useWidth<HTMLDivElement>(900);
@@ -241,6 +271,22 @@ function StageDrawing({ stage, graph }: { stage: StageModel; graph: GraphDescrip
     });
   });
 
+  // The thread: the walk in the order it was taken, lit by the replay up to the step it stands on.
+  const walked = history;
+  const thread = walkThread(stage, walked, {
+    x: (release) => scale.x(release),
+    jointX,
+    laneY,
+    barX,
+    barEnd,
+  });
+  const replayState = useReplay(walked.length);
+  const { cursor } = replayState;
+  const lit = threadLength(thread.points, litPoint(thread, cursor));
+  const threadTotal = threadLength(thread.points);
+  const ring = cursor !== null && cursor < walked.length ? thread.points[litPoint(thread, cursor)] : undefined;
+  const readout = replayReadout(model, walked, cursor);
+
   const svg = useCallback(() => ref.current?.querySelector("svg") ?? null, [ref]);
   const roving = useRoving(items.length, svg);
   const shown = roving.shown === null ? null : items[roving.shown];
@@ -335,165 +381,179 @@ function StageDrawing({ stage, graph }: { stage: StageModel; graph: GraphDescrip
   // width: nothing is drawn into it until it has one, so no mark is ever given a negative size.
   if (x1 - x0 < 40) return <div className="stage-fig fig" ref={ref} style={{ height }} aria-hidden="true" />;
   return (
-    <div className="stage-fig fig" ref={ref} style={{ height }}>
-      <svg
-        width={width}
-        height={height}
-        viewBox={`0 0 ${width} ${height}`}
-        role="group"
-        aria-label={`The path of ${query} from release ${result(model).from_release ?? "—"} to ${result(model).to_release}, drawn over releases ${window0} to ${window1}: ${model.steps.length} steps over ${lanes.length} stable ${lanes.length === 1 ? "id" : "ids"}. Arrow keys move along its genes and steps.`}
-        className="stage-fig__svg"
-      >
-        {/* The overview: the graph's whole axis, its assemblies, and the window drawn below. */}
-        <g className="stage-fig__overview" aria-hidden="true">
-          {bands.map((b, i) => (
+    <>
+      <div className="stage-fig fig" ref={ref} style={{ height }}>
+        <svg
+          width={width}
+          height={height}
+          viewBox={`0 0 ${width} ${height}`}
+          role="group"
+          aria-label={`The path of ${query} from release ${result(model).from_release ?? "—"} to ${result(model).to_release}, drawn over releases ${window0} to ${window1}: ${model.steps.length} steps over ${lanes.length} stable ${lanes.length === 1 ? "id" : "ids"}. Arrow keys move along its genes and steps.`}
+          className="stage-fig__svg"
+        >
+          {/* The overview: the graph's whole axis, its assemblies, and the window drawn below. */}
+          <g className="stage-fig__overview" aria-hidden="true">
+            {bands.map((b, i) => (
+              <rect
+                key={`${b.assembly}-${b.first}`}
+                x={overview.x(b.first - 0.5)}
+                y={8}
+                width={Math.max(0, overview.x(b.last + 0.5) - overview.x(b.first - 0.5))}
+                height={8}
+                className={i % 2 ? "stage-fig__ov-band stage-fig__ov-band--b" : "stage-fig__ov-band"}
+              />
+            ))}
             <rect
-              key={`${b.assembly}-${b.first}`}
-              x={overview.x(b.first - 0.5)}
-              y={8}
-              width={Math.max(0, overview.x(b.last + 0.5) - overview.x(b.first - 0.5))}
-              height={8}
-              className={i % 2 ? "stage-fig__ov-band stage-fig__ov-band--b" : "stage-fig__ov-band"}
+              x={overview.x(window0 - 0.5)}
+              y={4}
+              width={Math.max(0, overview.x(window1 + 0.5) - overview.x(window0 - 0.5))}
+              height={16}
+              className="stage-fig__ov-window"
             />
-          ))}
-          <rect
-            x={overview.x(window0 - 0.5)}
-            y={4}
-            width={Math.max(0, overview.x(window1 + 0.5) - overview.x(window0 - 0.5))}
-            height={16}
-            className="stage-fig__ov-window"
-          />
-          <text x={x0} y={OVERVIEW} className="fig-text stage-fig__ov-text">
-            {overview.first}
-          </text>
-          <text x={x1} y={OVERVIEW} textAnchor="end" className="fig-text stage-fig__ov-text">
-            {overview.last}
-          </text>
-          <text
-            x={Math.min(x1 - 60, Math.max(x0 + 40, (overview.x(window0 - 0.5) + overview.x(window1 + 0.5)) / 2))}
-            y={OVERVIEW}
-            textAnchor="middle"
-            className="fig-text fig-text--sans stage-fig__ov-text"
-          >
-            drawn: {window0}–{window1}
-          </text>
-          <line
-            x1={overview.x(window0 - 0.5)}
-            x2={scale.x0 - scale.step / 2}
-            y1={20}
-            y2={top - 2}
-            className="stage-fig__ov-lead"
-          />
-          <line
-            x1={overview.x(window1 + 0.5)}
-            x2={scale.x1 + scale.step / 2}
-            y1={20}
-            y2={top - 2}
-            className="stage-fig__ov-lead"
-          />
-        </g>
-        <defs>
-          <clipPath id={clip}>
-            <rect x={scale.x0 - scale.step / 2} y={0} width={scale.x1 - scale.x0 + scale.step} height={height} />
-          </clipPath>
-        </defs>
-        <g transform={`translate(0, ${top})`} clipPath={`url(#${clip})`}>
-          <Bands
-            bands={bands}
-            scale={scale}
-            top={NAMES}
-            bottom={axisY - top}
-            labelY={13}
-            outerY={27}
-            view={[scale.x0 - scale.step / 2, scale.x1 + scale.step / 2]}
-          />
-        </g>
-        {lanes.map((lane, i) => (
-          <text
-            key={lane.id}
-            x={phone ? 4 : 4}
-            y={phone ? laneY(i) - 36 : laneY(i) + 4}
-            className="fig-text stage-fig__lane"
-          >
-            {lane.id}
-          </text>
-        ))}
-        {history.length ? (
-          <ScoreTrack
-            items={history.map((s) => ({
-              key: String(s.number),
-              x: jointX(s),
-              weight: s.step.weight,
-              hue: s.family === "event" ? ("event" as const) : ("history" as const),
-            }))}
-            x0={scale.x0}
-            x1={scale.x1}
-            top={scoreTop}
-            bottom={scoreBottom}
-            labelX={scale.x0 - 6}
-          />
-        ) : null}
-        <ReleaseTicks scale={scale} y={axisY} releases={window} bounds={[0, width]} />
-        <g className="fig-path">
-          {model.genes.map((g, i) => {
-            const lane = stage.laneOf.get(g.node.id) ?? 0;
-            const xa = barX(g.first);
-            const xb = Math.max(xa + 2, barEnd(g.last));
-            return (
-              <g key={g.node.id} className="fig-target" {...bind(`g${i}`)}>
-                <rect x={xa - 2} y={laneY(lane) - 12} width={xb - xa + 4} height={24} className="fig-hit" />
-                <GeneBar x0={xa} x1={xb} y={laneY(lane)} />
-              </g>
-            );
-          })}
-          {marks}
-        </g>
-        <g className="fig-labels" aria-hidden="true">
-          {model.genes.map((g) => {
-            const lane = stage.laneOf.get(g.node.id) ?? 0;
-            const xa = barX(g.first);
-            const xb = barEnd(g.last);
-            const text = versionOf(g.node.id);
-            const fits = xb - xa >= text.length * 7 + 4;
-            return fits ? (
-              <text key={g.node.id} x={(xa + xb) / 2} y={laneY(lane) + 22} textAnchor="middle" className="fig-label">
-                {text}
-              </text>
-            ) : null;
-          })}
-          {entry && !phone ? (
+            <text x={x0} y={OVERVIEW} className="fig-text stage-fig__ov-text">
+              {overview.first}
+            </text>
+            <text x={x1} y={OVERVIEW} textAnchor="end" className="fig-text stage-fig__ov-text">
+              {overview.last}
+            </text>
             <text
-              x={Math.min(x1 - 4, scale.x(entry.step.release ?? model.span[0]) + 9)}
-              y={laneY(stage.laneOf.get(entry.step.target) ?? 0) - 20}
-              textAnchor={scale.x(entry.step.release ?? 0) > (x0 + x1) / 2 ? "end" : "start"}
-              dx={scale.x(entry.step.release ?? 0) > (x0 + x1) / 2 ? -18 : 0}
-              className="fig-label fig-label--first"
+              x={Math.min(x1 - 60, Math.max(x0 + 40, (overview.x(window0 - 0.5) + overview.x(window1 + 0.5)) / 2))}
+              y={OVERVIEW}
+              textAnchor="middle"
+              className="fig-text fig-text--sans stage-fig__ov-text"
             >
-              {query}
+              drawn: {window0}–{window1}
             </text>
-          ) : null}
-          {bridge ? (
-            <text x={bridge.x + 9} y={bridge.y + 4} className="fig-label">
-              {bridge.id}
+            <line
+              x1={overview.x(window0 - 0.5)}
+              x2={scale.x0 - scale.step / 2}
+              y1={20}
+              y2={top - 2}
+              className="stage-fig__ov-lead"
+            />
+            <line
+              x1={overview.x(window1 + 0.5)}
+              x2={scale.x1 + scale.step / 2}
+              y1={20}
+              y2={top - 2}
+              className="stage-fig__ov-lead"
+            />
+          </g>
+          <defs>
+            <clipPath id={clip}>
+              <rect x={scale.x0 - scale.step / 2} y={0} width={scale.x1 - scale.x0 + scale.step} height={height} />
+            </clipPath>
+          </defs>
+          <g transform={`translate(0, ${top})`} clipPath={`url(#${clip})`}>
+            <Bands
+              bands={bands}
+              scale={scale}
+              top={NAMES}
+              bottom={axisY - top}
+              labelY={13}
+              outerY={27}
+              view={[scale.x0 - scale.step / 2, scale.x1 + scale.step / 2]}
+            />
+          </g>
+          {lanes.map((lane, i) => (
+            <text
+              key={lane.id}
+              x={phone ? 4 : 4}
+              y={phone ? laneY(i) - 36 : laneY(i) + 4}
+              className="fig-text stage-fig__lane"
+            >
+              {lane.id}
             </text>
+          ))}
+          {history.length ? (
+            <ScoreTrack
+              items={history.map((s) => ({
+                key: String(s.number),
+                x: jointX(s),
+                weight: s.step.weight,
+                hue: s.family === "event" ? ("event" as const) : ("history" as const),
+              }))}
+              x0={scale.x0}
+              x1={scale.x1}
+              top={scoreTop}
+              bottom={scoreBottom}
+              labelX={scale.x0 - 6}
+            />
           ) : null}
-        </g>
-        {roving.focused !== null && items[roving.focused] ? (
-          <circle
-            cx={items[roving.focused]?.x}
-            cy={items[roving.focused]?.y}
-            r={12}
-            className="fig-focus"
-            aria-hidden="true"
-          />
+          <ReleaseTicks scale={scale} y={axisY} releases={window} bounds={[0, width]} />
+          <g className="fig-path">
+            {model.genes.map((g, i) => {
+              const lane = stage.laneOf.get(g.node.id) ?? 0;
+              const xa = barX(g.first);
+              const xb = Math.max(xa + 2, barEnd(g.last));
+              return (
+                <g key={g.node.id} className="fig-target" {...bind(`g${i}`)}>
+                  <rect x={xa - 2} y={laneY(lane) - 12} width={xb - xa + 4} height={24} className="fig-hit" />
+                  <GeneBar x0={xa} x1={xb} y={laneY(lane)} strong={!replay} />
+                </g>
+              );
+            })}
+            {replay && thread.points.length > 1 ? (
+              <g className="stage-thread" aria-hidden="true">
+                <polyline points={thread.points.map((p) => p.join(",")).join(" ")} className="stage-thread__under" />
+                <polyline
+                  points={thread.points.map((p) => p.join(",")).join(" ")}
+                  className="stage-thread__lit"
+                  strokeDasharray={`${lit.toFixed(1)} ${threadTotal.toFixed(1)}`}
+                />
+                {ring ? <circle cx={ring[0]} cy={ring[1]} r={11} className="stage-thread__ring" /> : null}
+              </g>
+            ) : null}
+            {marks}
+          </g>
+          <g className="fig-labels" aria-hidden="true">
+            {model.genes.map((g) => {
+              const lane = stage.laneOf.get(g.node.id) ?? 0;
+              const xa = barX(g.first);
+              const xb = barEnd(g.last);
+              const text = versionOf(g.node.id);
+              const fits = xb - xa >= text.length * 7 + 4;
+              return fits ? (
+                <text key={g.node.id} x={(xa + xb) / 2} y={laneY(lane) + 22} textAnchor="middle" className="fig-label">
+                  {text}
+                </text>
+              ) : null;
+            })}
+            {entry && !phone ? (
+              <text
+                x={Math.min(x1 - 4, scale.x(entry.step.release ?? model.span[0]) + 9)}
+                y={laneY(stage.laneOf.get(entry.step.target) ?? 0) - 20}
+                textAnchor={scale.x(entry.step.release ?? 0) > (x0 + x1) / 2 ? "end" : "start"}
+                dx={scale.x(entry.step.release ?? 0) > (x0 + x1) / 2 ? -18 : 0}
+                className="fig-label fig-label--first"
+              >
+                {query}
+              </text>
+            ) : null}
+            {bridge ? (
+              <text x={bridge.x + 9} y={bridge.y + 4} className="fig-label">
+                {bridge.id}
+              </text>
+            ) : null}
+          </g>
+          {roving.focused !== null && items[roving.focused] ? (
+            <circle
+              cx={items[roving.focused]?.x}
+              cy={items[roving.focused]?.y}
+              r={12}
+              className="fig-focus"
+              aria-hidden="true"
+            />
+          ) : null}
+        </svg>
+        {shown ? (
+          <FigureNote x={shown.x} y={shown.y + 18} width={width} pointer={roving.note}>
+            {shown.note()}
+          </FigureNote>
         ) : null}
-      </svg>
-      {shown ? (
-        <FigureNote x={shown.x} y={shown.y + 18} width={width} pointer={roving.note}>
-          {shown.note()}
-        </FigureNote>
-      ) : null}
-    </div>
+      </div>
+      {replay && walked.length ? <ReplayControls replay={replayState} total={walked.length} readout={readout} /> : null}
+    </>
   );
 }
 
@@ -501,8 +561,16 @@ function result(model: { result: ConversionResult }): ConversionResult {
   return model.result;
 }
 
-export function StageLegend({ result: answer, graph }: { result: ConversionResult; graph: GraphDescription }) {
+export function StageLegend({
+  result: answer,
+  graph,
+  replay = false,
+}: {
+  result: ConversionResult;
+  graph: GraphDescription;
+  replay?: boolean;
+}) {
   const model = useMemo(() => figureModel(answer), [answer]);
   if (!model) return null;
-  return <FigureLegend entries={stageLegend(stageModel(model, graph))} />;
+  return <FigureLegend entries={stageLegend(stageModel(model, graph), replay)} />;
 }

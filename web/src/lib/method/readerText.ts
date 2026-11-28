@@ -8,7 +8,8 @@
 // - A sort key written as a tuple of negated counts ("`(-external ids, -transcripts, -translations)`") is said in words:
 //   the more of each, the earlier, in that order.
 // - A value in a programming language's spelling (`null`, `None`, `True`, `False`) is said as a word.
-// - The remaining code (a field's name) keeps its code marks, its underscores as spaces.
+// - The remaining code (a field's name) stays code as IDTrack writes it (`entry_gene`), drawn in the monospaced face:
+//   a field named in words would read as a noun of the sentence ("into gene").
 
 const VALUE_WORDS: Record<string, string> = {
   null: "none",
@@ -45,8 +46,6 @@ export function readerText(text: string): string {
   });
   // Values in a programming language's spelling.
   out = out.replace(/`"?(null|None|True|False|true|false)"?`/g, (_w, v: string) => VALUE_WORDS[v] ?? v);
-  // Field names: underscores as spaces, code marks kept.
-  out = out.replace(/`([a-z]+(?:_[a-z]+)+)`/g, (_w, name: string) => `\`${name.replace(/_/g, " ")}\``);
   return out
     .replace(/\s+([.,;:])/g, "$1")
     .replace(/\s{2,}/g, " ")

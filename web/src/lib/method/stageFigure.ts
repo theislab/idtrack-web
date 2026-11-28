@@ -10,6 +10,8 @@
 //   id. A bridge or a change of id moves to another lane.
 import type { GraphDescription } from "../../api/types";
 import type { FigureGene, FigureModel, FigureStep } from "../explore/figureModel";
+import { pythonFloat } from "../numbers";
+import { spaced } from "../vocabulary";
 
 const MIN_WIDTH = 14;
 const MARGIN = 2;
@@ -79,4 +81,86 @@ export function stepLanes(stage: StageModel, step: FigureStep): { from: number |
   const from = step.step.source !== null ? (stage.laneOf.get(step.step.source) ?? null) : null;
   const to = stage.laneOf.get(step.step.target) ?? null;
   return { from, to };
+}
+
+/** The thread of a walk: the points it passes, in the order it was taken (from the identifier read, or the first step's
+ *  old end, along each lane to each step, through the step from its lane to the next, and on to the answer's gene),
+ *  and for each step drawn the index of the last point it reaches. */
+export interface Thread {
+  points: [number, number][];
+  reach: number[];
+}
+
+/** Where the thread's places are drawn: a release's x, a step's joint, a lane's y, a gene bar's two ends. */
+export interface ThreadScale {
+  x: (release: number) => number;
+  jointX: (step: FigureStep) => number;
+  laneY: (lane: number) => number;
+  barX: (first: number) => number;
+  barEnd: (last: number) => number;
+}
+
+/** The thread of the walk drawn (`walked`: its history steps, in the order taken). */
+export function walkThread(stage: StageModel, walked: readonly FigureStep[], at: ThreadScale): Thread {
+  const { model } = stage;
+  const points: [number, number][] = [];
+  const reach: number[] = [];
+  const entry = model.steps.find((s) => s.step.kind === "entry" && stage.laneOf.has(s.step.target));
+  const first = walked[0];
+  if (entry) points.push([at.x(entry.step.release ?? model.span[0]), at.laneY(stepLanes(stage, entry).to ?? 0)]);
+  else if (first)
+    points.push([at.x(first.step.old_release ?? model.span[0]), at.laneY(stepLanes(stage, first).from ?? 0)]);
+  for (const s of walked) {
+    const { from, to } = stepLanes(stage, s);
+    const x = at.jointX(s);
+    points.push([x, at.laneY(from ?? to ?? 0)]);
+    if (from !== to) points.push([x, at.laneY(to ?? 0)]);
+    reach.push(points.length - 1);
+  }
+  const last = walked[walked.length - 1];
+  if (last) {
+    const answer = model.genes.find((g) => g.node.id === model.answer.gene);
+    const lane = stepLanes(stage, last).to ?? 0;
+    const end = answer ? (model.backward ? at.barX(answer.first) : at.barEnd(answer.last)) : at.jointX(last);
+    points.push([end, at.laneY(lane)]);
+  }
+  return { points, reach };
+}
+
+/** The length of a thread up to its point `upTo` (inclusive; all of it by default). */
+export function threadLength(points: readonly [number, number][], upTo = points.length - 1): number {
+  let length = 0;
+  for (let i = 1; i <= upTo && i < points.length; i++) {
+    const a = points[i - 1];
+    const b = points[i];
+    if (a && b) length += Math.hypot(b[0] - a[0], b[1] - a[1]);
+  }
+  return length;
+}
+
+/** The last point of the thread lit while the replay stands on step `cursor` (none: the whole thread). */
+export function litPoint(thread: Thread, cursor: number | null): number {
+  const whole = thread.points.length - 1;
+  if (cursor === null || cursor >= thread.reach.length) return whole;
+  return thread.reach[cursor] ?? whole;
+}
+
+/** The releases a step joins, in words. */
+function stepReleases(s: FigureStep): string {
+  const step = s.step;
+  if (step.old_release !== null && step.new_release !== null) return `${step.old_release} → ${step.new_release}`;
+  return step.release !== null ? `release ${step.release}` : "—";
+}
+
+/** What the replay says of the step it stands on (the answer once past the last), in the api's values. */
+export function replayReadout(model: FigureModel, walked: readonly FigureStep[], cursor: number | null): string {
+  if (cursor === null) return "";
+  const at = cursor < walked.length ? walked[cursor] : undefined;
+  const n = walked.length;
+  if (!at)
+    return `The answer at release ${model.result.to_release}: ${model.answer.target}, after ${String(n)} ${n === 1 ? "step" : "steps"} of Ensembl's history.`;
+  const st = at.step;
+  return `Step ${String(cursor + 1)} of ${String(n)} · ${stepReleases(at)} · ${st.source ?? "—"} → ${st.target} · ${spaced(st.reason)}${
+    st.weight === null ? " · no score" : ` · Ensembl's score ${pythonFloat(st.weight)}`
+  }`;
 }

@@ -80,7 +80,11 @@ describe("idtrack's meanings, read for a person", () => {
       "the numbers of external ids, transcripts and translations (the more of each, the earlier, in that order) of the gene; none where not.",
     );
     expect(readerText("listed (`known_versions`), and `entry_support` counts.")).toBe(
-      "listed, and `entry support` counts.",
+      "listed, and `entry_support` counts.",
+    );
+    // A field's name stays code as IDTrack writes it, so that it never reads as a word of the sentence.
+    expect(readerText("merges several entry genes into `gene`, this and `display_rank` are the best")).toBe(
+      "merges several entry genes into `gene`, this and `display_rank` are the best",
     );
   });
 

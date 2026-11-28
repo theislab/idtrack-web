@@ -7,6 +7,7 @@
 import { docsPage } from "../../lib/links";
 import docs from "../../generated/idtrack_docs.json";
 import type { ConversionResult } from "../../api/types";
+import type { Stage } from "../../lib/method/cases";
 import { firstSentence, readerText } from "../../lib/method/readerText";
 import { firstWords } from "../../lib/values";
 import { spaced, type Vocabulary } from "../../lib/vocabulary";
@@ -31,23 +32,12 @@ function Meaning({ text }: { text: string | null | undefined }) {
   return <Prose text={text} />;
 }
 
-function PanelHead({ id, title, docs }: { id: string; title: string; docs: string }) {
-  return (
-    <div className="method-panel__head">
-      <h3 id={id}>{title}</h3>
-      <a className="method-panel__docs" href={docs}>
-        IDTrack&apos;s documentation
-      </a>
-    </div>
-  );
-}
-
 /** How a stage works, in a paragraph folded behind one line under the stage's head: the stage's sentence above the
  *  tabs' panel says it in brief. */
 function StageAbout({ children }: { children: ReactNode }) {
   return (
     <Expandable className="method-panel__about" summary="How this stage works">
-      <p className="method-panel__lede">{children}</p>
+      <p className="method-panel__about-text">{children}</p>
     </Expandable>
   );
 }
@@ -113,108 +103,139 @@ function Glossary({ lists, children }: { lists: [string, number][]; children: Re
   return (
     <Expandable className="method-glossary" summary="The terms of this stage" meta={words}>
       {children}
+      <p className="method-source">
+        Meanings: <span className="mono">GET /api/v1/vocabulary</span> (IDTrack&apos;s own tables; the statuses in the
+        api&apos;s words, marked by it as such), and IDTrack&apos;s documentation,{" "}
+        <a href={docsPage("concepts.html")}>How IDTrack Answers</a> and{" "}
+        <a href={docsPage("reading.html")}>How an Identifier Is Read</a>.
+      </p>
     </Expandable>
   );
 }
 
+/** A stage's head: its title and its one claim, the link to IDTrack's documentation of it at the right. */
+function StageHead({ id, stage }: { id: string; stage: StageInfo }) {
+  return (
+    <div className="method-panel__head">
+      <div className="method-panel__titles">
+        <h3 id={id}>{stage.heading}</h3>
+        <p className="method-panel__claim">{stage.claim}</p>
+      </div>
+      <a className="method-panel__docs" href={stage.docs}>
+        IDTrack&apos;s documentation
+      </a>
+    </div>
+  );
+}
+
+/** What stays one press away under a stage's figure: how it works, its terms, and what else it holds. */
+function StageMore({ children }: { children: ReactNode }) {
+  return <div className="method-panel__more">{children}</div>;
+}
+
 function ReadPanel({ v }: { v: Vocabulary }) {
+  const stage = STAGE_INFO.read;
   return (
     <section className="method-panel" aria-labelledby="method-read">
-      <PanelHead id="method-read" title="Read the identifier" docs={docsPage("reading.html#reading-matching")} />
-      <StageAbout>
-        Before anything is looked up, the typed string is read as a person who pasted it meant it: where it is read (the
-        starting release), what is cleaned from it, how it is matched against the identifiers of the graph. The steps of
-        a match are tried in IDTrack&apos;s order, each on names, then on synonyms, before the next; the match a result
-        names is the step that matched, after the prefixes that applied.
-      </StageAbout>
+      <StageHead id="method-read" stage={stage} />
       <StageCase
         stage="read"
-        title="a string matched past its exact form"
-        reserve={340}
+        claim="Each step of a match in IDTrack's order, as this answer took them."
         caption={
           <>
-            The steps of a match in IDTrack&apos;s order, each with what it compares, as this answer took them: those
-            above the step that matched found nothing, the one that matched names the identifier of the graph, those
-            below were not needed; beside them, the release the string was read at and the databases that attach it
-            there.
+            The steps above the one that matched found nothing, the one that matched names the identifier of the graph,
+            those below were not needed; beside them, the release the string was read at and the databases that attach
+            it there. A step&apos;s name opens what it compares.
           </>
         }
       >
         {({ result }) => <ReadFigure result={result} />}
       </StageCase>
-      <Glossary
-        lists={[
-          ["the steps of a match", v.matchSteps.size],
-          ["its prefixes", v.matchPrefixes.size],
-          ["the other readings beside an answer", v.readingReasons.size],
-        ]}
-      >
-        <FullWords entries={[...v.matchSteps.entries()]} summary="The steps of a match, in IDTrack's full words" />
-        <div className="method-columns">
-          <TermList title="Prefixes of a match" entries={[...v.matchPrefixes.entries()]} />
-          <TermList title="Other readings, reported beside the answer" entries={[...v.readingReasons.entries()]} />
-        </div>
-      </Glossary>
+      <StageMore>
+        <StageAbout>
+          Before anything is looked up, the typed string is read as a person who pasted it meant it: where it is read
+          (the starting release), what is cleaned from it, how it is matched against the identifiers of the graph. The
+          steps of a match are tried in IDTrack&apos;s order, each on names, then on synonyms, before the next; the
+          match a result names is the step that matched, after the prefixes that applied.
+        </StageAbout>
+        <Glossary
+          lists={[
+            ["the steps of a match", v.matchSteps.size],
+            ["its prefixes", v.matchPrefixes.size],
+            ["the other readings beside an answer", v.readingReasons.size],
+          ]}
+        >
+          <FullWords entries={[...v.matchSteps.entries()]} summary="The steps of a match, in IDTrack's full words" />
+          <div className="method-columns">
+            <TermList title="Prefixes of a match" entries={[...v.matchPrefixes.entries()]} />
+            <TermList title="Other readings, reported beside the answer" entries={[...v.readingReasons.entries()]} />
+          </div>
+        </Glossary>
+      </StageMore>
     </section>
   );
 }
 
 function WalkPanel({ v }: { v: Vocabulary }) {
+  const stage = STAGE_INFO.walk;
   return (
     <section className="method-panel" aria-labelledby="method-walk">
-      <PanelHead id="method-walk" title="Walk Ensembl's history" docs={docsPage("concepts.html#concept-history")} />
-      <StageAbout>
-        From the gene an identifier names at the starting release (its entry gene), the search follows Ensembl&apos;s
-        history forward or backward to the target release. Each history step is a version event of Ensembl. In
-        IDTrack&apos;s words: <Prose text={docs.mappingScore.text} />{" "}
-        <a href={docs.mappingScore.source}>IDTrack&apos;s documentation</a>
-      </StageAbout>
+      <StageHead id="method-walk" stage={stage} />
       <StageCase
         stage="walk"
-        title="a walk backward through a split"
-        reserve={300}
+        claim="The best answer's path through Ensembl's history: one lane per stable id, one bar per version, each step where one version ends and the next begins."
         caption={
           <>
-            The best answer&apos;s path, drawn over the releases it spans and two on each side (the strip above places
-            them on the graph&apos;s whole axis): each lane one stable id, named at its left, each bar one version of it
-            over the releases the path holds it, each step drawn where the old version ends and the new one begins, over
-            the bands of the assemblies that serve each release; below, Ensembl&apos;s mapping score of each history
-            step. Focus the figure and use the arrow keys for each element&apos;s exact values.
+            It is drawn over the releases the path spans and two on each side (the strip above places them on the
+            graph&apos;s whole axis), over the bands of the assemblies that serve each release; the thread is the walk,
+            in the order it was taken, and Replay walks it step by step; below, Ensembl&apos;s mapping score of each
+            history step. Focus the figure and use the arrow keys for each element&apos;s exact values. The case is the
+            answer of this graph&apos;s showcase whose best path walks through a split and passes the most ids and steps
+            (bridges are the next stage).
           </>
         }
       >
         {({ result, graph }) => (
           <>
-            <StageFigure result={result} graph={graph} />
-            <StageLegend result={result} graph={graph} />
+            <StageFigure result={result} graph={graph} replay />
+            <StageLegend result={result} graph={graph} replay />
           </>
         )}
       </StageCase>
-      <h3 className="method-sub">The kinds of history step</h3>
-      <HistoryKinds v={v} />
-      <Glossary
-        lists={[
-          ["each kind of step in IDTrack's full words", 0],
-          ["where the later gene lies", v.placeRelations.size],
-        ]}
-      >
-        <FullWords
-          entries={[
-            "new_version",
-            "replaced",
-            "split",
-            "merge",
-            "split_and_merge",
-            "self_loop",
-            "mitochondrial_genome",
-          ].map((code) => [code, v.stepReasons.get(code)])}
-          summary="Each kind of step in IDTrack's full words"
-        />
-        <TermList
-          title="Where the later gene lies, for a step between two genes"
-          entries={[...v.placeRelations.entries()]}
-        />
-      </Glossary>
+      <StageMore>
+        <StageAbout>
+          From the gene an identifier names at the starting release (its entry gene), the search follows Ensembl&apos;s
+          history forward or backward to the target release. Each history step is a version event of Ensembl. In
+          IDTrack&apos;s words: <Prose text={docs.mappingScore.text} />{" "}
+          <a href={docs.mappingScore.source}>IDTrack&apos;s documentation</a>
+        </StageAbout>
+        <Expandable className="method-kinds-row" summary="The kinds of history step" meta="what Ensembl recorded">
+          <HistoryKinds v={v} />
+        </Expandable>
+        <Glossary
+          lists={[
+            ["each kind of step in IDTrack's full words", 0],
+            ["where the later gene lies", v.placeRelations.size],
+          ]}
+        >
+          <FullWords
+            entries={[
+              "new_version",
+              "replaced",
+              "split",
+              "merge",
+              "split_and_merge",
+              "self_loop",
+              "mitochondrial_genome",
+            ].map((code) => [code, v.stepReasons.get(code)])}
+            summary="Each kind of step in IDTrack's full words"
+          />
+          <TermList
+            title="Where the later gene lies, for a step between two genes"
+            entries={[...v.placeRelations.entries()]}
+          />
+        </Glossary>
+      </StageMore>
     </section>
   );
 }
@@ -245,30 +266,20 @@ function BridgePlaces({ result }: { result: ConversionResult }) {
 const PLACES_LIMITATION = "places-across-an-assembly-change";
 
 function BridgePanel({ v }: { v: Vocabulary }) {
+  const stage = STAGE_INFO.bridge;
   const rules = [...v.bridgeRules.entries()];
   return (
     <section className="method-panel" aria-labelledby="method-bridge">
-      <PanelHead
-        id="method-bridge"
-        title="Bridge through an id two genes carried"
-        docs={docsPage("concepts.html#concept-bridges")}
-      />
-      <StageAbout>
-        No record of Ensembl states a bridge: it is IDTrack&apos;s inference that one gene became the other, so it is
-        taken only where the identifier is evidence of that. With the path, a result lists every bridge the search
-        considered, taken or refused, with its rule.
-      </StageAbout>
+      <StageHead id="method-bridge" stage={stage} />
       <StageCase
         stage="bridge"
-        title="a walk that leaves its gene through an id it carried"
-        reserve={330}
+        claim="The best answer's path: where one gene's history ends, a bridge through the id it carried to the gene that carried it next."
         caption={
           <>
-            The best answer&apos;s path, drawn over the releases it spans and two on each side: each lane one stable id,
-            each bar one version of it; the identifier read as its gene (through its transcript or translation where it
-            names one); the bridge from the gene whose history ends to the other gene, through the id they carried one
-            after the other; below, Ensembl&apos;s mapping score of each history step. Under it, every bridge the search
-            considered, with where the two genes lie and the rule of each id they shared.
+            Drawn over the releases the path spans and two on each side: each lane one stable id, each bar one version
+            of it; the identifier read as its gene (through its transcript or translation where it names one); below,
+            Ensembl&apos;s mapping score of each history step. Under it, every bridge the search considered, with where
+            the two genes lie and the rule of each id they shared.
           </>
         }
       >
@@ -281,175 +292,184 @@ function BridgePanel({ v }: { v: Vocabulary }) {
           </>
         )}
       </StageCase>
-      <Glossary
-        lists={[
-          ["the two steps of a bridge", 2],
-          ["the rules it is taken by", rules.filter(([, r]) => r.taken).length],
-          ["the rules it is refused by", rules.filter(([, r]) => !r.taken).length],
-        ]}
-      >
-        <div className="method-columns">
-          <TermList
-            title="The two steps of a bridge"
-            entries={["bridge_near", "bridge_far"].map((code) => [code, v.stepReasons.get(code)])}
-          />
-          <TermList
-            title="Taken when"
-            entries={rules.filter(([, r]) => r.taken).map(([code, r]) => [code, r.meaning])}
-          />
-          <TermList
-            title="Refused when"
-            entries={rules.filter(([, r]) => !r.taken).map(([code, r]) => [code, r.meaning])}
-          />
-        </div>
-      </Glossary>
+      <StageMore>
+        <StageAbout>
+          No record of Ensembl states a bridge: it is IDTrack&apos;s inference that one gene became the other, so it is
+          taken only where the identifier is evidence of that. With the path, a result lists every bridge the search
+          considered, taken or refused, with its rule.
+        </StageAbout>
+        <Glossary
+          lists={[
+            ["the two steps of a bridge", 2],
+            ["the rules it is taken by", rules.filter(([, r]) => r.taken).length],
+            ["the rules it is refused by", rules.filter(([, r]) => !r.taken).length],
+          ]}
+        >
+          <div className="method-columns">
+            <TermList
+              title="The two steps of a bridge"
+              entries={["bridge_near", "bridge_far"].map((code) => [code, v.stepReasons.get(code)])}
+            />
+            <TermList
+              title="Taken when"
+              entries={rules.filter(([, r]) => r.taken).map(([code, r]) => [code, r.meaning])}
+            />
+            <TermList
+              title="Refused when"
+              entries={rules.filter(([, r]) => !r.taken).map(([code, r]) => [code, r.meaning])}
+            />
+          </div>
+        </Glossary>
+      </StageMore>
     </section>
   );
 }
 
 function RankPanel({ v }: { v: Vocabulary }) {
+  const stage = STAGE_INFO.rank;
   return (
     <section className="method-panel" aria-labelledby="method-rank">
-      <PanelHead id="method-rank" title="Rank the candidates" docs={docsPage("concepts.html#concept-ranking")} />
-      <StageAbout>
-        The search returns every candidate it reached: a gene at the target release and its target. The candidates are
-        ranked by the criteria in this order; the first criterion in which two candidates differ decides between them,
-        and a result names the one that put the best answer before the runner-up. The first five after the gene&apos;s
-        own version compare the lineage (which entry gene the identifier stands for); the rest compare successors of one
-        entry gene. Nothing is chosen by position or by hash order.
-      </StageAbout>
+      <StageHead id="method-rank" stage={stage} />
       <StageCase
         stage="rank"
-        title="two candidates told apart by a criterion"
-        reserve={380}
+        claim="The best answer and the runner-up on each of IDTrack's criteria, in the order they decide."
         caption={
           <>
-            The best answer and the runner-up on each of IDTrack&apos;s criteria, in the order they decide: equal above
-            the criterion that decides, different on it, not compared below it.
+            Equal above the criterion that decides, different on it, not compared below it: the thread runs as one while
+            the two are equal and parts where the criterion decides. A criterion&apos;s name opens what it compares. The
+            first five after the gene&apos;s own version compare the lineage (which entry gene the identifier stands
+            for); the rest compare successors of one entry gene.
           </>
         }
       >
         {({ result }) => <RankFigure result={result} />}
       </StageCase>
-      <h3 className="method-sub">The criteria, in the order they decide</h3>
-      <ol className="method-ladder" aria-label="The criteria, in the order they decide">
-        {v.criteria.map((c, i) => {
-          const group = i === 0 ? "own" : i <= 5 ? "lineage" : "successors";
-          return (
-            <li key={c.code} className={`method-ladder__step method-ladder__step--${group}`}>
-              <span className="method-ladder__n mono">{i + 1}</span>
-              <div className="method-ladder__body">
-                <span className="method-code mono">{spaced(c.code)}</span>
-                <p>{c.meaning ? <Prose text={readerText(firstSentence(c.meaning))} /> : <Meaning text={null} />}</p>
-                {c.fields.length ? (
-                  <p className="method-ladder__first">{c.fields.map((f) => firstWords(f)).join("; then ")}</p>
-                ) : null}
-              </div>
-              {i === 1 || i === 6 ? (
-                <span className="method-ladder__group">
-                  {i === 1 ? "lineage: which entry gene" : "successors of one entry gene"}
+      <StageMore>
+        <StageAbout>
+          The search returns every candidate it reached: a gene at the target release and its target. The candidates are
+          ranked by the criteria in this order; the first criterion in which two candidates differ decides between them,
+          and a result names the one that put the best answer before the runner-up. Nothing is chosen by position or by
+          hash order.
+        </StageAbout>
+        <Expandable summary="The criteria, in IDTrack's full words" meta={`${v.criteria.length} criteria`}>
+          <ol
+            className="method-terms method-terms--full method-criteria"
+            aria-label="The criteria, in the order they decide"
+          >
+            {v.criteria.map((c) => (
+              <li key={c.code}>
+                <code className="mono method-criteria__code">{c.code}</code>
+                <span className="method-criteria__meaning">
+                  <Meaning text={c.meaning} />
                 </span>
-              ) : null}
-            </li>
-          );
-        })}
-      </ol>
-      <Expandable summary="Each criterion in IDTrack's full words" meta={`${v.criteria.length} criteria`}>
-        <dl className="method-terms method-terms--full">
-          {v.criteria.map((c) => (
-            <div key={c.code}>
-              <dt>
-                <code className="mono">{c.code}</code>
-              </dt>
-              <dd>
-                <Meaning text={c.meaning} />
-              </dd>
-            </div>
-          ))}
-        </dl>
-      </Expandable>
+                {c.fields.length ? (
+                  <span className="method-criteria__fields">
+                    Compares {c.fields.map((f) => firstWords(f)).join("; then ")}
+                  </span>
+                ) : null}
+              </li>
+            ))}
+          </ol>
+        </Expandable>
+      </StageMore>
     </section>
   );
 }
 
 function AnswerPanel({ v }: { v: Vocabulary }) {
+  const stage = STAGE_INFO.answer;
   return (
     <section className="method-panel" aria-labelledby="method-answer">
-      <PanelHead
-        id="method-answer"
-        title="Answer in the database asked"
-        docs={docsPage("concepts.html#concept-statuses")}
-      />
-      <StageAbout>
-        With a target database the answer is first a gene: the genes are ranked as Ensembl genes, and a target is an id
-        that the database attaches at the target release to a gene of that best answer, through the gene itself or its
-        transcripts and translations. Where no gene of the best answer has one, the result is the genes themselves,
-        never an id of a lower-ranked gene.
-      </StageAbout>
+      <StageHead id="method-answer" stage={stage} />
       <StageCase
         stage="answer"
-        title="a number read as a gene, answered in another database"
-        reserve={220}
+        claim="The last steps of the answer at the target release: the number read as its gene, then every id of the database asked attached to that gene."
         caption={
           <>
-            The last steps of the answer, at the target release: the number read as its gene through the database that
-            attaches it, then every id of the database asked that IDTrack attaches to that gene there, each through the
-            transcript and translation that carries it.
+            The number is read as its gene through the database that attaches it; each id of the database asked that
+            IDTrack attaches to that gene there stands with the transcript and translation that carry it.
           </>
         }
       >
         {({ result }) => <AnswerFigure result={result} />}
       </StageCase>
-      <Glossary
-        lists={[
-          ["the last step of a path", 3],
-          ["the statuses of a result", v.statuses.size],
-        ]}
-      >
-        <div className="method-columns">
-          <TermList
-            title="The last step of a path"
-            entries={["identity", "final", "final_other_release"].map((code) => [code, v.stepReasons.get(code)])}
-          />
-          <TermList title="Every result has one status" entries={[...v.statuses.entries()]} status />
-        </div>
-      </Glossary>
+      <StageMore>
+        <StageAbout>
+          With a target database the answer is first a gene: the genes are ranked as Ensembl genes, and a target is an
+          id that the database attaches at the target release to a gene of that best answer, through the gene itself or
+          its transcripts and translations. Where no gene of the best answer has one, the result is the genes
+          themselves, never an id of a lower-ranked gene.
+        </StageAbout>
+        <Glossary
+          lists={[
+            ["the last step of a path", 3],
+            ["the statuses of a result", v.statuses.size],
+          ]}
+        >
+          <div className="method-columns">
+            <TermList
+              title="The last step of a path"
+              entries={["identity", "final", "final_other_release"].map((code) => [code, v.stepReasons.get(code)])}
+            />
+            <TermList title="Every result has one status" entries={[...v.statuses.entries()]} status />
+          </div>
+        </Glossary>
+      </StageMore>
     </section>
   );
 }
 
-/** The five stages, in order: each a tab of the stepper (its words the tab's hint), kept in the address (`?stage=`). */
-const STAGES: { id: string; title: string; words: string; panel: (v: Vocabulary) => ReactNode }[] = [
-  {
-    id: "read",
+interface StageInfo {
+  /** The tab's word. */
+  title: string;
+  /** The stage's title in its panel. */
+  heading: string;
+  /** The stage's one claim. */
+  claim: string;
+  docs: string;
+}
+
+/** Each stage's words: the tab, the title and the one claim of its panel, its section of IDTrack's documentation. */
+const STAGE_INFO: Record<Stage, StageInfo> = {
+  read: {
     title: "Read",
-    words: "The typed string, matched to an identifier of the graph at the release it is read at",
-    panel: (v) => <ReadPanel v={v} />,
+    heading: "Read the identifier",
+    claim: "The typed string is matched to an identifier of the graph at the release it is read at.",
+    docs: docsPage("reading.html#reading-matching"),
   },
-  {
-    id: "walk",
+  walk: {
     title: "Walk",
-    words: "Ensembl's version events, forward or backward, from the entry gene to the target release",
-    panel: (v) => <WalkPanel v={v} />,
+    heading: "Walk Ensembl's history",
+    claim: "From the entry gene, Ensembl's version events lead forward or backward to the target release.",
+    docs: docsPage("concepts.html#concept-history"),
   },
-  {
-    id: "bridge",
+  bridge: {
     title: "Bridge",
-    words: "Where the history reaches no gene: through an id two genes carried, where a rule allows it",
-    panel: (v) => <BridgePanel v={v} />,
+    heading: "Bridge through an id two genes carried",
+    claim: "Where the history reaches no gene, an id two genes carried leads on, where a rule allows it.",
+    docs: docsPage("concepts.html#concept-bridges"),
   },
-  {
-    id: "rank",
+  rank: {
     title: "Rank",
-    words: "Every candidate reached, by IDTrack's criteria in order: the first that differs decides",
-    panel: (v) => <RankPanel v={v} />,
+    heading: "Rank the candidates",
+    claim: "Every candidate reached is ranked by IDTrack's criteria in order: the first that differs decides.",
+    docs: docsPage("concepts.html#concept-ranking"),
   },
-  {
-    id: "answer",
+  answer: {
     title: "Answer",
-    words: "The best answer's gene, or its id in the database asked; a tie, not a guess, where the evidence is equal",
-    panel: (v) => <AnswerPanel v={v} />,
+    heading: "Answer in the database asked",
+    claim: "The best answer's gene, or its id in the database asked; a tie, not a guess, where the evidence is equal.",
+    docs: docsPage("concepts.html#concept-statuses"),
   },
+};
+
+/** The five stages, in order: each a tab of the stepper, kept in the address (`?stage=`). */
+const STAGES: { id: Stage; panel: (v: Vocabulary) => ReactNode }[] = [
+  { id: "read", panel: (v) => <ReadPanel v={v} /> },
+  { id: "walk", panel: (v) => <WalkPanel v={v} /> },
+  { id: "bridge", panel: (v) => <BridgePanel v={v} /> },
+  { id: "rank", panel: (v) => <RankPanel v={v} /> },
+  { id: "answer", panel: (v) => <AnswerPanel v={v} /> },
 ];
 
 /** The way on from a stage: the previous and the next, each a button that chooses its tab, brings the stepper's
@@ -479,7 +499,7 @@ function StageSteps({ at }: { at: number }) {
           }}
         >
           <span aria-hidden="true">← </span>
-          {at}. {previous.title}
+          {at}. {STAGE_INFO[previous.id].title}
         </Button>
       ) : (
         <span />
@@ -491,7 +511,7 @@ function StageSteps({ at }: { at: number }) {
             go(at + 1);
           }}
         >
-          Next: {at + 2}. {next.title}
+          Next: {at + 2}. {STAGE_INFO[next.id].title}
           <span aria-hidden="true"> →</span>
         </Button>
       ) : null}
@@ -499,17 +519,25 @@ function StageSteps({ at }: { at: number }) {
   );
 }
 
+/** The notice that the api's vocabulary could not be read: said only when the request failed, never while it is read
+ *  (the page then shows the codes without their meanings). */
+export function VocabularyFailure() {
+  const v = useVocabulary();
+  if (v.state !== "failed") return null;
+  return (
+    <p className="notice" role="status">
+      The api&apos;s vocabulary could not be read: the codes below are shown without their meanings.
+    </p>
+  );
+}
+
 /** How IDTrack answers, as a stepper of five stages, one shown at a time, each drawn on a real answer of this
- *  server. */
+ *  server. On a phone the stepper is five numbered dots, the stage's name under them as its panel's title. */
 export function MethodStages() {
   const v = useVocabulary();
   return (
     <div className="method-figure">
-      {v.available ? null : (
-        <p className="notice" role="status">
-          The api&apos;s vocabulary could not be read: the codes below are shown without their meanings.
-        </p>
-      )}
+      <VocabularyFailure />
       <Tabs
         label="The stages of an answer"
         param="stage"
@@ -521,24 +549,17 @@ export function MethodStages() {
               <span className="method-stepper__n" aria-hidden="true">
                 {i + 1}
               </span>
-              {stage.title}
+              <span className="method-stepper__name">{STAGE_INFO[stage.id].title}</span>
             </>
           ),
           panel: () => (
             <>
-              <p className="method-stepper__words">{stage.words}.</p>
               {stage.panel(v)}
               <StageSteps at={i} />
             </>
           ),
         }))}
       />
-      <p className="method-source">
-        Meanings: <span className="mono">GET /api/v1/vocabulary</span> (IDTrack&apos;s own tables; the statuses in the
-        api&apos;s words, marked by it as such), and IDTrack&apos;s documentation,{" "}
-        <a href={docsPage("concepts.html")}>How IDTrack Answers</a> and{" "}
-        <a href={docsPage("reading.html")}>How an Identifier Is Read</a>.
-      </p>
     </div>
   );
 }

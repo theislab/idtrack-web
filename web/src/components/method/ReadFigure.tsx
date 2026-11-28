@@ -1,14 +1,16 @@
-// Stage a on a real answer: how the typed string was read. The steps of a match in IDTrack's order (the api's
-// vocabulary, `match_steps`), each tried on names, then on synonyms, before the next (IDTrack's documentation, "How an
-// Identifier Is Read"): the steps before the one that matched found nothing, the one the answer names (`match`) found
-// the identifier of the graph (`graph_id`), the later ones were not needed; the prefixes that applied before it; the
-// release it was read at, and whether that release was given or inferred; the databases that attach it there.
+// Stage a on a real answer, drawn: the typed string at the left; the steps of a match as a ladder of dots joined by a
+// hairline, in IDTrack's order (the api's vocabulary, `match_steps`), each tried on names, then on synonyms, before the
+// next (IDTrack's documentation, "How an Identifier Is Read"): the steps before the one that matched found nothing
+// (hollow), the one the answer names (`match`) found the identifier of the graph (`graph_id`, filled, the thread turning
+// out of the ladder to it), the later ones were not needed (faint); the prefixes that applied before it; at the right,
+// the release it was read at, whether that release was given or inferred, the databases that attach it there and its
+// entry genes. Each step's name opens what it compares (a hover card); its order is the ladder's.
 import type { ConversionResult } from "../../api/types";
 import { databaseLabel } from "../../lib/databases";
-import { matchParts, spaced } from "../../lib/vocabulary";
+import { matchParts } from "../../lib/vocabulary";
 import { useVocabulary } from "../../lib/vocabularyContext";
-import { firstSentence, readerText } from "../../lib/method/readerText";
-import { Mono, Prose } from "../ui";
+import { Mono } from "../ui";
+import { Defined } from "./Defined";
 
 export function ReadFigure({ result }: { result: ConversionResult }) {
   const vocabulary = useVocabulary();
@@ -21,19 +23,13 @@ export function ReadFigure({ result }: { result: ConversionResult }) {
   return (
     <div className="read-fig">
       <div className="read-fig__in">
-        <span className="label">Typed</span>
+        <span className="read-fig__label">Typed</span>
         <q className="read-fig__typed mono">{result.query_id}</q>
         {prefixes.length ? (
           <ul className="read-fig__prefixes" aria-label="Prefixes of the match that applied">
             {prefixes.map((p) => (
               <li key={p.code}>
-                <span className="mono">{spaced(p.code)}</span>
-                {p.meaning ? (
-                  <span className="read-fig__meaning">
-                    {" "}
-                    <Prose text={p.meaning} />
-                  </span>
-                ) : null}
+                <Defined code={p.code} meaning={p.meaning} />
               </li>
             ))}
           </ul>
@@ -44,11 +40,8 @@ export function ReadFigure({ result }: { result: ConversionResult }) {
           const state = at < 0 ? "unknown" : i < at ? "missed" : i === at ? "matched" : "unneeded";
           return (
             <li key={code} className={`read-fig__step read-fig__step--${state}`}>
-              <span className="read-fig__n mono" aria-hidden="true">
-                {i + 1}
-              </span>
               <span className="read-fig__mark" aria-hidden="true" />
-              <span className="read-fig__code mono">{spaced(code)}</span>
+              <Defined className="read-fig__code" code={code} meaning={meaning} />
               <span className="read-fig__state">
                 {state === "matched" ? (
                   <>
@@ -62,43 +55,44 @@ export function ReadFigure({ result }: { result: ConversionResult }) {
                   ""
                 )}
               </span>
-              {meaning ? (
-                <span className="read-fig__meaning">
-                  <Prose text={state === "matched" ? meaning : readerText(firstSentence(meaning))} />
-                </span>
-              ) : null}
             </li>
           );
         })}
       </ol>
-      <div className="read-fig__out">
-        <p>
-          <span className="label">Read at release</span> <Mono strong>{result.from_release ?? "—"}</Mono>{" "}
-          <span className="muted">
-            {result.from_release_inferred
-              ? "(no release given: inferred)"
-              : result.from_release_given !== null
-                ? "(as given)"
-                : ""}
-          </span>
-        </p>
+      <dl className="read-fig__out">
+        <div>
+          <dt>Read at release</dt>
+          <dd>
+            <Mono strong>{result.from_release ?? "—"}</Mono>{" "}
+            <span className="muted">
+              {result.from_release_inferred
+                ? "(no release given: inferred)"
+                : result.from_release_given !== null
+                  ? "(as given)"
+                  : ""}
+            </span>
+          </dd>
+        </div>
         {result.from_databases.length ? (
-          <p>
-            <span className="label">Attached there by</span> {result.from_databases.map(databaseLabel).join(", ")}
-          </p>
+          <div>
+            <dt>Attached there by</dt>
+            <dd>{result.from_databases.map(databaseLabel).join(", ")}</dd>
+          </div>
         ) : null}
         {entries.length ? (
-          <p>
-            <span className="label">{entries.length === 1 ? "Entry gene" : "Entry genes"}</span>{" "}
-            {entries.map((g, i) => (
-              <span key={g}>
-                <Mono>{g}</Mono>
-                {i < entries.length - 1 ? ", " : ""}
-              </span>
-            ))}
-          </p>
+          <div>
+            <dt>{entries.length === 1 ? "Entry gene" : "Entry genes"}</dt>
+            <dd>
+              {entries.map((g, i) => (
+                <span key={g}>
+                  <Mono>{g}</Mono>
+                  {i < entries.length - 1 ? ", " : ""}
+                </span>
+              ))}
+            </dd>
+          </div>
         ) : null}
-      </div>
+      </dl>
     </div>
   );
 }

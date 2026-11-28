@@ -6,7 +6,7 @@ import { createContext, use, useEffect, useMemo, useRef, type ReactNode } from "
 import { API_BASE, api, forgetAnswers, type AnyRequestError } from "../api/client";
 import type { GraphDescription, VersionResponse } from "../api/types";
 import { commonName } from "./organismNames";
-import { NO_VOCABULARY, readVocabulary } from "./vocabulary";
+import { FAILED_VOCABULARY, NO_VOCABULARY, readVocabulary } from "./vocabulary";
 import { LimitsContext, VocabularyContext } from "./vocabularyContext";
 import { href, navigate, useLocation } from "./router";
 import { setDocsRoot } from "./links";
@@ -80,7 +80,12 @@ export function OrganismsProvider({ children }: { children: ReactNode }) {
     };
   }, []);
   const words = useMemo(
-    () => (vocabulary.state === "done" ? readVocabulary(vocabulary.answer.data) : NO_VOCABULARY),
+    () =>
+      vocabulary.state === "done"
+        ? readVocabulary(vocabulary.answer.data)
+        : vocabulary.state === "failed"
+          ? FAILED_VOCABULARY
+          : NO_VOCABULARY,
     [vocabulary],
   );
   const location = useLocation();

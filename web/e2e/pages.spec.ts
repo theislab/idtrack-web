@@ -515,8 +515,11 @@ test("Method: the five stages one at a time, the citation in a drawer, the data,
   }
   await stages.getByRole("tab", { name: /Rank$/ }).click();
   const vocabulary = (await (await page.request.get("/api/v1/vocabulary")).json()) as { criteria: { code: string }[] };
+  // Every criterion in IDTrack's full words, in the order they decide: one press away under the figure.
+  await page.getByRole("button", { name: /The criteria, in IDTrack's full words/ }).click();
   const ladder = page.getByRole("list", { name: "The criteria, in the order they decide" }).locator("li");
   await expect(ladder).toHaveCount(vocabulary.criteria.length);
+  await expect(ladder.locator(".method-criteria__code")).toHaveText(vocabulary.criteria.map((c) => c.code));
   // The stepper's way on: Next moves to the next stage and to its tab.
   await page.getByRole("button", { name: /^Next: 5\. Answer/ }).click();
   await expect(stages.getByRole("tab", { name: /Answer$/ })).toBeFocused();

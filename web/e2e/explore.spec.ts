@@ -21,7 +21,7 @@ import { historyColumns } from "../src/lib/explore/history";
 import { apiQuery } from "../src/lib/home/links";
 import { ensemblSteps, walksBack } from "../src/lib/path/steps";
 import { storiesOf } from "../src/lib/explore/gallery";
-import { holdsStage, STAGE_CASES, stageCase } from "../src/lib/method/cases";
+import { holdsStage, STAGE_CASES, stageCase, walkCase } from "../src/lib/method/cases";
 import { groupedInteger, releaseRanges } from "../src/lib/numbers";
 import { data, expectAccessible, shot } from "./helpers";
 
@@ -45,9 +45,28 @@ async function scrollThrough(page: Page): Promise<void> {
 test("Method: every stage is drawn on the real answer its case claims, linked to it", async ({ page }, info) => {
   const graphs = await organisms(page);
   const digests = new Map(graphs.map((g) => [g.organism, g.content_digest]));
-  const shown = (["read", "walk", "bridge", "rank", "answer"] as const)
+  const shown = (["read", "bridge", "rank", "answer"] as const)
     .map((stage) => stageCase(stage, digests))
     .filter((c) => c !== null);
+  // The walk's case is the showcase's answer of the graph in view chosen by its stated measure: it walks through a
+  // split and is drawn, with its thread and replay.
+  const current = graphs.find((g) => g.organism === "homo_sapiens") ?? graphs[0];
+  if (current) {
+    const showcase = (await (
+      await page.request.get(`/api/v1/organisms/${current.organism}/showcase`)
+    ).json()) as ShowcaseResponse;
+    const walk = walkCase(showcase);
+    if (walk) {
+      expect(holdsStage("walk", walk.result)).toBe(true);
+      await page.goto(`/method?stage=walk&organism=${current.organism}`);
+      await scrollThrough(page);
+      const figure = page.locator("figure.stage-case");
+      await expect(figure).toContainText(walk.query.identifier);
+      await expect(figure.locator(".stage-thread__lit")).toHaveCount(1);
+      await figure.getByRole("button", { name: "Next step" }).click();
+      await expect(figure.locator(".stage-replay__readout")).toContainText(/^Step 1 of \d+/);
+    }
+  }
   // Every case of a graph this server holds with its digest (the one drawn and those after it) still shows what it is
   // drawn for.
   for (const c of STAGE_CASES.filter((x) => digests.get(x.query.organism) === x.checkedOn)) {
@@ -77,7 +96,7 @@ test("Method: every stage is drawn on the real answer its case claims, linked to
     if (c.stage === "rank") await expect(page.locator(".rank-fig__row--decides")).toHaveCount(1);
     if (c.stage === "read") await expect(page.locator(".read-fig__step--matched")).toHaveCount(1);
   }
-  expect(new Set(STAGE_CASES.map((c) => c.stage)).size).toBe(5);
+  expect(new Set(STAGE_CASES.map((c) => c.stage)).size).toBe(4);
   await expectAccessible(page);
   await shot(page, info, "28-method-stages");
 });
@@ -116,9 +135,21 @@ test("Method: the benchmarks' rates as published, and whether this server's grap
     await chips.nth(k).click();
     for (const family of BENCHMARKS.families) await expect(one).toContainText(family.title);
   }
-  await one.getByRole("button", { name: `What ${BENCHMARKS.families[0]?.title ?? ""} asks` }).click();
-  await expect(one.locator(".accuracy__measures")).toBeVisible();
-  await page.keyboard.press("Escape");
+  // What each family is judged against, one press from its rate; a truth that walks Ensembl's history says so there,
+  // in the benchmarks' words, and is tagged beside the name.
+  for (const family of BENCHMARKS.families) {
+    if (!familyRows(family).length) continue;
+    await one.getByRole("button", { name: `What ${family.title} is judged against` }).click();
+    const card = one.locator(".accuracy__measures");
+    await expect(card).toContainText("Judged against:");
+    if (family.truth.history) await expect(card).toContainText("stable_id_event");
+    await page.keyboard.press("Escape");
+    await expect(card).toHaveCount(0);
+  }
+  await expect(one.locator(".accuracy__tag")).toHaveCount(BENCHMARKS.families.filter((f) => f.truth.history).length);
+  // The organism chosen is kept in the address.
+  await chips.last().click();
+  await expect(page).toHaveURL(/organism=/);
   await page.getByRole("tab", { name: "All organisms" }).click();
   const summary = page.getByRole("region", { name: "Right / judged per family and organism" });
   for (const family of BENCHMARKS.families) {
@@ -384,9 +415,24 @@ test("Method: each stage's path on one lane per stable id, the answer's last ste
   await page.getByRole("button", { name: /^And \d+ more/ }).click();
   const items = page.locator(".limitations-list > li");
   await expect.poll(() => items.count()).toBeGreaterThanOrEqual(26);
+  // Each limitation a row by its title; opened, its whole first sentence, never cut short, and its section.
+  for (const row of await items.all()) {
+    await row.locator(".expandable__summary").click();
+    await expect(row.locator(".limitations-list__lead")).toBeVisible();
+    await expect(row.locator(".limitations-list__link")).toHaveAttribute("href", /#/);
+  }
   for (const text of await items.allTextContents()) expect(text).not.toMatch(/…/);
+  // A criterion's meaning is read for a person: an aside of code is left out of the figure's cards.
   await page.goto("/method?stage=rank");
-  await expect(page.locator(".method-ladder")).not.toContainText("idtrack.engine.ranking");
+  await scrollThrough(page);
+  const terms = page.locator(".rank-fig .defined__trigger");
+  if (await terms.count()) {
+    for (const term of await terms.all()) {
+      await term.click();
+      await expect(page.locator(".defined__meaning")).not.toContainText("idtrack.engine.ranking");
+      await page.keyboard.press("Escape");
+    }
+  }
 });
 
 test("Organism: the History tab's lineage field, by keyboard: a line's words read out, Enter opens it in Convert", async ({
