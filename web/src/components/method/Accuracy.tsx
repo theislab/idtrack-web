@@ -126,7 +126,7 @@ function Judged({ row }: { row: FamilyRow }) {
 }
 
 /** A rate as published, with the published text and its counts on focus where the page writes it otherwise. */
-export function RateValue({ row, className = "" }: { row: FamilyRow; className?: string }) {
+function RateValue({ row, className = "" }: { row: FamilyRow; className?: string }) {
   const r = rateText(row.rate, row);
   if (!r.rounded) return <span className={`accuracy__rate mono ${className}`}>{r.text}</span>;
   return (

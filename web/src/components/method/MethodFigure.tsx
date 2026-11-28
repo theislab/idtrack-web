@@ -522,7 +522,7 @@ function StageSteps({ at }: { at: number }) {
 
 /** The notice that the api's vocabulary could not be read: said only when the request failed, never while it is read
  *  (the page then shows the codes without their meanings). */
-export function VocabularyFailure() {
+function VocabularyFailure() {
   const v = useVocabulary();
   if (v.state !== "failed") return null;
   return (

@@ -14,7 +14,7 @@ export interface Criterion {
 
 /** Where the api's vocabulary stands: still being read (the page says nothing yet), read, or not read (the page says
  *  so: every code is shown as itself). */
-export type VocabularyState = "loading" | "done" | "failed";
+type VocabularyState = "loading" | "done" | "failed";
 
 export interface Vocabulary {
   /** Whether the api's `/vocabulary` is read: only "failed" is said as a failure; while it is read, nothing is said. */
