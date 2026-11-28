@@ -334,18 +334,17 @@
   font-weight: var(--weight-strong);
 }
 
+/* What the string meant at other releases: under the caution that names it, its words set in from the triangles, with
+   the gene it answers there and the way to read it then (no second frame: the caution is the mark). */
 .answer__meanings {
   display: grid;
   gap: var(--space-1);
   margin: 0;
-  padding: var(--space-3) var(--space-4);
+  padding: 0 0 0 calc(18px + var(--space-1));
   list-style: none;
   max-width: 920px;
   font-size: var(--text-sm);
-  color: var(--ink-1);
-  background: var(--state-warn-surface);
-  border-left: 3px solid var(--state-warn);
-  border-radius: var(--radius);
+  color: var(--ink-2);
 }
 
 .answer__note-code {

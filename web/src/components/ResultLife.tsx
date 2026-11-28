@@ -11,6 +11,7 @@ import { useRequest } from "../lib/useRequest";
 import { Bands, ReleaseTicks } from "./figure/axis";
 import { GeneBar, StepGlyph } from "./figure/glyphs";
 import { FigureCaption } from "./figure/Legend";
+import { CaptionMore } from "./home/CaptionMore";
 import { assemblyBands, releaseScale } from "./figure/releases";
 import { useWidth } from "./figure/useWidth";
 import { Mono } from "./ui";
@@ -159,12 +160,18 @@ export function RetiredLife({ result, description }: { result: ConversionResult;
         ) : null}
       </div>
       <FigureCaption>
-        Each gene is a bar over the releases at which it exists, its last release capped; the open circle is the release
-        the identifier is read at ({release}), the vertical line the release asked ({to}). From the release read,
-        Ensembl&apos;s history{result.reasons.includes("no_path_to_target") ? " (and the bridges allowed)" : ""} reaches
-        no gene at release {to}. The releases are those of the identifier converted at release {release} with its path
-        (each gene&apos;s <Mono>active</Mono> releases); the names, <Mono>/names-of</Mono> at release {release}
-        {genes.length > LIFE_GENES ? `; ${genes.length - LIFE_GENES} more genes are in that conversion` : ""}.
+        <CaptionMore
+          lead={
+            <>
+              Each gene is a bar over the releases at which it exists, its last release capped; the open circle is the
+              release read ({release}), the line the release asked ({to}).
+            </>
+          }
+        >
+          The releases are those of the identifier converted at release {release} with its path (each gene&apos;s{" "}
+          <Mono>active</Mono> releases); the names, <Mono>/names-of</Mono> at release {release}
+          {genes.length > LIFE_GENES ? `; ${genes.length - LIFE_GENES} more genes are in that conversion` : ""}.
+        </CaptionMore>
       </FigureCaption>
     </figure>
   );

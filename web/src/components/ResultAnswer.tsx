@@ -1105,7 +1105,10 @@ export const AnswerPanel = memo(function AnswerPanel({
         </span>
       ) : null}
       {codes.length && (!bests.length || result.no_target) ? <Reasons codes={codes} /> : null}
-      <StatusSentence result={result} model={model} database={databaseLabel(asked)} context={context} />
+      {/* Without an answer, the headline says the reason in IDTrack's words: the status's meaning would say it again. */}
+      {bests.length ? (
+        <StatusSentence result={result} model={model} database={databaseLabel(asked)} context={context} />
+      ) : null}
       <TieGuidance result={result} />
     </div>
   );
