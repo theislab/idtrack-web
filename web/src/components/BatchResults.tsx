@@ -41,6 +41,10 @@ import {
   batchRow,
   batchRows,
   countBy,
+  DECIDED_ALONE,
+  DECIDED_NO_ANSWER,
+  DECIDED_TIE,
+  decidedKey,
   linkShared,
   CROSSINGS,
   eventCount,
@@ -50,6 +54,7 @@ import {
   matchLabel,
   READ_WORDS,
   isCopy,
+  readAt,
   readAtCounts,
   releaseHow,
   renamedRows,
@@ -59,6 +64,7 @@ import {
   statusCounts,
   statusFill,
   summaryOf,
+  tieWords,
   type BatchRow,
   type BatchSummary,
   type Crossing,
@@ -84,6 +90,7 @@ import { EventStrip, ReleaseScale, TravelArcs } from "./ReleaseScale";
 import { lifeText, useRetiredLives, type Life, type Lives } from "../lib/batchLives";
 import type { PathsRefused } from "../lib/batchRun";
 import { ErrorPanel } from "./ErrorPanel";
+import { ScoreValue } from "./ResultParts";
 import { Toggletip } from "./Toggletip";
 import { Button, Link, Mono, Prose, Select, StatusBadge, TableFrame, TextInput } from "./ui";
 import { CaptionMore } from "./v2/CaptionMore";
@@ -1041,7 +1048,7 @@ function sharedReading(rows: readonly BatchRow[]): string | null {
   if (!first) return null;
   const words = (row: BatchRow) => {
     const r = row.result;
-    if (r.from_release === null || row.read === "not_read") return null;
+    if (readAt(r) === null || row.read === "not_read") return null;
     const how = releaseHow(r);
     return `${READ_WORDS[row.read]} at release ${String(r.from_release)}, ${
       how === "inferred" ? "inferred" : how === "fallback" ? `not ${String(r.from_release_given)} as given` : "as given"
@@ -1119,11 +1126,12 @@ function ResultsTable({
   );
   const criteria = useMemo(
     () =>
-      countBy(
-        rows,
-        (r) => r.result.decided_by ?? "",
-        vocabulary.criteria.map((c) => c.code),
-      ),
+      countBy(rows, decidedKey, [
+        ...vocabulary.criteria.map((c) => c.code),
+        DECIDED_TIE,
+        DECIDED_ALONE,
+        DECIDED_NO_ANSWER,
+      ]),
     [rows, vocabulary],
   );
   const reading = useMemo(() => sharedReading(rows), [rows]);
@@ -1407,7 +1415,7 @@ function ResultsTable({
               ))}
             </ChipGroup>
           ) : null}
-          {criteria.some(([code]) => code !== "") ? (
+          {criteria.some(([code]) => code !== DECIDED_ALONE) ? (
             <ChipGroup label="Decided by">
               {criteria.map(([code, n]) => (
                 <button
@@ -1419,7 +1427,7 @@ function ResultsTable({
                     setFilter({ ...filter, decided: toggle(filter.decided, code) });
                   }}
                 >
-                  {code ? spaced(code) : "no runner-up"} <span className="chip__count mono">{groupedInteger(n)}</span>
+                  {DECIDED_WORDS[code] ?? spaced(code)} <span className="chip__count mono">{groupedInteger(n)}</span>
                 </button>
               ))}
             </ChipGroup>
@@ -1803,7 +1811,9 @@ function Row({
           {r.error ? (
             <span className="sub batch-why">{firstSentence(r.error.message)}</span>
           ) : r.tie ? (
-            <span className="sub batch-why">equal in all the evidence: every one is listed</span>
+            <span className="sub batch-why">
+              <TieShort result={r} />
+            </span>
           ) : !answered && meaning ? (
             <span className="sub batch-why">
               <Prose text={firstSentence(meaning)} />
@@ -1895,7 +1905,7 @@ function Row({
         {showRead ? (
           <td className="b-read" data-label="Read">
             <span>{READ_WORDS[row.read]}</span>
-            {r.from_release !== null ? (
+            {how !== "none" ? (
               <span className="sub">
                 at <Mono>{r.from_release}</Mono>
                 {how === "inferred"
@@ -1907,7 +1917,7 @@ function Row({
             ) : null}
           </td>
         ) : null}
-        <td className={`b-decided ${r.decided_by ? "" : "is-absent"}`} data-label="Decided by">
+        <td className={`b-decided ${r.decided_by || r.tie ? "" : "is-absent"}`} data-label="Decided by">
           {criterion ? (
             <span>
               <Toggletip
@@ -1929,10 +1939,14 @@ function Row({
             </span>
           ) : r.decided_by ? (
             <span>{spaced(r.decided_by)}</span>
+          ) : r.tie ? (
+            <span>a tie</span>
           ) : (
             <span className="muted">
               <span aria-hidden="true">{ABSENT}</span>
-              <span className="visually-hidden">no runner-up: nothing had to be decided</span>
+              <span className="visually-hidden">
+                {row.answers.length ? "no runner-up: one answer, nothing to decide" : "no answer: nothing was decided"}
+              </span>
             </span>
           )}
         </td>
@@ -1989,6 +2003,63 @@ function Row({
  *  each one's value of the fields it compares. IDTrack compares the lineage criteria with the first best answer, and
  *  the criteria within a lineage (score, being the query, annotation) with the best successor of the runner-up's own
  *  entry gene (as lib/pathModel.ts decisionOf). Null without a runner-up. */
+/** The chips of the rows no criterion decided (`decidedKey`). */
+const DECIDED_WORDS: Record<string, string> = {
+  [DECIDED_TIE]: "a tie",
+  [DECIDED_ALONE]: "no runner-up",
+  [DECIDED_NO_ANSWER]: "no answer",
+};
+
+const listWords = (items: readonly string[]) =>
+  items.length <= 1 ? (items[0] ?? "") : `${items.slice(0, -1).join(", ")} and ${items[items.length - 1] ?? ""}`;
+
+/** Why a row is a tie, in a cell: what the best answers are equal in, and (of different entry genes) that the criteria
+ *  of one entry gene's successors do not rank them. */
+function TieShort({ result }: { result: ConversionResult }) {
+  const tie = tieWords(result, useVocabulary());
+  return tie.entries < 2 ? (
+    <>equal in every criterion: each is part of the best answer</>
+  ) : (
+    <>
+      equal in the {tie.lineage.length} criteria of lineage; from {groupedInteger(tie.entries)} entry genes, which the
+      score does not rank
+    </>
+  );
+}
+
+/** Why a row is a tie, whole: the Decision tab's sentence of the answer. */
+function TieLong({ result }: { result: ConversionResult }) {
+  const tie = tieWords(result, useVocabulary());
+  if (tie.entries < 2)
+    return (
+      <>
+        The {groupedInteger(tie.bests)} best answers are equal in every criterion: each is part of the best answer, in
+        ascending order of gene id and target id.
+      </>
+    );
+  return (
+    <>
+      The {groupedInteger(tie.bests)} best answers are equal in the {tie.lineage.length} criteria of lineage (
+      {tie.lineage.map(spaced).join(", ")}). They descend from {groupedInteger(tie.entries)} different entry genes, and{" "}
+      {listWords(tie.successor.map(spaced))}, which compare only successors of one entry gene, do not rank them
+      {tie.scores.length ? (
+        <>
+          {" "}
+          (their scores differ:{" "}
+          {tie.scores.map((score, i) => (
+            <span key={score}>
+              {i ? ", " : ""}
+              <ScoreValue score={score} />
+            </span>
+          ))}
+          )
+        </>
+      ) : null}
+      : each is part of the best answer, in ascending order of gene id and target id.
+    </>
+  );
+}
+
 function decisionOf(result: ConversionResult, vocabulary: Vocabulary) {
   const criterion = criterionOf(vocabulary, result.decided_by);
   if (!criterion || !result.decided_by) return null;
@@ -2149,7 +2220,7 @@ function Detail({ row, names }: { row: BatchRow; names: NamesState }) {
           ) : null}
         </Fact>
         <Fact label="Read at">
-          {r.from_release === null ? (
+          {readAt(r) === null ? (
             <span className="muted">no release</span>
           ) : (
             <>
@@ -2176,7 +2247,9 @@ function Detail({ row, names }: { row: BatchRow; names: NamesState }) {
           </Fact>
         ) : null}
         {r.tie ? (
-          <Fact label="Tie">yes: several best answers equal in all the evidence; every one is listed</Fact>
+          <Fact label="Tie">
+            <TieLong result={r} />
+          </Fact>
         ) : null}
         {row.crossed?.events.length ? <Fact label="History on the path">{eventsText(row)}</Fact> : null}
         {r.known_versions.length ? (

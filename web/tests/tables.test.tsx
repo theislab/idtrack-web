@@ -9,12 +9,19 @@ import { BatchResults, type BatchAnswer } from "../src/components/BatchResults";
 import { NameMatches } from "../src/components/NameMatches";
 import {
   batchRows,
+  DECIDED_ALONE,
+  DECIDED_NO_ANSWER,
+  DECIDED_TIE,
+  decidedKey,
   filterRows,
   isCopy,
   matchPrefixes,
+  readAt,
   readAtCounts,
+  releaseHow,
   sortRows,
   statusCounts,
+  tieWords,
   travelled,
 } from "../src/lib/batchTable";
 import { releaseRanges } from "../src/lib/numbers";
@@ -22,7 +29,7 @@ import { groupByGene, nameCounts } from "../src/lib/nameGroups";
 import { axisOf, bandsOf, cell, runsOf, tickLabels } from "../src/components/figure/releases";
 import { readVocabulary } from "../src/lib/vocabulary";
 import { VocabularyContext } from "../src/lib/vocabularyContext";
-import { ORGANISMS, description, fixture, vocabularyResponse } from "./fixtures";
+import { ORGANISMS, conversions, description, fixture, vocabularyResponse } from "./fixtures";
 
 const vocabulary = readVocabulary(vocabularyResponse());
 const order = [...vocabulary.statuses.keys()];
@@ -84,7 +91,7 @@ describe("the batch's counts", () => {
         for (const [status, n] of counts) expect(results.filter((r) => r.status === status)).toHaveLength(n);
         const { byRelease, none } = readAtCounts(results);
         expect([...byRelease.values()].reduce((a, b) => a + b, 0) + none).toBe(results.length);
-        expect(none).toBe(results.filter((r) => r.from_release === null).length);
+        expect(none).toBe(results.filter((r) => r.from_release === null || r.graph_id === null).length);
       });
     }
   }
@@ -103,7 +110,48 @@ describe("the batch's counts", () => {
 
   it("travel is a release read other than the target", () => {
     const results = batch("homo_sapiens");
-    for (const r of results) expect(travelled(r)).toBe(r.from_release !== null && r.from_release !== r.to_release);
+    for (const r of results)
+      expect(travelled(r)).toBe(r.graph_id !== null && r.from_release !== null && r.from_release !== r.to_release);
+  });
+
+  it("a result the graph did not match is read at no release, whatever release the request gave", () => {
+    // The api echoes the release given on a result it did not find (from_release 67, graph_id null).
+    const missing = batch("homo_sapiens").find((r) => r.status === "not_found");
+    expect(missing).toBeDefined();
+    if (!missing) return;
+    const given = { ...missing, from_release: 67, from_release_inferred: false };
+    expect(readAt(given)).toBeNull();
+    expect(releaseHow(given)).toBe("none");
+    expect(readAtCounts([given])).toEqual({ byRelease: new Map(), none: 1 });
+  });
+
+  it("ties, rows without an answer and single answers are each their own key of what decided them", () => {
+    const rows = batchRows(
+      conversions().map((c) => c.result),
+      vocabulary,
+    );
+    for (const row of rows) {
+      const key = decidedKey(row);
+      if (row.result.decided_by) expect(key).toBe(row.result.decided_by);
+      else if (row.result.tie) expect(key).toBe(DECIDED_TIE);
+      else if (!row.answers.length) expect(key).toBe(DECIDED_NO_ANSWER);
+      else expect(key).toBe(DECIDED_ALONE);
+    }
+    expect(rows.some((row) => decidedKey(row) === DECIDED_TIE)).toBe(true);
+    expect(rows.some((row) => decidedKey(row) === DECIDED_NO_ANSWER)).toBe(true);
+    // A tie's runner-up is no runner-up of one answer: the two never share a chip.
+    const tie = rows.find((row) => row.result.tie);
+    if (tie) expect(filterRows(rows, { statuses: new Set(), decided: new Set([DECIDED_ALONE]) })).not.toContain(tie);
+  });
+
+  it("a tie of different entry genes is equal in the criteria of lineage, its scores apart (the Decision tab's rule)", () => {
+    const result = JSON.parse(fixture("homo_sapiens", "convert_tie_entry_genes").raw) as ConversionResult;
+    const tie = tieWords(result, vocabulary);
+    expect(tie.entries).toBe(2);
+    expect(tie.lineage).not.toContain("score");
+    expect(tie.successor).toContain("score");
+    expect(tie.lineage.length + tie.successor.length).toBe(vocabulary.criteria.length);
+    expect(tie.scores).toHaveLength(2);
   });
 });
 

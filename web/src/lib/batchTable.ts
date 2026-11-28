@@ -5,6 +5,7 @@ import type { ConversionResult, PathStep } from "../api/types";
 import { crossesAssemblies } from "../components/figure/glyph";
 import { looksLikeSpreadsheetDate } from "./batchList";
 import { cautionCount, evidenceOf, type EvidenceMark } from "./evidence";
+import { RECORD, SUCCESSOR_CRITERIA } from "./resultWords";
 import { NO_VOCABULARY, type Vocabulary } from "./vocabulary";
 
 /** The statuses of a batch in the vocabulary's order (the api's), then any status the vocabulary does not name. */
@@ -27,20 +28,28 @@ export function isCopy(result: ConversionResult): boolean {
   return matchPrefixes(result.match).includes("copy");
 }
 
-/** How many results are each release's (`from_release`), and how many were read at none. */
+/** The release a result was read at: its `from_release` where the graph matched it (`graph_id`), else none. A result
+ *  the graph did not match was read at no release, whatever release the request gave (the api echoes it). */
+export function readAt(result: ConversionResult): number | null {
+  return result.graph_id === null ? null : result.from_release;
+}
+
+/** How many results were read at each release (`readAt`), and how many were read at none. */
 export function readAtCounts(results: readonly ConversionResult[]): { byRelease: Map<number, number>; none: number } {
   const byRelease = new Map<number, number>();
   let none = 0;
   for (const r of results) {
-    if (r.from_release === null) none += 1;
-    else byRelease.set(r.from_release, (byRelease.get(r.from_release) ?? 0) + 1);
+    const release = readAt(r);
+    if (release === null) none += 1;
+    else byRelease.set(release, (byRelease.get(release) ?? 0) + 1);
   }
   return { byRelease, none };
 }
 
 /** The result was read at another release than its target: its answer was followed through Ensembl's history. */
 export function travelled(result: ConversionResult): boolean {
-  return result.from_release !== null && result.from_release !== result.to_release;
+  const at = readAt(result);
+  return at !== null && at !== result.to_release;
 }
 
 /** How an identifier was read, in one class for filtering (the first that applies, in this order): answered as
@@ -74,7 +83,7 @@ export function readKind(result: ConversionResult): ReadKind {
  *  identifier at the release given), or inferred by the engine; none when it was not read. */
 export type ReleaseHow = "given" | "fallback" | "inferred" | "none";
 export function releaseHow(result: ConversionResult): ReleaseHow {
-  if (result.from_release === null) return "none";
+  if (readAt(result) === null) return "none";
   if (result.from_release_fallback) return "fallback";
   return result.from_release_inferred ? "inferred" : "given";
 }
@@ -269,7 +278,7 @@ export function sortRows(rows: readonly BatchRow[], sort: Sort, statusOrder: rea
       case "answer":
         return row.genes[0] ?? row.answers[0] ?? null;
       case "release":
-        return row.result.from_release;
+        return readAt(row.result);
       case "decided":
         return row.decided;
       case "evidence":
@@ -292,13 +301,53 @@ export function sortRows(rows: readonly BatchRow[], sort: Sort, statusOrder: rea
   });
 }
 
+/** What decided a row, as one key of the table's chips: the criterion IDTrack names (`decided_by`); where it names
+ *  none, a tie (several best answers that no criterion ranks), a row without an answer at the target, or a single
+ *  answer with no runner-up. The three keys are no criterion's code. */
+export const DECIDED_TIE = "(tie)";
+export const DECIDED_NO_ANSWER = "(no answer)";
+export const DECIDED_ALONE = "";
+export function decidedKey(row: BatchRow): string {
+  const r = row.result;
+  if (r.decided_by) return r.decided_by;
+  if (r.tie) return DECIDED_TIE;
+  if (!row.answers.length) return DECIDED_NO_ANSWER;
+  return DECIDED_ALONE;
+}
+
+/** Why a tie is a tie, in the words of the answer's Decision tab: candidates of one entry gene are equal in every
+ *  criterion; candidates of different entry genes are equal in the criteria of lineage, and the criteria that compare
+ *  only successors of one entry gene (the score among them) never rank them, so their scores may differ. */
+export interface TieWords {
+  /** The best answers, and the entry genes they descend from. */
+  bests: number;
+  entries: number;
+  /** The criteria of lineage, in IDTrack's order, and those that compare successors of one entry gene. */
+  lineage: string[];
+  successor: string[];
+  /** The best answers' distinct scores, where they differ. */
+  scores: number[];
+}
+export function tieWords(result: ConversionResult, vocabulary: Vocabulary = NO_VOCABULARY): TieWords {
+  const bests = result.candidates.filter((c) => c.best);
+  const criteria = (vocabulary.criteria.length ? vocabulary.criteria : RECORD).map((c) => c.code);
+  const scores = [...new Set(bests.map((c) => c.score))];
+  return {
+    bests: bests.length,
+    entries: new Set(bests.map((c) => c.entry_gene)).size,
+    lineage: criteria.filter((c) => !SUCCESSOR_CRITERIA.includes(c)),
+    successor: criteria.filter((c) => SUCCESSOR_CRITERIA.includes(c)),
+    scores: scores.length > 1 ? scores : [],
+  };
+}
+
 /** What the table shows: rows of the statuses, readings and deciding criteria chosen (all of a kind when none of it is
  *  chosen), only the rows that need care or share an answer when asked, whose identifier, reading or answer holds the
  *  text. */
 export interface RowFilter {
   statuses: ReadonlySet<string>;
   reads?: ReadonlySet<ReadKind>;
-  /** Codes of `decided_by`; `""` stands for a result without a runner-up. */
+  /** Keys of `decidedKey`: codes of `decided_by`, or what stands for a row no criterion decided. */
   decided?: ReadonlySet<string>;
   /** Rows whose best paths cross any of these kinds of step. */
   crossings?: ReadonlySet<Crossing>;
@@ -381,7 +430,7 @@ export function filterRows(rows: readonly BatchRow[], filter: RowFilter): BatchR
     const r = row.result;
     if (statuses.size && !statuses.has(r.status)) return false;
     if (reads?.size && !reads.has(row.read)) return false;
-    if (decided?.size && !decided.has(r.decided_by ?? "")) return false;
+    if (decided?.size && !decided.has(decidedKey(row))) return false;
     if (crossings?.size && ![...crossings].some((k) => row.crossed?.kinds.has(k))) return false;
     if (filter.care && !row.care) return false;
     if (filter.shared && !row.shared.length) return false;
