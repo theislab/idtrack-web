@@ -160,7 +160,7 @@ describe("the assemblies' short names", () => {
 describe("an organism's lineage field", () => {
   const lineages: LineagesResponse = {
     organism: "sus_scrofa",
-    content_digest: null,
+    content_digest: "0".repeat(64),
     releases: [10, 11, 12, 13],
     genes: 5,
     families: 3,
@@ -171,19 +171,21 @@ describe("an organism's lineage field", () => {
     active: [[[10, 11]], [[12, 13]], [[10, 13]], [[11, 13]]],
     versions: [[11], [], [12, 13], []],
     edges: [[0, 1, 11, 12, 0.9]],
-    compute_seconds: 0,
   };
   const layout = layoutLineages(lineages);
 
   it("fills the box's width with the view, and leaves the axis its room", () => {
     const whole = viewFrame(1000, 540, [0, 1]);
-    expect(whole.left).toBe(16);
-    expect(whole.right).toBe(984);
-    expect(whole.centre * 2 + 40).toBe(540);
+    expect(whole.far.x).toBe(16);
+    expect(whole.near.x).toBe(984);
+    expect(whole.far.top + whole.far.bottom + 40).toBe(540);
+    // Seen square on: both ends alike, so the renderer's map is a plain scaling.
+    expect(whole.far.top).toBe(whole.near.top);
+    expect(whole.far.bottom).toBe(whole.near.bottom);
     // A view of the axis's second half: its start at the left edge, the first half outside the box.
     const half = viewFrame(1000, 540, [0.5, 1]);
-    expect(half.left + (half.right - half.left) * 0.5).toBeCloseTo(16);
-    expect(half.right).toBeCloseTo(984);
+    expect(half.far.x + (half.near.x - half.far.x) * 0.5).toBeCloseTo(16);
+    expect(half.near.x).toBeCloseTo(984);
   });
 
   it("zooms about a point, pans, and stays within the axis and above the narrowest view", () => {

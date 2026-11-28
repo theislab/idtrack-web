@@ -443,7 +443,7 @@ function FieldAxis({
           key={band.assembly}
           className="lineage-field__change"
           aria-hidden="true"
-          style={{ left: xOf(band.first), top: frame.centre - frame.half, height: 2 * frame.half }}
+          style={{ left: xOf(band.first), top: frame.near.top, height: frame.near.bottom - frame.near.top }}
         />
       ))}
     </>

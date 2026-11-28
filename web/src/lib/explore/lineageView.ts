@@ -9,14 +9,18 @@ const AXIS_ROOM = 40;
 /** The narrowest view: this share of the axis (about seven releases of a graph of sixty-eight). */
 export const LEAST_SPAN = 0.1;
 
-/** The field's frame for a box and a view of the axis (`[from, to]`, fractions): the view fills the box's width. */
+/** The field's frame for a box and a view of the axis (`[from, to]`, fractions): the view fills the box's width, the
+ *  plane seen square on. */
 export function viewFrame(width: number, height: number, view: readonly [number, number]): FieldFrame {
   const pad = width < 720 ? 8 : 16;
   const inner = Math.max(1, width - 2 * pad);
   const span = Math.max(1e-6, view[1] - view[0]);
   const left = pad - (view[0] / span) * inner;
   const usable = Math.max(1, height - AXIS_ROOM);
-  return { left, right: left + inner / span, centre: usable / 2, half: usable * 0.47 };
+  // Both ends of the plane alike: the renderer's projective map is then a plain scaling, and the field is read flat,
+  // every release as wide as the next (the home's picture sets it in perspective; a figure to read does not).
+  const edge = { top: usable / 2 - usable * 0.47, bottom: usable / 2 + usable * 0.47 };
+  return { far: { x: left, ...edge }, near: { x: left + inner / span, ...edge } };
 }
 
 /** A view moved by `delta` (fractions of the axis) and scaled by `factor` about `at`, kept within the axis. */
