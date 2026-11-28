@@ -1,6 +1,7 @@
-// The api page's requests: the example of each endpoint on this server, the address the console sends, and the same
-// request written for curl, Python (requests), R (httr2) and JavaScript (fetch). One description of a request makes
-// all of them, so the curl line is the request the console sends (tests/apiExamples.test.ts).
+// The API page's requests: the example of each endpoint on this server (the request the OpenAPI document recorded an
+// answer of, where this server can answer it), the address the console sends, and the same request written for curl,
+// Python (requests), R (httr2) and JavaScript (fetch). One description of a request makes all of them, so the curl line
+// is the request the console sends (tests/apiExamples.test.ts).
 import { consoleHeaders } from "../api/client";
 import type { Endpoint } from "./openapi";
 
@@ -56,8 +57,55 @@ function exampleBatchBody(example: OrganismExample | null): string {
   return JSON.stringify({ identifiers: ids });
 }
 
-/** The example of an endpoint: its required parameters filled with this server's example, the rest left out. */
-export function exampleRequest(endpoint: Endpoint, organism: string, example: OrganismExample | null): RequestSpec {
+/** A value of the document as the console holds it: text, as it is typed. */
+function typed(value: unknown): string {
+  return typeof value === "string" ? value : JSON.stringify(value);
+}
+
+function specOf(endpoint: Endpoint, values: Record<string, string>, body: string | null): RequestSpec {
+  const query = endpoint.parameters.filter((p) => p.in === "query");
+  return {
+    method: endpoint.method,
+    path: endpoint.path,
+    values,
+    kinds: Object.fromEntries(query.map((p) => [p.name, p.kind])),
+    order: query.map((p) => p.name),
+    pathNames: endpoint.parameters.filter((p) => p.in === "path").map((p) => p.name),
+    body,
+  };
+}
+
+/**
+ * The request whose answer the document recorded for an endpoint: each parameter's `example` (a parameter without one
+ * was not sent) and the body's. Null where the document holds no recorded answer of the endpoint, or not the whole
+ * request it was recorded for.
+ */
+export function recordedRequest(endpoint: Endpoint): RequestSpec | null {
+  const recorded = endpoint.answers.some((a) => a.status.startsWith("2") && a.media.some((m) => m.recorded));
+  if (!recorded) return null;
+  const values: Record<string, string> = {};
+  for (const p of endpoint.parameters) values[p.name] = p.example === undefined ? "" : typed(p.example);
+  if (endpoint.parameters.some((p) => p.required && values[p.name] === "")) return null;
+  if (endpoint.body && endpoint.body.example === undefined) return null;
+  return specOf(endpoint, values, endpoint.body ? JSON.stringify(endpoint.body.example) : null);
+}
+
+/** Whether this server can answer a request: it holds the organism the request asks, where it asks one (`held`). */
+function answersHere(spec: RequestSpec, held: readonly string[]): boolean {
+  return !spec.pathNames.includes("organism") || held.includes(spec.values["organism"] ?? "");
+}
+
+/** The example of an endpoint on this server: the request the document recorded where this server can answer it
+ *  (so the code, the console and the recorded answer are one request), else its required parameters filled with this
+ *  server's example identifiers and the rest left out. */
+export function exampleRequest(
+  endpoint: Endpoint,
+  organism: string,
+  example: OrganismExample | null,
+  held: readonly string[] = [organism],
+): RequestSpec {
+  const recorded = recordedRequest(endpoint);
+  if (recorded && answersHere(recorded, held)) return recorded;
   const values: Record<string, string> = {};
   for (const p of endpoint.parameters) {
     if (p.name === "organism") values[p.name] = organism;
@@ -67,16 +115,12 @@ export function exampleRequest(endpoint: Endpoint, organism: string, example: Or
     else if (p.name === "name") values[p.name] = example?.name ?? "";
     else values[p.name] = "";
   }
-  const query = endpoint.parameters.filter((p) => p.in === "query");
-  return {
-    method: endpoint.method,
-    path: endpoint.path,
-    values,
-    kinds: Object.fromEntries(query.map((p) => [p.name, p.kind])),
-    order: query.map((p) => p.name),
-    pathNames: endpoint.parameters.filter((p) => p.in === "path").map((p) => p.name),
-    body: endpoint.body ? exampleBatchBody(example) : null,
-  };
+  return specOf(endpoint, values, endpoint.body ? exampleBatchBody(example) : null);
+}
+
+/** Whether two requests are the same request (method, address and body). */
+export function sameRequest(a: RequestSpec, b: RequestSpec): boolean {
+  return a.method === b.method && requestUrl("", a) === requestUrl("", b) && a.body === b.body;
 }
 
 /** The path with its parameters filled (each encoded as a path segment). */
@@ -84,7 +128,7 @@ function filledPath(spec: RequestSpec): string {
   return spec.path.replace(/\{([^}]+)\}/g, (_, name: string) => encodeURIComponent(spec.values[name] ?? ""));
 }
 
-/** The query's pairs in the document's order, empty values left out (the api's defaults hold then). */
+/** The query's pairs in the document's order, empty values left out (the API's defaults hold then). */
 function queryPairs(spec: RequestSpec): [string, string][] {
   return spec.order.filter((name) => (spec.values[name] ?? "") !== "").map((name) => [name, spec.values[name] ?? ""]);
 }
@@ -223,9 +267,9 @@ export function python(origin: string, spec: RequestSpec): string {
   lines.push(
     "if not response.ok:",
     '    if response.headers.get("Content-Type", "").startswith("application/json"):',
-    '        error = response.json()["error"]  # the api\'s refusal: a stable code, a message for people',
+    '        error = response.json()["error"]  # the API\'s refusal: a stable code, a message for people',
     "        raise RuntimeError(f\"{error['code']}: {error['message']}\")",
-    "    response.raise_for_status()  # not the api's answer (a proxy's page, for one)",
+    "    response.raise_for_status()  # not the API's answer (a proxy's page, for one)",
   );
   lines.push(
     spec.path.endsWith("/batch") && spec.values["format"] === "tsv"
@@ -246,7 +290,7 @@ export function r(origin: string, spec: RequestSpec): string {
   if (body.ok) lines.push(`  req_body_json(${rLiteral(body.value, 1)}) |>`);
   else if (spec.body !== null) lines.push(`  req_body_raw(${JSON.stringify(spec.body)}, type = "application/json") |>`);
   lines.push(
-    "  # an error stops here with the api's code and message (its body: last_response())",
+    "  # an error stops here with the API's code and message (its body: last_response())",
     '  req_error(body = \\(resp) if (grepl("json", resp_content_type(resp))) {',
     "    error <- resp_body_json(resp)$error",
     '    paste0(error$code, ": ", error$message)',
@@ -285,7 +329,7 @@ export function javascript(origin: string, spec: RequestSpec): string {
   const tsv = spec.path.endsWith("/batch") && spec.values["format"] === "tsv";
   lines.push(
     "if (!response.ok) {",
-    "  // The api's refusal is JSON with a stable code; anything else (a proxy's page) is said by its status.",
+    "  // The API's refusal is JSON with a stable code; anything else (a proxy's page) is said by its status.",
     '  if (!(response.headers.get("Content-Type") ?? "").startsWith("application/json"))',
     "    throw new Error(`${response.status} ${response.statusText}`);",
     "  const { error } = await response.json();",

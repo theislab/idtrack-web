@@ -6,91 +6,32 @@
   margin-bottom: var(--space-5);
 }
 
-/* The base address with its copy, and the server's api in a hover card. */
-.api-facts {
+/* The base address with its copy, on one row (on a phone too: the address wraps at its slashes, the copy beside it). */
+.api-base {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
-  gap: var(--space-2) var(--space-5);
+  gap: var(--space-2) var(--space-3);
   margin: 0;
   padding: 0 0 var(--space-3);
   border-bottom: 1px solid var(--line);
-}
-
-.api-facts__base {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-2) var(--space-3);
   min-width: 0;
 }
 
-.api-facts__label {
+.api-base__label {
+  flex: none;
   font-size: var(--text-sm);
   color: var(--ink-3);
 }
 
-.api-facts__base .mono {
+.api-base > .mono {
+  min-width: 0;
   font-size: var(--text-md);
   font-size-adjust: none;
   overflow-wrap: anywhere;
-  min-width: 0;
 }
 
-.api-facts__more {
-  margin-left: auto;
-}
-
-.api-facts__more-button {
-  min-height: 32px;
-  padding: 0 var(--space-3);
-  border: 0;
-  border-radius: var(--radius-pill);
-  background: color-mix(in srgb, var(--ink-1) 6%, transparent);
-  font-size: var(--text-sm);
-  color: var(--ink-2);
-}
-
-.api-facts__more .hovercard__card {
-  width: min(380px, calc(100vw - 32px));
-}
-
-.api-facts__list {
-  display: grid;
-  gap: var(--space-2);
-  margin: 0;
-}
-
-.api-facts__list dt {
-  font-size: var(--text-xs);
-  color: var(--ink-3);
-}
-
-.api-facts__list dd {
-  margin: 0;
-  color: var(--ink-1);
-}
-
-.api-facts__pending {
-  color: var(--ink-3);
-}
-
-.api-facts__files {
-  display: grid;
-  gap: var(--space-1);
-  margin: var(--space-3) 0 0;
-  padding-top: var(--space-3);
-  border-top: 1px solid var(--line);
-}
-
-.api-links {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: var(--space-2) var(--space-5);
-  margin: var(--space-4) 0 0;
-  font-size: var(--text-sm);
-  font-weight: var(--weight-medium);
+.api-base .copy {
+  flex: none;
 }
 
 /* Contents beside the reference. */
@@ -245,10 +186,22 @@
   font-size: var(--text-sm);
 }
 
-.api-section__count {
-  font-family: var(--font-mono);
-  font-size: var(--text-xs);
-  margin-left: var(--space-2);
+/* Using the API: four rows (conventions, reading an answer, for programs, error codes), each opening to its part. */
+.api-guide {
+  display: grid;
+  border-top: 1px solid var(--line);
+}
+
+.api-guide > .expandable > .expandable__summary .expandable__title,
+.api-guide__item > .expandable > .expandable__summary .expandable__title {
+  font-size: var(--text-lg);
+}
+
+/* On a phone a row is its name: what it holds is one press away. */
+@media (max-width: 640px) {
+  .api-guide .expandable__summary > .expandable__meta {
+    display: none;
+  }
 }
 
 /* The conventions: each one line that opens to its rules. */
@@ -470,45 +423,96 @@
   font-weight: var(--weight-strong);
 }
 
-/* An endpoint. */
-.endpoint {
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-lg);
-  padding: var(--space-5) var(--space-5) var(--space-5);
+/* The endpoints of a group: a list of rows, each one line of its method and path (and its counts beside them on a
+   wide screen) over its summary; a press anywhere on the row opens it to its tabs. */
+.endpoints {
   display: grid;
-  gap: var(--space-3);
+  border-top: 1px solid var(--line);
   min-width: 0;
 }
 
-/* Laid out when near the window (a long reference lays out only what is read), its place kept meanwhile. Not on a
-   phone, where every endpoint's controls are measured as drawn (a skipped part would report no size to a check of
-   the controls' targets). */
-@media (min-width: 641px) {
-  .endpoint {
-    content-visibility: auto;
-    contain-intrinsic-size: auto 480px;
-  }
+.endpoint {
+  display: grid;
+  min-width: 0;
+  border-bottom: 1px solid var(--line);
 }
 
-.endpoint__head {
-  display: flex;
+.endpoint__row {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  grid-template-areas:
+    "title counts anchor"
+    "summary summary summary";
   align-items: center;
-  gap: var(--space-3);
+  column-gap: var(--space-3);
+  padding: var(--space-2) 0 var(--space-3);
+  min-width: 0;
+}
+
+.endpoint__row:hover {
+  background: var(--surface-sunk);
 }
 
 .endpoint__title {
+  grid-area: title;
+  margin: 0;
+  min-width: 0;
+  font-size: inherit;
+  font-weight: var(--weight-medium);
+}
+
+/* The row's control: its method and path, and a press anywhere on the row (its area covers the row). */
+.endpoint__toggle {
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
-  gap: var(--space-2) var(--space-3);
-  min-width: 0;
-  font-weight: var(--weight-medium);
+  flex-wrap: nowrap;
+  gap: var(--space-1) var(--space-3);
+  min-height: 36px;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  text-align: left;
+  color: var(--ink-1);
+  cursor: pointer;
+}
+
+.endpoint__toggle::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+}
+
+.endpoint__toggle:focus-visible {
+  outline: none;
+}
+
+.endpoint__toggle:focus-visible::after {
+  outline: var(--focus-width) solid var(--focus-color);
+  outline-offset: calc(-1 * var(--focus-width));
+}
+
+.endpoint__chevron {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  margin: 0 2px;
+  border-right: 1.5px solid var(--ink-3);
+  border-bottom: 1.5px solid var(--ink-3);
+  transform: rotate(-45deg);
+  transition: transform var(--dur-2) var(--ease-out);
+}
+
+.endpoint--open .endpoint__chevron {
+  transform: rotate(45deg);
 }
 
 .method {
   flex: none;
   display: inline-block;
+  min-width: 4.4em;
+  text-align: center;
   font-family: var(--font-mono);
   font-size: var(--text-2xs);
   font-weight: var(--weight-strong);
@@ -526,6 +530,8 @@
 }
 
 .endpoint__path {
+  flex: 0 1 auto;
+  min-width: 0;
   font-family: var(--font-mono);
   font-size: var(--text-md);
   font-weight: var(--weight-medium);
@@ -539,14 +545,22 @@
   font-weight: var(--weight-regular);
 }
 
+.endpoint__counts {
+  grid-area: counts;
+  font-size: var(--text-xs);
+  color: var(--ink-3);
+  white-space: nowrap;
+}
+
 .endpoint__anchor {
+  grid-area: anchor;
+  position: relative;
+  z-index: 1;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   min-width: 24px;
   min-height: 24px;
-  margin-left: auto;
-  flex: none;
   font-family: var(--font-mono);
   color: var(--ink-3);
   text-decoration: none;
@@ -557,11 +571,30 @@
   color: var(--ink-1);
 }
 
+/* The summary, under the path and aligned with the method: one line while the row is folded, whole once it opens. */
 .endpoint__summary {
-  font-size: var(--text-lg);
-  color: var(--ink-1);
+  grid-area: summary;
+  margin: 0;
+  padding-left: calc(12px + var(--space-3));
+  font-size: var(--text-sm);
+  color: var(--ink-2);
   line-height: 1.45;
-  max-width: 70ch;
+  min-width: 0;
+}
+
+.endpoint:not(.endpoint--open) .endpoint__summary {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.endpoint:not(.endpoint--open) .endpoint__summary .mono {
+  white-space: nowrap;
+}
+
+.endpoint__body {
+  padding: 0 0 var(--space-6) calc(12px + var(--space-3));
+  min-width: 0;
 }
 
 .endpoint__description {
@@ -1018,7 +1051,7 @@
 
 .tryit__fields {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(170px, 100%), 1fr));
   gap: var(--space-3);
 }
 
@@ -1033,9 +1066,23 @@
   grid-column: 1 / -1;
 }
 
+.tryit__head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
 .tryit__label {
   font-size: var(--text-xs);
   color: var(--ink-2);
+  overflow-wrap: anywhere;
+}
+
+.tryit .select,
+.tryit .select__control {
+  max-width: 100%;
+  min-width: 0;
 }
 
 .tryit__label .mono {
@@ -1365,24 +1412,15 @@
   .api-convention .api-timing {
     grid-template-columns: minmax(0, 1fr);
   }
-
-  .api-facts__more {
-    margin-left: 0;
-  }
 }
 
 @media (max-width: 640px) {
-  .endpoint,
   .api-card {
     padding: var(--space-4);
   }
 
   .api-main {
     gap: var(--space-7);
-  }
-
-  .endpoint__summary {
-    font-size: var(--text-md);
   }
 
   .exchange__fact--wide {
@@ -1406,22 +1444,16 @@
   overflow-wrap: anywhere;
 }
 
-/* A first request: the words and the button beside the request, at the head of the reference. */
+/* A first request, at the head of the reference: its words and its button, the code one press away. */
 .api-first {
   display: grid;
-  grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
-  gap: var(--space-5) var(--space-6);
-  align-items: start;
+  gap: var(--space-3);
+  align-content: start;
   padding: var(--space-5);
   border: 1px solid var(--line-strong);
   border-radius: var(--radius-lg);
   background: var(--surface);
-}
-
-.api-first__text {
-  display: grid;
-  gap: var(--space-3);
-  align-content: start;
+  min-width: 0;
 }
 
 .api-first__title {
@@ -1431,11 +1463,15 @@
   letter-spacing: -0.01em;
 }
 
+.api-first > .api-card__text {
+  max-width: var(--measure);
+}
+
 .api-first__run {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: var(--space-2) var(--space-4);
+  gap: var(--space-2) var(--space-3);
 }
 
 .api-first__summary {
@@ -1445,8 +1481,13 @@
 
 .api-first__code {
   display: grid;
-  gap: var(--space-3);
   min-width: 0;
+}
+
+/* A button that is asking keeps its place and its focus; a press does nothing until the answer comes. */
+.api-page .button[aria-disabled="true"] {
+  cursor: progress;
+  opacity: 0.75;
 }
 
 /* Reading an answer: the rules beside a recorded answer, annotated. */
@@ -1456,13 +1497,8 @@
 .api-reading {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  gap: var(--space-5);
+  gap: var(--space-4);
   align-items: start;
-}
-
-.api-reading__rules {
-  display: grid;
-  gap: var(--space-3);
 }
 
 .api-reading__list {
@@ -1477,23 +1513,12 @@
 }
 
 .api-reading__figure {
-  margin: 0;
-  display: grid;
-  gap: var(--space-3);
-  padding: var(--space-4) var(--space-5);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-lg);
-  background: var(--surface);
-}
-
-.api-reading__head {
-  display: grid;
-  gap: var(--space-1);
+  border-top: 1px solid var(--line);
 }
 
 .api-reading__query {
   font-size: var(--text-sm);
-  color: var(--ink-2);
+  color: var(--ink-3);
 }
 
 .api-annotated {
@@ -1571,10 +1596,20 @@
   cursor: pointer;
 }
 
-.api-contents__count {
-  font-family: var(--font-mono);
+/* The texts for programs, a row at the end of the opened bar. */
+.api-contents__programs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 var(--space-2);
+  margin-top: var(--space-2);
+  padding: var(--space-2) var(--space-2) 0;
+  border-top: 1px solid var(--line);
+}
+
+.api-contents__programs-name {
+  width: 100%;
   font-size: var(--text-xs);
-  font-weight: var(--weight-regular);
   color: var(--ink-3);
 }
 
@@ -1616,22 +1651,43 @@
 
   .api-first,
   .api-section,
+  .api-guide__item,
   .endpoint {
     scroll-margin-top: var(--api-bar);
   }
-}
 
-@media (max-width: 1180px) {
-  .api-first,
-  .api-reading {
-    grid-template-columns: minmax(0, 1fr);
+  /* The counts of an endpoint are in its tabs: the row is its path and its summary. */
+  .endpoint__counts {
+    display: none;
   }
 }
 
 @media (max-width: 640px) {
-  .api-first,
-  .api-reading__figure {
+  .api-first {
     padding: var(--space-4);
+  }
+
+  /* On a phone the first request's two buttons are a thumb's width each, one above the other. */
+  .api-first__run {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .api-first__run > .button {
+    min-height: 44px;
+  }
+
+  /* The label above the address, the address and its copy on one row. */
+  .api-base {
+    flex-wrap: wrap;
+  }
+
+  .api-base__label {
+    width: 100%;
+  }
+
+  .api-base > .mono {
+    flex: 1 1 0;
   }
 }
 
@@ -1764,7 +1820,29 @@
   .endpoint__anchor {
     min-width: 44px;
     min-height: 44px;
-    margin-right: calc(-1 * var(--space-3));
+  }
+
+  .endpoint__body {
+    padding-left: 0;
+  }
+
+  .endpoint__summary {
+    padding-left: 0;
+  }
+
+  /* The API's base is the page's head: a path is the rest of it (still read whole by a screen reader). */
+  .endpoint__base {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .api-local .code-block__pre,
+  .api-recipes .code-block__pre {
+    max-height: 18rem;
   }
 
   .schema__nested > summary {
@@ -1776,13 +1854,17 @@
   }
 }
 
-/* The tabs of an endpoint and of the recipes never widen the page. */
+/* The tabs of an endpoint and the recipes never widen the page. */
 .endpoint__tabs,
 .api-recipes {
   min-width: 0;
 }
 
 @media (max-width: 640px) {
+  .endpoint__tabs .tabs__list {
+    gap: 0;
+  }
+
   .endpoint__tabs .tabs__tab {
     padding: 0 var(--space-2);
   }

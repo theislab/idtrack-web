@@ -165,7 +165,7 @@
   transition: transform var(--dur-2) var(--ease-out);
 }
 
-.expandable--open .expandable__chevron {
+.expandable--open > .expandable__summary > .expandable__chevron {
   transform: rotate(45deg);
 }
 
@@ -175,7 +175,7 @@
   transition: grid-template-rows var(--dur-3) var(--ease-out);
 }
 
-.expandable--open .expandable__frame {
+.expandable--open > .expandable__frame {
   grid-template-rows: 1fr;
 }
 

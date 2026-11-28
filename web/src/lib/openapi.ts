@@ -34,6 +34,8 @@ interface ParameterObject {
   required?: boolean;
   description?: string;
   schema?: Schema;
+  /** The value of the request the document recorded an answer of. */
+  example?: unknown;
 }
 
 interface MediaObject {
@@ -59,6 +61,7 @@ interface ResponseObject {
   $ref?: string;
   description?: string;
   content?: Record<string, MediaObject>;
+  headers?: Record<string, unknown>;
   "x-error-codes"?: string[];
 }
 
@@ -83,6 +86,8 @@ export interface Parameter {
   /** The bounds the document states (`1 ≤ value ≤ 100000`, `at most 100 characters`). */
   bounds: string | null;
   description: string;
+  /** Its value in the request whose answer the document recorded (`example`); undefined: not sent there. */
+  example: unknown;
 }
 
 /** A column of a table answer (`x-columns` of its media type). */
@@ -102,6 +107,8 @@ export interface Media {
   columns: TableColumn[];
   /** Whether the document holds a recorded example of it. */
   recorded: boolean;
+  /** Where the recorded example comes from, and how it was trimmed (`x-recorded`), as the document writes it. */
+  recordedFrom: string;
 }
 
 interface Answer {
@@ -116,6 +123,8 @@ interface Answer {
   codes: string[];
   /** A recorded answer of this api, where the document holds one (JSON as it came). */
   example: unknown;
+  /** The headers the document declares for this answer (`Retry-After`, `ETag`, ...). */
+  headers: string[];
 }
 
 export interface Endpoint {
@@ -129,7 +138,7 @@ export interface Endpoint {
   description: string;
   tag: string;
   parameters: Parameter[];
-  body: { schema: string | null; contentType: string; required: boolean } | null;
+  body: { schema: string | null; contentType: string; required: boolean; example: unknown } | null;
   answers: Answer[];
 }
 
@@ -231,6 +240,7 @@ function parameterOf(p: ParameterObject): Parameter {
     default: schema.default,
     bounds: boundsText(members),
     description: p.description ?? schema.description ?? "",
+    example: p.example,
   };
 }
 
@@ -244,6 +254,7 @@ function mediaOf(type: string, m: MediaObject): Media {
       .map((c) => ({ name: text(c.name), group: text(c.group), description: text(c.description) }))
       .filter((c) => c.name !== ""),
     recorded: m.example !== undefined,
+    recordedFrom: text(m["x-recorded"]),
   };
 }
 
@@ -297,6 +308,7 @@ export function endpoints(document: OpenApiDocument): Endpoint[] {
               schema: bodyMedia?.schema?.$ref ? refName(bodyMedia.schema.$ref) : null,
               contentType,
               required: op.requestBody.required === true,
+              example: bodyMedia?.example,
             }
           : null,
         answers: Object.entries(op.responses ?? {})
@@ -313,6 +325,7 @@ export function endpoints(document: OpenApiDocument): Endpoint[] {
               schema: json?.schema?.$ref ? refName(json.schema.$ref) : null,
               codes: r["x-error-codes"] ?? [],
               example: json?.example,
+              headers: Object.keys(r.headers ?? {}),
             };
           })
           .sort((a, b) => a.status.localeCompare(b.status)),

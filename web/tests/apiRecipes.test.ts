@@ -1,4 +1,4 @@
-// The api page's recipes for a whole feature list run as copied: the Python is parsed by Python (the CI's runner has
+// The API page's recipes for a whole feature list run as copied: the Python is parsed by Python (the CI's runner has
 // it), the R by R where it is installed; both keep a name and its copies in one request.
 import { execFileSync, spawnSync } from "node:child_process";
 import { describe, expect, it } from "vitest";
@@ -50,6 +50,27 @@ describe("the recipes of a whole feature list", () => {
       expect(code).toContain("Idtrack-Graph-Digest");
       expect(code).toContain("mapping.tsv");
       expect(code).toMatch(/graph %?\{?.*from_release.*to_release/);
+    }
+  });
+
+  it("both date the list by IDTrack's band and margin, and write them in the table's first line", () => {
+    for (const code of [pipelinePython(BASE), pipelineR(BASE)]) {
+      // The release asked of the list itself, in the mode of releases.
+      expect(code).toMatch(/mode"?\s*[=:]\s*"release"/);
+      // The margin decides: null (no release outside the band) is read as a list that does not date itself, and
+      // no from_release is sent; a number takes the inferred from_release.
+      expect(code).toContain("margin");
+      expect(code).toContain("does not date itself");
+      expect(code).toMatch(/band %?\{?.*to.*releases, margin/);
+      expect(code).toContain("read_at");
+    }
+  });
+
+  it("both send a batch in halves when request_budget_exceeded comes again, a name and its copies kept together", () => {
+    for (const code of [pipelinePython(BASE), pipelineR(BASE)]) {
+      expect(code).toContain("request_budget_exceeded");
+      expect(code).toMatch(/budget == 2/);
+      expect(code).toMatch(/batches\(chunk, (\(len\(chunk\) \+ 1\) \/\/ 2|ceiling\(length\(chunk\) \/ 2\))\)/);
     }
   });
 

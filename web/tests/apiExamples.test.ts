@@ -1,5 +1,6 @@
-// The api page's requests: read from the api's own OpenAPI document, every endpoint has an example, and the curl line
-// written for it is the request the console sends (the same address, method, headers and body, byte for byte).
+// The API page's requests: read from the API's own OpenAPI document, every endpoint has an example (the request the
+// document recorded an answer of, where the server holds its organism), and the curl line written for it is the
+// request the console sends (the same address, method, headers and body, byte for byte).
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { execFileSync, spawnSync } from "node:child_process";
@@ -11,6 +12,8 @@ import {
   exampleOrganism,
   exampleRequest,
   javascript,
+  recordedRequest,
+  sameRequest,
   python,
   rName,
   pythonLiteral,
@@ -116,7 +119,7 @@ describe("the OpenAPI document as the page reads it", () => {
       enumValues: ["json", "tsv"],
       type: '"json" | "tsv"',
     });
-    expect(batch?.body).toEqual({ schema: "BatchRequest", contentType: "application/json", required: true });
+    expect(batch?.body).toMatchObject({ schema: "BatchRequest", contentType: "application/json", required: true });
   });
 
   it("writes schema types as the document states them", () => {
@@ -188,29 +191,69 @@ describe("the examples", () => {
     expect(curlRequest(curl(ORIGIN, post)).body).toBe('{"identifiers": ["it\'s"]}');
   });
 
+  it("are the request the document recorded an answer of, where the server holds its organism", () => {
+    let recorded = 0;
+    for (const e of list) {
+      const own = recordedRequest(e);
+      const success = e.answers.find((a) => a.status.startsWith("2"));
+      if (!success?.media.some((m) => m.recorded)) {
+        expect(own, e.key).toBeNull();
+        continue;
+      }
+      if (own === null) continue; // a recorded answer whose request the document does not state whole
+      recorded += 1;
+      // Each value is the parameter's example in the document, as typed; a parameter without one is not sent.
+      for (const p of e.parameters)
+        expect(own.values[p.name], `${e.key} ${p.name}`).toBe(
+          p.example === undefined ? "" : typeof p.example === "string" ? p.example : JSON.stringify(p.example),
+        );
+      if (e.body) expect(JSON.parse(own.body ?? "null"), e.key).toEqual(e.body.example);
+      // A server holding the recorded organism shows that request; one that does not, its own example.
+      const humanServer = exampleRequest(e, "homo_sapiens", EXAMPLES["homo_sapiens"] ?? null, ["homo_sapiens"]);
+      expect(sameRequest(humanServer, own), e.key).toBe(true);
+      if (own.pathNames.includes("organism")) {
+        const pigServer = exampleRequest(e, "sus_scrofa", EXAMPLES["sus_scrofa"] ?? null, ["sus_scrofa"]);
+        expect(pigServer.values["organism"], e.key).toBe("sus_scrofa");
+        expect(sameRequest(pigServer, own), e.key).toBe(false);
+      }
+    }
+    // Every endpoint of the document but one whose answer is not recorded has its request recorded whole.
+    expect(recorded).toBeGreaterThanOrEqual(list.length - 1);
+    const convert = list.find((x) => x.key === "GET /api/v1/organisms/{organism}/convert");
+    if (!convert) throw new Error("no convert endpoint");
+    const own = recordedRequest(convert);
+    expect(own?.values).toMatchObject({
+      organism: "homo_sapiens",
+      identifier: "ENSG00000141510",
+      from_release: "100",
+      final_database: "HGNC Symbol",
+      to_release: "",
+    });
+  });
+
   it("writes the request in Python, R and JavaScript with the same address, query and body", () => {
     const e = list.find((x) => x.key === "GET /api/v1/organisms/{organism}/convert");
     if (!e) throw new Error("no convert endpoint");
-    const spec = exampleRequest(e, "homo_sapiens", EXAMPLES["homo_sapiens"] ?? null);
+    const spec = exampleRequest(e, "sus_scrofa", EXAMPLES["sus_scrofa"] ?? null, ["sus_scrofa"]);
     spec.values["to_release"] = "100";
     spec.values["final_database"] = "HGNC Symbol";
     expect(python(ORIGIN, spec)).toContain(
-      'params={"identifier": "TP53", "to_release": 100, "final_database": "HGNC Symbol"}',
+      'params={"identifier": "HSPB1", "to_release": 100, "final_database": "HGNC Symbol"}',
     );
-    expect(python(ORIGIN, spec)).toContain(`"${ORIGIN}/api/v1/organisms/homo_sapiens/convert"`);
+    expect(python(ORIGIN, spec)).toContain(`"${ORIGIN}/api/v1/organisms/sus_scrofa/convert"`);
     expect(r(ORIGIN, spec)).toContain(
-      'req_url_query(identifier = "TP53", to_release = 100, final_database = "HGNC Symbol")',
+      'req_url_query(identifier = "HSPB1", to_release = 100, final_database = "HGNC Symbol")',
     );
     expect(javascript(ORIGIN, spec)).toContain(
-      'new URLSearchParams({ identifier: "TP53", to_release: "100", final_database: "HGNC Symbol" })',
+      'new URLSearchParams({ identifier: "HSPB1", to_release: "100", final_database: "HGNC Symbol" })',
     );
-    const batch = list.find((x) => x.method === "POST");
+    const batch = list.find((x) => x.method === "POST" && x.path.endsWith("/batch"));
     if (!batch) throw new Error("no batch endpoint");
-    const body = exampleRequest(batch, "homo_sapiens", EXAMPLES["homo_sapiens"] ?? null);
-    expect(body.body).toBe('{"identifiers":["TP53","ENSG00000141510","NOT_A_GENE"]}');
-    expect(python(ORIGIN, body)).toContain('json={"identifiers": ["TP53", "ENSG00000141510", "NOT_A_GENE"]}');
+    const body = exampleRequest(batch, "sus_scrofa", EXAMPLES["sus_scrofa"] ?? null, ["sus_scrofa"]);
+    expect(body.body).toBe('{"identifiers":["HSPB1","ENSSSCG00000039962","NOT_A_GENE"]}');
+    expect(python(ORIGIN, body)).toContain('json={"identifiers": ["HSPB1", "ENSSSCG00000039962", "NOT_A_GENE"]}');
     expect(r(ORIGIN, body)).toContain(
-      'req_body_json(list(identifiers = list("TP53", "ENSG00000141510", "NOT_A_GENE")))',
+      'req_body_json(list(identifiers = list("HSPB1", "ENSSSCG00000039962", "NOT_A_GENE")))',
     );
     expect(javascript(ORIGIN, body)).toContain('method: "POST"');
   });
