@@ -136,7 +136,7 @@ test("the convoluted journeys: the showcase's answers about the axis of time, cl
   await page.addInitScript(() => {
     window.localStorage.setItem("idtrack-hero", "constellation");
   });
-  await page.goto("/");
+  await page.goto(`/?organism=${data.organism}`);
   const field = page.locator(".hero2__field");
   await expect(field).toHaveAttribute("data-picture", "constellation");
   await expect(page.locator(".hero2__caption")).toContainText(`GET /api/v1/organisms/${data.organism}/showcase`, {
