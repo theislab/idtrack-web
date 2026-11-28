@@ -96,6 +96,9 @@ describe("what Google is told", () => {
     expect(pageNameOf("/convert")).toBe("Convert");
     expect(pageNameOf("/organisms/homo_sapiens")).toBe("Homo sapiens");
     expect(pageNameOf("/organisms/<script>")).toBe("An unknown graph");
+    // A name that is no production name is written as it was typed, never made to look like one.
+    expect(pageNameOf("/organisms/nope")).toBe("nope");
+    expect(pageNameOf("/organisms/PIG")).toBe("PIG");
   });
 
   it("counts an address that is no page as /404, never as typed", async () => {

@@ -24,6 +24,8 @@
     "licences:check": "node scripts/licences.ts --check",
     "icons": "node scripts/icons.ts",
     "icons:check": "node scripts/icons.ts --check",
+    "maintenance": "node scripts/maintenance.ts",
+    "maintenance:check": "node scripts/maintenance.ts --check",
     "typecheck": "tsc -b --noEmit",
     "lint": "node scripts/check.ts --only prettier,eslint,stylelint",
     "lint:css": "stylelint \"**/*.css\"",

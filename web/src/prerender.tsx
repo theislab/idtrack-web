@@ -131,6 +131,12 @@ export const FRAMES: Record<string, Frame> = {
     body: () => <AccessibilityPage />,
     meta: "/accessibility",
   },
+  "accessibility-de": {
+    address: "/accessibility/de",
+    module: "src/pages/site/AccessibilityPage.tsx",
+    body: () => <AccessibilityPage lang="de" />,
+    meta: "/accessibility/de",
+  },
   none: { address: "/_", module: null, body: () => <div className="page" />, meta: "none" },
 };
 
@@ -145,6 +151,11 @@ export function frameMeta(frame: Frame): string {
 }
 
 /** The frame's markup, drawn at the address the global `window` is at (the build sets it to `frame.address`). */
+/** The language of a frame's page, which the server writes into the page's `<html lang>`. */
+export function frameLang(frame: Frame): "en" | "de" {
+  return PAGE_META[frame.meta]?.lang ?? "en";
+}
+
 export function frameHtml(frame: Frame): string {
   return renderToString(
     <OrganismsProvider>

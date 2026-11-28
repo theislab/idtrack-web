@@ -5,6 +5,8 @@ interface Stored {
   /** The key (a prefix ends in "…"). */
   key: string;
   where: "local" | "session";
+  /** Kept only where the server counts visits (`analytics_id` of `/version`). */
+  counting?: true;
   en: { holds: string; when: string };
   de: { holds: string; when: string };
 }
@@ -51,6 +53,7 @@ export const STORED: Stored[] = [
   {
     key: "idtrack-consent",
     where: "local",
+    counting: true,
     en: {
       holds: "Your answer to whether IDTrack may count your visit (granted or denied).",
       when: "Once you answer; until you open “Cookie settings”, which removes it and asks again.",
@@ -65,11 +68,11 @@ export const STORED: Stored[] = [
     where: "local",
     en: {
       holds: "The language you chose for the code examples of the API page (curl, Python, R or JavaScript).",
-      when: "Once you choose one.",
+      when: "Once you choose one; until you clear this site's data.",
     },
     de: {
       holds: "Die gewählte Sprache der Codebeispiele auf der API-Seite (curl, Python, R oder JavaScript).",
-      when: "Sobald Sie eine wählen.",
+      when: "Sobald Sie eine wählen; bis Sie die Daten dieser Website löschen.",
     },
   },
   {

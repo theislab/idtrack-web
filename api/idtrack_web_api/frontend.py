@@ -76,7 +76,7 @@ IMMUTABLE = "public, max-age=31536000, immutable"
 #: ``/organisms/<name>``): any other path without a file extension is answered with the page and ``404``.
 PAGE_ROUTES = re.compile(
     r"^/(convert|batch|names|organisms|developers|method|legal|privacy|licences|accessibility)?/?$"
-    r"|^/(legal|privacy)/de/?$|^/organisms/[^/]+/?$"
+    r"|^/(legal|privacy|accessibility)/de/?$|^/organisms/[^/]+/?$"
 )
 #: The pages in German: those at ``/<page>/de`` (``web/src/lib/routes.ts``).
 GERMAN_PAGE = re.compile(r"^/[a-z]+/de/?$")
@@ -116,6 +116,7 @@ _FRAME_OF_PATH = {
     "privacy/de": "privacy-de",
     "licences": "licences",
     "accessibility": "accessibility",
+    "accessibility/de": "accessibility-de",
 }
 #: The places in a frame's ``meta`` the server fills: the site's address and the page's canonical path.
 ORIGIN_SLOT = "%ORIGIN%"

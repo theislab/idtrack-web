@@ -1,7 +1,9 @@
 // Names of organisms for people.
 
-/** A readable name of an Ensembl production name: `sus_scrofa` -> `Sus scrofa`. */
+/** A readable name of an Ensembl production name (`sus_scrofa` -> `Sus scrofa`: the genus capitalised, the parts
+ *  apart); any other text (an address that names no graph) is written as it was given. */
 export function organismName(organism: string): string {
+  if (!/^[a-z]+(?:_[a-z0-9]+)+$/.test(organism)) return organism;
   const text = organism.replace(/_/g, " ");
   return text.charAt(0).toUpperCase() + text.slice(1);
 }

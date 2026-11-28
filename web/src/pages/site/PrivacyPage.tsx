@@ -1,18 +1,36 @@
 // The privacy page, in English (/privacy) and German (/privacy/de): the controller and its data protection officer
 // (Helmholtz Munich's own privacy page), then exactly what this site processes, as its code and its deployment do it:
-// the server's logs (deploy/Caddyfile: seven days), the api's (no address), the browser's storage (lib/site/storage.ts,
-// every key the code uses), visitor statistics only after consent, nothing loaded from other sites; the rights of data
-// subjects and the supervisory authority.
+// the server's logs (deploy/Caddyfile: seven days), who holds the certificate (the server's `certificate` of
+// `/version`: Caddy, or the institute's reverse proxy in front, a further recipient of a visitor's address), the api's
+// log (no address), the browser's storage (lib/site/storage.ts, every key the code uses), visitor statistics only where
+// the server counts visits (`analytics_id` of `/version`) and only after consent, nothing loaded from other sites; the
+// rights of data subjects and the supervisory authority. What depends on the server is said once the page knows it;
+// drawn by the server before any script has run, the page says what holds for a reader without script.
 import type { ReactNode } from "react";
+import type { VersionResponse } from "../../api/types";
 import { Address, Doc, DocHead, Section, Wide, type DocSection } from "../../components/site/Doc";
 import { Link, Mono } from "../../components/ui";
+import { useOrganisms } from "../../lib/organisms";
 import { AUTHORITY, DATA_PROTECTION_OFFICER, LEGAL_READ, PROVIDER, SOURCES } from "../../lib/site/facts";
 import { STORED } from "../../lib/site/storage";
 
-/** The Google Analytics stream the site counts visits with (the property of IDTrack's documentation), and the
- *  cookie it names after it. */
-const ANALYTICS_ID = "G-FYKLWNJBVK";
-const STREAM_COOKIE = `_ga_${ANALYTICS_ID.slice(2)}`;
+/** What this server says of itself that the page states: the measurement id it counts visits with (`null`: none) and
+ *  how visitors reach it over https (`null`: not stated); `undefined` while the server has not said (the page as the
+ *  server draws it). */
+function useServer(): {
+  analytics: string | null | undefined;
+  route: VersionResponse["https_route"] | undefined;
+} {
+  const { version } = useOrganisms();
+  return version
+    ? { analytics: version.analytics_id ?? null, route: version.https_route ?? null }
+    : { analytics: undefined, route: undefined };
+}
+
+/** A key of the browser's storage that may break only after its hyphens and colons, never inside a word. */
+function breakable(key: string): ReactNode[] {
+  return key.split(/(?<=[-:])/).flatMap((part, i) => (i === 0 ? [part] : [<wbr key={i} />, part]));
+}
 
 const GA = {
   cookies: "https://support.google.com/analytics/answer/11397207",
@@ -25,6 +43,9 @@ const GA = {
 
 function StorageTable({ lang }: { lang: "en" | "de" }) {
   const de = lang === "de";
+  const { analytics } = useServer();
+  // A server that counts no visits never asks, so it keeps no answer.
+  const kept = STORED.filter((s) => !s.counting || analytics !== null);
   return (
     <Wide label={de ? "Tabelle der im Browser gespeicherten Schlüssel" : "The table of the keys kept in your browser"}>
       <table className="doc__table">
@@ -42,10 +63,10 @@ function StorageTable({ lang }: { lang: "en" | "de" }) {
           </tr>
         </thead>
         <tbody>
-          {STORED.map((s) => (
+          {kept.map((s) => (
             <tr key={s.key}>
-              <th scope="row">
-                <Mono>{s.key}</Mono>
+              <th scope="row" className="doc__key">
+                <Mono>{breakable(s.key)}</Mono>
               </th>
               <td>{s.where === "local" ? "localStorage" : "sessionStorage"}</td>
               <td>{s[lang].holds}</td>
@@ -103,6 +124,191 @@ function Authority({ lang }: { lang: "en" | "de" }) {
   );
 }
 
+/** Who holds the site's certificate, by the server's own word: Caddy (with a certificate from Let's Encrypt or one
+ *  Helmholtz Munich gives), or Helmholtz Munich's reverse proxy in front of it, which then receives every request
+ *  first, a visitor's address with it. */
+function Certificate({ lang }: { lang: "en" | "de" }) {
+  const { route } = useServer();
+  if (lang === "de") {
+    if (route === "lets_encrypt")
+      return (
+        <p>
+          Caddy hält das Zertifikat der Website, das er bei Let&apos;s Encrypt anfordert und erneuert; dabei werden
+          keine Daten von Besuchern übermittelt.
+        </p>
+      );
+    if (route === "institute_certificate")
+      return (
+        <p>
+          Caddy hält das Zertifikat der Website, das Helmholtz Munich ausstellt; dafür werden keine Daten von Besuchern
+          übermittelt.
+        </p>
+      );
+    if (route === "behind_proxy")
+      return (
+        <p>
+          Vor Caddy steht der Reverse Proxy von Helmholtz Munich, der das Zertifikat der Website hält: Er empfängt jede
+          Anfrage zuerst, mit Ihrer IP-Adresse und allem oben Genannten, und gibt sie mit Ihrer Adresse an Caddy weiter
+          (so steht sie auch in Caddys Protokoll). Was der Proxy von einer Anfrage behält und wie lange, legt die IT von
+          Helmholtz Munich für alle ihre Websites fest, nicht diese Website; Auskunft gibt der oben genannte
+          Datenschutzbeauftragte.
+        </p>
+      );
+    return (
+      <p>
+        Das Zertifikat der Website hält Caddy oder ein Reverse Proxy von Helmholtz Munich vor ihm;{" "}
+        {route === null
+          ? "welcher, gibt dieser Server nicht an."
+          : "welcher, nennt diese Seite, sobald ihr Skript gelaufen ist."}
+      </p>
+    );
+  }
+  if (route === "lets_encrypt")
+    return (
+      <p>
+        Caddy holds the site&apos;s certificate, which it obtains from Let&apos;s Encrypt and renews there; no data of
+        visitors is sent there.
+      </p>
+    );
+  if (route === "institute_certificate")
+    return (
+      <p>Caddy holds the site&apos;s certificate, which Helmholtz Munich issues; no data of visitors is sent for it.</p>
+    );
+  if (route === "behind_proxy")
+    return (
+      <p>
+        In front of Caddy stands Helmholtz Munich&apos;s reverse proxy, which holds the site&apos;s certificate: it
+        receives each request first, with your IP address and everything listed above, and passes it to Caddy with your
+        address (so Caddy&apos;s log holds it too). What the proxy keeps of a request, and for how long, is set by
+        Helmholtz Munich&apos;s IT for all its sites, not by this site; the data protection officer named above answers
+        for it.
+      </p>
+    );
+  return (
+    <p>
+      The site&apos;s certificate is held by Caddy or by a reverse proxy of Helmholtz Munich in front of it;{" "}
+      {route === null ? "this server does not state which." : "this page names which once its script has run."}
+    </p>
+  );
+}
+
+/** Visitor statistics as this server counts them: with its measurement id and only after consent, or not at all. */
+function Statistics({ lang, section }: { lang: "en" | "de"; section: DocSection }) {
+  const { analytics } = useServer();
+  const de = lang === "de";
+  if (analytics === undefined)
+    return (
+      <Section section={section}>
+        <p>
+          {de
+            ? "Besuche zählt nur das Skript dieser Seite, und nur nach Ihrer Einwilligung: Ohne Skript gelesen, wird nichts gezählt. Sobald das Skript gelaufen ist, steht hier, ob dieser Server Besuche zählt und wie."
+            : "Visits are counted only by this page's script, and only after your consent: read without the script, nothing is counted. Once the script has run, this section says whether this server counts visits, and how."}
+        </p>
+      </Section>
+    );
+  if (analytics === null)
+    return (
+      <Section section={section}>
+        <p>
+          {de
+            ? "Dieser Server zählt keine Besuche: Er zeigt keinen Hinweis dazu, lädt kein Skript von Google und setzt kein Cookie."
+            : "This server counts no visits: it shows no notice about it, loads no script of Google's and sets no cookie."}
+        </p>
+      </Section>
+    );
+  const cookie = `_ga_${analytics.replace(/^G-/, "")}`;
+  if (de)
+    return (
+      <Section section={section}>
+        <p>
+          Mit Ihrer Einwilligung zählt die Website Besuche mit Google Analytics 4 (dem Datenstream{" "}
+          <Mono>{analytics}</Mono>), damit wir erfahren, welche Seiten genutzt werden. Ein Hinweis am unteren Rand des
+          Fensters fragt einmal; bevor Sie zustimmen, wird kein Skript von Google geladen und nichts an Google gesendet.
+        </p>
+        <p>Nachdem Sie zugestimmt haben:</p>
+        <ul>
+          <li>
+            Das Skript von Google wird von <Mono>www.googletagmanager.com</Mono> geladen und setzt zwei Cookies auf der
+            Adresse dieser Website (auf keiner Domain darüber): <Mono>_ga</Mono> (eine zufällige ID, die Besuche
+            unterscheidet) und <Mono>{cookie}</Mono> (der Zustand des Besuchs), jeweils für zwei Jahre ab Ihrem letzten
+            Besuch, wie <a href={GA.cookies}>Google sie beschreibt</a>, wobei Browser sie früher löschen können.
+          </li>
+          <li>
+            Jede aufgerufene Seite wird mit ihrem Pfad und ihrem Namen gezählt, nie mit ihrer Abfrage, die enthält, was
+            Sie umwandeln; eine Adresse, die keine Seite der Website ist, wird als <Mono>/404</Mono> gezählt. Google
+            Analytics erfasst außerdem, wann und wie lange Sie aktiv waren, Ihren Gerätetyp, Browser, Ihr
+            Betriebssystem, Ihre Bildschirmgröße und Sprache, die Website, über die Sie kamen (nur ihre Adresse ohne
+            Pfad und Abfrage), und einen ungefähren Standort (Stadt und Land), abgeleitet aus Ihrer IP-Adresse, die
+            Google nur dafür nutzt und für Besucher aus der EU nicht speichert (<a href={GA.ip}>Google</a>).
+          </li>
+          <li>
+            Google-Signale und die Nutzung für Werbung sind ausgeschaltet; die Website sendet keinen Namen, keine
+            Nutzer-ID und nichts, was Sie eingeben.
+          </li>
+        </ul>
+        <p>
+          Die Website sendet diese Daten an die Google Ireland Limited, Gordon House, Barrow Street, Dublin 4, Irland,
+          die Google Analytics als Auftragsverarbeiter nach ihren{" "}
+          <a href={GA.terms}>Auftragsverarbeitungsbedingungen</a> anbietet. Sie können an die Google LLC in den USA
+          übermittelt werden, die unter dem <a href={GA.dpf}>EU-US Data Privacy Framework</a> zertifiziert ist (ein
+          Angemessenheitsbeschluss der Europäischen Kommission, Art. 45 DSGVO). Die Daten einzelner Besuche werden nach
+          der für die Property eingestellten Aufbewahrungsdauer gelöscht (die Voreinstellung von Google Analytics sind
+          zwei Monate: <a href={GA.retention}>Google</a>); Summen in den Berichten bleiben erhalten.
+        </p>
+        <p>
+          Rechtsgrundlage ist Ihre Einwilligung: Art. 6 Abs. 1 lit. a DSGVO und für die Cookies § 25 Abs. 1 TDDDG. Sie
+          können sie jederzeit über „Cookie settings“ am Fuß jeder Seite widerrufen, das erneut fragt; der Widerruf gilt
+          in allen offenen Tabs der Website, und die bis dahin erfolgte Zählung bleibt rechtmäßig (Art. 7 Abs. 3 DSGVO).
+          Das <a href={GA.optout}>Browser-Add-on</a> von Google schaltet Google Analytics auf allen Websites ab.
+        </p>
+      </Section>
+    );
+  return (
+    <Section section={section}>
+      <p>
+        With your consent, the site counts visits with Google Analytics 4 (the stream <Mono>{analytics}</Mono>), so that
+        we learn which pages are used. A notice at the foot of the window asks once; until you accept, no script of
+        Google is loaded and nothing is sent to Google.
+      </p>
+      <p>After you accept:</p>
+      <ul>
+        <li>
+          Google&apos;s script is loaded from <Mono>www.googletagmanager.com</Mono> and sets two cookies on this
+          site&apos;s own address (on no domain above it): <Mono>_ga</Mono> (a random id that tells visits apart) and{" "}
+          <Mono>{cookie}</Mono> (the state of the visit), each for two years from your last visit, as{" "}
+          <a href={GA.cookies}>Google describes them</a>, though browsers may delete them sooner.
+        </li>
+        <li>
+          Each page you view is counted by its path and its name, never by its query, which holds what you convert; an
+          address that is no page of the site is counted as <Mono>/404</Mono>. Google Analytics also records when and
+          for how long you were active, your type of device, browser, operating system, screen size and language, the
+          site that brought you here (its address alone, without path or query), and an approximate location (city and
+          country) derived from your IP address, which Google uses for that alone and does not store for visitors from
+          the EU (<a href={GA.ip}>Google</a>).
+        </li>
+        <li>
+          Google signals and the use for advertising are turned off; the site sends no name, no user id and nothing you
+          type.
+        </li>
+      </ul>
+      <p>
+        The site sends these data to Google Ireland Limited, Gordon House, Barrow Street, Dublin 4, Ireland, which
+        offers Google Analytics as a processor under its <a href={GA.terms}>data processing terms</a>. They may be
+        transferred to Google LLC in the USA, which is certified under the{" "}
+        <a href={GA.dpf}>EU-US Data Privacy Framework</a> (an adequacy decision of the European Commission, Art. 45
+        GDPR). The data of single visits are deleted after the retention period set for the property (two months is the
+        default of Google Analytics: <a href={GA.retention}>Google</a>); totals in its reports are kept.
+      </p>
+      <p>
+        The legal basis is your consent: Art. 6(1)(a) GDPR, and § 25(1) TDDDG for the cookies. You can withdraw it at
+        any time with “Cookie settings” at the foot of every page, which asks again; a withdrawal holds in every open
+        tab of the site, and the counting already done stays lawful (Art. 7(3) GDPR). Google&apos;s{" "}
+        <a href={GA.optout}>browser add-on</a> turns Google Analytics off on every site.
+      </p>
+    </Section>
+  );
+}
+
 const EN = {
   short: { id: "in-short", title: "In short" },
   controller: { id: "controller", title: "Who is responsible" },
@@ -156,8 +362,8 @@ function English() {
       <Section section={EN.server}>
         <p>
           The site runs on a virtual machine of Helmholtz Munich. In front of IDTrack&apos;s server stands Caddy, a web
-          server that holds the site&apos;s certificate and passes each request on. To answer, it reads what every
-          browser sends with a request, and writes one line per request to its access log:
+          server that passes each request on. To answer, it reads what every browser sends with a request, and writes
+          one line per request to its access log:
         </p>
         <ul>
           <li>the time, your IP address and port, and the protocol;</li>
@@ -177,10 +383,7 @@ function English() {
           days after it was written. They stay on the machine; nobody outside the people who run it reads them, and they
           are used only to keep the site working and secure.
         </p>
-        <p>
-          The certificate comes from Let&apos;s Encrypt, which Caddy asks for it and its renewal; no data of visitors is
-          sent there.
-        </p>
+        <Certificate lang="en" />
         <p>
           The legal basis is Art. 6(1)(f) GDPR: Helmholtz Munich&apos;s legitimate interest in delivering the site
           securely and reliably.
@@ -220,47 +423,7 @@ function English() {
         </p>
       </Section>
 
-      <Section section={EN.statistics}>
-        <p>
-          With your consent, the site counts visits with Google Analytics 4 (the stream <Mono>{ANALYTICS_ID}</Mono>,
-          which IDTrack&apos;s documentation also uses), so that we learn which pages are used. A notice at the foot of
-          the window asks once; until you accept, no script of Google is loaded and nothing is sent to Google.
-        </p>
-        <p>After you accept:</p>
-        <ul>
-          <li>
-            Google&apos;s script is loaded from <Mono>www.googletagmanager.com</Mono> and sets two cookies on this site:{" "}
-            <Mono>_ga</Mono> (a random id that tells visits apart) and <Mono>{STREAM_COOKIE}</Mono> (the state of the
-            visit), each for two years from your last visit, as <a href={GA.cookies}>Google describes them</a>, though
-            browsers may delete them sooner.
-          </li>
-          <li>
-            Each page you view is counted by its path and its name, never by its query, which holds what you convert.
-            Google Analytics also records when and for how long you were active, your type of device, browser, operating
-            system, screen size and language, the site that brought you here, and an approximate location (city and
-            country) derived from your IP address, which Google uses for that alone and does not store for visitors from
-            the EU (<a href={GA.ip}>Google</a>).
-          </li>
-          <li>
-            Google signals and the use for advertising are turned off; the site sends no name, no user id and nothing
-            you type.
-          </li>
-        </ul>
-        <p>
-          Google Ireland Limited, Gordon House, Barrow Street, Dublin 4, Ireland, processes the data on Helmholtz
-          Munich&apos;s behalf (<a href={GA.terms}>Google&apos;s data processing terms</a>). It may be transferred to
-          Google LLC in the USA, which is certified under the <a href={GA.dpf}>EU-US Data Privacy Framework</a> (an
-          adequacy decision of the European Commission, Art. 45 GDPR). The data of single visits are deleted after the
-          retention period set for the property (two months, the default of Google Analytics:{" "}
-          <a href={GA.retention}>Google</a>); totals in its reports are kept.
-        </p>
-        <p>
-          The legal basis is your consent: Art. 6(1)(a) GDPR, and § 25(1) TDDDG for the cookies. You can withdraw it at
-          any time with “Cookie settings” at the foot of every page, which asks again; the counting already done stays
-          lawful (Art. 7(3) GDPR). Google&apos;s <a href={GA.optout}>browser add-on</a> turns Google Analytics off on
-          every site.
-        </p>
-      </Section>
+      <Statistics lang="en" section={EN.statistics} />
 
       <Section section={EN.others}>
         <p>
@@ -353,8 +516,8 @@ function German(): ReactNode {
       <Section section={DE.server}>
         <p>
           Die Website läuft auf einer virtuellen Maschine von Helmholtz Munich. Vor dem Server von IDTrack steht Caddy,
-          ein Webserver, der das Zertifikat der Website hält und jede Anfrage weitergibt. Um zu antworten, liest er, was
-          jeder Browser mit einer Anfrage sendet, und schreibt je Anfrage eine Zeile in sein Zugriffsprotokoll:
+          ein Webserver, der jede Anfrage weitergibt. Um zu antworten, liest er, was jeder Browser mit einer Anfrage
+          sendet, und schreibt je Anfrage eine Zeile in sein Zugriffsprotokoll:
         </p>
         <ul>
           <li>die Zeit, Ihre IP-Adresse und Ihren Port sowie das Protokoll;</li>
@@ -374,10 +537,7 @@ function German(): ReactNode {
           Zeile wird spätestens sieben Tage nach ihrem Schreiben gelöscht. Sie bleiben auf der Maschine; nur die
           Personen, die sie betreiben, lesen sie, und nur, um die Website funktionsfähig und sicher zu halten.
         </p>
-        <p>
-          Das Zertifikat stammt von Let&apos;s Encrypt, wo Caddy es anfordert und erneuert; dabei werden keine Daten von
-          Besuchern übermittelt.
-        </p>
+        <Certificate lang="de" />
         <p>
           Rechtsgrundlage ist Art. 6 Abs. 1 lit. f DSGVO: das berechtigte Interesse von Helmholtz Munich, die Website
           sicher und zuverlässig bereitzustellen.
@@ -419,49 +579,7 @@ function German(): ReactNode {
         </p>
       </Section>
 
-      <Section section={DE.statistics}>
-        <p>
-          Mit Ihrer Einwilligung zählt die Website Besuche mit Google Analytics 4 (dem Datenstream{" "}
-          <Mono>{ANALYTICS_ID}</Mono>, den auch die Dokumentation von IDTrack nutzt), damit wir erfahren, welche Seiten
-          genutzt werden. Ein Hinweis am unteren Rand des Fensters fragt einmal; bevor Sie zustimmen, wird kein Skript
-          von Google geladen und nichts an Google gesendet.
-        </p>
-        <p>Nachdem Sie zugestimmt haben:</p>
-        <ul>
-          <li>
-            Das Skript von Google wird von <Mono>www.googletagmanager.com</Mono> geladen und setzt zwei Cookies auf
-            dieser Website: <Mono>_ga</Mono> (eine zufällige ID, die Besuche unterscheidet) und{" "}
-            <Mono>{STREAM_COOKIE}</Mono> (der Zustand des Besuchs), jeweils für zwei Jahre ab Ihrem letzten Besuch, wie{" "}
-            <a href={GA.cookies}>Google sie beschreibt</a>, wobei Browser sie früher löschen können.
-          </li>
-          <li>
-            Jede aufgerufene Seite wird mit ihrem Pfad und ihrem Namen gezählt, nie mit ihrer Abfrage, die enthält, was
-            Sie umwandeln. Google Analytics erfasst außerdem, wann und wie lange Sie aktiv waren, Ihren Gerätetyp,
-            Browser, Ihr Betriebssystem, Ihre Bildschirmgröße und Sprache, die Website, über die Sie kamen, und einen
-            ungefähren Standort (Stadt und Land), abgeleitet aus Ihrer IP-Adresse, die Google nur dafür nutzt und für
-            Besucher aus der EU nicht speichert (<a href={GA.ip}>Google</a>).
-          </li>
-          <li>
-            Google-Signale und die Nutzung für Werbung sind ausgeschaltet; die Website sendet keinen Namen, keine
-            Nutzer-ID und nichts, was Sie eingeben.
-          </li>
-        </ul>
-        <p>
-          Die Google Ireland Limited, Gordon House, Barrow Street, Dublin 4, Irland, verarbeitet die Daten im Auftrag
-          von Helmholtz Munich (<a href={GA.terms}>Auftragsverarbeitungsbedingungen von Google</a>). Sie können an die
-          Google LLC in den USA übermittelt werden, die unter dem <a href={GA.dpf}>EU-US Data Privacy Framework</a>{" "}
-          zertifiziert ist (ein Angemessenheitsbeschluss der Europäischen Kommission, Art. 45 DSGVO). Die Daten
-          einzelner Besuche werden nach der für die Property eingestellten Aufbewahrungsdauer gelöscht (zwei Monate, die
-          Voreinstellung von Google Analytics: <a href={GA.retention}>Google</a>); Summen in den Berichten bleiben
-          erhalten.
-        </p>
-        <p>
-          Rechtsgrundlage ist Ihre Einwilligung: Art. 6 Abs. 1 lit. a DSGVO und für die Cookies § 25 Abs. 1 TDDDG. Sie
-          können sie jederzeit über „Cookie settings“ am Fuß jeder Seite widerrufen, das erneut fragt; die bis dahin
-          erfolgte Zählung bleibt rechtmäßig (Art. 7 Abs. 3 DSGVO). Das <a href={GA.optout}>Browser-Add-on</a> von
-          Google schaltet Google Analytics auf allen Websites ab.
-        </p>
-      </Section>
+      <Statistics lang="de" section={DE.statistics} />
 
       <Section section={DE.others}>
         <p>

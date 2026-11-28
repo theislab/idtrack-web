@@ -45,6 +45,7 @@ function preloadRoute(path: string, search: string): Promise<void> {
     "privacy-de": PrivacyPage,
     licences: LicencesPage,
     accessibility: AccessibilityPage,
+    "accessibility-de": AccessibilityPage,
   }[route.page as string];
   if (route.page === "convert" && new URLSearchParams(search).has("id"))
     import("../components/ResultView").catch(() => undefined);

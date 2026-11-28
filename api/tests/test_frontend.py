@@ -233,8 +233,8 @@ def test_a_hashed_file_of_the_build_at_the_start_is_kept(make_client: Callable[.
     [("/", 200), ("/batch", 200), ("/batch/", 200), ("/organisms/", 200), ("/organisms/pig", 200),
      ("/organisms/pig/", 200), ("/method", 200), ("/organisms/pig/extra", 404), ("/nothing", 404),
      ("/legal", 200), ("/legal/de", 200), ("/legal/de/", 200), ("/privacy", 200), ("/privacy/de", 200),
-     ("/licences", 200), ("/accessibility", 200), ("/legal/fr", 404), ("/licences/de", 404),
-     ("/organisms/homo_sapiens", 404)],
+     ("/licences", 200), ("/accessibility", 200), ("/accessibility/de", 200), ("/legal/fr", 404),
+     ("/licences/de", 404), ("/organisms/homo_sapiens", 404)],
 )  # fmt: skip
 def test_the_page_routes(web: TestClient, path: str, status: int) -> None:
     assert web.get(path).status_code == status
@@ -257,7 +257,7 @@ FRAMES = {
     }
     for name in (
         "home", "convert", "answer", "batch", "names", "organisms", "organism", "developers", "method", "none",
-        "legal", "legal-de", "privacy", "privacy-de", "licences", "accessibility",
+        "legal", "legal-de", "privacy", "privacy-de", "licences", "accessibility", "accessibility-de",
     )
 }  # fmt: skip
 
@@ -270,14 +270,16 @@ FRAMES = {
      ("/organisms/pig", "organism", 200), ("/developers", "developers", 200), ("/method", "method", 200),
      ("/nothing", "none", 404), ("/organisms/pig/extra", "none", 404), ("/legal", "legal", 200),
      ("/legal/de", "legal-de", 200), ("/privacy/", "privacy", 200), ("/privacy/de", "privacy-de", 200),
-     ("/licences", "licences", 200), ("/accessibility", "accessibility", 200)],
+     ("/licences", "licences", 200), ("/accessibility", "accessibility", 200),
+     ("/accessibility/de", "accessibility-de", 200)],
 )  # fmt: skip
 def test_each_page_is_sent_with_its_frame(
     make_client: Callable[..., TestClient], dist: Path, path: str, frame: str, status: int
 ) -> None:
     """The build's frame of the address is written into the page's root, and its links into its head (before the
     block of answers), so the page's head is drawn and its code fetched before the entry has run."""
-    (dist / "index.html").write_text(INDEX.replace("<body>", '<body><div id="root"></div>'), encoding="utf-8")
+    index = INDEX.replace("<html>", '<html lang="en">').replace("<body>", '<body><div id="root"></div>')
+    (dist / "index.html").write_text(index, encoding="utf-8")
     (dist / "frames.json").write_text(json.dumps({"frames": FRAMES}), encoding="utf-8")
     web = make_client(rate_per_minute=0, static_dir=dist)
     response = web.get(path)
@@ -285,6 +287,8 @@ def test_each_page_is_sent_with_its_frame(
     page = without_preload(response.text)
     assert f'<div id="root"><header>masthead</header><main><h1>{frame}</h1></main></div>' in page
     assert f'<link rel="modulepreload" href="/assets/{frame}.js"></head>' in page
+    # A page in German says so to the browser before any script has run.
+    assert page.startswith(f'<!doctype html><html lang="{"de" if frame.endswith("-de") else "en"}">')
     # One frame per page, each its own tag.
     others = {web.get(p).headers["etag"] for p in ("/", "/batch", "/method")}
     assert len(others) == 3

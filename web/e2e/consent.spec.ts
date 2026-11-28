@@ -218,6 +218,22 @@ test("every hit carries the page's path and name alone: no query, identifier or 
   expect(kinds.has("page_view") && kinds.has("user_engagement"), [...kinds].join(", ")).toBe(true);
 });
 
+test("the privacy page names the id this server counts with, its cookie and the key of the choice", async ({
+  context,
+  page,
+  baseURL,
+}) => {
+  const hits: Hit[] = [];
+  const asked: string[] = [];
+  await counting(context, baseURL ?? "", hits, asked);
+  await page.goto("/privacy");
+  const statistics = page.locator("section", { has: page.locator("#statistics") });
+  await expect(statistics).toContainText(`the stream ${ID}`);
+  await expect(statistics).toContainText(`_ga_${ID.slice(2)}`);
+  await expect(statistics).not.toContainText("This server counts no visits");
+  await expect(page.locator(".doc__key", { hasText: "idtrack-consent" })).toHaveCount(1);
+});
+
 test.describe("Google's cookies on the site's host alone", () => {
   // Two names of one server, one a level deeper than the other, both under a domain another site shares.
   const HOSTS = ["idtrack.example.test", "idtrack.unit.example.test"];

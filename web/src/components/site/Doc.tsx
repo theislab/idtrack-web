@@ -1,9 +1,8 @@
 // The site's own pages (the legal notice, privacy, licences, accessibility) as one kind of document: a calm head (the
 // title, one sentence, the date the page was last read against its sources and the page in its other language), then
 // sections in one column of good measure, with a short list of them beside it on a wide screen. Each page is complete
-// in itself and prints as a document (doc.css, "Print").
-import "../../styles/doc.css";
-import type { ReactNode } from "react";
+// in itself and prints as a document (doc.css, "Print"; the entry loads it, main.tsx).
+import { useEffect, type ReactNode } from "react";
 import { writtenDate } from "../../lib/site/dates";
 import { Link } from "../ui";
 
@@ -63,6 +62,16 @@ export function Doc({
   className?: string;
   children: ReactNode;
 }) {
+  // A page in German declares it on the document (as the server's frame of it does), for its title and every part
+  // not marked otherwise; the site's own frame (masthead, footer) is marked English.
+  useEffect(() => {
+    if (lang === "en") return;
+    const root = document.documentElement;
+    root.lang = lang;
+    return () => {
+      root.lang = "en";
+    };
+  }, [lang]);
   return (
     <div className={`page doc ${className}`} lang={lang === "en" ? undefined : lang}>
       {head}

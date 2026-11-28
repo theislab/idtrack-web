@@ -28,6 +28,15 @@ export function NoSuchFigure() {
   );
 }
 
+/** The address as the visitor typed it: its escapes read back (`/gr%C3%B6%C3%9Fe` is `/größe`), where they read. */
+function asTyped(path: string): string {
+  try {
+    return decodeURIComponent(path);
+  } catch {
+    return path;
+  }
+}
+
 export function NotFound({ path }: { path: string }) {
   return (
     <div className="page notfound">
@@ -35,8 +44,8 @@ export function NotFound({ path }: { path: string }) {
         <p className="eyebrow">Not a page of IDTrack</p>
         <h1>No such page</h1>
         <p className="lede">
-          The address <Mono>{path}</Mono> leads to no page of IDTrack. Like an identifier at its last release, it ends
-          here; the pages below go on.
+          The address <Mono>{asTyped(path)}</Mono> leads to no page of IDTrack. Like an identifier at its last release,
+          it ends here; the pages below go on.
         </p>
       </header>
       <NoSuchFigure />

@@ -24,10 +24,12 @@ const SECTIONS = {
 const fonts = licences.packages.filter((p) => p.font);
 const software = licences.packages.filter((p) => !p.font);
 
-/** Every resource of IDTrack's data sources, with its source's description and its terms. */
-const resources = docs.sources.items.flatMap((item) =>
-  item.resources.map((resource) => ({ ...resource, what: item.description, terms: DATA_TERMS[resource.name] })),
-);
+/** IDTrack's data sources as its documentation groups them: one description for each group, and each member's own
+ *  terms (a group's description is said once, of the group, never of each member). */
+const groups = docs.sources.items.map((item) => ({
+  what: item.description,
+  members: item.resources.map((resource) => ({ ...resource, terms: DATA_TERMS[resource.name] })),
+}));
 
 export function LicencesPage() {
   return (
@@ -146,16 +148,28 @@ export function LicencesPage() {
               </tr>
             </thead>
             <tbody>
-              {resources.map((r) => (
-                <tr key={r.name}>
-                  <th scope="row">{r.url ? <a href={r.url}>{r.name}</a> : r.name}</th>
-                  <td>{r.what}</td>
+              {groups.map((g) => (
+                <tr key={g.members.map((m) => m.name).join(" ")}>
+                  <th scope="row">
+                    {g.members.map((m, i) => (
+                      <span key={m.name}>
+                        {i > 0 ? <span aria-hidden="true"> · </span> : null}
+                        {m.url ? <a href={m.url}>{m.name}</a> : m.name}
+                      </span>
+                    ))}
+                  </th>
+                  <td>{g.what}</td>
                   <td>
-                    {r.terms ? (
-                      <>
-                        <strong>{r.terms.rule}</strong>: “{r.terms.quote}” (<a href={r.terms.url}>its terms</a>)
-                      </>
-                    ) : null}
+                    <ul className="doc__terms">
+                      {g.members.map((m) =>
+                        m.terms ? (
+                          <li key={m.name}>
+                            {g.members.length > 1 ? <>{m.name}, </> : null}
+                            <strong>{m.terms.rule}</strong>: “{m.terms.quote}” (<a href={m.terms.url}>its terms</a>)
+                          </li>
+                        ) : null,
+                      )}
+                    </ul>
                   </td>
                 </tr>
               ))}

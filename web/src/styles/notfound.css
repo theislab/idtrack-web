@@ -56,8 +56,23 @@
   margin: 0;
   padding: 0;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr));
+  grid-template-columns: minmax(0, 1fr);
   column-gap: var(--space-6);
+}
+
+/* The six sections in whole rows: two columns on a phone, three from a tablet's width. */
+@media (min-width: 360px) {
+  .notfound__sections {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: var(--space-5);
+  }
+}
+
+@media (min-width: 900px) {
+  .notfound__sections {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    column-gap: var(--space-6);
+  }
 }
 
 .notfound__sections li {

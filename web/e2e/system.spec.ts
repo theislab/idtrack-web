@@ -7,6 +7,13 @@ import { convertUrl, data, expectWholeAndTyped, waitForResult } from "./helpers"
 const PAGES: [string, string, (page: Page) => Promise<void>][] = [
   [
     "home",
+    "/",
+    async (page) => {
+      await expect(page.locator(".hero2__caption")).toBeVisible();
+    },
+  ],
+  [
+    "convert",
     `/convert?organism=${data.organism}`,
     async (page) => {
       await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
@@ -95,14 +102,23 @@ const PAGES: [string, string, (page: Page) => Promise<void>][] = [
   ],
 ];
 
-const WIDTHS = [320, 768, 1024, 2560];
+/** The sizes every page is drawn at: a small phone, the zoom of 400 % on a screen 1280 by 1024 px (WCAG 1.4.10) and
+ *  of 200 % on one 1440 by 900 px, a tablet, a laptop, a wide screen. */
+const SIZES: [number, number][] = [
+  [320, 640],
+  [320, 256],
+  [720, 450],
+  [768, 900],
+  [1024, 900],
+  [2560, 900],
+];
 
 test.describe("every page at every width", () => {
   for (const [name, url, ready] of PAGES) {
     test(`${name}: whole, legible figures, no sideways scroll`, async ({ page }, info) => {
       test.skip(!info.project.name.startsWith("desktop"), "the widths are set here; once per theme");
-      for (const width of WIDTHS) {
-        await page.setViewportSize({ width, height: width < 400 ? 640 : 900 });
+      for (const [width, height] of SIZES) {
+        await page.setViewportSize({ width, height });
         await page.goto(url);
         await ready(page);
         await page.evaluate(async () => {
@@ -120,7 +136,7 @@ test("the masthead: glass, the same places on every page, what scrolls into view
 }, info) => {
   test.skip(info.project.name.startsWith("phone"), "the phone's masthead scrolls away with the page");
   const places: Record<string, number> = {};
-  for (const [name, url, ready] of PAGES.slice(0, 7)) {
+  for (const [name, url, ready] of PAGES.slice(1, 8)) {
     await page.goto(url);
     await ready(page);
     const masthead = page.locator(".mast");
@@ -270,7 +286,9 @@ test("focus is an outline, kept as the highlight colour in forced colours", asyn
 });
 
 test.describe("one heading system on every page", () => {
-  for (const [name, url, ready] of PAGES) {
+  // The home's headline is the display, its only use (DIRECTION.md, "The visual language"); every other page's title
+  // is the title tier.
+  for (const [name, url, ready] of PAGES.filter(([page]) => page !== "home")) {
     test(`${name}: the title, the sections' serif tier, three weights, one head`, async ({ page }, info) => {
       test.skip(!info.project.name.startsWith("desktop"), "the widths are set here; once per theme");
       for (const width of [1440, 390]) {

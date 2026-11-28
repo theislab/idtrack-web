@@ -14,7 +14,7 @@ export function SiteFooter() {
   const releases = version ? [...new Set(version.graphs.map((g) => g.snapshot_release))].join(", ") : null;
   const pending = facts.version === "failed" ? "not read" : "…";
   return (
-    <footer className="foot">
+    <footer lang="en" className="foot">
       <div className="foot__inner">
         <p className="foot__brand">
           <LogoMark className="foot__mark" />
@@ -45,7 +45,7 @@ export function SiteFooter() {
         </nav>
         {/* Who stands behind the tool, as IDTrack's documentation states it (its credits, "Institutional Support"). */}
         <p className="foot__origin">
-          Developed at the Theis Lab, Institute of Computational Biology, Helmholtz Center Munich (
+          Developed at the Theis Lab, Institute of Computational Biology, Helmholtz Munich (
           <a href={docsPage("authors.html#institutional-support")}>credits</a>).
         </p>
         {/* The site's own pages (legal notice, privacy, licences, accessibility), with the cookie settings where the

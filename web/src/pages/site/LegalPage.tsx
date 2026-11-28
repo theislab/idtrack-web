@@ -1,6 +1,7 @@
 // The legal notice (Impressum), in English (/legal) and German (/legal/de): the provider per § 5 DDG, its
 // representatives, register and tax number, the person responsible for the content per § 18 (2) MStV, every fact as
-// Helmholtz Munich's own legal notice states it (lib/site/facts.ts); then where IDTrack is made and where questions go.
+// Helmholtz Munich's own legal notice states it (lib/site/facts.ts); then where IDTrack is made, where questions go,
+// and on which terms the answers are given (after the disclaimer of Helmholtz Munich's own notice).
 import { Address, Doc, DocHead, Facts, Section, type DocSection } from "../../components/site/Doc";
 import { Link } from "../../components/ui";
 import { CONTACT, LEGAL_READ, MAKER, PROVIDER, REPRESENTATIVES, RESPONSIBLE, SOURCES } from "../../lib/site/facts";
@@ -15,6 +16,7 @@ const EN = {
   made: { id: "made-by", title: "Where IDTrack is made" },
   questions: { id: "questions", title: "Questions about this site" },
   disputes: { id: "disputes", title: "Consumer disputes" },
+  answers: { id: "using-the-answers", title: "Using the answers" },
   reuse: { id: "reuse", title: "Reusing what is here" },
 } satisfies Record<string, DocSection>;
 
@@ -92,6 +94,19 @@ function English() {
           is not obliged to.
         </p>
       </Section>
+      <Section section={EN.answers}>
+        <p>
+          The answers of this site are computed by IDTrack from Ensembl&apos;s releases and the databases Ensembl
+          cross-references, and are given for research, as they are. Helmholtz Munich gives no warranty that an answer
+          is current, correct or complete, or fit for a particular use: read an answer with its cautions and the path
+          that led to it, and check what you rely on against its sources. Claims for damages arising from the use of the
+          answers are excluded, unless Helmholtz Munich is shown to have acted with intent or gross negligence.
+        </p>
+        <p>
+          Links to other sites (IDTrack&apos;s documentation, the databases, GitHub, PyPI) lead to content for which
+          their providers alone are responsible.
+        </p>
+      </Section>
       <Section section={EN.reuse}>
         <p>
           The terms on which the site&apos;s code, texts, fonts and data may be reused are on the{" "}
@@ -115,6 +130,7 @@ const DE = {
   made: { id: "entwicklung", title: "Wo IDTrack entwickelt wird" },
   questions: { id: "fragen", title: "Fragen zu dieser Website" },
   disputes: { id: "streitbeilegung", title: "Verbraucherstreitbeilegung" },
+  answers: { id: "nutzung-der-antworten", title: "Nutzung der Antworten" },
   reuse: { id: "nachnutzung", title: "Nachnutzung" },
 } satisfies Record<string, DocSection>;
 
@@ -185,6 +201,21 @@ function German() {
         <p>
           Helmholtz Munich nimmt an einem Streitbeilegungsverfahren vor einer Verbraucherschlichtungsstelle nicht teil
           und ist dazu auch nicht verpflichtet.
+        </p>
+      </Section>
+      <Section section={DE.answers}>
+        <p>
+          Die Antworten dieser Website berechnet IDTrack aus den Releases von Ensembl und den Datenbanken, auf die
+          Ensembl verweist; sie werden für die Forschung bereitgestellt, so wie sie sind. Helmholtz Munich übernimmt
+          keine Gewähr dafür, dass eine Antwort aktuell, richtig oder vollständig oder für einen bestimmten Zweck
+          geeignet ist: Lesen Sie eine Antwort mit ihren Hinweisen und dem Pfad, der zu ihr führte, und prüfen Sie,
+          worauf Sie sich stützen, an seinen Quellen. Haftungsansprüche aus der Nutzung der Antworten sind
+          ausgeschlossen, sofern Helmholtz Munich kein nachweislich vorsätzliches oder grob fahrlässiges Verschulden
+          trifft.
+        </p>
+        <p>
+          Links zu anderen Websites (die Dokumentation von IDTrack, die Datenbanken, GitHub, PyPI) führen zu Inhalten,
+          für die allein deren Anbieter verantwortlich sind.
         </p>
       </Section>
       <Section section={DE.reuse}>

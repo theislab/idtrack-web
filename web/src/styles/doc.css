@@ -189,6 +189,18 @@
   font-weight: var(--weight-medium);
 }
 
+/* A key of the browser's storage breaks only after its hyphens and colons (where the page marks it), never inside a
+   word; from a tablet's width up it stays on one line. */
+.doc__key .mono {
+  overflow-wrap: normal;
+}
+
+@media (min-width: 640px) {
+  .doc__key {
+    white-space: nowrap;
+  }
+}
+
 .doc__table thead th {
   color: var(--ink-3);
   font-weight: var(--weight-medium);
@@ -201,6 +213,15 @@
 
 .doc__scroll {
   overflow-x: auto;
+}
+
+/* The terms of a group's members in one cell, each its own line. */
+.doc__table .doc__terms {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-2);
 }
 
 .doc__quote {
@@ -223,16 +244,27 @@
   white-space: pre;
 }
 
-/* ---- Print: the document alone, black on white, each link's address written after it ------------------------ */
+/* ---- Print: the document alone, dark ink on white in either theme, each link's address written after it ------ */
 
 @media print {
-  :root:has(.doc) .masthead,
-  :root:has(.doc) .footer,
+  :root:has(.doc) .mast,
   :root:has(.doc) .foot,
   :root:has(.doc) .consent,
   :root:has(.doc) .skip,
   :root:has(.doc) .doc__contents {
     display: none;
+  }
+
+  /* The light theme's inks whatever theme is chosen (tokens.css; the dark theme's would print pale on white). */
+  :root:root:has(.doc) {
+    --paper: #ffffff;
+    --surface: #ffffff;
+    --surface-sunk: #f3f3f0;
+    --ink-1: #0e1116;
+    --ink-2: #3b424c;
+    --ink-3: #484e58;
+    --line: #e3e3de;
+    --line-strong: #c3c5c9;
   }
 
   :root:has(.doc),
@@ -256,6 +288,11 @@
     display: block;
     margin-bottom: 1.5em;
     break-inside: auto;
+  }
+
+  /* Printed as blocks, the parts of a section keep the space the screen's grid gives them. */
+  .doc__section > * + * {
+    margin-top: 0.75em;
   }
 
   .doc__section > h2,

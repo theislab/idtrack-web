@@ -46,6 +46,7 @@ const CHECKS: Check[] = [
   generated("benchmarks", "scripts/benchmarks.ts"),
   generated("licences", "scripts/licences.ts"),
   generated("icons", "scripts/icons.ts"),
+  generated("maintenance", "scripts/maintenance.ts"),
   {
     name: "prettier",
     command: [bin("prettier"), "--check", "."],

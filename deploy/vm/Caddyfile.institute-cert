@@ -87,7 +87,8 @@
 
 	# When the api cannot answer (stopped, restarting, or failing its health checks): the site's page of maintenance,
 	# or for a program the api's own error (503 server_busy), never a bare error of the proxy. No script: the page
-	# holds one style, allowed by its hash (api/tests/test_deploy.py keeps it equal to the file).
+	# holds one style, allowed by its hash (api/tests/test_deploy.py keeps it equal to the file), and the site's faces
+	# written into it (font-src data:).
 	handle_errors 502 503 504 {
 		header {
 			Retry-After 60
@@ -107,7 +108,7 @@
 			respond `{"error":{"code":"server_busy","message":"The server is not answering at the moment (it restarts after an update or a maintenance); send the request again in a minute.","argument":null,"allowed":null,"details":null,"request_id":null,"retry_after":60,"allowance":null}}` 503
 		}
 		handle {
-			header Content-Security-Policy "default-src 'none'; style-src 'sha256-gF2/K71BBGcqjGbwkbSp8hMJvL1LBZQExvXL14ihL8o='; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
+			header Content-Security-Policy "default-src 'none'; style-src 'sha256-IWGhfFqq5yoZO1aI5VC5QzC4cjT4mAeTwo1+5KypGg8='; font-src data:; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
 			root * {$IDTRACK_WEB_MAINTENANCE_DIR:/etc/caddy}
 			rewrite * /maintenance.html
 			file_server {

@@ -53,6 +53,16 @@ function Part({ path, children }: { path: string; children: ReactNode }) {
   );
 }
 
+/** One of the site's own pages (in English or German), or null for any other page. */
+function sitePage(page: string): ReactNode {
+  const lang = page.endsWith("-de") ? "de" : "en";
+  if (page === "legal" || page === "legal-de") return <LegalPage lang={lang} />;
+  if (page === "privacy" || page === "privacy-de") return <PrivacyPage lang={lang} />;
+  if (page === "licences") return <LicencesPage />;
+  if (page === "accessibility" || page === "accessibility-de") return <AccessibilityPage lang={lang} />;
+  return null;
+}
+
 function Page() {
   const location = useLocation();
   const { status, error, retry, unknownRequested, organisms } = useOrganisms();
@@ -95,30 +105,8 @@ function Page() {
     );
   }
   // The site's own pages need no organism.
-  if (route.page === "legal" || route.page === "legal-de")
-    return (
-      <Part path={path}>
-        <LegalPage lang={route.page === "legal" ? "en" : "de"} />
-      </Part>
-    );
-  if (route.page === "privacy" || route.page === "privacy-de")
-    return (
-      <Part path={path}>
-        <PrivacyPage lang={route.page === "privacy" ? "en" : "de"} />
-      </Part>
-    );
-  if (route.page === "licences")
-    return (
-      <Part path={path}>
-        <LicencesPage />
-      </Part>
-    );
-  if (route.page === "accessibility")
-    return (
-      <Part path={path}>
-        <AccessibilityPage />
-      </Part>
-    );
+  const site = sitePage(route.page);
+  if (site) return <Part path={path}>{site}</Part>;
   if (status === "failed" && error) {
     return (
       <div className="page">
@@ -273,7 +261,7 @@ function Main() {
 export function App() {
   return (
     <OrganismsProvider>
-      <a className="skip" href="#main">
+      <a lang="en" className="skip" href="#main">
         Skip to the content
       </a>
       <Consent />

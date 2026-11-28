@@ -147,7 +147,7 @@ export function Masthead() {
     </>
   );
   return (
-    <header className="mast">
+    <header lang="en" className="mast">
       <div className="mast__inner">
         <Link
           to={href("/", current ? { organism: current.organism } : {})}

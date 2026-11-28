@@ -80,6 +80,13 @@ export const PAGE_META: Record<string, PageMeta> = {
   "/accessibility": {
     description:
       "The accessibility statement of IDTrack's web app: the standard, how it is tested, and how to report a barrier.",
+    alternate: "/accessibility/de",
+  },
+  "/accessibility/de": {
+    description:
+      "Die Erklärung zur Barrierefreiheit der Web-App von IDTrack: der Standard, wie er geprüft wird, und wie Sie eine Barriere melden.",
+    lang: "de",
+    alternate: "/accessibility",
   },
   organism: { description: "What one organism's graph holds: its releases, genome assemblies, databases and history." },
   answer: {
@@ -116,6 +123,7 @@ export function metaHead(title: string, meta: PageMeta, canonical = true): strin
   tags.push(
     '<meta property="og:type" content="website">',
     '<meta property="og:site_name" content="IDTrack">',
+    `<meta property="og:locale" content="${meta.lang === "de" ? "de_DE" : "en_GB"}">`,
     `<meta property="og:title" content="${attribute(full)}">`,
     `<meta property="og:description" content="${attribute(meta.description)}">`,
     ...(canonical ? [`<meta property="og:url" content="${url}">`] : []),

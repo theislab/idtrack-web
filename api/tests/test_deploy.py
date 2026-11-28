@@ -89,9 +89,26 @@ def test_the_caddy_files_share_their_logs_and_their_maintenance() -> None:
     assert parts[0] == parts[1] == parts[2]
 
 
+@pytest.mark.parametrize(
+    ("compose", "way"),
+    [
+        ("compose.vm.yaml", "lets_encrypt"),
+        ("compose.institute-cert.yaml", "institute_certificate"),
+        ("compose.behind-proxy.yaml", "behind_proxy"),
+    ],
+)
+def test_each_way_to_a_certificate_tells_the_api(compose: str, way: str) -> None:
+    """The compose file of each way to the certificate (SETUP.md, section 10.5) tells the API which it is, later files
+    overriding earlier ones as COMPOSE_FILE lists them, so that the privacy page says who holds the certificate and who
+    receives a visitor's address on the deployment as it is set up."""
+    text = (DEPLOY / "vm" / compose).read_text(encoding="utf-8")
+    assert f"  api:\n    environment:\n      IDTRACK_WEB_HTTPS_ROUTE: {way}\n" in text
+
+
 def test_the_maintenance_page_is_allowed_its_style_and_nothing_else() -> None:
-    """The page Caddy answers while the api cannot is static: no script, no request of its own; its one style is
-    allowed by its hash, which the Caddy files name."""
+    """The page Caddy answers while the api cannot is static: no script, no request of its own, no refresh (a page that
+    reloads itself fails WCAG 2.2.1); its one style, with the site's faces written in, is allowed by its hash, which the
+    Caddy files name, and its faces as data alone."""
     page = (DEPLOY / "maintenance.html").read_text(encoding="utf-8")
     assert "<script" not in page.lower() and " src=" not in page and "<link" not in page
     styles = re.findall(r"<style>(.*?)</style>", page, re.DOTALL)
@@ -100,6 +117,8 @@ def test_the_maintenance_page_is_allowed_its_style_and_nothing_else() -> None:
     errors = block((DEPLOY / "Caddyfile").read_text(encoding="utf-8"), "\thandle_errors")
     assert f"style-src 'sha256-{digest}';" in errors
     assert "default-src 'none'" in errors and "rewrite * /maintenance.html" in errors and "status 503" in errors
+    assert "font-src data:;" in errors and 'http-equiv="refresh"' not in page
+    assert re.findall(r"url\((data:[^;]+);", page) == ["data:font/woff2", "data:font/woff2"]
     compose = (DEPLOY / "compose.yaml").read_text(encoding="utf-8")
     assert "./maintenance.html:/etc/caddy/maintenance.html:ro" in compose
 

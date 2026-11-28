@@ -25,6 +25,7 @@ interface FramesModule {
   FRAMES: Record<string, { address: string; module: string | null }>;
   frameHtml: (frame: unknown) => string;
   frameMeta: (frame: unknown) => string;
+  frameLang: (frame: unknown) => string;
 }
 
 const root = fileURLToPath(new URL("..", import.meta.url));
@@ -83,7 +84,7 @@ const vite = await createServer({
 try {
   const frames = (await vite.ssrLoadModule("/src/prerender.tsx")) as FramesModule;
   const { PAGE_PATHS } = (await vite.ssrLoadModule("/src/lib/routes.ts")) as { PAGE_PATHS: readonly string[] };
-  const out: Record<string, { html: string; head: string; meta: string }> = {};
+  const out: Record<string, { html: string; head: string; meta: string; lang: string }> = {};
   for (const [name, frame] of Object.entries(frames.FRAMES)) {
     at(frame.address);
     // The masthead's tools (the organism, the load, the search, the picture, the theme) answer only once the app has
@@ -99,7 +100,12 @@ try {
     // The page's security policy allows no inline style or script: a frame that held one would be refused by the
     // browser (and said so in its console).
     if (/\sstyle="|<script/i.test(html)) throw new Error(`The frame ${name} holds an inline style or script.`);
-    out[name] = { html: frameHtml, head: links(frame.module), meta: frames.frameMeta(frame) };
+    out[name] = {
+      html: frameHtml,
+      head: links(frame.module),
+      meta: frames.frameMeta(frame),
+      lang: frames.frameLang(frame),
+    };
   }
   writeFileSync(`${dist}/frames.json`, `${JSON.stringify({ frames: out, pages: PAGE_PATHS }, null, 1)}\n`);
   console.log(

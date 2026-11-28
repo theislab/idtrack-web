@@ -2,9 +2,9 @@
 // address that is no page is said at once. The api's server answers every one of these paths with the app; any
 // other path is "No such page".
 
-/** The site's own pages (the legal notice and the privacy page each in English and in German, the licences, the
- *  accessibility statement): they need no organism. */
-type SitePage = "legal" | "legal-de" | "privacy" | "privacy-de" | "licences" | "accessibility";
+/** The site's own pages (the legal notice, the privacy page and the accessibility statement each in English and in
+ *  German, the licences): they need no organism. */
+type SitePage = "legal" | "legal-de" | "privacy" | "privacy-de" | "licences" | "accessibility" | "accessibility-de";
 
 export type Route =
   | { page: "home" | "convert" | "batch" | "names" | "organisms" | "developers" | "method" | SitePage; title: string }
@@ -26,6 +26,7 @@ const PAGES: Record<string, { page: Exclude<Route["page"], "organism" | "redirec
   "/privacy/de": { page: "privacy-de", title: "Datenschutz" },
   "/licences": { page: "licences", title: "Licences" },
   "/accessibility": { page: "accessibility", title: "Accessibility" },
+  "/accessibility/de": { page: "accessibility-de", title: "Barrierefreiheit" },
 };
 
 /** The paths of the pages (the server answers each with the page and 200; the sitemap lists them). */

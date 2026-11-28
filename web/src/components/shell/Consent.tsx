@@ -81,7 +81,7 @@ export function Consent() {
     if (inside || document.activeElement === document.body) focusMain();
   };
   return (
-    <section ref={bar} className="consent" aria-label="Counting visits">
+    <section ref={bar} lang="en" className="consent" aria-label="Counting visits">
       <div className="consent__inner">
         <p className="consent__text">
           <span className="consent__wide">May IDTrack count</span>
