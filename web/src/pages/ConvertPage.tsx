@@ -690,7 +690,7 @@ function ConvertForm({
             value={fromRelease}
             onChange={setFromRelease}
             description={description}
-            placeholder="inferred"
+            placeholder="its own release"
           />
           <ReleaseField
             label="To release"
