@@ -1,7 +1,7 @@
 // The view of an organism's lineage field (components/explore/LineageField.tsx): where the field stands in its box for
 // a view of the release axis, how a view moves and zooms, and an id's words and the release it is opened at. Pure
 // functions of the layout (lib/hero/lineageLayout.ts) and the renderer's frame (components/hero/field.ts).
-import type { FieldFrame } from "../../components/hero/field";
+import { placeOf, type FieldFrame } from "../../components/hero/field";
 import { runsOf, type LineageLayout } from "../hero/lineageLayout";
 
 /** The room under the field for its release axis (px). */
@@ -47,4 +47,62 @@ export function releaseFor(layout: LineageLayout, id: number, k: number): number
   if (!Number.isNaN(layout.y[id * n + k] ?? NaN)) return layout.releases[k] ?? 0;
   const runs = runsOf(layout, id);
   return runs[runs.length - 1]?.[1] ?? layout.releases[n - 1] ?? 0;
+}
+
+/** An id picked in the field and the release index it is picked at. */
+export interface Picked {
+  id: number;
+  k: number;
+}
+
+/** Where a key moves the pick: ← → along the id's releases (to the next release it is active at), ↑ ↓ to the line
+ *  beside it at that release, Home and End to its first and last release; null where it cannot move, undefined for
+ *  a key that does not move it. */
+export function keyMove(layout: LineageLayout, current: Picked, key: string): Picked | null | undefined {
+  const n = layout.releases.length;
+  const active = (k: number) => !Number.isNaN(layout.y[current.id * n + k] ?? Number.NaN);
+  if (key === "ArrowRight" || key === "ArrowLeft") {
+    const step = key === "ArrowRight" ? 1 : -1;
+    for (let k = current.k + step; k >= 0 && k < n; k += step) if (active(k)) return { id: current.id, k };
+    return null;
+  }
+  if (key === "ArrowUp" || key === "ArrowDown") {
+    const column = layout.columns[current.k] ?? new Int32Array();
+    const at = column.indexOf(current.id);
+    const j = at < 0 ? Math.floor(column.length / 2) : at + (key === "ArrowDown" ? 1 : -1);
+    const other = column[Math.max(0, Math.min(column.length - 1, j))];
+    return other === undefined ? null : { id: other, k: current.k };
+  }
+  if (key === "Home" || key === "End") {
+    const runs = runsOf(layout, current.id);
+    const release = key === "Home" ? runs[0]?.[0] : runs[runs.length - 1]?.[1];
+    const k = release === undefined ? -1 : layout.releases.indexOf(release);
+    return k >= 0 ? { id: current.id, k } : null;
+  }
+  return undefined;
+}
+
+/** The path of a picked id over the releases it is active at (broken where it is not), and the point picked, in the
+ *  frame's pixels. */
+export function linePath(
+  layout: LineageLayout,
+  picked: Picked,
+  frame: FieldFrame,
+): { d: string; at: { x: number; y: number } } {
+  const n = layout.releases.length;
+  const xAt = (k: number) => (n > 1 ? k / (n - 1) : 0.5);
+  const parts: string[] = [];
+  let drawing = false;
+  for (let k = 0; k < n; k++) {
+    const y = layout.y[picked.id * n + k];
+    if (y === undefined || Number.isNaN(y)) {
+      drawing = false;
+      continue;
+    }
+    const p = placeOf(frame, xAt(k), y);
+    parts.push(`${drawing ? "L" : "M"}${p.x.toFixed(1)},${p.y.toFixed(1)}`);
+    drawing = true;
+  }
+  const y = layout.y[picked.id * n + picked.k] ?? 0;
+  return { d: parts.join(""), at: placeOf(frame, xAt(picked.k), Number.isNaN(y) ? 0 : y) };
 }

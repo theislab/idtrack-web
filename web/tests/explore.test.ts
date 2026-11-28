@@ -12,7 +12,15 @@ import { changed, historyColumns, niceMax } from "../src/lib/explore/history";
 import { holdsStage } from "../src/lib/method/cases";
 import { layoutLineages } from "../src/lib/hero/lineageLayout";
 import { chipName } from "../src/lib/explore/chips";
-import { LEAST_SPAN, lineWords, moveView, releaseFor, viewFrame } from "../src/lib/explore/lineageView";
+import {
+  keyMove,
+  LEAST_SPAN,
+  linePath,
+  lineWords,
+  moveView,
+  releaseFor,
+  viewFrame,
+} from "../src/lib/explore/lineageView";
 import { conversions, description } from "./fixtures";
 import { changesOf, codeWords, forReaders, learnRefTitles, plain } from "../scripts/idtrack-docs.ts";
 
@@ -197,6 +205,24 @@ describe("an organism's lineage field", () => {
     // At a release it is active at, that release; elsewhere its last.
     expect(releaseFor(layout, a, 1)).toBe(11);
     expect(releaseFor(layout, a, 3)).toBe(11);
+  });
+
+  it("moves a pick along a line's releases, to the lines beside it, to its ends; draws the line it picks", () => {
+    const c = layout.ids.indexOf("C");
+    const d = layout.ids.indexOf("D");
+    expect(keyMove(layout, { id: c, k: 1 }, "ArrowRight")).toEqual({ id: c, k: 2 });
+    expect(keyMove(layout, { id: c, k: 3 }, "ArrowRight")).toBeNull();
+    expect(keyMove(layout, { id: c, k: 2 }, "Home")).toEqual({ id: c, k: 0 });
+    expect(keyMove(layout, { id: d, k: 1 }, "End")).toEqual({ id: d, k: 3 });
+    // Up and down stay at the release, on another id active there.
+    const other = keyMove(layout, { id: c, k: 1 }, "ArrowDown") ?? keyMove(layout, { id: c, k: 1 }, "ArrowUp");
+    expect(other?.k).toBe(1);
+    expect(Number.isNaN(layout.y[(other?.id ?? 0) * 4 + 1] ?? Number.NaN)).toBe(false);
+    expect(keyMove(layout, { id: c, k: 1 }, "x")).toBeUndefined();
+    // The line of A: active at 10 and 11 only, one stretch of two points.
+    const path = linePath(layout, { id: layout.ids.indexOf("A"), k: 0 }, viewFrame(1000, 540, [0, 1]));
+    expect(path.d.match(/[ML]/g)).toEqual(["M", "L"]);
+    expect(path.at.x).toBe(16);
   });
 
   it("names an organism's chip by its common name", () => {

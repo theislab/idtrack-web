@@ -10,14 +10,23 @@ import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent, type P
 import { api } from "../../api/client";
 import type { GraphDescription } from "../../api/types";
 import { convertHref, plainConversion } from "../../lib/convertParameters";
-import { idAt, layoutLineages, runsOf, type LineageLayout } from "../../lib/hero/lineageLayout";
-import { LEAST_SPAN, lineWords, moveView, releaseFor, viewFrame } from "../../lib/explore/lineageView";
+import { idAt, layoutLineages, type LineageLayout } from "../../lib/hero/lineageLayout";
+import {
+  keyMove,
+  LEAST_SPAN,
+  linePath,
+  lineWords,
+  moveView,
+  releaseFor,
+  viewFrame,
+  type Picked,
+} from "../../lib/explore/lineageView";
 import { groupedInteger } from "../../lib/numbers";
 import { organismName } from "../../lib/organismNames";
 import { navigate } from "../../lib/router";
 import { usePhone } from "../../lib/usePhone";
 import { useRequest } from "../../lib/useRequest";
-import { createField, fieldAt, placeOf, type Field, type FieldColours } from "../hero/field";
+import { createField, fieldAt, placeOf, type Field, type FieldColours, type FieldFrame } from "../hero/field";
 import { assemblyBands } from "../figure/releases";
 import { ErrorPanel } from "../ErrorPanel";
 import { CaptionMore } from "../home/CaptionMore";
@@ -51,12 +60,6 @@ function inks(element: Element): FieldColours {
 
 const reducedMotion = () =>
   typeof window.matchMedia === "function" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-
-interface Picked {
-  id: number;
-  /** The release index pointed at. */
-  k: number;
-}
 
 export function LineageField({ description }: { description: GraphDescription }) {
   const phone = usePhone();
@@ -246,54 +249,19 @@ function FieldView({
   const onKeyDown = (event: KeyboardEvent<SVGSVGElement>) => {
     const current = picked ?? firstPick();
     if (!current) return;
-    const active = (id: number, k: number) => !Number.isNaN(layout.y[id * n + k] ?? NaN);
-    const runs = runsOf(layout, current.id);
-    let next: Picked | null = null;
-    switch (event.key) {
-      case "ArrowRight":
-      case "ArrowLeft": {
-        const step = event.key === "ArrowRight" ? 1 : -1;
-        for (let k = current.k + step; k >= 0 && k < n; k += step)
-          if (active(current.id, k)) {
-            next = { id: current.id, k };
-            break;
-          }
-        break;
-      }
-      case "ArrowUp":
-      case "ArrowDown": {
-        const c = column(current.k);
-        const at = c.indexOf(current.id);
-        const j = at < 0 ? Math.floor(c.length / 2) : at + (event.key === "ArrowDown" ? 1 : -1);
-        const other = c[Math.max(0, Math.min(c.length - 1, j))];
-        if (other !== undefined) next = { id: other, k: current.k };
-        break;
-      }
-      case "Home":
-      case "End": {
-        const release = event.key === "Home" ? runs[0]?.[0] : runs[runs.length - 1]?.[1];
-        const k = release === undefined ? -1 : layout.releases.indexOf(release);
-        if (k >= 0) next = { id: current.id, k };
-        break;
-      }
-      case "+":
-      case "=":
-        zoom(0.5, n > 1 ? current.k / (n - 1) : 0.5);
-        event.preventDefault();
-        return;
-      case "-":
-      case "_":
-        zoom(2, n > 1 ? current.k / (n - 1) : 0.5);
-        event.preventDefault();
-        return;
-      case "Enter":
-      case " ":
-        open(current);
-        event.preventDefault();
-        return;
-      default:
-        return;
+    const at = n > 1 ? current.k / (n - 1) : 0.5;
+    if (event.key === "+" || event.key === "=" || event.key === "-" || event.key === "_") {
+      zoom(event.key === "+" || event.key === "=" ? 0.5 : 2, at);
+      event.preventDefault();
+      return;
     }
+    if (event.key === "Enter" || event.key === " ") {
+      open(current);
+      event.preventDefault();
+      return;
+    }
+    const next = keyMove(layout, current, event.key);
+    if (next === undefined) return;
     event.preventDefault();
     if (!next) return;
     setPicked(next);
@@ -305,27 +273,7 @@ function FieldView({
   const pickedId = picked ? (layout.ids[picked.id] ?? "") : "";
   const pickedRelease = picked ? (layout.releases[picked.k] ?? 0) : 0;
   // The picked line, drawn over the canvas for the keyboard's focus (its path over the releases it is active at).
-  const overlay =
-    picked && frame
-      ? (() => {
-          const parts: string[] = [];
-          let open = false;
-          for (let k = 0; k < n; k++) {
-            const y = layout.y[picked.id * n + k];
-            if (y === undefined || Number.isNaN(y)) {
-              open = false;
-              continue;
-            }
-            const p = placeOf(frame, n > 1 ? k / (n - 1) : 0.5, y);
-            parts.push(`${open ? "L" : "M"}${p.x.toFixed(1)},${p.y.toFixed(1)}`);
-            open = true;
-          }
-          const y = layout.y[picked.id * n + picked.k] ?? 0;
-          return { d: parts.join(""), at: placeOf(frame, n > 1 ? picked.k / (n - 1) : 0.5, Number.isNaN(y) ? 0 : y) };
-        })()
-      : null;
-  const xOf = (release: number) =>
-    frame ? placeOf(frame, n > 1 ? layout.releases.indexOf(release) / (n - 1) : 0.5, 0).x : 0;
+  const overlay = picked && frame ? linePath(layout, picked, frame) : null;
   const shownFrom = layout.releases[Math.round(view[0] * (n - 1))] ?? 0;
   const shownTo = layout.releases[Math.round(view[1] * (n - 1))] ?? 0;
   const whole = view[0] <= 0 && view[1] >= 1;
@@ -380,40 +328,9 @@ function FieldView({
           if (event.pointerType !== "touch" && !focused) setPicked(null);
         }}
       >
-        {frame ? (
-          <div className="lineage-field__axis" aria-hidden="true">
-            {bands.map((band, i) => {
-              const x = xOf(band.first);
-              if (x < -40 || (size && x > size.width)) return null;
-              return (
-                <span
-                  key={band.assembly}
-                  className={`lineage-field__tick${i === 0 ? " lineage-field__tick--first" : ""}`}
-                  style={{ left: x }}
-                >
-                  <span className="mono">{band.first}</span> {band.name}
-                </span>
-              );
-            })}
-            {last !== undefined && size && xOf(last) <= size.width + 1 ? (
-              <span className="lineage-field__tick lineage-field__tick--last" style={{ left: xOf(last) }}>
-                <span className="mono">{last}</span>
-              </span>
-            ) : null}
-          </div>
+        {frame && size ? (
+          <FieldAxis layout={layout} bands={bands} frame={frame} width={size.width} last={last} />
         ) : null}
-        {frame
-          ? bands
-              .slice(1)
-              .map((band) => (
-                <span
-                  key={band.assembly}
-                  className="lineage-field__change"
-                  aria-hidden="true"
-                  style={{ left: xOf(band.first), top: frame.centre - frame.half, height: 2 * frame.half }}
-                />
-              ))
-          : null}
         <svg
           className="lineage-field__focus"
           role="application"
@@ -479,5 +396,56 @@ function FieldView({
         </CaptionMore>
       </figcaption>
     </figure>
+  );
+}
+
+/** The release axis under the field (each assembly's first release and name, the last release, those in view) and
+ *  the assembly changes as faint rules through it. */
+function FieldAxis({
+  layout,
+  bands,
+  frame,
+  width,
+  last,
+}: {
+  layout: LineageLayout;
+  bands: ReturnType<typeof assemblyBands>;
+  frame: FieldFrame;
+  width: number;
+  last: number | undefined;
+}) {
+  const n = layout.releases.length;
+  const xOf = (release: number) => placeOf(frame, n > 1 ? layout.releases.indexOf(release) / (n - 1) : 0.5, 0).x;
+  return (
+    <>
+      <div className="lineage-field__axis" aria-hidden="true">
+        {bands.map((band, i) => {
+          const x = xOf(band.first);
+          if (x < -40 || x > width) return null;
+          return (
+            <span
+              key={band.assembly}
+              className={`lineage-field__tick${i === 0 ? " lineage-field__tick--first" : ""}`}
+              style={{ left: x }}
+            >
+              <span className="mono">{band.first}</span> {band.name}
+            </span>
+          );
+        })}
+        {last !== undefined && xOf(last) <= width + 1 ? (
+          <span className="lineage-field__tick lineage-field__tick--last" style={{ left: xOf(last) }}>
+            <span className="mono">{last}</span>
+          </span>
+        ) : null}
+      </div>
+      {bands.slice(1).map((band) => (
+        <span
+          key={band.assembly}
+          className="lineage-field__change"
+          aria-hidden="true"
+          style={{ left: xOf(band.first), top: frame.centre - frame.half, height: 2 * frame.half }}
+        />
+      ))}
+    </>
   );
 }
