@@ -222,17 +222,19 @@ uniform vec3 u_young;
 uniform float u_time;
 uniform float u_pulse;
 uniform float u_still;
+uniform vec4 u_fibre; // a thread's weight: floor + gain * h^power (h its hash); the haze at the far end
 out vec4 colour;
 void main() {
   float a = u_colour.a * v_fade;
   vec3 rgb = u_colour.rgb;
   if (u_still > 0.5) {
     // Growth rings: the ids of the first assembly in the line's ink at the core, each later era's further toward the
-    // young ids' colour and lighter. Each thread its own weight, most of them faint and a few bright (fibres of silk
-    // catching the light; the mean weight is the same for every line), and as much ink per pixel at the far end as at
-    // the near (lines lie closer there), hazing with distance.
-    float weight = 0.25 + 3.0 * pow(fract(v_phase * 13.731), 5.0);
-    a *= weight * mix(1.0, 0.62, v_era) * v_scale * mix(0.55, 1.0, v_x);
+    // young ids' colour and lighter. Each thread its own weight, most of them faint and a few strong (fibres catching
+    // the light; in the light theme the engraver's few cut lines over a fine haze; the mean weight is the same for
+    // every line), and as much ink per pixel at the far end as at the near (lines lie closer there), hazing with
+    // distance.
+    float weight = u_fibre.x + u_fibre.y * pow(fract(v_phase * 13.731), u_fibre.z);
+    a *= weight * mix(1.0, 0.62, v_era) * v_scale * mix(u_fibre.w, 1.0, v_x);
     rgb = mix(u_colour.rgb, u_young, v_era);
   }
   if (u_pulse > 0.5) {
@@ -299,7 +301,6 @@ uniform vec3 u_glow;
 uniform float u_gain;
 uniform float u_dark;
 uniform float u_bloom;
-uniform vec3 u_ground;
 out vec4 colour;
 void main() {
   vec2 p = vec2(v_uv.x, 1.0 - v_uv.y) * u_res;
@@ -322,12 +323,10 @@ void main() {
     vec3 rgb = mix(hue, u_tint, glow * 0.7) * a + u_glow * halo + u_tint * front * a * 1.4;
     colour = vec4(rgb, min(1.0, max(a, halo))) * shown;
   } else {
-    // A cyanotype on paper: a ground of deep blue wherever lines lie (soft where they are sparse), the lines pale on
-    // it as they add up, and a faint bleed of the ground around it.
-    float cover = 1.0 - exp(-8.0 * c.a);
-    vec3 rgb = mix(u_ground, mix(hue, vec3(1.0), glow * 0.5), a) + u_tint * front * a * 1.2;
-    float bleed = halo * (1.0 - cover);
-    colour = (vec4(rgb, 1.0) * cover + vec4(u_glow, 1.0) * bleed) * shown;
+    // Ink on the paper, an engraving: the hairlines' density is the ink (the paper shows between them), the pointer's
+    // light draws them toward the history hue, and a faint wash of their own density softens the edges.
+    vec3 rgb = mix(hue, u_tint, glow * 0.6) * a + u_glow * halo + u_tint * front * a * 0.9;
+    colour = vec4(rgb, min(1.0, a + halo * (1.0 - a))) * shown;
   }
 }`;
 
@@ -502,29 +501,52 @@ function fresh(canvas: HTMLCanvasElement, gl: WebGL2RenderingContext): HTMLCanva
   return other;
 }
 
-/** The inks of each theme. Dark: light on the night (pale steel lines, the younger eras toward the history hue,
- *  added up with a bloom). Light: a cyanotype on the paper (the same pale lines on a ground of deep blue). The two hues
- *  stay accents: the history hue's dots and one-to-one edges, the event hue's fans, the light travelling. */
+/** The inks of each theme. Dark: light on the night (pale steel lines, the younger eras toward the history hue, added
+ *  up with a bloom; most threads faint, a few bright). Light: ink on the paper, an engraving (deep blue-black hairlines,
+ *  the younger eras toward the history hue; most threads a fine haze and a few cut strong, so the paper shows between
+ *  them; hazing toward the paper with distance; the showcase's journeys in the history hue). The two hues stay
+ *  accents: the history hue's dots and one-to-one edges, the event hue's fans, the light travelling. */
 function paletteOf(colours: FieldColours) {
   const lighten = (rgb: [number, number, number], by: number) =>
     rgb.map((v) => v + (1 - v) * by) as [number, number, number];
-  const pale: [number, number, number] = [0.7, 0.79, 0.96];
+  const mixed = (p: [number, number, number], q: [number, number, number], t: number) =>
+    p.map((v, i) => v + ((q[i] ?? 0) - v) * t) as [number, number, number];
+  const rgb = (r: number, g: number, b: number): [number, number, number] => [r, g, b];
+  if (colours.dark)
+    return {
+      line: rgb(0.7, 0.79, 0.96),
+      young: lighten(colours.history, 0.25),
+      focal: rgb(0.7, 0.79, 0.96),
+      focalAlpha: 0.16,
+      one: colours.history,
+      fan: colours.event,
+      dots: colours.history,
+      dotAlpha: 0.5,
+      core: rgb(0.86, 0.93, 1),
+      halo: rgb(0.36, 0.55, 1),
+      lift: [0.97, 0.98, 1, 1] as [number, number, number, number],
+      glow: rgb(0.3, 0.45, 0.85),
+      gain: 0.95,
+      bloom: 0.8,
+      fibre: [0.25, 3.0, 5.0, 0.55] as [number, number, number, number],
+    };
+  const ink = mixed(colours.ink, colours.history, 0.3);
   return {
-    line: pale,
-    young: colours.dark ? lighten(colours.history, 0.25) : lighten(colours.history, 0.2),
-    focal: colours.dark ? 0.16 : 0.2,
-    one: colours.dark ? colours.history : lighten(colours.history, 0.45),
-    fan: colours.dark ? colours.event : lighten(colours.event, 0.12),
-    dots: colours.dark ? colours.history : ([0.74, 0.88, 1] as [number, number, number]),
-    core: [0.86, 0.93, 1] as [number, number, number],
-    halo: colours.dark ? ([0.36, 0.55, 1] as [number, number, number]) : ([0.55, 0.72, 1] as [number, number, number]),
-    lift: [0.97, 0.98, 1, 1] as [number, number, number, number],
-    glow: colours.dark
-      ? ([0.3, 0.45, 0.85] as [number, number, number])
-      : ([0.16, 0.3, 0.62] as [number, number, number]),
-    ground: [0.08, 0.15, 0.33] as [number, number, number],
-    gain: colours.dark ? 0.95 : 0.75,
-    bloom: colours.dark ? 0.8 : 0.05,
+    line: ink,
+    young: mixed(colours.history, colours.ink, 0.25),
+    focal: mixed(colours.history, colours.ink, 0.35),
+    focalAlpha: 0.14,
+    one: colours.history,
+    fan: colours.event,
+    dots: colours.history,
+    dotAlpha: 0.32,
+    core: colours.history,
+    halo: lighten(colours.history, 0.55),
+    lift: [...colours.ink, 1] as [number, number, number, number],
+    glow: lighten(colours.history, 0.6),
+    gain: 0.85,
+    bloom: 0.06,
+    fibre: [0.1, 4.3, 8.0, 0.3] as [number, number, number, number],
   };
 }
 
@@ -654,6 +676,7 @@ function createWebgl(
     "u_time",
     "u_pulse",
     "u_still",
+    "u_fibre",
     "u_eras",
   ] as const);
   const du = uniforms(dotsProgram, ["u_m", "u_res", "u_size", "u_colour"] as const);
@@ -669,7 +692,6 @@ function createWebgl(
     "u_gain",
     "u_dark",
     "u_bloom",
-    "u_ground",
   ] as const);
   // A still field of half floats where the browser can draw into them: thousands of faint lines add up without the
   // steps of 8 bits.
@@ -700,7 +722,9 @@ function createWebgl(
     gl.uniform2f(lu.u_res, width, height);
     gl.uniform1f(lu.u_offset, offset);
     gl.uniform4f(lu.u_colour, ...colour);
-    gl.uniform3f(lu.u_young, ...paletteOf(colours).young);
+    const palette = paletteOf(colours);
+    gl.uniform3f(lu.u_young, ...palette.young);
+    gl.uniform4f(lu.u_fibre, ...palette.fibre);
     gl.uniform1f(lu.u_time, time);
     gl.uniform1f(lu.u_pulse, mode.pulse ? 1 : 0);
     gl.uniform1f(lu.u_still, mode.still ? 1 : 0);
@@ -738,7 +762,7 @@ function createWebgl(
     drawLines(all);
     // The showcase's journeys (the first families): drawn again, stronger, the focal threads of the field.
     if (layout.focusIds > 0) {
-      applyLines([...palette.line, palette.focal], {}, 0);
+      applyLines([...palette.focal, palette.focalAlpha], {}, 0);
       drawLines(focal);
     }
     applyLines([...palette.one, 0.7], {}, 0);
@@ -753,7 +777,7 @@ function createWebgl(
     gl.uniformMatrix3fv(du.u_m, false, projected.m);
     gl.uniform2f(du.u_res, width, height);
     gl.uniform1f(du.u_size, 2.6 * dpr);
-    gl.uniform4f(du.u_colour, ...palette.dots, colours.dark ? 0.5 : 0.4);
+    gl.uniform4f(du.u_colour, ...palette.dots, palette.dotAlpha);
     gl.bindVertexArray(dotVao);
     gl.drawArrays(gl.POINTS, 0, layout.dots.length / 2);
     count(layout.dots.length / 2);
@@ -796,7 +820,6 @@ function createWebgl(
     const palette = paletteOf(colours);
     gl.uniform3f(qu.u_tint, ...colours.history);
     gl.uniform3f(qu.u_glow, ...palette.glow);
-    gl.uniform3f(qu.u_ground, ...palette.ground);
     gl.uniform1f(qu.u_gain, palette.gain);
     gl.uniform1f(qu.u_dark, colours.dark ? 1 : 0);
     gl.uniform1f(qu.u_bloom, palette.bloom);
@@ -959,8 +982,8 @@ function createStill(canvas: HTMLCanvasElement, layout: LineageLayout): Field {
     const place = placer(f);
     const alpha = lineAlpha(layout, spreadOf(f, dpr));
     const palette = paletteOf(colours);
-    // Dark: the pale lines added up as light; light: the cyanotype's blue as ink on the paper.
-    const ink = colours.dark ? palette.line : palette.ground;
+    // Dark: the pale lines added up as light; light: the ink's hairlines on the paper.
+    const ink = palette.line;
     context.globalCompositeOperation = colours.dark ? "lighter" : "source-over";
     // Each curve as the shaders draw it: x along, y by a smooth step, placed on the plane.
     const curve = (data: Float32Array, stride: number, from: number, to: number) => {
