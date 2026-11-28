@@ -205,7 +205,7 @@ export function ringLabels(model: RingsModel, place: RingsPlace, narrow: boolean
 // ---------------------------------------------------------------------------------------------------------------------
 // The renderer.
 
-export interface RingsColours {
+interface RingsColours {
   ink: [number, number, number];
   history: [number, number, number];
   event: [number, number, number];
