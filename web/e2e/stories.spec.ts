@@ -144,7 +144,8 @@ test("Explore: the replay writes the product of the scores so far and ends on th
   while (await next.isEnabled()) {
     await next.click();
     // A sentence first, then the step's ids and values.
-    await expect(readout.locator(".replay__words")).toContainText(/^Step \d+ of \d+\. /);
+    // (the last press reaches the answer, said in its own sentence)
+    await expect(readout.locator(".replay__words")).toContainText(/^(Step \d+ of \d+\. |The answer at release \d+)/);
     const values = (await readout.locator(".replay__values").textContent()) ?? "";
     if (/ · Ensembl's score \d/.test(values)) {
       expect(values).toMatch(/product so far \d\.\d+/);

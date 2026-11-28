@@ -306,7 +306,13 @@ test("Explore: the page's title says what it holds; the stories, then the graphs
   await page.goto("/organisms");
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Stories from Ensembl's history");
   // Two tabs: the stories first (the organism's chips above them), the graphs side by side.
-  if (graphsHeld > 1) await expect(page.getByRole("radiogroup", { name: "Stories of the graph" })).toBeVisible();
+  // (on a phone, one menu of the graphs)
+  if (graphsHeld > 1)
+    await expect(
+      page
+        .getByRole("radiogroup", { name: "Stories of the graph" })
+        .or(page.getByRole("combobox", { name: "Stories of the graph" })),
+    ).toBeVisible();
   await page.getByRole("tab", { name: /^The graphs/ }).click();
   await expect(page).toHaveURL(/tab=graphs/);
   // The tab's name is not said again as a heading; its sums in a few words each, what each counts in a hover card:
