@@ -11,7 +11,7 @@ import { isEnsembl } from "./journeyModel";
 import type { JourneySet } from "./journeys";
 
 /** The height of one line of the figure's words (sets, events). */
-export const LINE = 15;
+const LINE = 15;
 /** The least pitch of a row: a pointer's target of 24 px (WCAG 2.5.8). */
 export const ROW = 24;
 /** The largest pitch a figure takes to fill its room (more air stands around the figure instead). */
@@ -169,7 +169,7 @@ export type JourneyFilter = "all" | "events" | "bridges" | "back" | "databases";
 
 /** Whether a journey is of a kind kept by the filter: a split or merge of Ensembl's history on its best path; a bridge;
  *  a walk back in time; read in or answered in another database than Ensembl's. */
-export function keeps(filter: JourneyFilter, j: JourneySet["journeys"][number]): boolean {
+function keeps(filter: JourneyFilter, j: JourneySet["journeys"][number]): boolean {
   if (filter === "all") return true;
   const r = j.result;
   if (!r || !j.model) return false;

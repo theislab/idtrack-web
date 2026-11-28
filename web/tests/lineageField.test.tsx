@@ -7,6 +7,7 @@ import { useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { LineagesResponse } from "../src/api/types";
 import { layoutLineages } from "../src/lib/hero/lineageLayout";
+import type * as FieldModule from "../src/components/hero/field";
 import { description } from "./fixtures";
 
 const lineages: LineagesResponse = {
@@ -34,7 +35,7 @@ vi.mock("../src/lib/hero/lineageLoad", () => ({
 }));
 
 vi.mock("../src/components/hero/field", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../src/components/hero/field")>();
+  const actual = await importOriginal<typeof FieldModule>();
   return {
     ...actual,
     createField: (canvas: HTMLCanvasElement) => {

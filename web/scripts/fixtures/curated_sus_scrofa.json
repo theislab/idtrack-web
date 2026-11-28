@@ -92,10 +92,7 @@
       "format": "json"
     },
     "body": {
-      "identifiers": [
-        "INS",
-        "XP_003123285"
-      ],
+      "identifiers": ["INS", "XP_003123285"],
       "explain": true,
       "to_release": 80
     }
@@ -119,9 +116,7 @@
       "format": "json"
     },
     "body": {
-      "identifiers": [
-        "INS"
-      ],
+      "identifiers": ["INS"],
       "to_release": "115"
     }
   },
@@ -143,14 +138,7 @@
       "format": "json"
     },
     "body": {
-      "identifiers": [
-        "INS",
-        "INS-1",
-        "GCG",
-        "GCG.2",
-        "GCG.2_1",
-        "PDX1"
-      ]
+      "identifiers": ["INS", "INS-1", "GCG", "GCG.2", "GCG.2_1", "PDX1"]
     }
   },
   {

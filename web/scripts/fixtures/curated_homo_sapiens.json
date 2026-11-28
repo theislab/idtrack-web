@@ -41,13 +41,7 @@
       "format": "json"
     },
     "body": {
-      "identifiers": [
-        "INS",
-        "TP53",
-        "NOT_A_GENE",
-        "ENSG00000254647",
-        "pdx1"
-      ]
+      "identifiers": ["INS", "TP53", "NOT_A_GENE", "ENSG00000254647", "pdx1"]
     }
   },
   {
@@ -58,13 +52,7 @@
       "format": "tsv"
     },
     "body": {
-      "identifiers": [
-        "INS",
-        "TP53",
-        "NOT_A_GENE",
-        "ENSG00000254647",
-        "pdx1"
-      ]
+      "identifiers": ["INS", "TP53", "NOT_A_GENE", "ENSG00000254647", "pdx1"]
     }
   },
   {
@@ -98,14 +86,7 @@
       "format": "json"
     },
     "body": {
-      "identifiers": [
-        "INS",
-        "INS-1",
-        "TP53",
-        "TP53.2",
-        "TP53.2_1",
-        "PDX1"
-      ]
+      "identifiers": ["INS", "INS-1", "TP53", "TP53.2", "TP53.2_1", "PDX1"]
     }
   },
   {

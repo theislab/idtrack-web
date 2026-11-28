@@ -9,6 +9,7 @@ import { figureHeight, figureModel, reasonCounts } from "../../lib/explore/figur
 import { apiAddress, caseHref } from "../../lib/home/links";
 import type { CaseQuery } from "../../lib/home/cases";
 import { lazyPart } from "../../lib/lazyPart";
+import { allStepsText, journeyStepsText } from "../../lib/path/steps";
 import { pythonFloat } from "../../lib/numbers";
 import { organismName } from "../../lib/organismNames";
 import { prose } from "../../lib/values";
@@ -173,9 +174,10 @@ export function JourneyUpClose({
             </>
           }
         >
-          Answered once when the server started. Each bar is a gene version over the releases at which the path holds it
-          ({model.genes.length} versions on assemblies {assemblies}); between the versions, {history.length} steps of
-          Ensembl&apos;s id history (
+          Answered once when the server started; the answer&apos;s explained path, every candidate&apos;s, holds{" "}
+          {allStepsText(result)}, of which the best answer&apos;s path takes {journeyStepsText(result)}. Each bar is a
+          gene version over the releases at which the path holds it ({model.genes.length} versions on assemblies{" "}
+          {assemblies}); between the versions, {history.length} steps of Ensembl&apos;s id history (
           {counts.map(([reason, n], i) => (
             <span key={reason}>
               {i ? ", " : ""}
