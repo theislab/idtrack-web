@@ -23,9 +23,9 @@ import {
 } from "../../lib/hero/constellationModel";
 import { drawsInSoftware } from "./field";
 
-export type Rgb = [number, number, number];
+type Rgb = [number, number, number];
 
-export interface ConstellationColours {
+interface ConstellationColours {
   ink: Rgb;
   history: Rgb;
   event: Rgb;
@@ -62,7 +62,7 @@ const PULSE_SECONDS = 14;
 const MARGIN = { x: 24, y: 16 } as const;
 /** How the axis of time is seen: rolled a little on a wide screen (rising toward the present), and turned so that
  *  the last release stands toward the viewer and the first recedes. */
-const VIEW = { roll: 0.1, yaw: 0.62 } as const;
+const VIEW = { roll: 0.1, yaw: 0.72 } as const;
 /** How far short of facing the viewer the most convoluted journey stands when the picture is first seen. */
 const FIRST_TURN = 0.22;
 
@@ -70,7 +70,7 @@ const FIRST_TURN = 0.22;
  *  px), the far side's share of light, the alphas of an id's thread, a step, the axis, and the travelling light. */
 const LOOK = {
   dark: { core: 1.1, halo: 3.2, haloStrength: 0.16, blur: 2.4, far: 0.2, run: 0.36, step: 0.6, axis: 0.24, pulse: 1.6 },
-  light: { core: 0.9, halo: 0, haloStrength: 0, blur: 1.6, far: 0.2, run: 0.3, step: 0.5, axis: 0.22, pulse: 1.1 },
+  light: { core: 1, halo: 0, haloStrength: 0, blur: 1.6, far: 0.2, run: 0.42, step: 0.66, axis: 0.24, pulse: 1 },
 } as const;
 
 const PLACE = `
@@ -118,7 +118,7 @@ void main() {
   vec4 s = mix(s0, s1, along);
   int kind = int(a_meta.x + 0.5);
   float blur = abs(s.z) * u_look.z * u_dpr;
-  float weight = kind == 0 ? 0.75 : kind == 2 ? 1.3 : kind == 5 ? 0.7 : 1.0;
+  float weight = kind == 0 ? 0.75 : kind == 2 ? 1.15 : kind == 5 ? 0.7 : 1.0;
   float core = u_look.x * u_dpr * s.w * weight;
   float sigma = max(0.45 * u_dpr, 0.5 * core + 0.5 * blur);
   float halo = u_look.y * u_dpr * s.w;
@@ -157,12 +157,41 @@ in float v_across;
 in float v_sigma;
 in float v_halo;
 uniform float u_haloStrength;
+uniform float u_absorb; // 1: ink, added up as absorbance over the paper (light); 0: light (dark), or drawn directly
+uniform vec3 u_paper;
 out vec4 colour;
 void main() {
   float g = exp(-0.5 * v_across * v_across / (v_sigma * v_sigma));
   float h = v_halo > 0.0 ? exp(-abs(v_across) / v_halo) * u_haloStrength : 0.0;
   float a = clamp(v_alpha * (g + h), 0.0, 1.0);
-  colour = vec4(v_rgb * a, a);
+  if (u_absorb > 0.5) colour = vec4(1.3 * a * max(vec3(0.0), 1.0 - v_rgb / max(u_paper, vec3(0.05))), 0.0);
+  else colour = vec4(v_rgb * a, a);
+}`;
+
+/** The threads added up (light in dark, ink in light) are mapped to the screen without saturating: light as
+ *  1 - e^-light, ink as the paper's colour times e^-ink, so a dense core stays luminous (or deep) and never a slab. */
+const COMPOSITE_VERTEX = `#version 300 es
+void main() {
+  vec2 p = vec2(float((gl_VertexID << 1) & 2), float(gl_VertexID & 2));
+  gl_Position = vec4(p * 2.0 - 1.0, 0.0, 1.0);
+}`;
+
+const COMPOSITE_FRAGMENT = `#version 300 es
+precision highp float;
+uniform sampler2D u_sum;
+uniform float u_dark;
+uniform vec3 u_paper;
+out vec4 colour;
+void main() {
+  vec3 sum = texelFetch(u_sum, ivec2(gl_FragCoord.xy), 0).rgb;
+  if (u_dark > 0.5) {
+    vec3 c = 1.0 - exp(-sum);
+    colour = vec4(c, max(c.r, max(c.g, c.b)));
+  } else {
+    vec3 t = exp(-sum);
+    float a = 1.0 - min(t.r, min(t.g, t.b));
+    colour = vec4(u_paper * (t - (1.0 - a)), a);
+  }
 }`;
 
 const STAR_VERTEX = `#version 300 es
@@ -322,6 +351,8 @@ function createLabels(layer: HTMLElement, model: Constellation) {
       const b = project(pose, 1, 0, 0);
       const length = Math.max(1, Math.hypot(b.x - a.x, b.y - a.y));
       const along = { x: (b.x - a.x) / length, y: (b.y - a.y) / length };
+      // An end of the axis near the id shown steps back for it.
+      let crowded = -1;
       model.journeys.forEach((j, i) => {
         const span = ids[i];
         if (!span) return;
@@ -338,7 +369,10 @@ function createLabels(layer: HTMLElement, model: Constellation) {
         // Beside its star, toward the room's middle, and away from a release written at an end of the axis.
         let left = q.x > (room.left + room.right) / 2;
         const near = [a, b].find((e) => Math.hypot(e.x - q.x, e.y - q.y) < 72);
-        if (near) left = near.x > q.x;
+        if (near) {
+          left = near.x > q.x;
+          crowded = near === a ? 0 : 1;
+        }
         // Never past the room's edge: a label that would cross it goes to the other side of its star.
         const width = span.offsetWidth + 24;
         if (left && q.x - width < room.left) left = false;
@@ -352,7 +386,7 @@ function createLabels(layer: HTMLElement, model: Constellation) {
         const x = end.x + along.x * out;
         const y = end.y + along.y * out;
         span.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px)`;
-        span.style.opacity = String(revealed(i === 0 ? -1 : 1, reveal));
+        span.style.opacity = String(revealed(i === 0 ? -1 : 1, reveal) * (crowded === i ? 0.3 : 1));
       });
     },
     remove() {
@@ -420,16 +454,18 @@ export function createConstellation(
   // In software (no GPU) WebGL would hold the page: the still drawing on a 2D canvas instead (in development the
   // clock may ask for the moving picture there, to see its motion).
   if (drawsInSoftware(gl) && !forced) return still(fresh(canvas, gl));
-  let programs: { segments: Program; stars: Program };
+  let programs: { segments: Program; stars: Program; composite: Program };
   try {
     programs = {
       segments: program(gl, SEGMENT_VERTEX, SEGMENT_FRAGMENT),
       stars: program(gl, STAR_VERTEX, STAR_FRAGMENT),
+      composite: program(gl, COMPOSITE_VERTEX, COMPOSITE_FRAGMENT),
     };
   } catch {
     return still(fresh(canvas, gl));
   }
   const segmentVao = segmentArray(gl, programs.segments.handle, model.segments);
+  const target = sumTarget(gl);
   const starVao = starArray(gl, programs.stars.handle, model.stars);
   const segmentCount = model.segments.length / SEGMENT;
   const starCount = model.stars.length / STAR;
@@ -463,20 +499,41 @@ export function createConstellation(
     const look = colours.dark ? LOOK.dark : LOOK.light;
     const { hues, inks } = palette(colours);
     gl.viewport(0, 0, width, height);
+    // The threads: added up in the texture of half floats where there is one (light, or ink as absorbance), then
+    // mapped to the screen; else drawn directly (dark adds light, light lays ink over the paper).
+    const summed = target.ready();
+    gl.bindFramebuffer(gl.FRAMEBUFFER, summed ? target.framebuffer : null);
     gl.clearColor(0, 0, 0, 0);
     gl.clear(gl.COLOR_BUFFER_BIT);
     gl.enable(gl.BLEND);
-    // Dark: light adds up and glows; light: ink lies over the paper.
-    if (colours.dark) gl.blendFunc(gl.ONE, gl.ONE);
+    if (summed || colours.dark) gl.blendFunc(gl.ONE, gl.ONE);
     else gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
     const s = programs.segments;
     common(s, pose, seconds, reveal);
     gl.uniform3fv(s.at("u_hues"), hues.flat());
     gl.uniform4f(s.at("u_alphas"), look.run, look.step, look.axis, quiet ? 0 : look.pulse);
     gl.uniform1f(s.at("u_haloStrength"), look.haloStrength);
+    gl.uniform1f(s.at("u_absorb"), summed && !colours.dark ? 1 : 0);
+    gl.uniform3f(s.at("u_paper"), ...paper);
     gl.bindVertexArray(segmentVao);
     gl.drawArraysInstanced(gl.TRIANGLE_STRIP, 0, 4, segmentCount);
-    if (!colours.dark) gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+    if (summed) {
+      gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+      gl.disable(gl.BLEND);
+      const c = programs.composite;
+      gl.useProgram(c.handle);
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, target.texture);
+      gl.uniform1i(c.at("u_sum"), 0);
+      gl.uniform1f(c.at("u_dark"), colours.dark ? 1 : 0);
+      gl.uniform3f(c.at("u_paper"), ...paper);
+      gl.bindVertexArray(null);
+      gl.drawArrays(gl.TRIANGLES, 0, 3);
+      gl.enable(gl.BLEND);
+    }
+    // The stars over the threads: dark adds light, light lays ink over a little paper that sets each apart.
+    if (colours.dark) gl.blendFunc(gl.ONE, gl.ONE);
+    else gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
     const p = programs.stars;
     common(p, pose, seconds, reveal);
     gl.uniform1f(p.at("u_star"), STAR_RADIUS * sizeOf(pose));
@@ -499,7 +556,7 @@ export function createConstellation(
   };
   const request = () => {
     if (clock !== null) {
-      draw(motion.start < 0 ? 0 : motion.start + clock * 1000);
+      draw(motion.last || clock * 1000);
       return;
     }
     if (!motion.raf) motion.raf = requestAnimationFrame(loop);
@@ -518,6 +575,7 @@ export function createConstellation(
       measure(w, h, words, caption);
       canvas.width = width;
       canvas.height = height;
+      target.resize(width, height);
       readPaper();
       request();
     },
@@ -670,7 +728,7 @@ function segmentMarks(model: Constellation, pose: Pose, colours: ConstellationCo
     const kind = model.segments[o + 6] ?? 0;
     const z = (a.z + b.z) / 2;
     const k = (a.k + b.k) / 2;
-    const weight = kind === KIND.run ? 0.75 : kind === KIND.fan ? 1.3 : kind === KIND.axis ? 0.7 : 1;
+    const weight = kind === KIND.run ? 0.75 : kind === KIND.fan ? 1.15 : kind === KIND.axis ? 0.7 : 1;
     const core = look.core * size * k * weight;
     const blur = Math.abs(z) * look.blur * size;
     const base =
@@ -686,7 +744,8 @@ function segmentMarks(model: Constellation, pose: Pose, colours: ConstellationCo
     marks.push({
       z,
       draw(context) {
-        context.globalCompositeOperation = colours.dark ? "lighter" : "source-over";
+        // Light adds up without burning out (screen); ink deepens where threads cross (multiply).
+        context.globalCompositeOperation = colours.dark ? "screen" : "multiply";
         context.lineCap = "butt";
         if (colours.dark) {
           context.strokeStyle = css(rgb, alpha * look.haloStrength * 0.9);
@@ -826,6 +885,35 @@ function starArray(gl: WebGL2RenderingContext, handle: WebGLProgram, data: Float
   gl.vertexAttribPointer(meta, 4, gl.FLOAT, false, STAR * 4, 3 * 4);
   gl.bindVertexArray(null);
   return vao;
+}
+
+/** The texture of half floats the threads are added up in, and its framebuffer; not ready where the browser cannot
+ *  draw into half floats (then the threads are drawn directly). */
+function sumTarget(gl: WebGL2RenderingContext) {
+  const floats =
+    gl.getExtension("EXT_color_buffer_float") !== null || gl.getExtension("EXT_color_buffer_half_float") !== null;
+  const texture = gl.createTexture();
+  const framebuffer = gl.createFramebuffer();
+  let complete = false;
+  return {
+    texture,
+    framebuffer,
+    ready: () => complete,
+    resize(width: number, height: number) {
+      if (!floats) return;
+      gl.bindTexture(gl.TEXTURE_2D, texture);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA16F, width, height, 0, gl.RGBA, gl.HALF_FLOAT, null);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+      gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
+      gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, texture, 0);
+      complete = gl.checkFramebufferStatus(gl.FRAMEBUFFER) === gl.FRAMEBUFFER_COMPLETE;
+      gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+      gl.bindTexture(gl.TEXTURE_2D, null);
+    },
+  };
 }
 
 /** A new canvas in the place of one that holds a WebGL context (a canvas holds one kind of context for good). */

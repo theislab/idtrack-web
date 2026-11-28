@@ -231,16 +231,19 @@ export function HeroField({ description }: { description: GraphDescription }) {
   );
   const layout = useLineageLayout(description.organism, narrow ? NARROW_LIMIT : WIDE_LIMIT, eras, lineal);
   const showcase = useShowcase(choice === "constellation" ? description.organism : null);
+  // The showcase's body (the request's state is a new object at every render; its body is not, so the constellation
+  // is laid out, and its renderer made, once per showcase).
+  const shown = showcase.state === "done" ? showcase.answer.data : null;
   const stars = useMemo(
     () =>
-      showcase.state === "done"
-        ? constellationOf(showcase.answer.data, JOURNEYS, {
+      shown
+        ? constellationOf(shown, JOURNEYS, {
             first: description.releases[0] ?? 0,
             last: description.releases[description.releases.length - 1] ?? 0,
             changes: eras,
           })
         : null,
-    [showcase, description, eras],
+    [shown, description, eras],
   );
   const history = useHistory(choice === "rings" ? description.organism : null);
   const rings = useMemo(
@@ -615,14 +618,32 @@ function Caption({
         </span>
       </p>
     );
+  if (stars?.journeys.length === 0)
+    return (
+      <p className="hero2__caption">
+        <span>
+          The axis of time of the <em>{name}</em> graph, <span className="mono">{span}</span>: its showcase holds no
+          answer with a path to draw
+        </span>
+        <span className="hero2__source mono">GET /api/v1/organisms/{description.organism}/showcase</span>
+      </p>
+    );
   if (stars) {
     const fans = stars.journeys.reduce((n, j) => n + j.fans, 0);
     const bridges = stars.journeys.reduce((n, j) => n + j.bridges, 0);
     return (
       <p className="hero2__caption">
         <span>
-          The paths of the <span className="mono">{stars.journeys.length}</span> most convoluted answers of the{" "}
-          <em>{name}</em> showcase about the axis of time,{" "}
+          {stars.journeys.length === 1 ? (
+            <>
+              The path of the only answer of the <em>{name}</em> showcase that has one, about the axis of time,{" "}
+            </>
+          ) : (
+            <>
+              The paths of the <span className="mono">{stars.journeys.length}</span> most convoluted answers of the{" "}
+              <em>{name}</em> showcase about the axis of time,{" "}
+            </>
+          )}
           <span className="mono">{`${stars.first}–${stars.last}`}</span>
         </span>
         <span className="hero2__key">

@@ -386,28 +386,6 @@
     gap: 2px var(--space-3);
   }
 
-  .hero2__key-star {
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background: var(--ink-1);
-    box-shadow: 0 0 0 3px color-mix(in srgb, var(--ink-1) 14%, transparent);
-  }
-
-  .hero2__key-line {
-    width: 16px;
-    height: 0;
-    border-top: 1.5px solid var(--hue-history);
-  }
-
-  .hero2__key-line--event {
-    border-color: var(--hue-event);
-  }
-
-  .hero2__key-line--external {
-    border-color: var(--hue-external);
-  }
-
   .hero2__source {
     margin-left: 0;
   }

@@ -35,7 +35,7 @@ export const KIND = {
 /** A star's role in its journey. */
 export const ROLE = { id: 0, query: 1, answer: 2, external: 3 } as const;
 
-export interface ConstellationJourney {
+interface ConstellationJourney {
   /** The id asked for. */
   identifier: string;
   /** The answer (its best candidates, joined). */
@@ -72,17 +72,17 @@ const sliceOf = (x: number) => Math.min(ENVELOPE - 1, Math.max(0, Math.floor(((x
 
 /** How far a strand winds about the axis from one end of time to the other (radians): the threads are gentle helices,
  *  so that as the whole turns they seem to flow along time. */
-export const TWIST = 1.1;
+const TWIST = 1.1;
 
 /** A strand: its angle about the axis at the middle of time, and its reach (a share of the spindle's radius). */
-export interface Strand {
+interface Strand {
   angle: number;
   reach: number;
 }
 
 /** The spindle's radius at time x: wide in the middle of time, drawn together toward its ends. */
-export function strandRadius(x: number): number {
-  return 0.62 * (0.3 + 0.7 * Math.sqrt(Math.max(0, 1 - x * x)));
+function strandRadius(x: number): number {
+  return 0.72 * (0.3 + 0.7 * Math.sqrt(Math.max(0, 1 - x * x)));
 }
 
 /** The scale of a strand's lanes at time x. */
@@ -91,10 +91,10 @@ function laneScale(x: number): number {
 }
 
 /** A strand's angle about the axis at time x. */
-export const angleAt = (strand: Strand, x: number) => strand.angle + TWIST * x;
+const angleAt = (strand: Strand, x: number) => strand.angle + TWIST * x;
 
 /** A point of a strand at time x, at lane offset (u outward, v along the circle). */
-export function strandPoint(strand: Strand, x: number, u: number, v: number): [number, number, number] {
+function strandPoint(strand: Strand, x: number, u: number, v: number): [number, number, number] {
   const r = strand.reach * strandRadius(x) + laneScale(x) * u;
   const s = laneScale(x) * v;
   const angle = angleAt(strand, x);
@@ -225,7 +225,7 @@ export function constellationOf(showcase: ShowcaseResponse, most: number, span: 
       if (kind === KIND.external) bridges++;
       const xa = xOf(releaseAt(from, s));
       const xb = xOf(releaseAt(to, s));
-      curve(strand, kind === KIND.fan, [xa, from.u, from.v], [xb, to.u, to.v], (a, b, f0, f1) => {
+      curve(strand, [xa, from.u, from.v], [xb, to.u, to.v], (a, b, f0, f1) => {
         push(a, b, kind, j, from.t + (to.t - from.t) * f0, from.t + (to.t - from.t) * f1);
       });
     }
@@ -301,20 +301,17 @@ function releaseAt(p: Place, s: PathStep): number {
 }
 
 /** A step's curve between two lane points (x, u, v), as segments: an S between lanes along time; where both ends
- *  stand at one release (a bridge through another database), an arch outward from the axis; a fan of a split or merge
- *  flares outward.  */
+ *  stand at one release (a bridge through another database), an arch outward from the axis. */
 function curve(
   strand: Strand,
-  fan: boolean,
   a: [number, number, number],
   b: [number, number, number],
   emit: (p: [number, number, number], q: [number, number, number], f0: number, f1: number) => void,
 ) {
   const dx = b[0] - a[0];
   const flat = Math.abs(dx) < 1e-3;
-  // A fan of Ensembl's mapping flares out from the strand and back in, the further the lanes apart the higher.
   const apart = Math.hypot(b[1] - a[1], b[2] - a[2]);
-  const lift = fan ? 0.06 + 0.9 * apart : flat ? 0.05 + 0.2 * apart : 0;
+  const lift = flat ? 0.05 + 0.2 * apart : 0;
   const c1: [number, number, number] = [a[0] + dx / 2, a[1] + lift, a[2]];
   const c2: [number, number, number] = [b[0] - dx / 2, b[1] + lift, b[2]];
   const n = 14;

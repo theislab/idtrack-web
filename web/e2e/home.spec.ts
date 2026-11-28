@@ -13,6 +13,7 @@ import { isCaseKind } from "../src/lib/home/caseKinds";
 import { caseHref, caseQueryOf } from "../src/lib/home/links";
 import { answerText } from "../src/lib/home/journeyModel";
 import { journeyList, journeySets } from "../src/lib/home/journeys";
+import { convolutedAnswers } from "../src/lib/hero/constellationModel";
 import { examplesOf } from "../src/lib/home/examples";
 import { convertUrl, data, expectAccessible, isPhone, shot, waitForResult } from "./helpers";
 
@@ -127,6 +128,50 @@ test("the home's picture menu offers three pictures and keeps the choice", async
   await expect(page.locator(".hero2__field")).toHaveAttribute("data-picture", "rings");
   await page.goto("/method");
   await expect(page.getByRole("button", { name: "Choose the home page picture" })).toHaveCount(0);
+});
+
+test("the convoluted journeys: the showcase's answers about the axis of time, clear of every word", async ({
+  page,
+}, info) => {
+  await page.addInitScript(() => {
+    window.localStorage.setItem("idtrack-hero", "constellation");
+  });
+  await page.goto("/");
+  const field = page.locator(".hero2__field");
+  await expect(field).toHaveAttribute("data-picture", "constellation");
+  await expect(page.locator(".hero2__caption")).toContainText(`GET /api/v1/organisms/${data.organism}/showcase`, {
+    timeout: 30_000,
+  });
+  await expect(field).toHaveAttribute("data-mode", /^(webgl2|canvas2d)$/);
+  // The text alternative names every journey drawn: the showcase's answers whose paths pass the most ids and steps.
+  const answers = convolutedAnswers(await showcaseOf(page, data.organism), 18);
+  const words = (await page.locator(".hero2__caption .visually-hidden").textContent()) ?? "";
+  for (const r of answers) expect(words).toContain(r.query_id);
+  // The picture's own words (the releases at the axis's ends, the id of the journey that faces the viewer) stand inside
+  // the window and clear of the headline, the sentence and the two actions.
+  await page.waitForTimeout(500);
+  const clashes = await page.evaluate(() => {
+    const boxes = [...document.querySelectorAll(".hero2__words > *")].map((w) => {
+      const range = document.createRange();
+      range.selectNodeContents(w);
+      return range.getBoundingClientRect();
+    });
+    const labels = [...document.querySelectorAll<HTMLElement>(".hero2__star-id, .hero2__axis-end")].filter(
+      (l) => getComputedStyle(l).visibility === "visible" && Number(getComputedStyle(l).opacity) > 0,
+    );
+    const out: string[] = [];
+    for (const l of labels) {
+      const r = l.getBoundingClientRect();
+      if (r.left < 0 || r.right > window.innerWidth) out.push(`${l.textContent} past the window`);
+      for (const b of boxes)
+        if (r.left < b.right && r.right > b.left && r.top < b.bottom && r.bottom > b.top)
+          out.push(`${l.textContent} over the words`);
+    }
+    return out;
+  });
+  expect(clashes).toEqual([]);
+  await expectAccessible(page);
+  await shot(page, info, "01-home-constellation");
 });
 
 test("the Convert page: its title, the form, then the journeys of the graph", async ({ page }, info) => {

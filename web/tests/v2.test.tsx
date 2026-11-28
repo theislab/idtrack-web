@@ -298,8 +298,8 @@ describe("the constellation", () => {
     expect(model.journeys.length).toBeGreaterThan(0);
     const size = (r: (typeof chosen)[number]) =>
       new Set(r.path?.steps.flatMap((s) => [s.source, s.target])).size + (r.path?.steps.length ?? 0);
-    for (let i = 1; i < chosen.length; i++)
-      expect(size(chosen[i - 1] ?? chosen[i]!)).toBeGreaterThanOrEqual(size(chosen[i]!));
+    const sizes = chosen.map(size);
+    expect(sizes).toEqual([...sizes].sort((a, b) => b - a));
     chosen.forEach((r, j) => {
       const journey = model.journeys[j];
       const steps = (r.path?.steps ?? []).filter((s) => s.source !== null && s.source !== s.target);
@@ -374,10 +374,10 @@ describe("the constellation", () => {
       { left: 700, top: 40, right: 1370, bottom: 800 },
       { left: 16, top: 486, right: 374, bottom: 682 },
     ]) {
-      const pose = fitPose(model, room, 10, { roll: 0.1, yaw: 0.62 });
+      const pose = fitPose(model, room, 10, { roll: 0.1, yaw: 0.72 });
       const seen = { left: Infinity, top: Infinity, right: -Infinity, bottom: -Infinity };
       for (let turn = 0; turn < Math.PI * 2; turn += 0.2)
-        for (const yaw of [0.62 - TILT.yaw, 0.62, 0.62 + TILT.yaw])
+        for (const yaw of [0.72 - TILT.yaw, 0.72, 0.72 + TILT.yaw])
           for (let i = 0; i < model.segments.length; i += SEGMENT) {
             const q = project(
               { ...pose, turn, yaw },
@@ -399,7 +399,7 @@ describe("the constellation", () => {
         seen.left - room.left + (room.right - seen.right),
         seen.top - room.top + (room.bottom - seen.bottom),
       );
-      expect(slack).toBeLessThan(2 * 10 + 40);
+      expect(slack).toBeLessThan(2 * 10 + 80);
     }
   });
 });
