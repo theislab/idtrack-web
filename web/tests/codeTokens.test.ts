@@ -57,6 +57,7 @@ describe("code read by kind", () => {
       path: "/api/v1/organisms/{organism}/convert",
       parameters: [],
       body: null,
+      answers: [],
     } as unknown as Parameters<typeof exampleRequest>[0];
     const spec = exampleRequest(endpoint, "homo_sapiens", null);
     for (const language of LANGUAGES) expect(language.write("http://x", spec).length).toBeGreaterThan(0);
