@@ -431,7 +431,9 @@ function Tooltip({
   // free room and the note opens below it, scrolled inside itself where it is longer than the window (PageUp and
   // PageDown on the figure scroll it). The element's anchor is the part of it in the window (a long bar's start can be
   // off screen). Never cut by the figure's frame: the note stands over what follows the figure.
-  const [place, setPlace] = useState<{ key: string; top: number; max: number | null } | null>(null);
+  // A note below its element is set by its top; a note above it by its bottom, so that it meets the element whatever
+  // height it is drawn at (its text can settle after it was measured).
+  const [place, setPlace] = useState<{ key: string; top: number; above: boolean; max: number | null } | null>(null);
   useLayoutEffect(() => {
     const element = ref.current;
     const canvas = element?.offsetParent;
@@ -456,18 +458,21 @@ function Tooltip({
     const room = bottom - (y + REACH) - gap;
     const roomOver = y - REACH - gap - mast;
     const anchor = y - origin;
-    let next: { key: string; top: number; max: number | null };
+    let next: { key: string; top: number; above: boolean; max: number | null };
     if (height <= room || room >= roomOver)
-      next = { key: item.key, top: anchor + REACH, max: height <= room ? null : Math.max(120, room) };
+      next = { key: item.key, top: anchor + REACH, above: false, max: height <= room ? null : Math.max(120, room) };
     else
       next = {
         key: item.key,
-        top: anchor - REACH - Math.min(height, roomOver),
+        // The note's bottom edge, from the canvas's bottom.
+        top: canvas.clientHeight - (anchor - REACH),
+        above: true,
         max: height <= roomOver ? null : roomOver,
       };
     // A note shown for another element opens at its start (one element serves every note).
     if (place?.key !== next.key) element.scrollTop = 0;
-    if (place?.key !== next.key || place.top !== next.top || place.max !== next.max) setPlace(next);
+    if (place?.key !== next.key || place.top !== next.top || place.above !== next.above || place.max !== next.max)
+      setPlace(next);
   }, [item, place, mayScroll]);
   // A finger has no keys to name: the hint says what a tap does.
   const coarse = useMemo(() => {
@@ -486,7 +491,8 @@ function Tooltip({
       ref={ref}
       style={{
         left,
-        top: place?.key === item.key ? place.top : item.y + REACH,
+        ...(place?.key === item.key && place.above ? { bottom: place.top } : {}),
+        top: place?.key === item.key ? (place.above ? "auto" : place.top) : item.y + REACH,
         maxHeight: place?.key === item.key && place.max !== null ? place.max : undefined,
       }}
       {...pointer}
@@ -811,6 +817,14 @@ function ZoomButtons({ onOut, onIn, out, into }: { onOut: () => void; onIn: () =
       </button>
     </div>
   );
+}
+
+/** Where a drawing's reveal starts on its time axis: at the release read, with the identifier and the forms it is read
+ *  through (a staircase before that release) shown from the start, so that the first marks are whole at once. A walk
+ *  forward reveals toward later releases, which leaves the staircase behind it; a walk back starts past it. */
+function revealStart(read: number, staircase: number, model: PathModel, lo: number, hi: number): number {
+  const back = model.result.to_release < (model.result.from_release ?? model.result.to_release);
+  return Math.min(Math.max(back ? read - staircase : read, lo), hi);
 }
 
 /** The clip that reveals a drawing once along its time axis, from the release read (`at`, on the time axis) outward in
@@ -1248,7 +1262,13 @@ function HorizontalPath({
             {!revealed ? (
               <RevealClip
                 id={revealId}
-                at={Math.min(Math.max(scale(model.result.from_release ?? model.result.to_release), left), width)}
+                at={revealStart(
+                  scale(model.result.from_release ?? model.result.to_release),
+                  upperRoom,
+                  model,
+                  left,
+                  width,
+                )}
                 extent={width}
                 across={height}
                 back={model.result.to_release < (model.result.from_release ?? model.result.to_release)}
@@ -1834,7 +1854,13 @@ function VerticalPath({
             <defs>
               <RevealClip
                 id={revealId}
-                at={Math.min(Math.max(scale(model.result.from_release ?? model.result.to_release), 0), totalHeight)}
+                at={revealStart(
+                  scale(model.result.from_release ?? model.result.to_release),
+                  (Math.min(4, drawnUpper(model, limit)) + 1) * metrics.indent,
+                  model,
+                  0,
+                  totalHeight,
+                )}
                 extent={totalHeight}
                 across={drawWidth}
                 back={!forward}
