@@ -11,10 +11,14 @@ import { notHeldScheme } from "../src/lib/noTarget";
 import { shortScore, stepWords } from "../src/lib/resultWords";
 import { readVocabulary } from "../src/lib/vocabulary";
 import { VocabularyContext } from "../src/lib/vocabularyContext";
+import { openTab, resetAddress } from "./disclose";
 import { description, fixture, vocabularyResponse } from "./fixtures";
 
 const vocabulary = readVocabulary(vocabularyResponse());
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  resetAddress();
+});
 
 function show(organism: string, name: string) {
   const recorded = fixture(organism, name);
@@ -54,6 +58,7 @@ describe("a tie", () => {
   it("of candidates of different entry genes is equal in the criteria of lineage only, its differing scores shown", () => {
     const result = show("homo_sapiens", "convert_tie_entry_genes");
     expect(new Set(result.candidates.map((c) => c.entry_gene)).size).toBe(2);
+    openTab(/^Decision/);
     const text = document.querySelector(".decision-none")?.textContent ?? "";
     expect(text).toContain("equal in the 6 criteria of lineage");
     expect(text).toContain("descend from 2 different entry genes");

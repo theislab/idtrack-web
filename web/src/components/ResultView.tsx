@@ -264,9 +264,9 @@ export const ResultView = memo(function ResultView({
                   }
                 >
                   No step of Ensembl&apos;s history: every step holds at this release, so the drawing shows the
-                  databases crossed, not a time axis: the identifier, each database or form it is read through (an
-                  open square, an open circle), the gene it is read as (a bar) and the answer&apos;s id in the database
-                  asked (a filled square).
+                  databases crossed, not a time axis: the identifier, each database or form it is read through (an open
+                  square, an open circle), the gene it is read as (a bar) and the answer&apos;s id in the database asked
+                  (a filled square).
                   <span className="fig-caption__how">
                     Every id opens a menu of where to go from it; “In words” says every step.
                   </span>

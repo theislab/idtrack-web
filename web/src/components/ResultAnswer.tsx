@@ -477,8 +477,8 @@ function AnswerTargets({
       ))}
       {moreGenes > 0 ? (
         <p className="answer__list-more muted">
-          and {groupedInteger(moreGenes)} more gene{moreGenes === 1 ? "" : "s"}: every one is listed on the
-          Decision tab.
+          and {groupedInteger(moreGenes)} more gene{moreGenes === 1 ? "" : "s"}: every one is listed on the Decision
+          tab.
         </p>
       ) : null}
     </div>

@@ -379,37 +379,40 @@ test("every page's lede starts at one x, beside its title", async ({ page }, inf
   expect([...starts]).toHaveLength(1);
 });
 
-test("the masthead names the organism whole, and every link (Docs too) is in the row from 352 px", async ({
+test("the masthead names the organism whole in its chip, and every section (Docs too) is in the row from 861 px", async ({
   page,
 }, info) => {
   test.skip(!info.project.name.startsWith("desktop-light"), "the widths are set here");
   const organisms = (
     (await (await page.request.get("/api/v1/organisms")).json()) as { organisms: { organism: string }[] }
   ).organisms.map((o) => o.organism);
-  for (const width of [360, 390, 640, 1080, 1280, 1366, 1440, 1920]) {
+  for (const width of [360, 390, 640, 861, 1080, 1280, 1366, 1440, 1920]) {
     await page.setViewportSize({ width, height: 800 });
     for (const organism of organisms) {
       await page.goto(`/batch?organism=${organism}`);
-      await expect(page.locator(".organism-picker select")).toBeVisible();
+      await expect(page.locator(".org-chip__button")).toBeVisible();
       await page.evaluate(async () => {
         await document.fonts.ready;
       });
       const m = await page.evaluate(() => {
-        const box = document.querySelector(".organism-picker__box");
-        const shown = document.querySelector<HTMLElement>(".organism-picker__shown");
-        const name = document.querySelector(".organism-picker__name[data-current]");
-        const nav = document.querySelector<HTMLElement>(".nav");
-        const docs = [...document.querySelectorAll(".nav__link")].pop()?.getBoundingClientRect();
+        const chip = document.querySelector<HTMLElement>(".org-chip__button");
+        const name = document.querySelector<HTMLElement>(".org-chip__name");
+        const nav = document.querySelector<HTMLElement>(".mast__nav");
+        const docs = [...document.querySelectorAll(".mast__nav .mast__link")].pop()?.getBoundingClientRect();
         const row = nav?.getBoundingClientRect();
         return {
-          fits: Boolean(box && shown && shown.scrollWidth <= (box as HTMLElement).clientWidth + 0.5),
+          fits: Boolean(chip && name && name.scrollWidth <= name.clientWidth + 0.5),
           name: name?.textContent ?? "",
+          nav: nav ? getComputedStyle(nav).display !== "none" : false,
           docs: Boolean(docs && row && docs.left >= row.left - 0.5 && docs.right <= row.right + 0.5),
         };
       });
-      expect(m.fits, `${organism} at ${width} px: the name stands whole in its box`).toBe(true);
-      expect(m.name.length, `${organism} at ${width} px`).toBeGreaterThan(3);
-      expect(m.docs, `${organism} at ${width} px: Docs in the row`).toBe(true);
+      expect(m.fits, `${organism} at ${width} px: the name stands whole in its chip`).toBe(true);
+      expect(m.name.length, `${organism} at ${width} px`).toBeGreaterThan(2);
+      if (width >= 861) {
+        expect(m.nav, `${width} px: the sections in the row`).toBe(true);
+        expect(m.docs, `${organism} at ${width} px: Docs in the row`).toBe(true);
+      } else expect(m.nav, `${width} px: the sections in the menu`).toBe(false);
     }
   }
 });

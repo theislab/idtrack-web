@@ -244,13 +244,14 @@ FRAMES = {
         "html": f"<header>masthead</header><main><h1>{name}</h1></main>",
         "head": f'<link rel="modulepreload" href="/assets/{name}.js">',
     }
-    for name in ("convert", "answer", "batch", "names", "organisms", "organism", "developers", "method", "none")
+    for name in ("home", "convert", "answer", "batch", "names", "organisms", "organism", "developers", "method", "none")
 }
 
 
 @pytest.mark.parametrize(
     ("path", "frame", "status"),
-    [("/", "convert", 200), ("/?organism=pig&id=TP53", "answer", 200), ("/batch", "batch", 200),
+    [("/", "home", 200), ("/?organism=pig&id=TP53", "home", 200), ("/convert", "convert", 200),
+     ("/convert?organism=pig&id=TP53", "answer", 200), ("/batch", "batch", 200),
      ("/batch/", "batch", 200), ("/names", "names", 200), ("/organisms", "organisms", 200),
      ("/organisms/pig", "organism", 200), ("/developers", "developers", 200), ("/method", "method", 200),
      ("/nothing", "none", 404), ("/organisms/pig/extra", "none", 404)],

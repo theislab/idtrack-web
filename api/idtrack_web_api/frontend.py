@@ -72,7 +72,8 @@ _ROOT = b'<div id="root"></div>'
 #: The frame of each page's path (``web/src/lib/routes.ts``; the Convert page's is "answer" when the address holds an
 #: identifier); any other path gets the frame "none" (the masthead alone).
 _FRAME_OF_PATH = {
-    "": "convert",
+    "": "home",
+    "convert": "convert",
     "batch": "batch",
     "names": "names",
     "organisms": "organisms",

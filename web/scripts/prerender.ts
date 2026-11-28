@@ -83,14 +83,16 @@ try {
   const out: Record<string, { html: string; head: string }> = {};
   for (const [name, frame] of Object.entries(frames.FRAMES)) {
     at(frame.address);
-    // The masthead's tools (the organism, the load, the theme) answer only once the app has replaced the frame: until
-    // then they are inert, so a press never lands on a control that cannot answer it (the links work as links).
-    const html = frames
-      .frameHtml(frame)
-      .replace('<div class="masthead__tools">', '<div class="masthead__tools" inert="">');
-    if (!html.includes('class="masthead__tools" inert=""')) throw new Error(`The frame ${name} has no masthead tools.`);
-    // The theme chosen is the visitor's (kept in their browser), unknown here: the frame marks none of the three.
-    const frameHtml = html.replaceAll('aria-checked="true"', 'aria-checked="false"');
+    // The masthead's tools (the organism, the load, the search, the picture, the theme) answer only once the app has
+    // replaced the frame: until then they are inert, so a press never lands on a control that cannot answer it (the
+    // links work as links).
+    const html = frames.frameHtml(frame).replace('<div class="mast__tools">', '<div class="mast__tools" inert="">');
+    if (!html.includes('class="mast__tools" inert=""')) throw new Error(`The frame ${name} has no masthead tools.`);
+    // The theme chosen is the visitor's (kept in their browser), unknown here: the frame's theme button says none.
+    const frameHtml = html.replace(
+      /(<button type="button" class="theme-button") aria-label="[^"]*" title="[^"]*"/,
+      "$1",
+    );
     // The page's security policy allows no inline style or script: a frame that held one would be refused by the
     // browser (and said so in its console).
     if (/\sstyle="|<script/i.test(html)) throw new Error(`The frame ${name} holds an inline style or script.`);

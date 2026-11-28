@@ -6,11 +6,12 @@
 // is what the app's first frame shows, and a frame that differed would be replaced, never shifted.
 import type { ReactNode } from "react";
 import { renderToString } from "react-dom/server";
-import { Header } from "./App";
+import { ConvertSections, Masthead } from "./components/shell/Masthead";
 import { OrganismsProvider } from "./lib/organisms";
 import { ApiHead } from "./pages/ApiPage";
 import { BatchHead } from "./pages/BatchPage";
 import { ConvertPage } from "./pages/ConvertPage";
+import { HomePage } from "./pages/HomePage";
 import { MethodHead } from "./pages/MethodPage";
 import { NamesHead } from "./pages/NamesPage";
 import { ExploreHead } from "./pages/OrganismPage";
@@ -19,15 +20,16 @@ export interface Frame {
   /** The address the frame is drawn at (its path decides the masthead's current link). */
   address: string;
   /** The page's module whose code (and the code it imports) the page sent for this frame preloads; none for the
-   *  Convert page, whose code is the entry's. */
+   *  home and the Convert page, whose code is the entry's. */
   module: string | null;
   body: () => ReactNode;
 }
 
 /** The frames by name; the server picks one by the address it answers (api/idtrack_web_api/frontend.py). */
 export const FRAMES: Record<string, Frame> = {
-  convert: { address: "/", module: null, body: () => <ConvertPage /> },
-  answer: { address: "/?id=_", module: "src/components/ResultView.tsx", body: () => <ConvertPage /> },
+  home: { address: "/", module: null, body: () => <HomePage /> },
+  convert: { address: "/convert", module: null, body: () => <ConvertPage /> },
+  answer: { address: "/convert?id=_", module: "src/components/ResultView.tsx", body: () => <ConvertPage /> },
   batch: {
     address: "/batch",
     module: "src/pages/BatchPage.tsx",
@@ -85,8 +87,9 @@ export const FRAMES: Record<string, Frame> = {
 export function frameHtml(frame: Frame): string {
   return renderToString(
     <OrganismsProvider>
-      <Header />
+      <Masthead />
       <main id="main" tabIndex={-1}>
+        <ConvertSections />
         {frame.body()}
       </main>
     </OrganismsProvider>,

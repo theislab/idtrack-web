@@ -22,7 +22,7 @@ export function Consent() {
     <section className="consent" aria-label="Counting visits">
       <p className="consent__text">
         May IDTrack count this visit? With your consent, Google Analytics counts the pages seen (their paths, never what
-        you convert) so that we learn how the site is used.
+        you convert) so that we learn how the site is used: <a href="/privacy#statistics">what is measured</a>.
       </p>
       <div className="consent__actions">
         <Button
