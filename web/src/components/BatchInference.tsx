@@ -220,7 +220,7 @@ function inferredOf(inference: ReleaseInference, requestId: string | null): Infe
 }
 
 /** A list of at least this many distinct identifiers converted without a release is also asked where it comes from. */
-export const DATED_FROM = 10;
+const DATED_FROM = 10;
 
 /** Under the answer of a list converted without a release: one quiet line of what IDTrack's source inference of the
  *  list gives, and, where the list dates itself, a press that reads it at the best release. */

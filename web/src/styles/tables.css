@@ -305,6 +305,7 @@
 .batch-form[hidden] {
   display: none;
 }
+
 /* Once a list is converted, the form is this one line; a press opens it. */
 .batch-folded {
   display: flex;
@@ -434,6 +435,7 @@
 }
 
 .batch-tabs {
+  position: relative;
   scroll-margin-top: calc(var(--masthead-height) + var(--space-4));
 }
 
@@ -507,6 +509,7 @@
    bar's width, a share of a few at least --sbar-min wide; nothing drawn past the bar's edge. */
 .sbar {
   --sbar-min: 3px;
+
   display: grid;
   gap: 2px;
   height: 10px;
@@ -675,19 +678,15 @@
 }
 
 /* The results table: its tools, then the table, which scrolls with the page under its sticky head where it fits.
-   The tools of the table, folded behind one line where the rows should come first (a short table, a phone). */
-/* The filters and the sort, opened by their toggle on the tab row: above the rows, between two hairlines. */
+   The filters and the sort, opened by their toggle on the tab row: above the rows, over a hairline. */
 .batch-tools {
   margin-top: var(--space-3);
   border-bottom: 1px solid var(--line);
 }
 
 /* The tables' controls stand on the tab row, at its right (from 1101 px, where both fit the row; on a narrower screen
-   on a line of their own before it): the database beside each gene, and the toggle of the filters and the sort. */
-.batch-tabs {
-  position: relative;
-}
-
+   on a line of their own before it): the database beside each gene, and the toggle of the filters and the sort. The
+   tabs' block is their frame (position: relative, above). */
 .batch-table-tools {
   display: flex;
   flex-wrap: wrap;
@@ -1099,6 +1098,7 @@ th[aria-sort] .sort__mark {
    field's foot, at the height of the Convert page's field and button. */
 .names-form {
   --names-control-h: 52px;
+
   display: grid;
   grid-template-columns: minmax(220px, 1fr) 9.5em auto auto;
   align-items: end;
