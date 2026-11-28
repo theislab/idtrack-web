@@ -696,8 +696,9 @@
   background: var(--ink-1);
 }
 
+/* Not needed: the words stay legible (the quiet ink); the faintness is the dot's. */
 .read-fig__step--unneeded {
-  color: color-mix(in srgb, var(--ink-3) 70%, transparent);
+  color: var(--ink-3);
 }
 
 .read-fig__step--unneeded .read-fig__mark {

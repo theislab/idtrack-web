@@ -42,7 +42,7 @@ export function ReadFigure({ result }: { result: ConversionResult }) {
         <HoverCard
           className="read-fig__about"
           triggerClassName="read-fig__about-button"
-          label="What each step of a match compares"
+          label="Steps of a match: what each compares"
           trigger={
             <>
               <span className="read-fig__label">Steps of a match</span>
