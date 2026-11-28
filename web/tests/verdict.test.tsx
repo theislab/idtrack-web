@@ -143,7 +143,10 @@ describe("the cautions and notes of the verdict", () => {
     }
     const why = bridge?.querySelector<HTMLButtonElement>(".answer__caution-why");
     if (why) fireEvent.click(why);
-    expect(bridge?.textContent).toContain("Answers that only a bridge reaches");
+    // The card is drawn over the page, named by its trigger.
+    const card = document.getElementById(why?.getAttribute("aria-controls") ?? "");
+    expect(card?.getAttribute("aria-label")).toBe(why?.getAttribute("aria-label"));
+    expect(card?.textContent).toContain("Answers that only a bridge reaches");
   });
 
   it("says 'no caution' as a link to the limitations, and counts the notes with the first named", () => {
